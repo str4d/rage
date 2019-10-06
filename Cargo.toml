@@ -1,7 +1,13 @@
 [package]
 name = "age"
+description = "[ALPHA STATE] A simple, secure, and modern encryption tool."
 version = "0.0.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
+readme = "README.md"
+license = "MIT OR Apache-2.0"
 edition = "2018"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [dependencies]
