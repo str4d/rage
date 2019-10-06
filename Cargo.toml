@@ -11,3 +11,4 @@ edition = "2018"
 maintenance = { status = "experimental" }
 
 [dependencies]
+gumdrop = "0.6"
