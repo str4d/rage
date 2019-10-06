@@ -1,5 +1,6 @@
 use gumdrop::Options;
 
+mod format;
 mod keys;
 
 fn generate_new_key() {

@@ -13,6 +13,8 @@ maintenance = { status = "experimental" }
 [dependencies]
 base64 = "0.10"
 chrono = "0.4"
+cookie-factory = "0.3"
 getrandom = "0.1"
 gumdrop = "0.6"
+nom = "5"
 x25519-dalek = "0.5"
