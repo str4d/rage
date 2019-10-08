@@ -3,7 +3,10 @@ name = "age"
 description = "[ALPHA STATE] A simple, secure, and modern encryption tool."
 version = "0.0.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
+repository = "https://github.com/str4d/rage"
 readme = "README.md"
+keywords = ["rage", "cli", "encryption"]
+categories = ["command-line-utilities", "cryptography"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
 
