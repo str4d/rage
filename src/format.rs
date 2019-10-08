@@ -5,7 +5,7 @@ use std::io::{self, Read, Write};
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
 use crate::{
-    keys::{PublicKey, SecretKey},
+    keys::{RecipientKey, SecretKey},
     primitives::{aead_decrypt, aead_encrypt, hkdf, HmacWriter, Stream},
 };
 
@@ -36,9 +36,9 @@ enum Recipient {
 }
 
 impl Recipient {
-    fn encrypt(file_key: &[u8; 16], pubkey: &PublicKey) -> Self {
+    fn encrypt(file_key: &[u8; 16], pubkey: &RecipientKey) -> Self {
         match pubkey {
-            PublicKey::X25519(pk) => {
+            RecipientKey::X25519(pk) => {
                 let mut esk = [0; 32];
                 getrandom(&mut esk).expect("Should not fail");
                 let epk = x25519(esk, X25519_BASEPOINT_BYTES);
@@ -90,11 +90,14 @@ pub struct Header {
 /// Creates a wrapper around a writer that will encrypt its input to the given recipients.
 ///
 /// Returns errors from the underlying writer while writing the header.
-pub fn encrypt_message<W: Write>(mut output: W, pubkeys: &[PublicKey]) -> io::Result<impl Write> {
+pub fn encrypt_message<W: Write>(
+    mut output: W,
+    recipients: &[RecipientKey],
+) -> io::Result<impl Write> {
     let mut file_key = [0; 16];
     getrandom(&mut file_key).expect("Should not fail");
 
-    let recipients = pubkeys
+    let recipients = recipients
         .iter()
         .map(|pk| Recipient::encrypt(&file_key, pk))
         .collect();

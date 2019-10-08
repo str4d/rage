@@ -44,18 +44,18 @@ impl SecretKey {
         }
     }
 
-    pub fn to_public(&self) -> PublicKey {
+    pub fn to_public(&self) -> RecipientKey {
         match self {
-            SecretKey::X25519(sk) => PublicKey::X25519(x25519(*sk, X25519_BASEPOINT_BYTES)),
+            SecretKey::X25519(sk) => RecipientKey::X25519(x25519(*sk, X25519_BASEPOINT_BYTES)),
         }
     }
 }
 
-pub enum PublicKey {
+pub enum RecipientKey {
     X25519([u8; 32]),
 }
 
-impl PublicKey {
+impl RecipientKey {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.find(PUBLIC_KEY_PREFIX) {
             Some(0) => (),
@@ -68,7 +68,7 @@ impl PublicKey {
                 if buf.len() == 32 {
                     let mut pk = [0; 32];
                     pk.copy_from_slice(&buf);
-                    Some(PublicKey::X25519(pk))
+                    Some(RecipientKey::X25519(pk))
                 } else {
                     println!("Invalid decoded length");
                     None
@@ -78,7 +78,7 @@ impl PublicKey {
 
     pub fn to_str(&self) -> String {
         match self {
-            PublicKey::X25519(pk) => format!(
+            RecipientKey::X25519(pk) => format!(
                 "{}{}",
                 PUBLIC_KEY_PREFIX,
                 base64::encode_config(&pk, base64::URL_SAFE_NO_PAD)
@@ -89,7 +89,7 @@ impl PublicKey {
 
 #[cfg(test)]
 mod tests {
-    use super::{PublicKey, SecretKey};
+    use super::{RecipientKey, SecretKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_RQvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
     const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn pubkey_encoding() {
-        assert_eq!(PublicKey::from_str(TEST_PK).unwrap().to_str(), TEST_PK);
+        assert_eq!(RecipientKey::from_str(TEST_PK).unwrap().to_str(), TEST_PK);
     }
 
     #[test]

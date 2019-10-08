@@ -6,9 +6,9 @@ mod format;
 mod keys;
 mod primitives;
 
-/// Reads a pubkey from a command-line argument.
-fn read_pubkey(arg: String) -> io::Result<keys::PublicKey> {
-    if let Some(pk) = keys::PublicKey::from_str(&arg) {
+/// Reads a recipient from a command-line argument.
+fn read_recipient(arg: String) -> io::Result<keys::RecipientKey> {
+    if let Some(pk) = keys::RecipientKey::from_str(&arg) {
         Ok(pk)
     } else {
         Err(io::Error::new(
@@ -18,8 +18,8 @@ fn read_pubkey(arg: String) -> io::Result<keys::PublicKey> {
     }
 }
 
-/// Reads pubkeys from the provided arguments.
-fn read_pubkeys(arguments: Vec<String>) -> io::Result<Vec<keys::PublicKey>> {
+/// Reads recipients from the provided arguments.
+fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<keys::RecipientKey>> {
     if arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -29,7 +29,7 @@ fn read_pubkeys(arguments: Vec<String>) -> io::Result<Vec<keys::PublicKey>> {
 
     arguments
         .into_iter()
-        .map(read_pubkey)
+        .map(read_recipient)
         .collect::<Result<_, _>>()
 }
 
@@ -128,8 +128,8 @@ struct AgeOptions {
 }
 
 fn encrypt(opts: AgeOptions) {
-    let pubkeys = match read_pubkeys(opts.arguments) {
-        Ok(pubkeys) => pubkeys,
+    let recipients = match read_recipients(opts.arguments) {
+        Ok(recipients) => recipients,
         Err(e) => {
             eprintln!("Error while reading recipients: {}", e);
             return;
@@ -145,7 +145,7 @@ fn encrypt(opts: AgeOptions) {
     };
 
     let mut encrypted = vec![];
-    match format::encrypt_message(&mut encrypted, &pubkeys) {
+    match format::encrypt_message(&mut encrypted, &recipients) {
         Ok(mut w) => {
             if let Err(e) = w.write_all(&plaintext) {
                 eprintln!("Error while encrypting: {}", e);
