@@ -1,8 +1,10 @@
 # rage: Rust implementation of age
 
 age is meant to be a simple, secure and modern encryption tool with small
-explicit keys, no config options, and UNIX-style composability. The spec is at
-https://age-tool.com.
+explicit keys, no config options, and UNIX-style composability.
+
+- The spec is at https://age-tool.com.
+- The reference implementation is https://github.com/FiloSottile/age.
 
 This implementation is in progress, and things will keep moving around in the
 near future, so it's not yet a good time to contribute, and it's definitely not
