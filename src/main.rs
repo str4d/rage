@@ -2,6 +2,7 @@ use gumdrop::Options;
 use std::fs::File;
 use std::io::{self, Read, Write};
 
+mod file_io;
 mod format;
 mod keys;
 mod primitives;
@@ -78,34 +79,6 @@ fn read_passphrase() -> io::Result<String> {
     Ok(passphrase)
 }
 
-/// Reads input from the given filename, or standard input if `None`.
-fn read_input(input: Option<String>) -> io::Result<Vec<u8>> {
-    let mut buf = vec![];
-
-    if let Some(filename) = input {
-        let mut f = File::open(filename)?;
-        f.read_to_end(&mut buf)?;
-    } else {
-        let stdin = io::stdin();
-        let mut handle = stdin.lock();
-        handle.read_to_end(&mut buf)?;
-    };
-
-    Ok(buf)
-}
-
-/// Writes output to the given filename, or standard output if `None`.
-fn write_output(data: &[u8], output: Option<String>) -> io::Result<()> {
-    if let Some(filename) = output {
-        let mut f = File::create(filename)?;
-        f.write_all(&data)
-    } else {
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-        handle.write_all(&data)
-    }
-}
-
 fn generate_new_key() {
     let sk = keys::SecretKey::new();
 
@@ -162,18 +135,25 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    let plaintext = match read_input(opts.input) {
-        Ok(data) => data,
+    let mut input = match file_io::InputReader::new(opts.input) {
+        Ok(input) => input,
         Err(e) => {
-            eprintln!("Error while reading input: {}", e);
+            eprintln!("Failed to open input: {}", e);
             return;
         }
     };
 
-    let mut encrypted = vec![];
-    match format::encrypt_message(&mut encrypted, &recipients) {
+    let output = match file_io::OutputWriter::new(opts.output) {
+        Ok(output) => output,
+        Err(e) => {
+            eprintln!("Failed to open output: {}", e);
+            return;
+        }
+    };
+
+    match format::encrypt_message(output, &recipients) {
         Ok(mut w) => {
-            if let Err(e) = w.write_all(&plaintext) {
+            if let Err(e) = io::copy(&mut input, &mut w) {
                 eprintln!("Error while encrypting: {}", e);
                 return;
             }
@@ -184,12 +164,7 @@ fn encrypt(opts: AgeOptions) {
         }
         Err(e) => {
             eprintln!("Failed to encrypt: {}", e);
-            return;
         }
-    }
-
-    if let Err(e) = write_output(&encrypted, opts.output) {
-        eprintln!("Error while writing output: {}", e);
     }
 }
 
@@ -214,23 +189,28 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let input = match read_input(opts.input) {
-        Ok(data) => data,
+    let input = match file_io::InputReader::new(opts.input) {
+        Ok(input) => input,
         Err(e) => {
-            eprintln!("Error while reading input: {}", e);
+            eprintln!("Failed to open input: {}", e);
             return;
         }
     };
 
-    let maybe_decrypted = format::decrypt_message(&input[..], &keys);
+    let mut output = match file_io::OutputWriter::new(opts.output) {
+        Ok(output) => output,
+        Err(e) => {
+            eprintln!("Failed to open output: {}", e);
+            return;
+        }
+    };
+
+    let maybe_decrypted = format::decrypt_message(input, &keys);
 
     match maybe_decrypted {
         Ok(mut r) => {
-            let mut plaintext = vec![];
-            if let Err(e) = r.read_to_end(&mut plaintext) {
+            if let Err(e) = io::copy(&mut r, &mut output) {
                 eprintln!("Error while decrypting: {}", e);
-            } else if let Err(e) = write_output(&plaintext, opts.output) {
-                eprintln!("Error while writing output: {}", e);
             }
         }
         Err(e) => eprintln!("Failed to decrypt: {}", e),
