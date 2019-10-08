@@ -6,6 +6,7 @@ const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 
 pub enum SecretKey {
     X25519([u8; 32]),
+    Scrypt(String),
 }
 
 impl SecretKey {
@@ -41,18 +42,21 @@ impl SecretKey {
                 SECRET_KEY_PREFIX,
                 base64::encode_config(&sk, base64::URL_SAFE_NO_PAD)
             ),
+            SecretKey::Scrypt(_) => panic!("Do not use this API for scrypt passphrases"),
         }
     }
 
     pub fn to_public(&self) -> RecipientKey {
         match self {
             SecretKey::X25519(sk) => RecipientKey::X25519(x25519(*sk, X25519_BASEPOINT_BYTES)),
+            SecretKey::Scrypt(_) => panic!("Do not use this API for scrypt passphrases"),
         }
     }
 }
 
 pub enum RecipientKey {
     X25519([u8; 32]),
+    Scrypt(String),
 }
 
 impl RecipientKey {
@@ -83,6 +87,7 @@ impl RecipientKey {
                 PUBLIC_KEY_PREFIX,
                 base64::encode_config(&pk, base64::URL_SAFE_NO_PAD)
             ),
+            RecipientKey::Scrypt(_) => panic!("Do not use this API for scrypt passphrases"),
         }
     }
 }

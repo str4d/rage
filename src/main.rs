@@ -67,6 +67,17 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<keys::SecretKey>> {
     Ok(keys)
 }
 
+fn read_passphrase() -> io::Result<String> {
+    // TODO: Require a TTY
+    eprint!("Type passphrase: ");
+
+    // TODO: Hide passphrase in TTY
+    let mut passphrase = String::new();
+    io::stdin().read_line(&mut passphrase)?;
+
+    Ok(passphrase)
+}
+
 /// Reads input from the given filename, or standard input if `None`.
 fn read_input(input: Option<String>) -> io::Result<Vec<u8>> {
     let mut buf = vec![];
@@ -125,14 +136,29 @@ struct AgeOptions {
 
     #[options(help = "output file")]
     output: Option<String>,
+
+    #[options(help = "use a passphrase instead of public keys")]
+    passphrase: bool,
 }
 
 fn encrypt(opts: AgeOptions) {
-    let recipients = match read_recipients(opts.arguments) {
-        Ok(recipients) => recipients,
-        Err(e) => {
-            eprintln!("Error while reading recipients: {}", e);
+    let recipients = if opts.passphrase {
+        if !opts.arguments.is_empty() {
+            eprintln!("Positional arguments are not accepted when using a passphrase");
             return;
+        }
+
+        match read_passphrase() {
+            Ok(passphrase) => vec![keys::RecipientKey::Scrypt(passphrase)],
+            Err(_) => return,
+        }
+    } else {
+        match read_recipients(opts.arguments) {
+            Ok(recipients) => recipients,
+            Err(e) => {
+                eprintln!("Error while reading recipients: {}", e);
+                return;
+            }
         }
     };
 
@@ -168,11 +194,23 @@ fn encrypt(opts: AgeOptions) {
 }
 
 fn decrypt(opts: AgeOptions) {
-    let keys = match read_keys(opts.arguments) {
-        Ok(keys) => keys,
-        Err(e) => {
-            eprintln!("Error while reading keys: {}", e);
+    let keys = if opts.passphrase {
+        if !opts.arguments.is_empty() {
+            eprintln!("Positional arguments are not accepted when using a passphrase");
             return;
+        }
+
+        match read_passphrase() {
+            Ok(passphrase) => vec![keys::SecretKey::Scrypt(passphrase)],
+            Err(_) => return,
+        }
+    } else {
+        match read_keys(opts.arguments) {
+            Ok(keys) => keys,
+            Err(e) => {
+                eprintln!("Error while reading keys: {}", e);
+                return;
+            }
         }
     };
 

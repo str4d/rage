@@ -6,7 +6,7 @@ use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
 use crate::{
     keys::{RecipientKey, SecretKey},
-    primitives::{aead_decrypt, aead_encrypt, hkdf, HmacWriter, Stream},
+    primitives::{aead_decrypt, aead_encrypt, hkdf, scrypt, HmacWriter, Stream},
 };
 
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
@@ -56,6 +56,22 @@ impl Recipient {
                     encrypted_file_key,
                 })
             }
+            RecipientKey::Scrypt(passphrase) => {
+                let mut salt = [0; 16];
+                getrandom(&mut salt).expect("Should not fail");
+
+                // Roughly 1 second on a modern machine
+                let n = 1 << 18;
+
+                let enc_key = scrypt(&salt, n, passphrase).unwrap();
+                let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
+
+                Recipient::Scrypt(ScryptRecipient {
+                    salt,
+                    n,
+                    encrypted_file_key,
+                })
+            }
         }
     }
 
@@ -71,6 +87,21 @@ impl Recipient {
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
                 aead_decrypt(&enc_key, &r.encrypted_file_key).map(|pt| {
+                    // It's ours!
+                    let mut file_key = [0; 16];
+                    file_key.copy_from_slice(&pt);
+                    file_key
+                })
+            }
+            (Recipient::Scrypt(s), SecretKey::Scrypt(passphrase)) => {
+                // Place bounds on the work factor we will accept
+                // (roughly 15 seconds on a modern machine).
+                if s.n > (1 << 22) {
+                    return None;
+                }
+
+                let enc_key = scrypt(&s.salt, s.n, passphrase).unwrap();
+                aead_decrypt(&enc_key, &s.encrypted_file_key).map(|pt| {
                     // It's ours!
                     let mut file_key = [0; 16];
                     file_key.copy_from_slice(&pt);
@@ -94,6 +125,17 @@ pub fn encrypt_message<W: Write>(
     mut output: W,
     recipients: &[RecipientKey],
 ) -> io::Result<impl Write> {
+    if recipients.iter().any(|pk| match pk {
+        RecipientKey::Scrypt(_) => true,
+        _ => false,
+    }) && recipients.len() > 1
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "an scrypt recipient must be the only one",
+        ));
+    }
+
     let mut file_key = [0; 16];
     getrandom(&mut file_key).expect("Should not fail");
 
