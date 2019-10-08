@@ -11,10 +11,17 @@ edition = "2018"
 maintenance = { status = "experimental" }
 
 [dependencies]
+aead = "0.1"
 base64 = "0.10"
+chacha20poly1305 = "0.1"
 chrono = "0.4"
 cookie-factory = "0.3"
+generic-array = "0.12"
 getrandom = "0.1"
 gumdrop = "0.6"
+hkdf = "0.8"
+hmac = "0.7"
 nom = "5"
+scrypt = { version = "0.2", default-features = false }
+sha2 = "0.8"
 x25519-dalek = "0.5"

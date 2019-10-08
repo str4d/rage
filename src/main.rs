@@ -4,6 +4,7 @@ use std::io::{self, Read, Write};
 
 mod format;
 mod keys;
+mod primitives;
 
 /// Reads keys from the provided files if given, or the default system locations
 /// if no files are given.
