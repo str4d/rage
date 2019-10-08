@@ -142,11 +142,17 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    // TODO: Real decryption!
-    let plaintext = &b"TODO: Real decryption!\n"[..];
+    let maybe_decrypted = keys.iter().find_map(|key| message.decrypt(key));
 
-    if let Err(e) = write_output(&plaintext, opts.output) {
-        eprintln!("Error while writing output: {}", e);
+    if let Some(mut r) = maybe_decrypted {
+        let mut plaintext = vec![];
+        if let Err(e) = r.read_to_end(&mut plaintext) {
+            eprintln!("Error while decrypting: {}", e);
+        } else if let Err(e) = write_output(&plaintext, opts.output) {
+            eprintln!("Error while writing output: {}", e);
+        }
+    } else {
+        eprintln!("No matching keys");
     }
 }
 

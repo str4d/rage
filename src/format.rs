@@ -1,5 +1,17 @@
 //! The age message format.
 
+use std::io::Read;
+use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
+
+use crate::{
+    keys::SecretKey,
+    primitives::{aead_decrypt, hkdf, HmacWriter, Stream},
+};
+
+const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
+const HEADER_KEY_LABEL: &[u8] = b"header";
+const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
+
 const V1_MAGIC: &[u8] = b"This is a file encrypted with age-tool.com, version 1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
@@ -20,6 +32,30 @@ struct ScryptRecipient {
 enum Recipient {
     X25519(X25519Recipient),
     Scrypt(ScryptRecipient),
+}
+
+impl Recipient {
+    fn decrypt(&self, key: &SecretKey) -> Option<[u8; 16]> {
+        match (self, key) {
+            (Recipient::X25519(r), SecretKey::X25519(sk)) => {
+                let pk = x25519(*sk, X25519_BASEPOINT_BYTES);
+                let shared_secret = x25519(*sk, r.epk);
+
+                let mut salt = vec![];
+                salt.extend_from_slice(&r.epk);
+                salt.extend_from_slice(&pk);
+
+                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
+                aead_decrypt(&enc_key, &r.encrypted_file_key).map(|pt| {
+                    // It's ours!
+                    let mut file_key = [0; 16];
+                    file_key.copy_from_slice(&pt);
+                    file_key
+                })
+            }
+            _ => None,
+        }
+    }
 }
 
 pub struct Header {
@@ -57,6 +93,25 @@ impl<'a> EncryptedMessage<'a> {
         buf.extend_from_slice(self.nonce);
         buf.extend_from_slice(self.payload);
         buf
+    }
+
+    /// Attempts to decrypt the message with the given key.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt(&self, key: &SecretKey) -> Option<impl Read + 'a> {
+        self.header.recipients.iter().find_map(|r| {
+            r.decrypt(key).and_then(|file_key| {
+                // Verify the MAC
+                let mac_key = hkdf(&[], HEADER_KEY_LABEL, &file_key);
+                let mut mac = HmacWriter::new(&mac_key);
+                cookie_factory::gen(write::header_minus_mac(&self.header), &mut mac).unwrap();
+                mac.verify(&self.header.mac).ok()?;
+
+                // Return a decryptor
+                let payload_key = hkdf(self.nonce, PAYLOAD_KEY_LABEL, &file_key);
+                Some(Stream::decrypt(&payload_key, self.payload))
+            })
+        })
     }
 }
 
