@@ -2,8 +2,12 @@
 
 use aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
+use generic_array::typenum::U32;
 use hkdf::Hkdf;
-use hmac::{crypto_mac::MacError, Hmac, Mac};
+use hmac::{
+    crypto_mac::{MacError, MacResult},
+    Hmac, Mac,
+};
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, ScryptParams};
 use sha2::Sha256;
 use std::io::{self, Write};
@@ -60,6 +64,11 @@ impl HmacWriter {
         HmacWriter {
             inner: Hmac::new_varkey(key).unwrap(),
         }
+    }
+
+    /// Checks if `mac` is correct for the processed input.
+    pub(crate) fn result(self) -> MacResult<U32> {
+        self.inner.result()
     }
 
     /// Checks if `mac` is correct for the processed input.

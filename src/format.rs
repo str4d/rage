@@ -1,11 +1,12 @@
 //! The age message format.
 
-use std::io::Read;
+use getrandom::getrandom;
+use std::io::{self, Read, Write};
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
 use crate::{
-    keys::SecretKey,
-    primitives::{aead_decrypt, hkdf, HmacWriter, Stream},
+    keys::{PublicKey, SecretKey},
+    primitives::{aead_decrypt, aead_encrypt, hkdf, HmacWriter, Stream},
 };
 
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
@@ -35,6 +36,29 @@ enum Recipient {
 }
 
 impl Recipient {
+    fn encrypt(file_key: &[u8; 16], pubkey: &PublicKey) -> Self {
+        match pubkey {
+            PublicKey::X25519(pk) => {
+                let mut esk = [0; 32];
+                getrandom(&mut esk).expect("Should not fail");
+                let epk = x25519(esk, X25519_BASEPOINT_BYTES);
+                let shared_secret = x25519(esk, *pk);
+
+                let mut salt = vec![];
+                salt.extend_from_slice(&epk);
+                salt.extend_from_slice(pk);
+
+                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
+                let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
+
+                Recipient::X25519(X25519Recipient {
+                    epk,
+                    encrypted_file_key,
+                })
+            }
+        }
+    }
+
     fn decrypt(&self, key: &SecretKey) -> Option<[u8; 16]> {
         match (self, key) {
             (Recipient::X25519(r), SecretKey::X25519(sk)) => {
@@ -61,6 +85,45 @@ impl Recipient {
 pub struct Header {
     recipients: Vec<Recipient>,
     mac: Vec<u8>,
+}
+
+/// Creates a wrapper around a writer that will encrypt its input to the given recipients.
+///
+/// Returns errors from the underlying writer while writing the header.
+pub fn encrypt_message<W: Write>(mut output: W, pubkeys: &[PublicKey]) -> io::Result<impl Write> {
+    let mut file_key = [0; 16];
+    getrandom(&mut file_key).expect("Should not fail");
+
+    let recipients = pubkeys
+        .iter()
+        .map(|pk| Recipient::encrypt(&file_key, pk))
+        .collect();
+
+    let mut header = Header {
+        recipients,
+        mac: vec![],
+    };
+
+    // Compute the MAC
+    let mac_key = hkdf(&[], HEADER_KEY_LABEL, &file_key);
+    let mut mac = HmacWriter::new(&mac_key);
+    cookie_factory::gen(write::header_minus_mac(&header), &mut mac).unwrap();
+    header.mac.extend_from_slice(mac.result().code().as_slice());
+
+    // Write the header
+    cookie_factory::gen(write::header(&header), &mut output).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!("failed to write header: {}", e),
+        )
+    })?;
+
+    let mut nonce = [0; 16];
+    getrandom(&mut nonce).expect("Should not fail");
+    output.write_all(&nonce)?;
+
+    let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key);
+    Ok(Stream::encrypt(&payload_key, output))
 }
 
 /// Attempts to decrypt a message from the given reader with a set of keys.

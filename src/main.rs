@@ -6,6 +6,33 @@ mod format;
 mod keys;
 mod primitives;
 
+/// Reads a pubkey from a command-line argument.
+fn read_pubkey(arg: String) -> io::Result<keys::PublicKey> {
+    if let Some(pk) = keys::PublicKey::from_str(&arg) {
+        Ok(pk)
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid recipient",
+        ))
+    }
+}
+
+/// Reads pubkeys from the provided arguments.
+fn read_pubkeys(arguments: Vec<String>) -> io::Result<Vec<keys::PublicKey>> {
+    if arguments.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "missing recipients",
+        ));
+    }
+
+    arguments
+        .into_iter()
+        .map(read_pubkey)
+        .collect::<Result<_, _>>()
+}
+
 /// Reads keys from the provided files if given, or the default system locations
 /// if no files are given.
 fn read_keys(filenames: Vec<String>) -> io::Result<Vec<keys::SecretKey>> {
@@ -101,6 +128,14 @@ struct AgeOptions {
 }
 
 fn encrypt(opts: AgeOptions) {
+    let pubkeys = match read_pubkeys(opts.arguments) {
+        Ok(pubkeys) => pubkeys,
+        Err(e) => {
+            eprintln!("Error while reading recipients: {}", e);
+            return;
+        }
+    };
+
     let plaintext = match read_input(opts.input) {
         Ok(data) => data,
         Err(e) => {
@@ -109,8 +144,23 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    // TODO: Real encryption!
-    let encrypted = plaintext;
+    let mut encrypted = vec![];
+    match format::encrypt_message(&mut encrypted, &pubkeys) {
+        Ok(mut w) => {
+            if let Err(e) = w.write_all(&plaintext) {
+                eprintln!("Error while encrypting: {}", e);
+                return;
+            }
+            if let Err(e) = w.flush() {
+                eprintln!("Error while encrypting: {}", e);
+                return;
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to encrypt: {}", e);
+            return;
+        }
+    }
 
     if let Err(e) = write_output(&encrypted, opts.output) {
         eprintln!("Error while writing output: {}", e);
