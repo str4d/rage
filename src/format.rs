@@ -63,63 +63,61 @@ pub struct Header {
     mac: Vec<u8>,
 }
 
-pub struct EncryptedMessage<'a> {
-    header: Header,
-    nonce: &'a [u8],
-    payload: &'a [u8],
-}
-
-impl<'a> EncryptedMessage<'a> {
-    pub fn read(data: &'a [u8]) -> Result<Self, ()> {
-        let (i, header) = read::header(data).map_err(|_| ())?;
-
-        if i.len() < 16 {
-            return Err(());
+/// Attempts to decrypt a message from the given reader with a set of keys.
+///
+/// If successful, returns a reader that will provide the plaintext.
+pub fn decrypt_message<R: Read>(
+    mut input: R,
+    keys: &[SecretKey],
+) -> Result<impl Read, &'static str> {
+    let mut data = vec![];
+    let header = loop {
+        match read::header(&data) {
+            Ok((_, header)) => break header,
+            Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
+                // Read the needed additional bytes
+                let m = data.len();
+                data.resize(m + n, 0);
+                input
+                    .read_exact(&mut data[m..m + n])
+                    .map_err(|_| "failed to read header")?;
+            }
+            Err(e) => {
+                eprintln!("{:?}", e);
+                return Err("invalid header");
+            }
         }
+    };
 
-        let nonce = &i[..16];
-        let payload = &i[16..];
+    let mut nonce = [0; 16];
+    input
+        .read_exact(&mut nonce)
+        .map_err(|_| "failed to read nonce")?;
 
-        Ok(EncryptedMessage {
-            header,
-            nonce,
-            payload,
-        })
-    }
+    keys.iter()
+        .find_map(|key| {
+            header.recipients.iter().find_map(|r| {
+                r.decrypt(key).and_then(|file_key| {
+                    // Verify the MAC
+                    let mac_key = hkdf(&[], HEADER_KEY_LABEL, &file_key);
+                    let mut mac = HmacWriter::new(&mac_key);
+                    cookie_factory::gen(write::header_minus_mac(&header), &mut mac).unwrap();
+                    mac.verify(&header.mac).ok()?;
 
-    pub fn write(&self) -> Vec<u8> {
-        let mut buf = vec![];
-        cookie_factory::gen(write::header(&self.header), &mut buf).unwrap();
-        buf.extend_from_slice(self.nonce);
-        buf.extend_from_slice(self.payload);
-        buf
-    }
-
-    /// Attempts to decrypt the message with the given key.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt(&self, key: &SecretKey) -> Option<impl Read + 'a> {
-        self.header.recipients.iter().find_map(|r| {
-            r.decrypt(key).and_then(|file_key| {
-                // Verify the MAC
-                let mac_key = hkdf(&[], HEADER_KEY_LABEL, &file_key);
-                let mut mac = HmacWriter::new(&mac_key);
-                cookie_factory::gen(write::header_minus_mac(&self.header), &mut mac).unwrap();
-                mac.verify(&self.header.mac).ok()?;
-
-                // Return a decryptor
-                let payload_key = hkdf(self.nonce, PAYLOAD_KEY_LABEL, &file_key);
-                Some(Stream::decrypt(&payload_key, self.payload))
+                    // Return the payload key
+                    Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                })
             })
         })
-    }
+        .map(|payload_key| Stream::decrypt(&payload_key, input))
+        .ok_or("no matching keys")
 }
 
 mod read {
     use nom::{
         branch::alt,
-        bytes::complete::{tag, take},
-        character::complete::{digit1, newline},
+        bytes::streaming::{tag, take},
+        character::streaming::{digit1, newline},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
         sequence::{pair, preceded, separated_pair, terminated},
@@ -293,21 +291,35 @@ mod write {
 
 #[cfg(test)]
 mod tests {
-    use super::EncryptedMessage;
+    use std::io::Read;
+
+    use super::decrypt_message;
+    use crate::keys::SecretKey;
 
     #[test]
-    fn message_parsing() {
-        let test_msg = "This is a file encrypted with age-tool.com, version 1
--> X25519 CJM36AHmTbdHSuOQL-NESqyVQE75f2e610iRdLPEN20
-C3ZAeY64NXS4QFrksLm3EGz-uPRyI0eQsWw7LWbbYig
--> X25519 ytazqsbmUnPwVWMVx0c1X9iUtGdY4yAB08UQTY2hNCI
-N3pgrXkbIn_RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
--> scrypt bBjlhJVYZeE4aqUdmtRHfw 32768
-ZV_AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
---- fgMiVLJHMlg9fW7CVG_hPS5EAU4Zeg19LyCP7SoH5nA
-[BINARY ENCRYPTED PAYLOAD]
-";
-        let msg = EncryptedMessage::read(test_msg.as_bytes()).unwrap();
-        assert_eq!(std::str::from_utf8(&msg.write()), Ok(test_msg));
+    fn message_decryption() {
+        let test_key = "AGE_SECRET_KEY_KWoIxSwdk-ClrgOHIdVFsku8roB3hZRA3xO7BnJfvEY";
+        let test_msg_1 = b"This is a file encrypted with age-tool.com, version 1
+-> X25519 8wBndPxeTabOgA0sw54InE8rJ3nmu_OligUpX5DCOEY
+zbr2uOfVU47gBMC1XgYUtf2dILYR3Cb42lWgdV8oJ1k
+--- 3-WbKsFc00oygch1_sbsreKSClVeCNt1DX_07wcJT-w
+\xc1D\x19\r\xe4\xef\xe7>\xe9E<s*\"5w]f\xe6! \xe1b\x9c\x7f+\xb2?Htt\xa0\xa0\x9e\xb7b\xd6\xef\xachU\x1a\xbc&h|\x95\xbb+5`\xd7C\x1a\xc8\xbd";
+        let test_msg_2 = b"This is a file encrypted with age-tool.com, version 1
+-> X25519 vzquGLRW47PBkSfeiMDbOJeJO6mR9zMhcRljFTcIRT8
+_vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
+--- GSJyv5JBG1FyMQJ5F7sV8CsmfWPwRPsblxXjoF-imV0
+\xfbM84W\x98#\x0bj\xc8\x96\x95\xa7\x9ac\xb9\xaa-\xd5\xd0&aM\xba#H~\xbc\x97\xc8i\x1f\x14\x08\xba&4\xb2\x87\x9d\x80Sb\xed\xbe0\xda\x93\xc7\xab^o";
+
+        let keys = &[SecretKey::from_str(test_key).unwrap()];
+        let mut r1 = decrypt_message(&test_msg_1[..], keys).unwrap();
+        let mut r2 = decrypt_message(&test_msg_2[..], keys).unwrap();
+
+        let mut msg1 = String::new();
+        r1.read_to_string(&mut msg1).unwrap();
+        assert_eq!(msg1, "hello Rust from Go! \\o/\n");
+
+        let mut msg2 = String::new();
+        r2.read_to_string(&mut msg2).unwrap();
+        assert_eq!(msg2, "*hyped crab noises*\n");
     }
 }

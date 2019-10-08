@@ -134,25 +134,18 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let message = match format::EncryptedMessage::read(&input) {
-        Ok(res) => res,
-        Err(_) => {
-            eprintln!("Invalid header");
-            return;
-        }
-    };
+    let maybe_decrypted = format::decrypt_message(&input[..], &keys);
 
-    let maybe_decrypted = keys.iter().find_map(|key| message.decrypt(key));
-
-    if let Some(mut r) = maybe_decrypted {
-        let mut plaintext = vec![];
-        if let Err(e) = r.read_to_end(&mut plaintext) {
-            eprintln!("Error while decrypting: {}", e);
-        } else if let Err(e) = write_output(&plaintext, opts.output) {
-            eprintln!("Error while writing output: {}", e);
+    match maybe_decrypted {
+        Ok(mut r) => {
+            let mut plaintext = vec![];
+            if let Err(e) = r.read_to_end(&mut plaintext) {
+                eprintln!("Error while decrypting: {}", e);
+            } else if let Err(e) = write_output(&plaintext, opts.output) {
+                eprintln!("Error while writing output: {}", e);
+            }
         }
-    } else {
-        eprintln!("No matching keys");
+        Err(e) => eprintln!("Failed to decrypt: {}", e),
     }
 }
 
