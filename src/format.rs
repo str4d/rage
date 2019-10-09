@@ -26,7 +26,7 @@ struct X25519Recipient {
 
 struct ScryptRecipient {
     salt: [u8; 16],
-    n: usize,
+    log_n: u8,
     encrypted_file_key: Vec<u8>,
 }
 
@@ -61,14 +61,14 @@ impl Recipient {
                 getrandom(&mut salt).expect("Should not fail");
 
                 // Roughly 1 second on a modern machine
-                let n = 1 << 18;
+                let log_n = 18;
 
-                let enc_key = scrypt(&salt, n, passphrase).unwrap();
+                let enc_key = scrypt(&salt, log_n, passphrase).unwrap();
                 let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
 
                 Recipient::Scrypt(ScryptRecipient {
                     salt,
-                    n,
+                    log_n,
                     encrypted_file_key,
                 })
             }
@@ -96,11 +96,11 @@ impl Recipient {
             (Recipient::Scrypt(s), SecretKey::Scrypt(passphrase)) => {
                 // Place bounds on the work factor we will accept
                 // (roughly 15 seconds on a modern machine).
-                if s.n > (1 << 22) {
+                if s.log_n > 22 {
                     return None;
                 }
 
-                let enc_key = scrypt(&s.salt, s.n, passphrase).unwrap();
+                let enc_key = scrypt(&s.salt, s.log_n, passphrase).unwrap();
                 aead_decrypt(&enc_key, &s.encrypted_file_key).map(|pt| {
                     // It's ours!
                     let mut file_key = [0; 16];
@@ -282,23 +282,23 @@ mod read {
         Ok((i, salt))
     }
 
-    fn scrypt_n(input: &[u8]) -> IResult<&[u8], usize> {
-        let (i, n_str) = digit1(input)?;
+    fn scrypt_log_n(input: &[u8]) -> IResult<&[u8], u8> {
+        let (i, log_n_str) = digit1(input)?;
 
         // digit1 will only return valid ASCII bytes
-        let n_str = std::str::from_utf8(n_str).unwrap();
+        let log_n_str = std::str::from_utf8(log_n_str).unwrap();
 
-        match usize::from_str_radix(n_str, 10) {
+        match u8::from_str_radix(log_n_str, 10) {
             Ok(n) => Ok((i, n)),
             Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Digit))),
         }
     }
 
     fn scrypt_recipient(input: &[u8]) -> IResult<&[u8], Recipient> {
-        let (i, ((salt, n), encrypted_file_key)) = preceded(
+        let (i, ((salt, log_n), encrypted_file_key)) = preceded(
             tag(SCRYPT_RECIPIENT_TAG),
             separated_pair(
-                separated_pair(scrypt_salt, tag(" "), scrypt_n),
+                separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
                 newline,
                 encoded_data(32),
             ),
@@ -308,7 +308,7 @@ mod read {
             i,
             Recipient::Scrypt(ScryptRecipient {
                 salt,
-                n,
+                log_n,
                 encrypted_file_key,
             }),
         ))
@@ -362,7 +362,7 @@ mod write {
         tuple((
             slice(SCRYPT_RECIPIENT_TAG),
             encoded_data(&r.salt),
-            string(format!(" {}\n", r.n)),
+            string(format!(" {}\n", r.log_n)),
             encoded_data(&r.encrypted_file_key),
         ))
     }

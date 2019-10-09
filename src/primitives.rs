@@ -93,15 +93,7 @@ impl Write for HmacWriter {
 /// scrypt from [RFC 7914] with r = 8 and P = 1. N must be a power of 2.
 ///
 /// [RFC 7914]: https://tools.ietf.org/html/rfc7914
-pub(crate) fn scrypt(salt: &[u8], n: usize, password: &str) -> Result<[u8; 32], InvalidParams> {
-    let mut log_n = 0;
-    while (n >> log_n) > 1 {
-        log_n += 1;
-    }
-    if (1 << log_n) != n {
-        return Err(InvalidParams);
-    }
-
+pub(crate) fn scrypt(salt: &[u8], log_n: u8, password: &str) -> Result<[u8; 32], InvalidParams> {
     let params = ScryptParams::new(log_n, 8, 1)?;
 
     let mut output = [0; 32];
@@ -111,9 +103,7 @@ pub(crate) fn scrypt(salt: &[u8], n: usize, password: &str) -> Result<[u8; 32], 
 
 #[cfg(test)]
 mod tests {
-    use scrypt::errors::InvalidParams;
-
-    use super::{aead_decrypt, aead_encrypt, scrypt};
+    use super::{aead_decrypt, aead_encrypt};
 
     #[test]
     fn aead_round_trip() {
@@ -122,11 +112,5 @@ mod tests {
         let encrypted = aead_encrypt(&key, plaintext).unwrap();
         let decrypted = aead_decrypt(&key, &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
-    }
-
-    #[test]
-    fn scrypt_rejects_non_pow2_n() {
-        assert_eq!(scrypt(&[7; 16], 3, "password"), Err(InvalidParams));
-        assert!(scrypt(&[7; 16], 2, "password").is_ok());
     }
 }
