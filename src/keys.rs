@@ -1,21 +1,28 @@
+//! Key structs and serialization.
+
 use getrandom::getrandom;
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 
+/// A secret key for decrypting an age message.
 pub enum SecretKey {
+    /// An X25519 secret key.
     X25519([u8; 32]),
+    /// An scrypt passphrase.
     Scrypt(String),
 }
 
 impl SecretKey {
+    /// Generates a new secret key.
     pub fn new() -> Self {
         let mut sk = [0; 32];
         getrandom(&mut sk).expect("Should not fail");
         SecretKey::X25519(sk)
     }
 
+    /// Parses a secret key from a string.
     pub fn from_str(s: &str) -> Option<Self> {
         match s.find(SECRET_KEY_PREFIX) {
             Some(0) => (),
@@ -35,6 +42,7 @@ impl SecretKey {
             })
     }
 
+    /// Serializes this secret key as a string.
     pub fn to_str(&self) -> String {
         match self {
             SecretKey::X25519(sk) => format!(
@@ -46,6 +54,7 @@ impl SecretKey {
         }
     }
 
+    /// Returns the recipient key for this secret key.
     pub fn to_public(&self) -> RecipientKey {
         match self {
             SecretKey::X25519(sk) => RecipientKey::X25519(x25519(*sk, X25519_BASEPOINT_BYTES)),
@@ -54,12 +63,16 @@ impl SecretKey {
     }
 }
 
+/// A key that can be used to encrypt an age message to a recipient.
 pub enum RecipientKey {
+    /// An X25519 recipient key.
     X25519([u8; 32]),
+    /// An scrypt passphrase.
     Scrypt(String),
 }
 
 impl RecipientKey {
+    /// Parses a recipient key from a string.
     pub fn from_str(s: &str) -> Option<Self> {
         match s.find(PUBLIC_KEY_PREFIX) {
             Some(0) => (),
@@ -80,6 +93,7 @@ impl RecipientKey {
             })
     }
 
+    /// Serializes this recipient key as a string.
     pub fn to_str(&self) -> String {
         match self {
             RecipientKey::X25519(pk) => format!(
