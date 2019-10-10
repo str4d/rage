@@ -2,6 +2,7 @@
 
 use getrandom::getrandom;
 use std::io::{self, Read, Write};
+use std::time::{Duration, SystemTime};
 
 use crate::{
     format::{Header, RecipientLine},
@@ -11,6 +12,32 @@ use crate::{
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
+
+const ONE_SECOND: Duration = Duration::from_secs(1);
+
+/// Pick an scrypt work factor that will take around 1 second on this device.
+fn target_scrypt_work_factor() -> u8 {
+    // Time a work factor that should always be fast.
+    let mut log_n = 10;
+
+    let start = SystemTime::now();
+    scrypt(&[], log_n, "").unwrap();
+    let duration = SystemTime::now().duration_since(start);
+
+    duration
+        .map(|mut d| {
+            // Use duration as a proxy for CPU usage, which scales linearly with N.
+            while d < ONE_SECOND {
+                log_n += 1;
+                d *= 2;
+            }
+            log_n
+        })
+        .unwrap_or({
+            // Couldn't measure, so guess. This is roughly 1 second on a modern machine.
+            18
+        })
+}
 
 /// Handles the various types of age encryption.
 pub enum Encryptor {
@@ -30,8 +57,7 @@ impl Encryptor {
                 let mut salt = [0; 16];
                 getrandom(&mut salt).expect("Should not fail");
 
-                // Roughly 1 second on a modern machine
-                let log_n = 18;
+                let log_n = target_scrypt_work_factor();
 
                 let enc_key = scrypt(&salt, log_n, passphrase).unwrap();
                 let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
@@ -73,9 +99,8 @@ impl Decryptor {
         match (self, line) {
             (Decryptor::Keys(keys), _) => keys.iter().find_map(|key| key.unwrap(line)),
             (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
-                // Place bounds on the work factor we will accept
-                // (roughly 15 seconds on a modern machine).
-                if s.log_n > 22 {
+                // Place bounds on the work factor we will accept (roughly 16 seconds).
+                if s.log_n > (target_scrypt_work_factor() + 4) {
                     return None;
                 }
 
