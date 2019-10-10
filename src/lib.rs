@@ -14,6 +14,7 @@
 mod format;
 mod keys;
 mod primitives;
+mod protocol;
 
-pub use format::{decrypt_message, encrypt_message};
 pub use keys::{RecipientKey, SecretKey};
+pub use protocol::{Decryptor, Encryptor};

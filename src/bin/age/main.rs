@@ -112,19 +112,19 @@ struct AgeOptions {
 }
 
 fn encrypt(opts: AgeOptions) {
-    let recipients = if opts.passphrase {
+    let encryptor = if opts.passphrase {
         if !opts.arguments.is_empty() {
             eprintln!("Positional arguments are not accepted when using a passphrase");
             return;
         }
 
         match read_passphrase() {
-            Ok(passphrase) => vec![age::RecipientKey::Scrypt(passphrase)],
+            Ok(passphrase) => age::Encryptor::Passphrase(passphrase),
             Err(_) => return,
         }
     } else {
         match read_recipients(opts.arguments) {
-            Ok(recipients) => recipients,
+            Ok(recipients) => age::Encryptor::Keys(recipients),
             Err(e) => {
                 eprintln!("Error while reading recipients: {}", e);
                 return;
@@ -148,7 +148,7 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    match age::encrypt_message(output, &recipients) {
+    match encryptor.encrypt_message(output) {
         Ok(mut w) => {
             if let Err(e) = io::copy(&mut input, &mut w) {
                 eprintln!("Error while encrypting: {}", e);
@@ -166,19 +166,19 @@ fn encrypt(opts: AgeOptions) {
 }
 
 fn decrypt(opts: AgeOptions) {
-    let keys = if opts.passphrase {
+    let decryptor = if opts.passphrase {
         if !opts.arguments.is_empty() {
             eprintln!("Positional arguments are not accepted when using a passphrase");
             return;
         }
 
         match read_passphrase() {
-            Ok(passphrase) => vec![age::SecretKey::Scrypt(passphrase)],
+            Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return,
         }
     } else {
         match read_keys(opts.arguments) {
-            Ok(keys) => keys,
+            Ok(keys) => age::Decryptor::Keys(keys),
             Err(e) => {
                 eprintln!("Error while reading keys: {}", e);
                 return;
@@ -202,7 +202,7 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let maybe_decrypted = age::decrypt_message(input, &keys);
+    let maybe_decrypted = decryptor.decrypt_message(input);
 
     match maybe_decrypted {
         Ok(mut r) => {
