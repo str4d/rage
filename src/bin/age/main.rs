@@ -3,13 +3,10 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 
 mod file_io;
-mod format;
-mod keys;
-mod primitives;
 
 /// Reads a recipient from a command-line argument.
-fn read_recipient(arg: String) -> io::Result<keys::RecipientKey> {
-    if let Some(pk) = keys::RecipientKey::from_str(&arg) {
+fn read_recipient(arg: String) -> io::Result<age::RecipientKey> {
+    if let Some(pk) = age::RecipientKey::from_str(&arg) {
         Ok(pk)
     } else {
         Err(io::Error::new(
@@ -20,7 +17,7 @@ fn read_recipient(arg: String) -> io::Result<keys::RecipientKey> {
 }
 
 /// Reads recipients from the provided arguments.
-fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<keys::RecipientKey>> {
+fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>> {
     if arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -36,7 +33,7 @@ fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<keys::RecipientKey>
 
 /// Reads keys from the provided files if given, or the default system locations
 /// if no files are given.
-fn read_keys(filenames: Vec<String>) -> io::Result<Vec<keys::SecretKey>> {
+fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
     let mut keys = vec![];
 
     if filenames.is_empty() {
@@ -52,7 +49,7 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<keys::SecretKey>> {
             for line in buf.lines() {
                 // Skip empty lines and comments
                 if !(line.is_empty() || line.find('#') == Some(0)) {
-                    if let Some(key) = keys::SecretKey::from_str(line) {
+                    if let Some(key) = age::SecretKey::from_str(line) {
                         keys.push(key);
                     } else {
                         return Err(io::Error::new(
@@ -80,7 +77,7 @@ fn read_passphrase() -> io::Result<String> {
 }
 
 fn generate_new_key() {
-    let sk = keys::SecretKey::new();
+    let sk = age::SecretKey::new();
 
     println!(
         "# created: {}",
@@ -122,7 +119,7 @@ fn encrypt(opts: AgeOptions) {
         }
 
         match read_passphrase() {
-            Ok(passphrase) => vec![keys::RecipientKey::Scrypt(passphrase)],
+            Ok(passphrase) => vec![age::RecipientKey::Scrypt(passphrase)],
             Err(_) => return,
         }
     } else {
@@ -151,7 +148,7 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    match format::encrypt_message(output, &recipients) {
+    match age::encrypt_message(output, &recipients) {
         Ok(mut w) => {
             if let Err(e) = io::copy(&mut input, &mut w) {
                 eprintln!("Error while encrypting: {}", e);
@@ -176,7 +173,7 @@ fn decrypt(opts: AgeOptions) {
         }
 
         match read_passphrase() {
-            Ok(passphrase) => vec![keys::SecretKey::Scrypt(passphrase)],
+            Ok(passphrase) => vec![age::SecretKey::Scrypt(passphrase)],
             Err(_) => return,
         }
     } else {
@@ -205,7 +202,7 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let maybe_decrypted = format::decrypt_message(input, &keys);
+    let maybe_decrypted = age::decrypt_message(input, &keys);
 
     match maybe_decrypted {
         Ok(mut r) => {
