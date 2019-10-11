@@ -1,15 +1,51 @@
 use gumdrop::Options;
+use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{self, Write};
 
 mod file_io;
+
+const ALIAS_PREFIX: &str = "alias:";
+
+/// Load map of aliases from the given file, or the default system location
+/// otherwise.
+///
+/// Returns an error if a filename is given that does not exist. A missing
+/// aliases file at the default system location is ignored.
+fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<String>>> {
+    let buf = if let Some(f) = filename {
+        read_to_string(f)?
+    } else {
+        // If the default aliases file doesn't exist, ignore it.
+        // TODO: Read aliases from default system location
+        let default_filename = "";
+        read_to_string(default_filename).unwrap_or_default()
+    };
+
+    let mut aliases = HashMap::new();
+
+    for line in buf.lines() {
+        let parts: Vec<&str> = line.split(' ').collect();
+        if parts.len() > 1 && parts[0].ends_with(":") {
+            aliases.insert(
+                parts[0][..parts[0].len() - 1].to_owned(),
+                parts[1..].iter().map(|s| String::from(*s)).collect(),
+            );
+        }
+    }
+
+    Ok(aliases)
+}
 
 /// Reads recipients from the provided arguments.
 ///
 /// Supported arguments:
 /// - Recipient keys
 /// - Path to a file containing a list of recipient keys
-fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>> {
+fn read_recipients(
+    mut arguments: Vec<String>,
+    aliases: Option<String>,
+) -> io::Result<Vec<age::RecipientKey>> {
     if arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -17,8 +53,13 @@ fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>>
         ));
     }
 
+    let mut aliases = load_aliases(aliases)?;
+    let mut seen_aliases = vec![];
+
     let mut recipients = vec![];
-    for arg in arguments {
+    while !arguments.is_empty() {
+        let arg = arguments.pop().unwrap();
+
         if let Ok(buf) = read_to_string(&arg) {
             // Read file as a list of recipients
             for line in buf.lines() {
@@ -36,6 +77,18 @@ fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>>
             }
         } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
             recipients.push(pk);
+        } else if let Some(0) = arg.find(ALIAS_PREFIX) {
+            if seen_aliases.contains(&arg) {
+                eprintln!("Warning: duplicate {}", arg);
+            } else {
+                // Replace the alias in the arguments list with its expansion
+                arguments.extend(
+                    aliases
+                        .remove(&arg[ALIAS_PREFIX.len()..])
+                        .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "unknown alias"))?,
+                );
+                seen_aliases.push(arg);
+            }
         } else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -119,6 +172,9 @@ struct AgeOptions {
     #[options(help = "output file")]
     output: Option<String>,
 
+    #[options(help = "aliases file")]
+    aliases: Option<String>,
+
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
 }
@@ -135,7 +191,7 @@ fn encrypt(opts: AgeOptions) {
             Err(_) => return,
         }
     } else {
-        match read_recipients(opts.arguments) {
+        match read_recipients(opts.arguments, opts.aliases) {
             Ok(recipients) => age::Encryptor::Keys(recipients),
             Err(e) => {
                 eprintln!("Error while reading recipients: {}", e);
