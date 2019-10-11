@@ -67,7 +67,6 @@ impl SecretKey {
 
     pub(crate) fn unwrap(&self, line: &RecipientLine) -> Option<[u8; 16]> {
         match (self, line) {
-            (_, RecipientLine::Scrypt(_)) => None,
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 let pk = x25519(*sk, X25519_BASEPOINT_BYTES);
                 let shared_secret = x25519(*sk, r.epk);
@@ -84,6 +83,7 @@ impl SecretKey {
                     file_key
                 })
             }
+            _ => None,
         }
     }
 }
