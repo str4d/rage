@@ -22,13 +22,13 @@
 //! let encryptor = age::Encryptor::Keys(vec![pubkey]);
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.encrypt_message(&mut encrypted).unwrap();
+//!     let mut writer = encryptor.wrap_output(&mut encrypted).unwrap();
 //!     writer.write_all(plaintext).unwrap();
 //!     writer.flush().unwrap();
 //! };
 //!
 //! let decryptor = age::Decryptor::Keys(vec![key]);
-//! let mut reader = decryptor.decrypt_message(&encrypted[..]).unwrap();
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..]).unwrap();
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!
@@ -46,13 +46,13 @@
 //! let encryptor = age::Encryptor::Passphrase(passphrase.to_owned());
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.encrypt_message(&mut encrypted).unwrap();
+//!     let mut writer = encryptor.wrap_output(&mut encrypted).unwrap();
 //!     writer.write_all(plaintext).unwrap();
 //!     writer.flush().unwrap();
 //! };
 //!
 //! let decryptor = age::Decryptor::Passphrase(passphrase.to_owned());
-//! let mut reader = decryptor.decrypt_message(&encrypted[..]).unwrap();
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..]).unwrap();
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!

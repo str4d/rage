@@ -148,7 +148,7 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    match encryptor.encrypt_message(output) {
+    match encryptor.wrap_output(output) {
         Ok(mut w) => {
             if let Err(e) = io::copy(&mut input, &mut w) {
                 eprintln!("Error while encrypting: {}", e);
@@ -202,7 +202,7 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let maybe_decrypted = decryptor.decrypt_message(input);
+    let maybe_decrypted = decryptor.trial_decrypt(input);
 
     match maybe_decrypted {
         Ok(mut r) => {

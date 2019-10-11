@@ -70,7 +70,7 @@ impl Encryptor {
     /// Creates a wrapper around a writer that will encrypt its input.
     ///
     /// Returns errors from the underlying writer while writing the header.
-    pub fn encrypt_message<W: Write>(&self, mut output: W) -> io::Result<impl Write> {
+    pub fn wrap_output<W: Write>(&self, mut output: W) -> io::Result<impl Write> {
         let mut file_key = [0; 16];
         getrandom(&mut file_key).expect("Should not fail");
 
@@ -119,7 +119,7 @@ impl Decryptor {
     /// Attempts to decrypt a message from the given reader.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_message<R: Read>(&self, mut input: R) -> Result<impl Read, &'static str> {
+    pub fn trial_decrypt<R: Read>(&self, mut input: R) -> Result<impl Read, &'static str> {
         let header = Header::read(&mut input).map_err(|_| "failed to read header")?;
 
         let mut nonce = [0; 16];
@@ -166,8 +166,8 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
 \xfbM84W\x98#\x0bj\xc8\x96\x95\xa7\x9ac\xb9\xaa-\xd5\xd0&aM\xba#H~\xbc\x97\xc8i\x1f\x14\x08\xba&4\xb2\x87\x9d\x80Sb\xed\xbe0\xda\x93\xc7\xab^o";
 
         let d = Decryptor::Keys(vec![SecretKey::from_str(test_key).unwrap()]);
-        let mut r1 = d.decrypt_message(&test_msg_1[..]).unwrap();
-        let mut r2 = d.decrypt_message(&test_msg_2[..]).unwrap();
+        let mut r1 = d.trial_decrypt(&test_msg_1[..]).unwrap();
+        let mut r2 = d.trial_decrypt(&test_msg_2[..]).unwrap();
 
         let mut msg1 = String::new();
         r1.read_to_string(&mut msg1).unwrap();
