@@ -1,22 +1,14 @@
 use gumdrop::Options;
-use std::fs::File;
-use std::io::{self, Read, Write};
+use std::fs::read_to_string;
+use std::io::{self, Write};
 
 mod file_io;
 
-/// Reads a recipient from a command-line argument.
-fn read_recipient(arg: String) -> io::Result<age::RecipientKey> {
-    if let Some(pk) = age::RecipientKey::from_str(&arg) {
-        Ok(pk)
-    } else {
-        Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid recipient",
-        ))
-    }
-}
-
 /// Reads recipients from the provided arguments.
+///
+/// Supported arguments:
+/// - Recipient keys
+/// - Path to a file containing a list of recipient keys
 fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>> {
     if arguments.is_empty() {
         return Err(io::Error::new(
@@ -25,10 +17,34 @@ fn read_recipients(arguments: Vec<String>) -> io::Result<Vec<age::RecipientKey>>
         ));
     }
 
-    arguments
-        .into_iter()
-        .map(read_recipient)
-        .collect::<Result<_, _>>()
+    let mut recipients = vec![];
+    for arg in arguments {
+        if let Ok(buf) = read_to_string(&arg) {
+            // Read file as a list of recipients
+            for line in buf.lines() {
+                // Skip empty lines and comments
+                if !(line.is_empty() || line.find('#') == Some(0)) {
+                    if let Some(key) = age::RecipientKey::from_str(line) {
+                        recipients.push(key);
+                    } else {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "recipients file contains non-recipient data",
+                        ));
+                    }
+                }
+            }
+        } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
+            recipients.push(pk);
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid recipient",
+            ));
+        }
+    }
+
+    Ok(recipients)
 }
 
 /// Reads keys from the provided files if given, or the default system locations
@@ -39,12 +55,8 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
     if filenames.is_empty() {
         // TODO: Read keys from default system locations
     } else {
-        let mut buf = String::new();
         for filename in filenames {
-            buf.clear();
-
-            let mut f = File::open(filename)?;
-            f.read_to_string(&mut buf)?;
+            let buf = read_to_string(filename)?;
 
             for line in buf.lines() {
                 // Skip empty lines and comments
