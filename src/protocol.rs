@@ -70,6 +70,10 @@ impl Encryptor {
     /// Creates a wrapper around a writer that will encrypt its input.
     ///
     /// Returns errors from the underlying writer while writing the header.
+    ///
+    /// You **MUST** call `flush()` when you are done writing, in order to finish the
+    /// encryption process. Failing to call `flush()` will result in a truncated message
+    /// that will fail to decrypt.
     pub fn wrap_output<W: Write>(&self, mut output: W) -> io::Result<impl Write> {
         let mut file_key = [0; 16];
         getrandom(&mut file_key).expect("Should not fail");

@@ -175,7 +175,15 @@ impl<R: Read> Read for StreamReader<R> {
             }
 
             if end == 0 {
-                return Ok(0);
+                if self.stream.nonce[11] == 0 {
+                    // Stream has ended before seeing the last chunk.
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "message is truncated",
+                    ));
+                } else {
+                    return Ok(0);
+                }
             }
 
             // This check works for all cases except when the message is an integer
@@ -332,5 +340,25 @@ mod tests {
         };
 
         assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn stream_fails_to_decrypt_truncated_message() {
+        let key = [7; 32];
+        let data = vec![42; 2 * CHUNK_SIZE];
+
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(&key, &mut encrypted);
+            w.write_all(&data).unwrap();
+            // Forget to call w.flush()!
+        };
+
+        let mut buf = vec![];
+        let mut r = Stream::decrypt(&key, &encrypted[..]);
+        assert_eq!(
+            r.read_to_end(&mut buf).unwrap_err().kind(),
+            io::ErrorKind::UnexpectedEof
+        );
     }
 }
