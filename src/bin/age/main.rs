@@ -27,7 +27,7 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
 
     for line in buf.lines() {
         let parts: Vec<&str> = line.split(' ').collect();
-        if parts.len() > 1 && parts[0].ends_with(":") {
+        if parts.len() > 1 && parts[0].ends_with(':') {
             aliases.insert(
                 parts[0][..parts[0].len() - 1].to_owned(),
                 parts[1..].iter().map(|s| String::from(*s)).collect(),
@@ -86,15 +86,15 @@ fn read_recipients(
             recipients.extend(read_recipients_list(&arg, &buf)?);
         } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
             recipients.push(pk);
-        } else if let Some(0) = arg.find(ALIAS_PREFIX) {
+        } else if arg.starts_with(ALIAS_PREFIX) {
             if seen_aliases.contains(&arg) {
                 eprintln!("Warning: duplicate {}", arg);
             } else {
                 // Replace the alias in the arguments list with its expansion
                 arguments.extend(
-                    aliases
-                        .remove(&arg[ALIAS_PREFIX.len()..])
-                        .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "unknown alias"))?,
+                    aliases.remove(&arg[ALIAS_PREFIX.len()..]).ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::InvalidInput, "unknown alias")
+                    })?,
                 );
                 seen_aliases.push(arg);
             }
@@ -180,7 +180,7 @@ fn read_passphrase() -> io::Result<String> {
 }
 
 fn generate_new_key() {
-    let sk = age::SecretKey::new();
+    let sk = age::SecretKey::generate();
 
     println!(
         "# created: {}",

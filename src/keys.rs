@@ -21,7 +21,7 @@ pub enum SecretKey {
 
 impl SecretKey {
     /// Generates a new secret key.
-    pub fn new() -> Self {
+    pub fn generate() -> Self {
         let mut sk = [0; 32];
         getrandom(&mut sk).expect("Should not fail");
         SecretKey::X25519(sk)

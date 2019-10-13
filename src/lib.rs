@@ -14,7 +14,7 @@
 //! ```
 //! use std::io::{Read, Write};
 //!
-//! let key = age::SecretKey::new();
+//! let key = age::SecretKey::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
