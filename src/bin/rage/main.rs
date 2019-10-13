@@ -95,11 +95,9 @@ fn read_recipients(
                 eprintln!("Warning: duplicate {}", arg);
             } else {
                 // Replace the alias in the arguments list with its expansion
-                arguments.extend(
-                    aliases.remove(&arg[ALIAS_PREFIX.len()..]).ok_or_else(|| {
-                        io::Error::new(io::ErrorKind::InvalidInput, "unknown alias")
-                    })?,
-                );
+                arguments.extend(aliases.remove(&arg[ALIAS_PREFIX.len()..]).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidInput, format!("unknown {}", arg))
+                })?);
                 seen_aliases.push(arg);
             }
         } else if arg.starts_with(GITHUB_PREFIX) {
