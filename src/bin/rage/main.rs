@@ -19,9 +19,12 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
         read_to_string(f)?
     } else {
         // If the default aliases file doesn't exist, ignore it.
-        // TODO: Read aliases from default system location
-        let default_filename = "";
-        read_to_string(default_filename).unwrap_or_default()
+        dirs::config_dir()
+            .map(|mut path| {
+                path.push("age/aliases.txt");
+                read_to_string(path).unwrap_or_default()
+            })
+            .unwrap_or_default()
     };
 
     let mut aliases = HashMap::new();
@@ -145,7 +148,36 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
     let mut keys = vec![];
 
     if filenames.is_empty() {
-        // TODO: Read keys from default system locations
+        let default_filename = dirs::config_dir()
+            .map(|mut path| {
+                path.push("age/keys.txt");
+                path
+            })
+            .expect("an OS for which we know the default config directory");
+        let buf = read_to_string(&default_filename).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => io::Error::new(
+                io::ErrorKind::NotFound,
+                format!(
+                    "no keys specified as arguments, and default file {} does not exist",
+                    default_filename.to_str().unwrap()
+                ),
+            ),
+            _ => e,
+        })?;
+
+        for line in buf.lines() {
+            // Skip empty lines and comments
+            if !(line.is_empty() || line.find('#') == Some(0)) {
+                if let Some(key) = age::SecretKey::from_str(line) {
+                    keys.push(key);
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "key file contains non-key data",
+                    ));
+                }
+            }
+        }
     } else {
         for filename in filenames {
             let buf = read_to_string(filename)?;
