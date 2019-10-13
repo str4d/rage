@@ -35,13 +35,17 @@ pub enum OutputWriter {
 
 impl OutputWriter {
     /// Writes output to the given filename, or standard output if `None`.
-    pub fn new(output: Option<String>) -> io::Result<Self> {
-        Ok(if let Some(filename) = output {
-            OutputWriter::File(File::create(filename)?)
+    pub fn new(output: Option<String>, deny_tty: bool) -> io::Result<Self> {
+        if let Some(filename) = output {
+            Ok(OutputWriter::File(File::create(filename)?))
+        } else if console::user_attended() && deny_tty {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "not printing to stdout",
+            ))
         } else {
-            // TODO: Return an error if bound to a TTY.
-            OutputWriter::Stdout(io::stdout())
-        })
+            Ok(OutputWriter::Stdout(io::stdout()))
+        }
     }
 }
 

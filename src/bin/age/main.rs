@@ -250,7 +250,7 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    let output = match file_io::OutputWriter::new(opts.output) {
+    let output = match file_io::OutputWriter::new(opts.output, true) {
         Ok(output) => output,
         Err(e) => {
             eprintln!("Failed to open output: {}", e);
@@ -309,7 +309,7 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let mut output = match file_io::OutputWriter::new(opts.output) {
+    let mut output = match file_io::OutputWriter::new(opts.output, false) {
         Ok(output) => output,
         Err(e) => {
             eprintln!("Failed to open output: {}", e);
