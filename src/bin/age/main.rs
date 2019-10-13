@@ -1,3 +1,4 @@
+use dialoguer::PasswordInput;
 use gumdrop::Options;
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -168,15 +169,13 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
     Ok(keys)
 }
 
-fn read_passphrase() -> io::Result<String> {
-    // TODO: Require a TTY
-    eprint!("Type passphrase: ");
-
-    // TODO: Hide passphrase in TTY
-    let mut passphrase = String::new();
-    io::stdin().read_line(&mut passphrase)?;
-
-    Ok(passphrase)
+fn read_passphrase(confirm: bool) -> io::Result<String> {
+    let mut input = PasswordInput::new();
+    input.with_prompt("Type passphrase");
+    if confirm {
+        input.with_confirmation("Confirm passphrase", "Passphrases mismatching");
+    }
+    input.interact()
 }
 
 fn generate_new_key() {
@@ -224,7 +223,12 @@ fn encrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_passphrase() {
+        if opts.input.is_none() {
+            eprintln!("File to encrypt must be passed in with --input when using a passphrase");
+            return;
+        }
+
+        match read_passphrase(true) {
             Ok(passphrase) => age::Encryptor::Passphrase(passphrase),
             Err(_) => return,
         }
@@ -278,7 +282,12 @@ fn decrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_passphrase() {
+        if opts.input.is_none() {
+            eprintln!("File to decrypt must be passed in with --input when using a passphrase");
+            return;
+        }
+
+        match read_passphrase(false) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return,
         }
