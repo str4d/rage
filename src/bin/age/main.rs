@@ -6,6 +6,7 @@ use std::io::{self, Write};
 mod file_io;
 
 const ALIAS_PREFIX: &str = "alias:";
+const GITHUB_PREFIX: &str = "github:";
 
 /// Load map of aliases from the given file, or the default system location
 /// otherwise.
@@ -37,6 +38,27 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
     Ok(aliases)
 }
 
+/// Reads file contents as a list of recipients
+fn read_recipients_list(filename: &str, buf: &str) -> io::Result<Vec<age::RecipientKey>> {
+    let mut recipients = vec![];
+
+    for line in buf.lines() {
+        // Skip empty lines and comments
+        if !(line.is_empty() || line.find('#') == Some(0)) {
+            if let Some(key) = age::RecipientKey::from_str(line) {
+                recipients.push(key);
+            } else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("recipients file {} contains non-recipient data", filename),
+                ));
+            }
+        }
+    }
+
+    Ok(recipients)
+}
+
 /// Reads recipients from the provided arguments.
 ///
 /// Supported arguments:
@@ -61,20 +83,7 @@ fn read_recipients(
         let arg = arguments.pop().unwrap();
 
         if let Ok(buf) = read_to_string(&arg) {
-            // Read file as a list of recipients
-            for line in buf.lines() {
-                // Skip empty lines and comments
-                if !(line.is_empty() || line.find('#') == Some(0)) {
-                    if let Some(key) = age::RecipientKey::from_str(line) {
-                        recipients.push(key);
-                    } else {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "recipients file contains non-recipient data",
-                        ));
-                    }
-                }
-            }
+            recipients.extend(read_recipients_list(&arg, &buf)?);
         } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
             recipients.push(pk);
         } else if let Some(0) = arg.find(ALIAS_PREFIX) {
@@ -88,6 +97,35 @@ fn read_recipients(
                         .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "unknown alias"))?,
                 );
                 seen_aliases.push(arg);
+            }
+        } else if arg.starts_with(GITHUB_PREFIX) {
+            arguments.push(format!(
+                "https://github.com/{}.keys",
+                &arg[GITHUB_PREFIX.len()..],
+            ));
+        } else if arg.starts_with("https://") {
+            match minreq::get(&arg).send() {
+                Ok(response) => match response.status_code {
+                    200 => recipients.extend(read_recipients_list(&arg, &response.body)?),
+                    404 => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::NotFound,
+                            format!("{} not found", arg),
+                        ))
+                    }
+                    code => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("{} returned an unexpected code ({})", arg, code),
+                        ))
+                    }
+                },
+                Err(e) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("failed to fetch {}: {}", arg, e),
+                    ))
+                }
             }
         } else {
             return Err(io::Error::new(

@@ -24,6 +24,7 @@ getrandom = "0.1"
 gumdrop = "0.6"
 hkdf = "0.8"
 hmac = "0.7"
+minreq = { version = "1.4", features = ["https"] }
 nom = "5"
 scrypt = { version = "0.2", default-features = false }
 sha2 = "0.8"
