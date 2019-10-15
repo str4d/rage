@@ -3,11 +3,31 @@ use gumdrop::Options;
 use std::collections::HashMap;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
+use std::path::PathBuf;
 
 mod file_io;
 
 const ALIAS_PREFIX: &str = "alias:";
 const GITHUB_PREFIX: &str = "github:";
+
+/// Returns the age config directory.ALIAS_PREFIX
+///
+/// Replicates the behaviour of [os.UserConfigDir] from Golang, which the
+/// reference implementation uses. See [this issue] for more details.
+///
+/// [os.UserConfigDir]: https://golang.org/pkg/os/#UserConfigDir
+/// [this issue]: https://github.com/FiloSottile/age/issues/15
+fn get_config_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        dirs::data_dir()
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        dirs::config_dir()
+    }
+}
 
 /// Load map of aliases from the given file, or the default system location
 /// otherwise.
@@ -19,7 +39,7 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
         read_to_string(f)?
     } else {
         // If the default aliases file doesn't exist, ignore it.
-        dirs::config_dir()
+        get_config_dir()
             .map(|mut path| {
                 path.push("age/aliases.txt");
                 read_to_string(path).unwrap_or_default()
@@ -152,7 +172,7 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
     let mut keys = vec![];
 
     if filenames.is_empty() {
-        let default_filename = dirs::config_dir()
+        let default_filename = get_config_dir()
             .map(|mut path| {
                 path.push("age/keys.txt");
                 path
