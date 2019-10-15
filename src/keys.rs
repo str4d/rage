@@ -1,6 +1,7 @@
 //! Key structs and serialization.
 
 use getrandom::getrandom;
+use std::io::{self, BufRead};
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
 use crate::{
@@ -28,23 +29,43 @@ impl SecretKey {
     }
 
     /// Parses a secret key from a string.
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.find(SECRET_KEY_PREFIX) {
-            Some(0) => (),
-            _ => return None,
-        }
+    pub fn from_data<R: BufRead>(data: R) -> io::Result<Vec<Self>> {
+        // Try parsing as a list of age keys
+        let mut keys = vec![];
+        for line in data.lines() {
+            let line = line?;
 
-        base64::decode_config(&s[SECRET_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
-            .ok()
-            .and_then(|buf| {
-                if buf.len() == 32 {
+            // Skip empty lines and comments
+            if !(line.is_empty() || line.starts_with('#')) {
+                if !line.starts_with(SECRET_KEY_PREFIX) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "key file contains non-key data",
+                    ));
+                }
+
+                if let Ok(buf) =
+                    base64::decode_config(&line[SECRET_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
+                {
+                    if buf.len() != 32 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid age key length",
+                        ));
+                    }
+
                     let mut sk = [0; 32];
                     sk.copy_from_slice(&buf);
-                    Some(SecretKey::X25519(sk))
+                    keys.push(SecretKey::X25519(sk));
                 } else {
-                    None
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid base64 in age key",
+                    ));
                 }
-            })
+            }
+        }
+        Ok(keys)
     }
 
     /// Serializes this secret key as a string.
@@ -94,28 +115,31 @@ pub enum RecipientKey {
     X25519([u8; 32]),
 }
 
-impl RecipientKey {
+impl std::str::FromStr for RecipientKey {
+    type Err = &'static str;
+
     /// Parses a recipient key from a string.
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.find(PUBLIC_KEY_PREFIX) {
-            Some(0) => (),
-            _ => return None,
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Try parsing as an age pubkey
+        if s.starts_with(PUBLIC_KEY_PREFIX) {
+            return base64::decode_config(&s[PUBLIC_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
+                .map_err(|_| "Invalid base64 in age pubkey")
+                .and_then(|buf| {
+                    if buf.len() == 32 {
+                        let mut pk = [0; 32];
+                        pk.copy_from_slice(&buf);
+                        Ok(RecipientKey::X25519(pk))
+                    } else {
+                        Err("Invalid decoded length")
+                    }
+                });
         }
 
-        base64::decode_config(&s[PUBLIC_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
-            .ok()
-            .and_then(|buf| {
-                if buf.len() == 32 {
-                    let mut pk = [0; 32];
-                    pk.copy_from_slice(&buf);
-                    Some(RecipientKey::X25519(pk))
-                } else {
-                    println!("Invalid decoded length");
-                    None
-                }
-            })
+        Err("invalid recipient key")
     }
+}
 
+impl RecipientKey {
     /// Serializes this recipient key as a string.
     pub fn to_str(&self) -> String {
         match self {
@@ -150,6 +174,8 @@ impl RecipientKey {
 
 #[cfg(test)]
 mod tests {
+    use std::io::BufReader;
+
     use super::{RecipientKey, SecretKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_RQvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
@@ -157,19 +183,23 @@ mod tests {
 
     #[test]
     fn secret_key_encoding() {
-        assert_eq!(SecretKey::from_str(TEST_SK).unwrap().to_str(), TEST_SK);
+        let buf = BufReader::new(TEST_SK.as_bytes());
+        let keys = SecretKey::from_data(buf).unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].to_str(), TEST_SK);
     }
 
     #[test]
     fn pubkey_encoding() {
-        assert_eq!(RecipientKey::from_str(TEST_PK).unwrap().to_str(), TEST_PK);
+        let pk: RecipientKey = TEST_PK.parse().unwrap();
+        assert_eq!(pk.to_str(), TEST_PK);
     }
 
     #[test]
     fn pubkey_from_secret_key() {
-        assert_eq!(
-            SecretKey::from_str(TEST_SK).unwrap().to_public().to_str(),
-            TEST_PK
-        );
+        let buf = BufReader::new(TEST_SK.as_bytes());
+        let keys = SecretKey::from_data(buf).unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].to_public().to_str(), TEST_PK);
     }
 }

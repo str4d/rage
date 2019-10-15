@@ -150,7 +150,7 @@ impl Decryptor {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{BufReader, Read};
 
     use super::Decryptor;
     use crate::keys::SecretKey;
@@ -169,7 +169,8 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
 --- GSJyv5JBG1FyMQJ5F7sV8CsmfWPwRPsblxXjoF-imV0
 \xfbM84W\x98#\x0bj\xc8\x96\x95\xa7\x9ac\xb9\xaa-\xd5\xd0&aM\xba#H~\xbc\x97\xc8i\x1f\x14\x08\xba&4\xb2\x87\x9d\x80Sb\xed\xbe0\xda\x93\xc7\xab^o";
 
-        let d = Decryptor::Keys(vec![SecretKey::from_str(test_key).unwrap()]);
+        let buf = BufReader::new(test_key.as_bytes());
+        let d = Decryptor::Keys(SecretKey::from_data(buf).unwrap());
         let mut r1 = d.trial_decrypt(&test_msg_1[..]).unwrap();
         let mut r2 = d.trial_decrypt(&test_msg_2[..]).unwrap();
 
