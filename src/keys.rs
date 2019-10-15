@@ -37,31 +37,8 @@ impl SecretKey {
 
             // Skip empty lines and comments
             if !(line.is_empty() || line.starts_with('#')) {
-                if !line.starts_with(SECRET_KEY_PREFIX) {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "key file contains non-key data",
-                    ));
-                }
-
-                if let Ok(buf) =
-                    base64::decode_config(&line[SECRET_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
-                {
-                    if buf.len() != 32 {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "invalid age key length",
-                        ));
-                    }
-
-                    let mut sk = [0; 32];
-                    sk.copy_from_slice(&buf);
-                    keys.push(SecretKey::X25519(sk));
-                } else {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid base64 in age key",
-                    ));
+                if let Ok((_, pk)) = read::secret_key(&line) {
+                    keys.push(pk);
                 }
             }
         }
@@ -121,18 +98,8 @@ impl std::str::FromStr for RecipientKey {
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Try parsing as an age pubkey
-        if s.starts_with(PUBLIC_KEY_PREFIX) {
-            return base64::decode_config(&s[PUBLIC_KEY_PREFIX.len()..], base64::URL_SAFE_NO_PAD)
-                .map_err(|_| "Invalid base64 in age pubkey")
-                .and_then(|buf| {
-                    if buf.len() == 32 {
-                        let mut pk = [0; 32];
-                        pk.copy_from_slice(&buf);
-                        Ok(RecipientKey::X25519(pk))
-                    } else {
-                        Err("Invalid decoded length")
-                    }
-                });
+        if let Ok((_, pk)) = read::recipient_key(s) {
+            return Ok(pk);
         }
 
         Err("invalid recipient key")
@@ -169,6 +136,37 @@ impl RecipientKey {
                 RecipientLine::x25519(epk, encrypted_file_key)
             }
         }
+    }
+}
+
+mod read {
+    use nom::{branch::alt, bytes::streaming::tag, sequence::preceded, IResult};
+
+    use super::*;
+    use crate::util::read_encoded_str;
+
+    fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
+        let (i, buf) = preceded(tag(SECRET_KEY_PREFIX), read_encoded_str(32))(input)?;
+
+        let mut pk = [0; 32];
+        pk.copy_from_slice(&buf);
+        Ok((i, SecretKey::X25519(pk)))
+    }
+
+    pub(super) fn secret_key(input: &str) -> IResult<&str, SecretKey> {
+        age_secret_key(input)
+    }
+
+    fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
+        let (i, buf) = preceded(tag(PUBLIC_KEY_PREFIX), read_encoded_str(32))(input)?;
+
+        let mut pk = [0; 32];
+        pk.copy_from_slice(&buf);
+        Ok((i, RecipientKey::X25519(pk)))
+    }
+
+    pub(super) fn recipient_key(input: &str) -> IResult<&str, RecipientKey> {
+        age_recipient_key(input)
     }
 }
 
