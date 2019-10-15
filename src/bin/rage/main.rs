@@ -238,19 +238,19 @@ struct AgeOptions {
     #[options(help = "print help message")]
     help: bool,
 
-    #[options(help = "generate a new key")]
+    #[options(help = "generate a new age key pair")]
     generate: bool,
 
-    #[options(help = "decrypt a file")]
+    #[options(help = "decrypt the input (default is to encrypt)")]
     decrypt: bool,
 
-    #[options(help = "input file")]
+    #[options(help = "read from INPUT (default stdin)")]
     input: Option<String>,
 
-    #[options(help = "output file")]
+    #[options(help = "output to OUTPUT (default stdout)")]
     output: Option<String>,
 
-    #[options(help = "aliases file")]
+    #[options(help = "load the aliases list from ALIASES")]
     aliases: Option<String>,
 
     #[options(help = "use a passphrase instead of public keys")]
