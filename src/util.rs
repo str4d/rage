@@ -1,10 +1,13 @@
 use nom::{
-    bytes::streaming::take,
+    bytes::streaming::{take, take_while1},
     error::{make_error, ErrorKind},
     IResult,
 };
 
-pub(crate) fn read_encoded_str(count: usize) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+pub(crate) fn read_encoded_str(
+    count: usize,
+    config: base64::Config,
+) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
     // Unpadded encoded length
     let encoded_count = ((4 * count) + 2) / 3;
 
@@ -18,7 +21,25 @@ pub(crate) fn read_encoded_str(count: usize) -> impl Fn(&str) -> IResult<&str, V
             e => e,
         })?;
 
-        match base64::decode_config(data, base64::URL_SAFE_NO_PAD) {
+        match base64::decode_config(data, config) {
+            Ok(decoded) => Ok((i, decoded)),
+            Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
+        }
+    }
+}
+
+pub(crate) fn read_str_while_encoded(
+    config: base64::Config,
+) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+    move |input: &str| {
+        let (i, data) = take_while1(|c| {
+            let c = c as u8;
+            // Substitute the character in twice after AA, so that padding
+            // characters will also be detected as a valid if allowed.
+            base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
+        })(input)?;
+
+        match base64::decode_config(data, config) {
             Ok(decoded) => Ok((i, decoded)),
             Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
         }

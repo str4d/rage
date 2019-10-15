@@ -90,6 +90,10 @@ impl SecretKey {
 pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519([u8; 32]),
+    /// An ssh-rsa public key.
+    SshRsa(Vec<u8>, rsa::RSAPublicKey),
+    /// An ssh-ed25519 public key.
+    SshEd25519(Vec<u8>, [u8; 32]),
 }
 
 impl std::str::FromStr for RecipientKey {
@@ -115,6 +119,8 @@ impl RecipientKey {
                 PUBLIC_KEY_PREFIX,
                 base64::encode_config(&pk, base64::URL_SAFE_NO_PAD)
             ),
+            RecipientKey::SshRsa(_, _) => unimplemented!(),
+            RecipientKey::SshEd25519(_, _) => unimplemented!(),
         }
     }
 
@@ -135,6 +141,8 @@ impl RecipientKey {
 
                 RecipientLine::x25519(epk, encrypted_file_key)
             }
+            RecipientKey::SshRsa(_, _) => unimplemented!(),
+            RecipientKey::SshEd25519(_, _) => unimplemented!(),
         }
     }
 }
@@ -143,10 +151,13 @@ mod read {
     use nom::{branch::alt, bytes::streaming::tag, sequence::preceded, IResult};
 
     use super::*;
-    use crate::util::read_encoded_str;
+    use crate::{openssh::ssh_recipient_key, util::read_encoded_str};
 
     fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
-        let (i, buf) = preceded(tag(SECRET_KEY_PREFIX), read_encoded_str(32))(input)?;
+        let (i, buf) = preceded(
+            tag(SECRET_KEY_PREFIX),
+            read_encoded_str(32, base64::URL_SAFE_NO_PAD),
+        )(input)?;
 
         let mut pk = [0; 32];
         pk.copy_from_slice(&buf);
@@ -158,7 +169,10 @@ mod read {
     }
 
     fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-        let (i, buf) = preceded(tag(PUBLIC_KEY_PREFIX), read_encoded_str(32))(input)?;
+        let (i, buf) = preceded(
+            tag(PUBLIC_KEY_PREFIX),
+            read_encoded_str(32, base64::URL_SAFE_NO_PAD),
+        )(input)?;
 
         let mut pk = [0; 32];
         pk.copy_from_slice(&buf);
@@ -166,7 +180,7 @@ mod read {
     }
 
     pub(super) fn recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-        age_recipient_key(input)
+        alt((age_recipient_key, ssh_recipient_key))(input)
     }
 }
 

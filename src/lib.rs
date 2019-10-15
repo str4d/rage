@@ -65,6 +65,7 @@
 
 mod format;
 mod keys;
+mod openssh;
 mod primitives;
 mod protocol;
 mod util;
