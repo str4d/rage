@@ -1,8 +1,8 @@
 use dialoguer::PasswordInput;
 use gumdrop::Options;
 use std::collections::HashMap;
-use std::fs::read_to_string;
-use std::io::{self, Write};
+use std::fs::{read_to_string, File};
+use std::io::{self, BufRead, BufReader, Write};
 
 mod file_io;
 
@@ -43,13 +43,15 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
 }
 
 /// Reads file contents as a list of recipients
-fn read_recipients_list(filename: &str, buf: &str) -> io::Result<Vec<age::RecipientKey>> {
+fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<age::RecipientKey>> {
     let mut recipients = vec![];
 
     for line in buf.lines() {
+        let line = line?;
+
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            if let Some(key) = age::RecipientKey::from_str(line) {
+            if let Some(key) = age::RecipientKey::from_str(&line) {
                 recipients.push(key);
             } else {
                 return Err(io::Error::new(
@@ -86,8 +88,9 @@ fn read_recipients(
     while !arguments.is_empty() {
         let arg = arguments.pop().unwrap();
 
-        if let Ok(buf) = read_to_string(&arg) {
-            recipients.extend(read_recipients_list(&arg, &buf)?);
+        if let Ok(f) = File::open(&arg) {
+            let buf = BufReader::new(f);
+            recipients.extend(read_recipients_list(&arg, buf)?);
         } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
             recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
@@ -108,7 +111,10 @@ fn read_recipients(
         } else if arg.starts_with("https://") {
             match minreq::get(&arg).send() {
                 Ok(response) => match response.status_code {
-                    200 => recipients.extend(read_recipients_list(&arg, &response.body)?),
+                    200 => recipients.extend(read_recipients_list(
+                        &arg,
+                        BufReader::new(response.body.as_bytes()),
+                    )?),
                     404 => {
                         return Err(io::Error::new(
                             io::ErrorKind::NotFound,
@@ -152,7 +158,7 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
                 path
             })
             .expect("an OS for which we know the default config directory");
-        let buf = read_to_string(&default_filename).map_err(|e| match e.kind() {
+        let f = File::open(&default_filename).map_err(|e| match e.kind() {
             io::ErrorKind::NotFound => io::Error::new(
                 io::ErrorKind::NotFound,
                 format!(
@@ -162,11 +168,14 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
             ),
             _ => e,
         })?;
+        let buf = BufReader::new(f);
 
         for line in buf.lines() {
+            let line = line?;
+
             // Skip empty lines and comments
             if !(line.is_empty() || line.find('#') == Some(0)) {
-                if let Some(key) = age::SecretKey::from_str(line) {
+                if let Some(key) = age::SecretKey::from_str(&line) {
                     keys.push(key);
                 } else {
                     return Err(io::Error::new(
@@ -178,12 +187,14 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
         }
     } else {
         for filename in filenames {
-            let buf = read_to_string(filename)?;
+            let buf = BufReader::new(File::open(filename)?);
 
             for line in buf.lines() {
+                let line = line?;
+
                 // Skip empty lines and comments
                 if !(line.is_empty() || line.find('#') == Some(0)) {
-                    if let Some(key) = age::SecretKey::from_str(line) {
+                    if let Some(key) = age::SecretKey::from_str(&line) {
                         keys.push(key);
                     } else {
                         return Err(io::Error::new(
