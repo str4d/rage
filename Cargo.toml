@@ -9,6 +9,7 @@ keywords = ["rage", "cli", "encryption"]
 categories = ["command-line-utilities", "cryptography"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
+default-run = "rage"
 
 [badges]
 maintenance = { status = "experimental" }
@@ -27,6 +28,7 @@ getrandom = "0.1"
 gumdrop = "0.6"
 hkdf = "0.8"
 hmac = "0.7"
+man = "0.3"
 minreq = { version = "1.4", features = ["https"] }
 nom = "5"
 scrypt = { version = "0.2", default-features = false }
