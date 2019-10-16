@@ -168,6 +168,7 @@ impl SecretKey {
 }
 
 /// A key that can be used to encrypt an age message to a recipient.
+#[derive(Debug)]
 pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519([u8; 32]),
@@ -177,17 +178,28 @@ pub enum RecipientKey {
     SshEd25519(Vec<u8>, [u8; 32]),
 }
 
+#[derive(Debug)]
+pub enum ParseRecipientKeyError {
+    Ignore,
+    Invalid(&'static str),
+}
+
 impl std::str::FromStr for RecipientKey {
-    type Err = &'static str;
+    type Err = ParseRecipientKeyError;
 
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Try parsing as an age pubkey
-        if let Ok((_, pk)) = read::recipient_key(s) {
+        if let Ok((_, pk)) = read::age_recipient_key(s) {
             return Ok(pk);
         }
 
-        Err("invalid recipient key")
+        // Try parsing as an OpenSSH pubkey
+        match crate::openssh::ssh_recipient_key(s) {
+            Ok((_, Some(pk))) => Ok(pk),
+            Ok((_, None)) => Err(ParseRecipientKeyError::Ignore),
+            _ => Err(ParseRecipientKeyError::Invalid("invalid recipient key")),
+        }
     }
 }
 
@@ -269,10 +281,7 @@ mod read {
     };
 
     use super::*;
-    use crate::{
-        openssh::{ssh_recipient_key, ssh_secret_keys},
-        util::read_encoded_str,
-    };
+    use crate::{openssh::ssh_secret_keys, util::read_encoded_str};
 
     fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
         let (i, buf) = preceded(
@@ -314,7 +323,7 @@ mod read {
         alt((ssh_secret_keys, age_secret_keys))(input)
     }
 
-    fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
+    pub(super) fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
         let (i, buf) = preceded(
             tag(PUBLIC_KEY_PREFIX),
             read_encoded_str(32, base64::URL_SAFE_NO_PAD),
@@ -323,10 +332,6 @@ mod read {
         let mut pk = [0; 32];
         pk.copy_from_slice(&buf);
         Ok((i, RecipientKey::X25519(pk)))
-    }
-
-    pub(super) fn recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-        alt((age_recipient_key, ssh_recipient_key))(input)
     }
 }
 

@@ -71,13 +71,16 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            if let Ok(key) = line.parse() {
-                recipients.push(key);
-            } else {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("recipients file {} contains non-recipient data", filename),
-                ));
+            match line.parse() {
+                Ok(key) => recipients.push(key),
+                Err(<age::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("recipients file {} contains non-recipient data", filename),
+                    ));
+                }
             }
         }
     }

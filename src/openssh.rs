@@ -288,7 +288,7 @@ pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
     alt((rsa_privkey, openssh_privkey))(input)
 }
 
-fn ssh_rsa_pubkey(input: &str) -> IResult<&str, RecipientKey> {
+fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     let (mid, _) = pair(tag(SSH_RSA_KEY_PREFIX), tag(" "))(input)?;
     let (i, ssh_key) = terminated(read_str_while_encoded(base64::STANDARD_NO_PAD), tag(" "))(mid)?;
 
@@ -297,10 +297,10 @@ fn ssh_rsa_pubkey(input: &str) -> IResult<&str, RecipientKey> {
         Err(_) => return Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof))),
     };
 
-    Ok((i, RecipientKey::SshRsa(ssh_key, pk)))
+    Ok((i, Some(RecipientKey::SshRsa(ssh_key, pk))))
 }
 
-fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, RecipientKey> {
+fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     let (mid, _) = pair(tag(SSH_ED25519_KEY_PREFIX), tag(" "))(input)?;
     let (i, ssh_key) = terminated(read_encoded_str(51, base64::STANDARD_NO_PAD), tag(" "))(mid)?;
 
@@ -309,9 +309,17 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, RecipientKey> {
         Err(_) => return Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof))),
     };
 
-    Ok((i, RecipientKey::SshEd25519(ssh_key, pk)))
+    Ok((i, Some(RecipientKey::SshEd25519(ssh_key, pk))))
 }
 
-pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey))(input)
+fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
+    // Key types we want to ignore in SSH pubkey files
+    let (mid, _) = pair(tag("ecdsa-sha2-nistp256"), tag(" "))(input)?;
+    let (i, _) = terminated(read_str_while_encoded(base64::STANDARD_NO_PAD), tag(" "))(mid)?;
+
+    Ok((i, None))
+}
+
+pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, Option<RecipientKey>> {
+    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
 }
