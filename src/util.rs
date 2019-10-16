@@ -1,6 +1,4 @@
 use nom::{
-    bytes::streaming::{take, take_while1},
-    character::streaming::newline,
     error::{make_error, ErrorKind},
     multi::separated_nonempty_list,
     IResult,
@@ -10,6 +8,8 @@ pub(crate) fn read_encoded_str(
     count: usize,
     config: base64::Config,
 ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+    use nom::bytes::streaming::take;
+
     // Unpadded encoded length
     let encoded_count = ((4 * count) + 2) / 3;
 
@@ -33,6 +33,8 @@ pub(crate) fn read_encoded_str(
 pub(crate) fn read_str_while_encoded(
     config: base64::Config,
 ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+    use nom::bytes::complete::take_while1;
+
     move |input: &str| {
         let (i, data) = take_while1(|c| {
             let c = c as u8;
@@ -51,6 +53,8 @@ pub(crate) fn read_str_while_encoded(
 pub(crate) fn read_wrapped_str_while_encoded(
     config: base64::Config,
 ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+    use nom::{bytes::streaming::take_while1, character::streaming::newline};
+
     move |input: &str| {
         let (i, chunks) = separated_nonempty_list(
             newline,
