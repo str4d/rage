@@ -37,6 +37,10 @@ fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
 pub enum SecretKey {
     /// An X25519 secret key.
     X25519([u8; 32]),
+    /// An ssh-rsa private key.
+    SshRsa(Vec<u8>, rsa::RSAPrivateKey),
+    /// An ssh-ed25519 key pair.
+    SshEd25519(Vec<u8>, [u8; 64]),
 }
 
 impl SecretKey {
@@ -47,21 +51,23 @@ impl SecretKey {
         SecretKey::X25519(sk)
     }
 
-    /// Parses a secret key from a string.
-    pub fn from_data<R: BufRead>(data: R) -> io::Result<Vec<Self>> {
-        // Try parsing as a list of age keys
-        let mut keys = vec![];
-        for line in data.lines() {
-            let line = line?;
-
-            // Skip empty lines and comments
-            if !(line.is_empty() || line.starts_with('#')) {
-                if let Ok((_, pk)) = read::secret_key(&line) {
-                    keys.push(pk);
+    /// Parses a list of secret keys from a string.
+    pub fn from_data<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
+        let mut buf = String::new();
+        loop {
+            match read::secret_keys(&buf) {
+                Ok((_, keys)) => break Ok(keys),
+                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
+                    data.read_line(&mut buf)?;
+                }
+                Err(_) => {
+                    break Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid secret key file",
+                    ));
                 }
             }
         }
-        Ok(keys)
     }
 
     /// Serializes this secret key as a string.
@@ -72,6 +78,8 @@ impl SecretKey {
                 SECRET_KEY_PREFIX,
                 base64::encode_config(&sk, base64::URL_SAFE_NO_PAD)
             ),
+            SecretKey::SshRsa(_, _) => unimplemented!(),
+            SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
     }
 
@@ -79,6 +87,8 @@ impl SecretKey {
     pub fn to_public(&self) -> RecipientKey {
         match self {
             SecretKey::X25519(sk) => RecipientKey::X25519(x25519(*sk, X25519_BASEPOINT_BYTES)),
+            SecretKey::SshRsa(_, _) => unimplemented!(),
+            SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
     }
 
@@ -100,6 +110,8 @@ impl SecretKey {
                     file_key
                 })
             }
+            (SecretKey::SshRsa(_, _), RecipientLine::SshRsa(_)) => unimplemented!(),
+            (SecretKey::SshEd25519(_, _), RecipientLine::SshEd25519(_)) => unimplemented!(),
             _ => None,
         }
     }
@@ -198,10 +210,19 @@ impl RecipientKey {
 }
 
 mod read {
-    use nom::{branch::alt, bytes::streaming::tag, sequence::preceded, IResult};
+    use nom::{
+        branch::alt,
+        bytes::streaming::{tag, take_until},
+        character::streaming::newline,
+        sequence::preceded,
+        IResult,
+    };
 
     use super::*;
-    use crate::{openssh::ssh_recipient_key, util::read_encoded_str};
+    use crate::{
+        openssh::{ssh_recipient_key, ssh_secret_keys},
+        util::read_encoded_str,
+    };
 
     fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
         let (i, buf) = preceded(
@@ -214,8 +235,33 @@ mod read {
         Ok((i, SecretKey::X25519(pk)))
     }
 
-    pub(super) fn secret_key(input: &str) -> IResult<&str, SecretKey> {
-        age_secret_key(input)
+    fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<SecretKey>> {
+        let mut keys = vec![];
+        while !input.is_empty() {
+            // Skip comments
+            let i = if input.starts_with('#') {
+                take_until("\n")(input)?.0
+            } else {
+                input
+            };
+
+            // Skip empty lines
+            let i = if i.starts_with('\n') {
+                i
+            } else {
+                let (i, sk) = age_secret_key(i)?;
+                keys.push(sk);
+                i
+            };
+
+            input = if i.is_empty() { i } else { newline(i)?.0 };
+        }
+
+        Ok((input, keys))
+    }
+
+    pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
+        alt((ssh_secret_keys, age_secret_keys))(input)
     }
 
     fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
