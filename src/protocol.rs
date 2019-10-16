@@ -150,10 +150,10 @@ impl Decryptor {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{BufReader, Read};
+    use std::io::{BufReader, Read, Write};
 
-    use super::Decryptor;
-    use crate::keys::SecretKey;
+    use super::{Decryptor, Encryptor};
+    use crate::keys::{RecipientKey, SecretKey};
 
     #[test]
     fn message_decryption() {
@@ -181,5 +181,53 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         let mut msg2 = String::new();
         r2.read_to_string(&mut msg2).unwrap();
         assert_eq!(msg2, "*hyped crab noises*\n");
+    }
+
+    #[test]
+    fn ssh_rsa_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
+        let sk = SecretKey::from_data(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
+
+        let test_msg = b"This is a test message. For testing.";
+
+        let mut encrypted = vec![];
+        let e = Encryptor::Keys(vec![pk]);
+        {
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
+            w.write_all(test_msg).unwrap();
+            w.flush().unwrap();
+        }
+
+        let d = Decryptor::Keys(sk);
+        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let mut decrypted = vec![];
+        r.read_to_end(&mut decrypted).unwrap();
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[test]
+    fn ssh_ed25519_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
+        let sk = SecretKey::from_data(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
+
+        let test_msg = b"This is a test message. For testing.";
+
+        let mut encrypted = vec![];
+        let e = Encryptor::Keys(vec![pk]);
+        {
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
+            w.write_all(test_msg).unwrap();
+            w.flush().unwrap();
+        }
+
+        let d = Decryptor::Keys(sk);
+        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let mut decrypted = vec![];
+        r.read_to_end(&mut decrypted).unwrap();
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
     }
 }
