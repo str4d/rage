@@ -2,7 +2,7 @@
 
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use getrandom::getrandom;
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 use std::io::{self, BufRead};
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
 
@@ -110,8 +110,58 @@ impl SecretKey {
                     file_key
                 })
             }
-            (SecretKey::SshRsa(_, _), RecipientLine::SshRsa(_)) => unimplemented!(),
-            (SecretKey::SshEd25519(_, _), RecipientLine::SshEd25519(_)) => unimplemented!(),
+            (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
+                if ssh_tag(&ssh_key) != r.tag {
+                    return None;
+                }
+
+                let mut rng = rand::rngs::OsRng::new().expect("should have RNG");
+                let mut h = Sha256::default();
+
+                rsa::oaep::decrypt(
+                    Some(&mut rng),
+                    &sk,
+                    &r.encrypted_file_key,
+                    &mut h,
+                    Some(SSH_RSA_OAEP_LABEL.to_owned()),
+                )
+                .ok()
+                .map(|pt| {
+                    // It's ours!
+                    let mut file_key = [0; 16];
+                    file_key.copy_from_slice(&pt);
+                    file_key
+                })
+            }
+            (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
+                if ssh_tag(&ssh_key) != r.tag {
+                    return None;
+                }
+
+                let sk = {
+                    let mut sk = [0; 32];
+                    // privkey format is seed || pubkey
+                    sk.copy_from_slice(&Sha512::digest(&privkey[0..32])[0..32]);
+                    sk
+                };
+
+                let tweak = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]);
+                let pk = x25519(tweak, x25519(sk, X25519_BASEPOINT_BYTES));
+
+                let shared_secret = x25519(tweak, x25519(sk, r.rest.epk));
+
+                let mut salt = vec![];
+                salt.extend_from_slice(&r.rest.epk);
+                salt.extend_from_slice(&pk);
+
+                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
+                aead_decrypt(&enc_key, &r.rest.encrypted_file_key).map(|pt| {
+                    // It's ours!
+                    let mut file_key = [0; 16];
+                    file_key.copy_from_slice(&pt);
+                    file_key
+                })
+            }
             _ => None,
         }
     }
