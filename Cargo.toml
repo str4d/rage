@@ -21,6 +21,7 @@ chacha20poly1305 = "0.1"
 chrono = "0.4"
 console = "0.9"
 cookie-factory = "0.3"
+curve25519-dalek = "1"
 dialoguer = "0.4"
 dirs = "2"
 generic-array = "0.12"
@@ -32,6 +33,7 @@ man = "0.3"
 minreq = { version = "1.4", features = ["https"] }
 nom = "5"
 num-bigint-dig = "0.4"
+rand = "0.6"
 rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
 scrypt = { version = "0.2", default-features = false }
 sha2 = "0.8"

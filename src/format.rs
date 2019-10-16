@@ -52,11 +52,29 @@ impl RecipientLine {
             encrypted_file_key,
         })
     }
+
     pub(crate) fn scrypt(salt: [u8; 16], log_n: u8, encrypted_file_key: Vec<u8>) -> Self {
         RecipientLine::Scrypt(ScryptRecipientLine {
             salt,
             log_n,
             encrypted_file_key,
+        })
+    }
+
+    pub(crate) fn ssh_rsa(tag: [u8; 4], encrypted_file_key: Vec<u8>) -> Self {
+        RecipientLine::SshRsa(SshRsaRecipientLine {
+            tag,
+            encrypted_file_key,
+        })
+    }
+
+    pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: [u8; 32], encrypted_file_key: Vec<u8>) -> Self {
+        RecipientLine::SshEd25519(SshEd25519RecipientLine {
+            tag,
+            rest: X25519RecipientLine {
+                epk,
+                encrypted_file_key,
+            },
         })
     }
 }
