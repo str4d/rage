@@ -139,7 +139,7 @@ impl Header {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{tag, take, take_while_m_n},
+        bytes::streaming::{tag, take},
         character::streaming::{digit1, newline},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
@@ -148,6 +148,7 @@ mod read {
     };
 
     use super::*;
+    use crate::util::take_b64_line;
 
     fn encoded_data(count: usize) -> impl Fn(&[u8]) -> IResult<&[u8], Vec<u8>> {
         // Unpadded encoded length
@@ -245,19 +246,17 @@ mod read {
     }
 
     fn ssh_rsa_body(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
-        // We are reading 57-character lines, but if we set m = 57 then the
-        // parser will speculatively read 57 character chunks, even if there are
-        // fewer than 57 characters remaining in the header (which is the case
-        // if an ssh-rsa recipient line is last in the header). Instead, set
-        // m = 32 so we read enough to check we are definitely on a line, but
-        // not enough to overflow the header.
-        let (i, chunks) = separated_nonempty_list(
-            newline,
-            take_while_m_n(32usize, 57usize, |c| {
-                base64::decode_config_slice(&[c, c, c, c], base64::URL_SAFE_NO_PAD, &mut [0, 0, 0])
-                    .is_ok()
-            }),
-        )(input)?;
+        let (i, chunks) =
+            separated_nonempty_list(newline, take_b64_line(base64::URL_SAFE_NO_PAD))(input)?;
+
+        // Enforce that the only chunk allowed to be shorter than 56 characters
+        // is the last chunk.
+        if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
+            || chunks.last().map(|s| s.len() > 56) == Some(true)
+        {
+            return Err(nom::Err::Failure(make_error(input, ErrorKind::Eof)));
+        }
+
         let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
 
         match base64::decode_config(&data, base64::URL_SAFE_NO_PAD) {
@@ -368,8 +367,8 @@ mod write {
         move |mut w: WriteContext<W>| {
             let mut s = encoded.as_str();
 
-            while !s.is_empty() {
-                let (l, r) = s.split_at(57);
+            while s.len() > 56 {
+                let (l, r) = s.split_at(56);
                 w = string(l)(w)?;
                 if !r.is_empty() {
                     w = string("\n")(w)?;
@@ -377,7 +376,7 @@ mod write {
                 s = r;
             }
 
-            Ok(w)
+            string(s)(w)
         }
     }
 
@@ -447,12 +446,13 @@ N3pgrXkbIn_RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
 -> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
 ZV_AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
 -> ssh-rsa mhir0Q
-xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJC
-RB0ErXAmgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQkKa
-MLkaqh5GjcGRrZe5MmTXRdEyNPRl8qpystNZR1q2rEDUHSEJInVLW8Otv
-QRG8P303VpjnOUU53FSBwyXxDtzxKxeloceFubn_HWGcR0mHU-1e9l39m
-yQEUZjIoqFIELXvh9o6RUgYzaAI-m_uPLMQdlIkiOOdbsrE6tFesRLZNH
-AYspeRKI9MJ--Xg9i7rutU34ZM-1BL6KgZfJ9FSm-GFHiVWpr1MfYCo_w
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJ
+CRB0ErXAmgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQk
+KaMLkaqh5GjcGRrZe5MmTXRdEyNPRl8qpystNZR1q2rEDUHSEJInVLW8
+OtvQRG8P303VpjnOUU53FSBwyXxDtzxKxeloceFubn_HWGcR0mHU-1e9
+l39myQEUZjIoqFIELXvh9o6RUgYzaAI-m_uPLMQdlIkiOOdbsrE6tFes
+RLZNHAYspeRKI9MJ--Xg9i7rutU34ZM-1BL6KgZfJ9FSm-GFHiVWpr1M
+fYCo_w
 -> ssh-ed25519 BjH7FA RO-wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
 51eEu5Oo2JYAG7OU4oamH03FDRP18_GnzeCrY7Z-sa8
 --- fgMiVLJHMlg9fW7CVG_hPS5EAU4Zeg19LyCP7SoH5nA
