@@ -86,9 +86,9 @@ mod read_asn1 {
     pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
         // Type: Universal | Constructed | SEQUENCE
         let (mid, _) = der_type(0, 1, 16)(input)?;
-        let (i, _seq_len) = der_length(mid)?;
+        let (seq_start, seq_len) = der_length(mid)?;
 
-        let (i, _) = tag_version(0)(i)?;
+        let (i, _) = tag_version(0)(seq_start)?;
         let (i, modulus) = integer(i)?;
         let (i, public_exponent) = integer(i)?;
         let (i, private_exponent) = integer(i)?;
@@ -96,7 +96,12 @@ mod read_asn1 {
         let (i, prime_q) = integer(i)?;
         let (i, _d_mod_pm1) = integer(i)?;
         let (i, _d_mod_qm1) = integer(i)?;
-        let (i, _iqmp) = integer(i)?;
+        let (seq_end, _iqmp) = integer(i)?;
+
+        // Check that we consumed as many bytes as were specified
+        if &seq_start[seq_len..] != seq_end {
+            return Err(nom::Err::Failure(make_error(mid, ErrorKind::Tag)));
+        }
 
         let sk = rsa::RSAPrivateKey::from_components(
             modulus,
@@ -105,7 +110,7 @@ mod read_asn1 {
             vec![prime_p, prime_q],
         );
 
-        Ok((i, sk))
+        Ok((seq_end, sk))
     }
 }
 
