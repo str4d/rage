@@ -65,8 +65,10 @@
 
 mod format;
 mod keys;
+mod openssh;
 mod primitives;
 mod protocol;
+mod util;
 
 pub use keys::{RecipientKey, SecretKey};
 pub use protocol::{Decryptor, Encryptor};

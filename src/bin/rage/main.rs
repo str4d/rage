@@ -71,13 +71,16 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            if let Some(key) = age::RecipientKey::from_str(&line) {
-                recipients.push(key);
-            } else {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("recipients file {} contains non-recipient data", filename),
-                ));
+            match line.parse() {
+                Ok(key) => recipients.push(key),
+                Err(<age::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("recipients file {} contains non-recipient data", filename),
+                    ));
+                }
             }
         }
     }
@@ -111,7 +114,7 @@ fn read_recipients(
         if let Ok(f) = File::open(&arg) {
             let buf = BufReader::new(f);
             recipients.extend(read_recipients_list(&arg, buf)?);
-        } else if let Some(pk) = age::RecipientKey::from_str(&arg) {
+        } else if let Ok(pk) = arg.parse() {
             recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
             if seen_aliases.contains(&arg) {
@@ -189,41 +192,11 @@ fn read_keys(filenames: Vec<String>) -> io::Result<Vec<age::SecretKey>> {
             _ => e,
         })?;
         let buf = BufReader::new(f);
-
-        for line in buf.lines() {
-            let line = line?;
-
-            // Skip empty lines and comments
-            if !(line.is_empty() || line.find('#') == Some(0)) {
-                if let Some(key) = age::SecretKey::from_str(&line) {
-                    keys.push(key);
-                } else {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "key file contains non-key data",
-                    ));
-                }
-            }
-        }
+        keys.extend(age::SecretKey::from_data(buf)?);
     } else {
         for filename in filenames {
             let buf = BufReader::new(File::open(filename)?);
-
-            for line in buf.lines() {
-                let line = line?;
-
-                // Skip empty lines and comments
-                if !(line.is_empty() || line.find('#') == Some(0)) {
-                    if let Some(key) = age::SecretKey::from_str(&line) {
-                        keys.push(key);
-                    } else {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "key file contains non-key data",
-                        ));
-                    }
-                }
-            }
+            keys.extend(age::SecretKey::from_data(buf)?);
         }
     }
 
