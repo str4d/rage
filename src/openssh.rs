@@ -4,8 +4,8 @@ use nom::{
     branch::alt,
     bytes::streaming::tag,
     character::streaming::newline,
-    error::{make_error, ErrorKind},
-    sequence::{pair, terminated},
+    combinator::{map, map_opt},
+    sequence::{pair, preceded, terminated},
     IResult,
 };
 
@@ -20,7 +20,10 @@ const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 mod read_asn1 {
     use nom::{
         bytes::complete::{tag, take},
+        combinator::{map, map_opt},
         error::{make_error, ErrorKind},
+        multi::{length_data, length_value},
+        sequence::{preceded, terminated, tuple},
         IResult,
     };
     use num_bigint_dig::BigUint;
@@ -64,62 +67,61 @@ mod read_asn1 {
     }
 
     fn integer(input: &[u8]) -> IResult<&[u8], BigUint> {
-        // Type: Universal | Primitive | INTEGER
-        let (i, _) = der_type(0, 0, 2)(input)?;
-        let (i, integer_len) = der_length(i)?;
-        let (i, integer_bytes) = take(integer_len)(i)?;
-
-        Ok((i, BigUint::from_bytes_be(integer_bytes)))
+        preceded(
+            // Type: Universal | Primitive | INTEGER
+            der_type(0, 0, 2),
+            map(length_data(der_length), BigUint::from_bytes_be),
+        )(input)
     }
 
     fn tag_version(ver: u8) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
         move |input: &[u8]| {
-            // Type: Universal | Primitive | INTEGER
-            let (mid, _) = der_type(0, 0, 2)(input)?;
-            match der_length(mid)? {
-                (i, integer_len) if integer_len == 1 => tag(&[ver])(i),
-                _ => Err(nom::Err::Failure(make_error(mid, ErrorKind::Tag))),
-            }
+            preceded(
+                // Type: Universal | Primitive | INTEGER
+                der_type(0, 0, 2),
+                length_value(
+                    map_opt(der_length, |ver_len| match ver_len {
+                        1 => Some(ver_len),
+                        _ => None,
+                    }),
+                    tag(&[ver]),
+                ),
+            )(input)
         }
     }
 
     pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
-        // Type: Universal | Constructed | SEQUENCE
-        let (mid, _) = der_type(0, 1, 16)(input)?;
-        let (seq_start, seq_len) = der_length(mid)?;
-
-        let (i, _) = tag_version(0)(seq_start)?;
-        let (i, modulus) = integer(i)?;
-        let (i, public_exponent) = integer(i)?;
-        let (i, private_exponent) = integer(i)?;
-        let (i, prime_p) = integer(i)?;
-        let (i, prime_q) = integer(i)?;
-        let (i, _d_mod_pm1) = integer(i)?;
-        let (i, _d_mod_qm1) = integer(i)?;
-        let (seq_end, _iqmp) = integer(i)?;
-
-        // Check that we consumed as many bytes as were specified
-        if &seq_start[seq_len..] != seq_end {
-            return Err(nom::Err::Failure(make_error(mid, ErrorKind::Tag)));
-        }
-
-        let sk = rsa::RSAPrivateKey::from_components(
-            modulus,
-            public_exponent,
-            private_exponent,
-            vec![prime_p, prime_q],
-        );
-
-        Ok((seq_end, sk))
+        preceded(
+            // Type: Universal | Constructed | SEQUENCE
+            der_type(0, 1, 16),
+            length_value(
+                der_length,
+                preceded(
+                    tag_version(0),
+                    terminated(
+                        map(
+                            tuple((integer, integer, integer, integer, integer)),
+                            |(n, e, d, p, q)| {
+                                rsa::RSAPrivateKey::from_components(n, e, d, vec![p, q])
+                            },
+                        ),
+                        // d mod (p-1), d mod (q-1), iqmp
+                        tuple((integer, integer, integer)),
+                    ),
+                ),
+            ),
+        )(input)
     }
 }
 
 mod read_binary {
     use nom::{
+        branch::alt,
         bytes::complete::{tag, take},
-        error::{make_error, ErrorKind},
+        combinator::{map, map_opt, map_res},
         multi::{length_data, length_value},
         number::complete::be_u32,
+        sequence::{pair, preceded, terminated, tuple},
         IResult,
     };
     use num_bigint_dig::BigUint;
@@ -128,99 +130,124 @@ mod read_binary {
     use crate::keys::SecretKey;
 
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
-        let (i, modulus) = length_data(be_u32)(input)?;
-        let (i, e) = length_data(be_u32)(i)?;
-        let (i, d) = length_data(be_u32)(i)?;
-        let (i, _iqmp) = length_data(be_u32)(i)?;
-        let (i, prime_p) = length_data(be_u32)(i)?;
-        let (i, prime_q) = length_data(be_u32)(i)?;
-
-        let sk = rsa::RSAPrivateKey::from_components(
-            BigUint::from_bytes_be(modulus),
-            BigUint::from_bytes_be(e),
-            BigUint::from_bytes_be(d),
-            vec![
-                BigUint::from_bytes_be(prime_p),
-                BigUint::from_bytes_be(prime_q),
-            ],
-        );
-
-        Ok((i, sk))
+        preceded(
+            length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
+            map(
+                tuple((
+                    length_data(be_u32),
+                    length_data(be_u32),
+                    length_data(be_u32),
+                    length_data(be_u32),
+                    length_data(be_u32),
+                    length_data(be_u32),
+                )),
+                |(n, e, d, _iqmp, p, q)| {
+                    rsa::RSAPrivateKey::from_components(
+                        BigUint::from_bytes_be(n),
+                        BigUint::from_bytes_be(e),
+                        BigUint::from_bytes_be(d),
+                        vec![BigUint::from_bytes_be(p), BigUint::from_bytes_be(q)],
+                    )
+                },
+            ),
+        )(input)
     }
 
     fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], [u8; 64]> {
-        let (mid, pubkey_bytes) = length_data(be_u32)(input)?;
-        let (i, privkey_bytes) = length_data(be_u32)(mid)?;
-        if privkey_bytes.len() != 64 {
-            return Err(nom::Err::Failure(make_error(mid, ErrorKind::LengthValue)));
-        }
-        if pubkey_bytes != &privkey_bytes[32..64] {
-            return Err(nom::Err::Failure(make_error(mid, ErrorKind::Tag)));
-        }
-
-        let mut privkey = [0; 64];
-        privkey.copy_from_slice(&privkey_bytes);
-
-        Ok((i, privkey))
+        preceded(
+            length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
+            map_opt(
+                tuple((length_data(be_u32), length_data(be_u32))),
+                |(pubkey_bytes, privkey_bytes)| {
+                    if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
+                        let mut privkey = [0; 64];
+                        privkey.copy_from_slice(&privkey_bytes);
+                        Some(privkey)
+                    } else {
+                        None
+                    }
+                },
+            ),
+        )(input)
     }
 
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Vec<SecretKey>> {
-        let (i, _) = tag(b"openssh-key-v1\x00")(input)?;
-        let (i, _cipher_name) = length_value(be_u32, tag(b"none"))(i)?;
-        let (i, _kdf_name) = length_value(be_u32, tag(b"none"))(i)?;
-        let (i, _kdf) = length_value(be_u32, tag(b""))(i)?;
-        let (mut mid, num_keys) = be_u32(i)?;
+        let (mut mid, num_keys) = preceded(
+            tuple((
+                tag(b"openssh-key-v1\x00"),
+                // Cipher name
+                length_value(be_u32, tag(b"none")),
+                // KDF name
+                length_value(be_u32, tag(b"none")),
+                // KDF
+                length_value(be_u32, tag(b"")),
+            )),
+            be_u32,
+        )(input)?;
 
         let mut keys = vec![];
         for _ in 0..num_keys {
             let (i, ssh_key) = length_data(be_u32)(mid)?;
-            let (i, _sk_len) = be_u32(i)?;
-            let (i, checksum) = take(4usize)(i)?;
-            let (key_type_i, _) = tag(checksum)(i)?;
-            let (i, key_type) = length_data(be_u32)(key_type_i)?;
-            let i = if key_type == SSH_RSA_KEY_PREFIX.as_bytes() {
-                let (i, sk) = openssh_rsa_privkey(i)?;
-                keys.push(SecretKey::SshRsa(ssh_key.to_vec(), sk));
-                i
-            } else if key_type == SSH_ED25519_KEY_PREFIX.as_bytes() {
-                let (i, privkey) = openssh_ed25519_privkey(i)?;
-                keys.push(SecretKey::SshEd25519(ssh_key.to_vec(), privkey));
-                i
-            } else {
-                eprintln!("{:?}", key_type);
-                return Err(nom::Err::Failure(make_error(key_type_i, ErrorKind::Tag)));
-            };
-            let (i, _comment) = length_data(be_u32)(i)?;
+            let (i, key) = length_value(
+                be_u32,
+                preceded(
+                    // Repeated checksum thing?
+                    map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
+                        if c1 == c2 {
+                            Some(c1)
+                        } else {
+                            None
+                        }
+                    }),
+                    terminated(
+                        alt((
+                            map(openssh_rsa_privkey, |sk| {
+                                SecretKey::SshRsa(ssh_key.to_vec(), sk)
+                            }),
+                            map(openssh_ed25519_privkey, |privkey| {
+                                SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
+                            }),
+                        )),
+                        // Comment
+                        length_data(be_u32),
+                    ),
+                ),
+            )(i)?;
+            keys.push(key);
             mid = i;
         }
 
-        Ok((i, keys))
+        Ok((mid, keys))
     }
 
     pub(super) fn ssh_rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
-        let (i, _) = length_value(be_u32, tag(SSH_RSA_KEY_PREFIX))(input)?;
-        let (i, exponent) = length_data(be_u32)(i)?;
-        let (i, modulus) = length_data(be_u32)(i)?;
-
-        let pk = rsa::RSAPublicKey::new(
-            BigUint::from_bytes_be(modulus),
-            BigUint::from_bytes_be(exponent),
-        )
-        .unwrap();
-
-        Ok((i, pk))
+        preceded(
+            length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
+            map_res(
+                tuple((length_data(be_u32), length_data(be_u32))),
+                |(exponent, modulus)| {
+                    rsa::RSAPublicKey::new(
+                        BigUint::from_bytes_be(modulus),
+                        BigUint::from_bytes_be(exponent),
+                    )
+                },
+            ),
+        )(input)
     }
 
     pub(super) fn ssh_ed25519_pubkey(input: &[u8]) -> IResult<&[u8], [u8; 32]> {
-        let (mid, _) = length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX))(input)?;
-        let (i, buf) = length_data(be_u32)(mid)?;
-        if buf.len() != 32 {
-            return Err(nom::Err::Failure(make_error(mid, ErrorKind::LengthValue)));
-        }
-
-        let mut pk = [0; 32];
-        pk.copy_from_slice(&buf);
-        Ok((i, pk))
+        preceded(
+            length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
+            map_opt(length_data(be_u32), |buf| {
+                if buf.len() == 32 {
+                    let mut pk = [0; 32];
+                    pk.copy_from_slice(&buf);
+                    Some(pk)
+                } else {
+                    None
+                }
+            }),
+        )(input)
     }
 }
 
@@ -253,40 +280,43 @@ mod write_binary {
 }
 
 fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
-    let (mid, _) = pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline)(input)?;
-    let (i, privkey) = terminated(
-        read_wrapped_str_while_encoded(base64::STANDARD),
-        pair(newline, tag("-----END RSA PRIVATE KEY-----")),
-    )(mid)?;
-
-    match read_asn1::rsa_privkey(&privkey) {
-        Ok((_, privkey)) => {
-            let mut ssh_key = vec![];
-            cookie_factory::gen(
-                write_binary::ssh_rsa_pubkey(&privkey.to_public_key()),
-                &mut ssh_key,
-            )
-            .unwrap();
-            Ok((i, vec![SecretKey::SshRsa(ssh_key, privkey)]))
-        }
-        Err(_) => Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof))),
-    }
+    preceded(
+        pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
+        terminated(
+            map_opt(
+                read_wrapped_str_while_encoded(base64::STANDARD),
+                |privkey| {
+                    read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
+                        let mut ssh_key = vec![];
+                        cookie_factory::gen(
+                            write_binary::ssh_rsa_pubkey(&privkey.to_public_key()),
+                            &mut ssh_key,
+                        )
+                        .unwrap();
+                        vec![SecretKey::SshRsa(ssh_key, privkey)]
+                    })
+                },
+            ),
+            pair(newline, tag("-----END RSA PRIVATE KEY-----")),
+        ),
+    )(input)
 }
 
 fn openssh_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
-    let (mid, _) = pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline)(input)?;
-    let (i, privkey) = terminated(
-        read_wrapped_str_while_encoded(base64::STANDARD),
-        pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
-    )(mid)?;
-
-    match read_binary::openssh_privkey(&privkey) {
-        Ok((_, keys)) => Ok((i, keys)),
-        Err(e) => {
-            eprintln!("{:?}", e);
-            Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof)))
-        }
-    }
+    preceded(
+        pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
+        terminated(
+            map_opt(
+                read_wrapped_str_while_encoded(base64::STANDARD),
+                |privkey| {
+                    read_binary::openssh_privkey(&privkey)
+                        .ok()
+                        .map(|(_, keys)| keys)
+                },
+            ),
+            pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
+        ),
+    )(input)
 }
 
 pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
@@ -294,35 +324,35 @@ pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
 }
 
 fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    let (mid, _) = pair(tag(SSH_RSA_KEY_PREFIX), tag(" "))(input)?;
-    let (i, ssh_key) = read_str_while_encoded(base64::STANDARD_NO_PAD)(mid)?;
-
-    let (_, pk) = match read_binary::ssh_rsa_pubkey(&ssh_key) {
-        Ok(pk) => pk,
-        Err(_) => return Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof))),
-    };
-
-    Ok((i, Some(RecipientKey::SshRsa(ssh_key, pk))))
+    preceded(
+        pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
+        map_opt(read_str_while_encoded(base64::STANDARD_NO_PAD), |ssh_key| {
+            match read_binary::ssh_rsa_pubkey(&ssh_key) {
+                Ok((_, pk)) => Some(Some(RecipientKey::SshRsa(ssh_key, pk))),
+                Err(_) => None,
+            }
+        }),
+    )(input)
 }
 
 fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    let (mid, _) = pair(tag(SSH_ED25519_KEY_PREFIX), tag(" "))(input)?;
-    let (i, ssh_key) = read_encoded_str(51, base64::STANDARD_NO_PAD)(mid)?;
-
-    let (_, pk) = match read_binary::ssh_ed25519_pubkey(&ssh_key) {
-        Ok(pk) => pk,
-        Err(_) => return Err(nom::Err::Failure(make_error(mid, ErrorKind::Eof))),
-    };
-
-    Ok((i, Some(RecipientKey::SshEd25519(ssh_key, pk))))
+    preceded(
+        pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
+        map_opt(read_encoded_str(51, base64::STANDARD_NO_PAD), |ssh_key| {
+            match read_binary::ssh_ed25519_pubkey(&ssh_key) {
+                Ok((_, pk)) => Some(Some(RecipientKey::SshEd25519(ssh_key, pk))),
+                Err(_) => None,
+            }
+        }),
+    )(input)
 }
 
 fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     // Key types we want to ignore in SSH pubkey files
-    let (mid, _) = pair(tag("ecdsa-sha2-nistp256"), tag(" "))(input)?;
-    let (i, _) = read_str_while_encoded(base64::STANDARD_NO_PAD)(mid)?;
-
-    Ok((i, None))
+    preceded(
+        pair(tag("ecdsa-sha2-nistp256"), tag(" ")),
+        map(read_str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
+    )(input)
 }
 
 pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, Option<RecipientKey>> {
