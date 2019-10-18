@@ -276,6 +276,7 @@ mod read {
         branch::alt,
         bytes::streaming::{tag, take_until},
         character::streaming::newline,
+        combinator::map,
         sequence::preceded,
         IResult,
     };
@@ -284,14 +285,14 @@ mod read {
     use crate::{openssh::ssh_secret_keys, util::read_encoded_str};
 
     fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
-        let (i, buf) = preceded(
+        preceded(
             tag(SECRET_KEY_PREFIX),
-            read_encoded_str(32, base64::URL_SAFE_NO_PAD),
-        )(input)?;
-
-        let mut pk = [0; 32];
-        pk.copy_from_slice(&buf);
-        Ok((i, SecretKey::X25519(pk)))
+            map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
+                let mut pk = [0; 32];
+                pk.copy_from_slice(&buf);
+                SecretKey::X25519(pk)
+            }),
+        )(input)
     }
 
     fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<SecretKey>> {
@@ -324,14 +325,14 @@ mod read {
     }
 
     pub(super) fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-        let (i, buf) = preceded(
+        preceded(
             tag(PUBLIC_KEY_PREFIX),
-            read_encoded_str(32, base64::URL_SAFE_NO_PAD),
-        )(input)?;
-
-        let mut pk = [0; 32];
-        pk.copy_from_slice(&buf);
-        Ok((i, RecipientKey::X25519(pk)))
+            map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
+                let mut pk = [0; 32];
+                pk.copy_from_slice(&buf);
+                RecipientKey::X25519(pk)
+            }),
+        )(input)
     }
 }
 

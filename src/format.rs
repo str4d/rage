@@ -141,6 +141,7 @@ mod read {
         branch::alt,
         bytes::streaming::{tag, take},
         character::streaming::{digit1, newline},
+        combinator::{map, map_opt, map_res},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
         sequence::{pair, preceded, separated_pair, terminated},
@@ -172,134 +173,125 @@ mod read {
     }
 
     fn x25519_epk(input: &[u8]) -> IResult<&[u8], [u8; 32]> {
-        let (i, epk_vec) = encoded_data(32)(input)?;
-
-        let mut epk = [0; 32];
-        epk.copy_from_slice(&epk_vec);
-
-        Ok((i, epk))
+        map(encoded_data(32), |epk_vec| {
+            let mut epk = [0; 32];
+            epk.copy_from_slice(&epk_vec);
+            epk
+        })(input)
     }
 
     fn x25519_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        let (i, (epk, encrypted_file_key)) = preceded(
+        preceded(
             tag(X25519_RECIPIENT_TAG),
-            separated_pair(x25519_epk, newline, encoded_data(32)),
-        )(input)?;
-
-        Ok((
-            i,
-            RecipientLine::X25519(X25519RecipientLine {
-                epk,
-                encrypted_file_key,
-            }),
-        ))
+            map(
+                separated_pair(x25519_epk, newline, encoded_data(32)),
+                |(epk, encrypted_file_key)| {
+                    RecipientLine::X25519(X25519RecipientLine {
+                        epk,
+                        encrypted_file_key,
+                    })
+                },
+            ),
+        )(input)
     }
 
     fn scrypt_salt(input: &[u8]) -> IResult<&[u8], [u8; 16]> {
-        let (i, salt_vec) = encoded_data(16)(input)?;
-
-        let mut salt = [0; 16];
-        salt.copy_from_slice(&salt_vec);
-
-        Ok((i, salt))
+        map(encoded_data(16), |salt_vec| {
+            let mut salt = [0; 16];
+            salt.copy_from_slice(&salt_vec);
+            salt
+        })(input)
     }
 
     fn scrypt_log_n(input: &[u8]) -> IResult<&[u8], u8> {
-        let (i, log_n_str) = digit1(input)?;
-
-        // digit1 will only return valid ASCII bytes
-        let log_n_str = std::str::from_utf8(log_n_str).unwrap();
-
-        match u8::from_str_radix(log_n_str, 10) {
-            Ok(n) => Ok((i, n)),
-            Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Digit))),
-        }
+        map_res(digit1, |log_n_str| {
+            // digit1 will only return valid ASCII bytes
+            let log_n_str = std::str::from_utf8(log_n_str).unwrap();
+            u8::from_str_radix(log_n_str, 10)
+        })(input)
     }
 
     fn scrypt_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        let (i, ((salt, log_n), encrypted_file_key)) = preceded(
+        preceded(
             tag(SCRYPT_RECIPIENT_TAG),
-            separated_pair(
-                separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
-                newline,
-                encoded_data(32),
+            map(
+                separated_pair(
+                    separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
+                    newline,
+                    encoded_data(32),
+                ),
+                |((salt, log_n), encrypted_file_key)| {
+                    RecipientLine::Scrypt(ScryptRecipientLine {
+                        salt,
+                        log_n,
+                        encrypted_file_key,
+                    })
+                },
             ),
-        )(input)?;
-
-        Ok((
-            i,
-            RecipientLine::Scrypt(ScryptRecipientLine {
-                salt,
-                log_n,
-                encrypted_file_key,
-            }),
-        ))
+        )(input)
     }
 
     fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
-        let (i, tag_vec) = encoded_data(4)(input)?;
-
-        let mut tag = [0; 4];
-        tag.copy_from_slice(&tag_vec);
-
-        Ok((i, tag))
+        map(encoded_data(4), |tag_vec| {
+            let mut tag = [0; 4];
+            tag.copy_from_slice(&tag_vec);
+            tag
+        })(input)
     }
 
     fn ssh_rsa_body(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
-        let (i, chunks) =
-            separated_nonempty_list(newline, take_b64_line(base64::URL_SAFE_NO_PAD))(input)?;
-
-        // Enforce that the only chunk allowed to be shorter than 56 characters
-        // is the last chunk.
-        if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
-            || chunks.last().map(|s| s.len() > 56) == Some(true)
-        {
-            return Err(nom::Err::Failure(make_error(input, ErrorKind::Eof)));
-        }
-
-        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-
-        match base64::decode_config(&data, base64::URL_SAFE_NO_PAD) {
-            Ok(decoded) => Ok((i, decoded)),
-            Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
-        }
+        map_opt(
+            separated_nonempty_list(newline, take_b64_line(base64::URL_SAFE_NO_PAD)),
+            |chunks| {
+                // Enforce that the only chunk allowed to be shorter than 56 characters
+                // is the last chunk.
+                if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
+                    || chunks.last().map(|s| s.len() > 56) == Some(true)
+                {
+                    None
+                } else {
+                    let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                    base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
+                }
+            },
+        )(input)
     }
 
     fn ssh_rsa_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        let (i, (tag, encrypted_file_key)) = preceded(
+        preceded(
             tag(SSH_RSA_RECIPIENT_TAG),
-            separated_pair(ssh_tag, newline, ssh_rsa_body),
-        )(input)?;
-
-        Ok((
-            i,
-            RecipientLine::SshRsa(SshRsaRecipientLine {
-                tag,
-                encrypted_file_key,
-            }),
-        ))
+            map(
+                separated_pair(ssh_tag, newline, ssh_rsa_body),
+                |(tag, encrypted_file_key)| {
+                    RecipientLine::SshRsa(SshRsaRecipientLine {
+                        tag,
+                        encrypted_file_key,
+                    })
+                },
+            ),
+        )(input)
     }
 
     fn ssh_ed25519_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        let (i, ((tag, epk), encrypted_file_key)) = preceded(
+        preceded(
             tag(SSH_ED25519_RECIPIENT_TAG),
-            separated_pair(
-                separated_pair(ssh_tag, tag(" "), x25519_epk),
-                newline,
-                encoded_data(32),
-            ),
-        )(input)?;
-
-        Ok((
-            i,
-            RecipientLine::SshEd25519(SshEd25519RecipientLine {
-                tag,
-                rest: X25519RecipientLine {
-                    epk,
-                    encrypted_file_key,
+            map(
+                separated_pair(
+                    separated_pair(ssh_tag, tag(" "), x25519_epk),
+                    newline,
+                    encoded_data(32),
+                ),
+                |((tag, epk), encrypted_file_key)| {
+                    RecipientLine::SshEd25519(SshEd25519RecipientLine {
+                        tag,
+                        rest: X25519RecipientLine {
+                            epk,
+                            encrypted_file_key,
+                        },
+                    })
                 },
-            }),
-        ))
+            ),
+        )(input)
     }
 
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
@@ -315,15 +307,19 @@ mod read {
     }
 
     pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
-        let (i, _) = terminated(tag(V1_MAGIC), newline)(input)?;
-        let (i, recipients) =
-            terminated(separated_nonempty_list(newline, recipient_line), newline)(i)?;
-        let (i, mac) = terminated(
-            preceded(pair(tag(MAC_TAG), tag(b" ")), encoded_data(32)),
-            newline,
-        )(i)?;
-
-        Ok((i, Header { recipients, mac }))
+        preceded(
+            pair(tag(V1_MAGIC), newline),
+            map(
+                pair(
+                    terminated(separated_nonempty_list(newline, recipient_line), newline),
+                    preceded(
+                        pair(tag(MAC_TAG), tag(b" ")),
+                        terminated(encoded_data(32), newline),
+                    ),
+                ),
+                |(recipients, mac)| Header { recipients, mac },
+            ),
+        )(input)
     }
 }
 
