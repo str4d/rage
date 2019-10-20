@@ -5,10 +5,11 @@
 use aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
 use generic_array::{typenum::U12, GenericArray};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 
 const CHUNK_SIZE: usize = 64 * 1024;
-const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + 16;
+const TAG_SIZE: usize = 16;
+const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
 /// `STREAM[key](plaintext)`
 ///
@@ -53,8 +54,40 @@ impl Stream {
         StreamReader {
             stream: Self::new(key),
             inner,
+            start: 0,
+            cur_plaintext_pos: 0,
             unread: vec![],
         }
+    }
+
+    /// Wraps `STREAM` decryption under the given `key` around a seekable reader.
+    ///
+    /// `key` must **never** be repeated across multiple streams. In `age` this is
+    /// achieved by deriving the key with [`HKDF`] from both a random file key and a
+    /// random nonce.
+    ///
+    /// [`HKDF`]: crate::primitives::hkdf
+    pub fn decrypt_seekable<R: Read + Seek>(
+        key: &[u8; 32],
+        mut inner: R,
+    ) -> io::Result<impl Read + Seek> {
+        let start = inner.seek(SeekFrom::Current(0))?;
+        Ok(StreamReader {
+            stream: Self::new(key),
+            inner,
+            start,
+            cur_plaintext_pos: 0,
+            unread: vec![],
+        })
+    }
+
+    fn set_counter(&mut self, val: u64) {
+        // Overwrite the counter with the new value
+        self.nonce[0..3].copy_from_slice(&[0, 0, 0]);
+        self.nonce[3..11].copy_from_slice(&val.to_be_bytes());
+
+        // Unset last-chunk flag
+        self.nonce[11] = 0;
     }
 
     fn increment_counter(&mut self) {
@@ -155,6 +188,8 @@ impl<W: Write> Write for StreamWriter<W> {
 struct StreamReader<R: Read> {
     stream: Stream,
     inner: R,
+    start: u64,
+    cur_plaintext_pos: u64,
     unread: Vec<u8>,
 }
 
@@ -205,14 +240,85 @@ impl<R: Read> Read for StreamReader<R> {
 
         buf[..to_read].copy_from_slice(&self.unread[..to_read]);
         self.unread = self.unread.split_off(to_read);
+        self.cur_plaintext_pos += to_read as u64;
 
         Ok(to_read)
     }
 }
 
+impl<R: Read + Seek> Seek for StreamReader<R> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        // Convert the offset into the target position within the plaintext
+        let target_pos = match pos {
+            SeekFrom::Start(offset) => offset,
+            SeekFrom::Current(offset) => {
+                let res = (self.cur_plaintext_pos as i64) + offset;
+                if res >= 0 {
+                    res as u64
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "cannot seek before the start",
+                    ));
+                }
+            }
+            SeekFrom::End(offset) => {
+                let ct_end = self.inner.seek(SeekFrom::End(0))?;
+                let num_chunks = (ct_end / ENCRYPTED_CHUNK_SIZE as u64) + 1;
+                let total_tag_size = num_chunks * TAG_SIZE as u64;
+                let pt_end = ct_end - self.start - total_tag_size;
+
+                let res = (pt_end as i64) + offset;
+                if res >= 0 {
+                    res as u64
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "cannot seek before the start",
+                    ));
+                }
+            }
+        };
+
+        let offset = {
+            let cur_chunk_index = self.cur_plaintext_pos / CHUNK_SIZE as u64;
+            let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
+
+            let target_chunk_index = target_pos / CHUNK_SIZE as u64;
+            let target_chunk_offset = target_pos as usize % CHUNK_SIZE;
+
+            if target_chunk_index == cur_chunk_index && target_chunk_offset >= cur_chunk_offset {
+                // We just need to skip forward a few bytes
+                target_chunk_offset - cur_chunk_offset
+            } else {
+                // Seek to the beginning of the target chunk
+                self.inner.seek(SeekFrom::Start(
+                    self.start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
+                ))?;
+                self.stream.set_counter(target_chunk_index);
+                self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
+                self.unread.clear();
+
+                target_chunk_offset
+            }
+        };
+
+        // Read and drop bytes from the chunk to reach the target position.
+        // A single call to self.read() is sufficient, because we know it will
+        // read a full chunk from the inner reader, and offset is always smaller
+        // than a chunk.
+        let mut to_drop = Vec::with_capacity(offset);
+        to_drop.resize(offset, 0);
+        self.read(&mut to_drop)?;
+
+        // All done!
+        Ok(target_pos)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::io::{self, Read, Write};
+    use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
 
@@ -360,5 +466,45 @@ mod tests {
             r.read_to_end(&mut buf).unwrap_err().kind(),
             io::ErrorKind::UnexpectedEof
         );
+    }
+
+    #[test]
+    fn stream_seeking() {
+        let key = [7; 32];
+        let mut data = vec![0; 100 * 1024];
+        for i in 0..data.len() {
+            data[i] = i as u8;
+        }
+
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(&key, &mut encrypted);
+            w.write_all(&data).unwrap();
+            w.flush().unwrap();
+        };
+
+        let mut r = Stream::decrypt_seekable(&key, Cursor::new(encrypted)).unwrap();
+
+        // Read through into the second chunk
+        let mut buf = vec![0; 100];
+        for i in 0..700 {
+            r.read_exact(&mut buf).unwrap();
+            assert_eq!(&buf[..], &data[100 * i..100 * (i + 1)]);
+        }
+
+        // Seek back into the first chunk
+        r.seek(SeekFrom::Start(250)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[250..350]);
+
+        // Seek forwards within this chunk
+        r.seek(SeekFrom::Current(510)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[860..960]);
+
+        // Seek backwards from the end
+        r.seek(SeekFrom::End(-1337)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
     }
 }
