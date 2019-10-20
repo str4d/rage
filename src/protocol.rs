@@ -1,7 +1,7 @@
 //! Encryption and decryption routines for age.
 
 use getrandom::getrandom;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::time::{Duration, SystemTime};
 
 use crate::{
@@ -145,6 +145,39 @@ impl Decryptor {
             })
             .map(|payload_key| Stream::decrypt(&payload_key, input))
             .ok_or("no matching keys")
+    }
+
+    /// Attempts to decrypt a message from the given reader.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn trial_decrypt_seekable<R: Read + Seek>(
+        &self,
+        mut input: R,
+    ) -> Result<impl Read + Seek, &'static str> {
+        let header = Header::read(&mut input).map_err(|_| "failed to read header")?;
+
+        let mut nonce = [0; 16];
+        input
+            .read_exact(&mut nonce)
+            .map_err(|_| "failed to read nonce")?;
+
+        header
+            .recipients
+            .iter()
+            .find_map(|r| {
+                self.unwrap(r).and_then(|file_key| {
+                    // Verify the MAC
+                    header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+
+                    // Return the payload key
+                    Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                })
+            })
+            .ok_or("no matching keys")
+            .and_then(|payload_key| {
+                Stream::decrypt_seekable(&payload_key, input)
+                    .map_err(|_| "failed to seek on reader")
+            })
     }
 }
 
