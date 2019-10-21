@@ -93,6 +93,15 @@ fn main() {
 
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
+    if opts.filename.is_empty() {
+        error!("Missing filename");
+        return;
+    }
+    if opts.mountpoint.is_empty() {
+        error!("Missing mountpoint");
+        return;
+    }
+
     let decryptor = if opts.passphrase {
         if !opts.keys.is_empty() {
             error!("Keys are not accepted when using a passphrase");
