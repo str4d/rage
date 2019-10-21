@@ -264,7 +264,10 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
                 }
             }
             SeekFrom::End(offset) => {
+                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
                 let ct_end = self.inner.seek(SeekFrom::End(0))?;
+                self.inner.seek(SeekFrom::Start(cur_pos))?;
+
                 let num_chunks = (ct_end / ENCRYPTED_CHUNK_SIZE as u64) + 1;
                 let total_tag_size = num_chunks * TAG_SIZE as u64;
                 let pt_end = ct_end - self.start - total_tag_size;
