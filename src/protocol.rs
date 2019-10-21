@@ -7,7 +7,10 @@ use std::time::{Duration, SystemTime};
 use crate::{
     format::{Header, RecipientLine},
     keys::{RecipientKey, SecretKey},
-    primitives::{aead_decrypt, aead_encrypt, hkdf, scrypt, Stream},
+    primitives::{
+        aead_decrypt, aead_encrypt, hkdf, scrypt,
+        stream::{Stream, StreamReader},
+    },
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
@@ -153,7 +156,7 @@ impl Decryptor {
     pub fn trial_decrypt_seekable<R: Read + Seek>(
         &self,
         mut input: R,
-    ) -> Result<impl Read + Seek, &'static str> {
+    ) -> Result<StreamReader<R>, &'static str> {
         let header = Header::read(&mut input).map_err(|_| "failed to read header")?;
 
         let mut nonce = [0; 16];

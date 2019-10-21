@@ -70,7 +70,7 @@ impl Stream {
     pub fn decrypt_seekable<R: Read + Seek>(
         key: &[u8; 32],
         mut inner: R,
-    ) -> io::Result<impl Read + Seek> {
+    ) -> io::Result<StreamReader<R>> {
         let start = inner.seek(SeekFrom::Current(0))?;
         Ok(StreamReader {
             stream: Self::new(key),
@@ -185,7 +185,8 @@ impl<W: Write> Write for StreamWriter<W> {
     }
 }
 
-struct StreamReader<R: Read> {
+/// Provides access to a decrypted age message.
+pub struct StreamReader<R: Read> {
     stream: Stream,
     inner: R,
     start: u64,

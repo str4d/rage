@@ -71,4 +71,5 @@ mod protocol;
 mod util;
 
 pub use keys::{RecipientKey, SecretKey};
+pub use primitives::stream::StreamReader;
 pub use protocol::{Decryptor, Encryptor};
