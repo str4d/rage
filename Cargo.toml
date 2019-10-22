@@ -18,33 +18,42 @@ maintenance = { status = "experimental" }
 aead = "0.1"
 base64 = "0.10"
 chacha20poly1305 = "0.1"
-chrono = "0.4"
-console = "0.9"
 cookie-factory = "0.3"
 curve25519-dalek = "1"
-dialoguer = "0.4"
-dirs = "2"
-env_logger = { version = "0.7", optional = true }
-fuse_mt = { version = "0.5", optional = true }
 generic-array = "0.12"
 getrandom = "0.1"
-gumdrop = "0.6"
 hkdf = "0.8"
 hmac = "0.7"
-libc = { version = "0.2", optional = true }
-log = { version = "0.4", optional = true }
-man = "0.3"
-minreq = { version = "1.4", features = ["https"] }
 nom = "5"
 num-bigint-dig = "0.4"
 rand = "0.6"
 rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
 scrypt = { version = "0.2", default-features = false }
 sha2 = "0.8"
-time = { version = "0.1", optional = true }
 x25519-dalek = "0.5"
+
+# Common CLI dependencies
+dialoguer = { version = "0.4", optional = true }
+dirs = { version = "2", optional = true }
+gumdrop = { version = "0.6", optional = true }
+
+# rage dependencies
+chrono = { version = "0.4", optional = true }
+console = { version = "0.9", optional = true }
+minreq = { version = "1.4", features = ["https"], optional = true }
+
+# rage-mount dependencies
+env_logger = { version = "0.7", optional = true }
+fuse_mt = { version = "0.5", optional = true }
+libc = { version = "0.2", optional = true }
+log = { version = "0.4", optional = true }
+time = { version = "0.1", optional = true }
 zip = { version = "0.5", optional = true }
 
+[dev-dependencies]
+man = "0.3"
+
 [features]
-default = ["mount"]
-mount = ["env_logger", "fuse_mt", "libc", "log", "time", "zip"]
+default = ["cli", "mount"]
+cli = ["chrono", "console", "dialoguer", "dirs", "gumdrop", "minreq"]
+mount = ["dialoguer", "dirs", "env_logger", "fuse_mt", "gumdrop", "libc", "log", "time", "zip"]
