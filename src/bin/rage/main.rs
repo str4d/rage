@@ -149,17 +149,6 @@ fn read_recipients(
     Ok(recipients)
 }
 
-fn generate_new_key() {
-    let sk = age::SecretKey::generate();
-
-    println!(
-        "# created: {}",
-        chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-    );
-    println!("# {}", sk.to_public().to_str());
-    println!("{}", sk.to_str());
-}
-
 #[derive(Debug, Options)]
 struct AgeOptions {
     #[options(free, help = "recipients for encryption, or key files for decryption")]
@@ -185,6 +174,17 @@ struct AgeOptions {
 
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
+}
+
+fn generate_new_key() {
+    let sk = age::SecretKey::generate();
+
+    println!(
+        "# created: {}",
+        chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    );
+    println!("# {}", sk.to_public().to_str());
+    println!("{}", sk.to_str());
 }
 
 fn encrypt(opts: AgeOptions) {
