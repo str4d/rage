@@ -55,5 +55,6 @@ man = "0.3"
 
 [features]
 default = ["cli", "mount"]
-cli = ["chrono", "console", "dialoguer", "dirs", "gumdrop", "minreq"]
-mount = ["dialoguer", "dirs", "env_logger", "fuse_mt", "gumdrop", "libc", "log", "time", "zip"]
+cli-common = ["dialoguer", "dirs", "gumdrop"]
+cli = ["cli-common", "chrono", "console", "minreq"]
+mount = ["cli-common", "env_logger", "fuse_mt", "libc", "log", "time", "zip"]

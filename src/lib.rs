@@ -73,3 +73,6 @@ mod util;
 pub use keys::{RecipientKey, SecretKey};
 pub use primitives::stream::StreamReader;
 pub use protocol::{Decryptor, Encryptor};
+
+#[cfg(feature = "cli-common")]
+pub mod cli_common;
