@@ -6,6 +6,10 @@ explicit keys, no config options, and UNIX-style composability.
 - The spec is at https://age-tool.com.
 - The reference implementation is https://github.com/FiloSottile/age.
 
+rage is a Rust implementation of the age tool. It is pronounced like the Japanese
+[らげ](https://translate.google.com/#view=home&op=translate&sl=ja&tl=en&text=%E3%82%89%E3%81%92)
+(with a hard g).
+
 This implementation is in progress, and things will keep moving around in the
 near future, so it's not yet a good time to contribute, and it's definitely not
 a good time to rely on it.
