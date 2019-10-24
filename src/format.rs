@@ -15,14 +15,14 @@ const MAC_TAG: &[u8] = b"---";
 #[derive(Debug)]
 pub(crate) struct X25519RecipientLine {
     pub(crate) epk: [u8; 32],
-    pub(crate) encrypted_file_key: Vec<u8>,
+    pub(crate) encrypted_file_key: [u8; 32],
 }
 
 #[derive(Debug)]
 pub(crate) struct ScryptRecipientLine {
     pub(crate) salt: [u8; 16],
     pub(crate) log_n: u8,
-    pub(crate) encrypted_file_key: Vec<u8>,
+    pub(crate) encrypted_file_key: [u8; 32],
 }
 
 #[derive(Debug)]
@@ -46,14 +46,14 @@ pub(crate) enum RecipientLine {
 }
 
 impl RecipientLine {
-    pub(crate) fn x25519(epk: [u8; 32], encrypted_file_key: Vec<u8>) -> Self {
+    pub(crate) fn x25519(epk: [u8; 32], encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::X25519(X25519RecipientLine {
             epk,
             encrypted_file_key,
         })
     }
 
-    pub(crate) fn scrypt(salt: [u8; 16], log_n: u8, encrypted_file_key: Vec<u8>) -> Self {
+    pub(crate) fn scrypt(salt: [u8; 16], log_n: u8, encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::Scrypt(ScryptRecipientLine {
             salt,
             log_n,
@@ -68,7 +68,7 @@ impl RecipientLine {
         })
     }
 
-    pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: [u8; 32], encrypted_file_key: Vec<u8>) -> Self {
+    pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: [u8; 32], encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::SshEd25519(SshEd25519RecipientLine {
             tag,
             rest: X25519RecipientLine {
@@ -81,19 +81,19 @@ impl RecipientLine {
 
 pub struct Header {
     pub(crate) recipients: Vec<RecipientLine>,
-    pub(crate) mac: Vec<u8>,
+    pub(crate) mac: [u8; 32],
 }
 
 impl Header {
     pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
         let mut header = Header {
             recipients,
-            mac: vec![],
+            mac: [0; 32],
         };
 
         let mut mac = HmacWriter::new(&mac_key);
         cookie_factory::gen(write::header_minus_mac(&header), &mut mac).unwrap();
-        header.mac.extend_from_slice(mac.result().code().as_slice());
+        header.mac.copy_from_slice(mac.result().code().as_slice());
 
         header
     }
@@ -151,11 +151,18 @@ mod read {
     use super::*;
     use crate::util::take_b64_line;
 
-    fn encoded_data(count: usize) -> impl Fn(&[u8]) -> IResult<&[u8], Vec<u8>> {
+    fn encoded_data<T: Copy + AsMut<[u8]>>(
+        count: usize,
+        template: T,
+    ) -> impl Fn(&[u8]) -> IResult<&[u8], T> {
         // Unpadded encoded length
         let encoded_count = ((4 * count) + 2) / 3;
 
         move |input: &[u8]| {
+            // Cannot take the input directly, so we copy it here. We only call this with
+            // short slices, so this continues to avoid allocations.
+            let mut buf = template;
+
             // take() returns the total number of bytes it needs, not the
             // additional number of bytes like other APIs.
             let (i, data) = take(encoded_count)(input).map_err(|e| match e {
@@ -165,26 +172,22 @@ mod read {
                 e => e,
             })?;
 
-            match base64::decode_config(data, base64::URL_SAFE_NO_PAD) {
-                Ok(decoded) => Ok((i, decoded)),
+            match base64::decode_config_slice(data, base64::URL_SAFE_NO_PAD, buf.as_mut()) {
+                Ok(_) => Ok((i, buf)),
                 Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
             }
         }
     }
 
     fn x25519_epk(input: &[u8]) -> IResult<&[u8], [u8; 32]> {
-        map(encoded_data(32), |epk_vec| {
-            let mut epk = [0; 32];
-            epk.copy_from_slice(&epk_vec);
-            epk
-        })(input)
+        encoded_data(32, [0; 32])(input)
     }
 
     fn x25519_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
             tag(X25519_RECIPIENT_TAG),
             map(
-                separated_pair(x25519_epk, newline, encoded_data(32)),
+                separated_pair(x25519_epk, newline, encoded_data(32, [0; 32])),
                 |(epk, encrypted_file_key)| {
                     RecipientLine::X25519(X25519RecipientLine {
                         epk,
@@ -196,11 +199,7 @@ mod read {
     }
 
     fn scrypt_salt(input: &[u8]) -> IResult<&[u8], [u8; 16]> {
-        map(encoded_data(16), |salt_vec| {
-            let mut salt = [0; 16];
-            salt.copy_from_slice(&salt_vec);
-            salt
-        })(input)
+        encoded_data(16, [0; 16])(input)
     }
 
     fn scrypt_log_n(input: &[u8]) -> IResult<&[u8], u8> {
@@ -218,7 +217,7 @@ mod read {
                 separated_pair(
                     separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
                     newline,
-                    encoded_data(32),
+                    encoded_data(32, [0; 32]),
                 ),
                 |((salt, log_n), encrypted_file_key)| {
                     RecipientLine::Scrypt(ScryptRecipientLine {
@@ -232,11 +231,7 @@ mod read {
     }
 
     fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
-        map(encoded_data(4), |tag_vec| {
-            let mut tag = [0; 4];
-            tag.copy_from_slice(&tag_vec);
-            tag
-        })(input)
+        encoded_data(4, [0; 4])(input)
     }
 
     fn ssh_rsa_body(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
@@ -279,7 +274,7 @@ mod read {
                 separated_pair(
                     separated_pair(ssh_tag, tag(" "), x25519_epk),
                     newline,
-                    encoded_data(32),
+                    encoded_data(32, [0; 32]),
                 ),
                 |((tag, epk), encrypted_file_key)| {
                     RecipientLine::SshEd25519(SshEd25519RecipientLine {
@@ -314,7 +309,7 @@ mod read {
                     terminated(separated_nonempty_list(newline, recipient_line), newline),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
-                        terminated(encoded_data(32), newline),
+                        terminated(encoded_data(32, [0; 32]), newline),
                     ),
                 ),
                 |(recipients, mac)| Header { recipients, mac },

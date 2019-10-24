@@ -63,7 +63,11 @@ impl Encryptor {
                 let log_n = target_scrypt_work_factor();
 
                 let enc_key = scrypt(&salt, log_n, passphrase).unwrap();
-                let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
+                let encrypted_file_key = {
+                    let mut key = [0; 32];
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key
+                };
 
                 vec![RecipientLine::scrypt(salt, log_n, encrypted_file_key)]
             }

@@ -230,7 +230,11 @@ impl RecipientKey {
                 salt.extend_from_slice(pk);
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
-                let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
+                let encrypted_file_key = {
+                    let mut key = [0; 32];
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key
+                };
 
                 RecipientLine::x25519(epk, encrypted_file_key)
             }
@@ -263,7 +267,11 @@ impl RecipientKey {
                 salt.extend_from_slice(&pk);
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
-                let encrypted_file_key = aead_encrypt(&enc_key, file_key).unwrap();
+                let encrypted_file_key = {
+                    let mut key = [0; 32];
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key
+                };
 
                 RecipientLine::ssh_ed25519(ssh_tag(&ssh_key), epk, encrypted_file_key)
             }
