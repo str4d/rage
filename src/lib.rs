@@ -14,6 +14,7 @@
 //! ```
 //! use std::io::{Read, Write};
 //!
+//! # fn run_main() -> std::io::Result<()> {
 //! let key = age::SecretKey::generate();
 //! let pubkey = key.to_public();
 //!
@@ -22,17 +23,20 @@
 //! let encryptor = age::Encryptor::Keys(vec![pubkey]);
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted).unwrap();
-//!     writer.write_all(plaintext).unwrap();
-//!     writer.flush().unwrap();
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
+//!     writer.write_all(plaintext)?;
+//!     writer.flush()?;
 //! };
 //!
 //! let decryptor = age::Decryptor::Keys(vec![key]);
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..]).unwrap();
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!
 //! assert_eq!(decrypted, plaintext);
+//! # Ok(())
+//! # }
+//! # fn main() { run_main().unwrap(); }
 //! ```
 //!
 //! ## Passphrase-based encryption
@@ -40,23 +44,27 @@
 //! ```
 //! use std::io::{Read, Write};
 //!
+//! # fn run_main() -> std::io::Result<()> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
 //! let encryptor = age::Encryptor::Passphrase(passphrase.to_owned());
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted).unwrap();
-//!     writer.write_all(plaintext).unwrap();
-//!     writer.flush().unwrap();
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
+//!     writer.write_all(plaintext)?;
+//!     writer.flush()?;
 //! };
 //!
 //! let decryptor = age::Decryptor::Passphrase(passphrase.to_owned());
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..]).unwrap();
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!
 //! assert_eq!(decrypted, plaintext);
+//! # Ok(())
+//! # }
+//! # fn main() { run_main().unwrap(); }
 //! ```
 
 // Catch documentation errors caused by code changes.
