@@ -1,17 +1,20 @@
 use age::cli_common::{read_keys, read_passphrase};
+use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use log::{error, info};
 use std::ffi::OsStr;
+use std::fs::File;
+use std::io;
 
 mod tar;
 mod zip;
 
 #[derive(Debug, Options)]
 struct AgeMountOptions {
-    #[options(free, help = "The encrypted ZIP file to mount")]
+    #[options(free, help = "The encrypted filesystem to mount")]
     filename: String,
 
-    #[options(free, help = "The directory to mount the file at")]
+    #[options(free, help = "The directory to mount the filesystem at")]
     mountpoint: String,
 
     #[options(free, help = "key files for decryption")]
@@ -20,8 +23,28 @@ struct AgeMountOptions {
     #[options(help = "print help message")]
     help: bool,
 
+    #[options(help = "indicates the filesystem type (one of \"tar\", \"zip\")")]
+    types: String,
+
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
+}
+
+fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: String)
+where
+    F: FnOnce() -> io::Result<T>,
+{
+    let fuse_args: Vec<&OsStr> = vec![&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
+
+    match open().map(|fs| fuse_mt::FuseMT::new(fs, 1)) {
+        Ok(fs) => {
+            info!("Mounting as FUSE filesystem");
+            fuse_mt::mount(fs, &mountpoint, &fuse_args).unwrap();
+        }
+        Err(e) => {
+            error!("{}", e);
+        }
+    }
 }
 
 fn main() {
@@ -35,6 +58,10 @@ fn main() {
     }
     if opts.mountpoint.is_empty() {
         error!("Missing mountpoint");
+        return;
+    }
+    if opts.types.is_empty() {
+        error!("Missing filesystem type");
         return;
     }
 
@@ -59,21 +86,28 @@ fn main() {
     };
 
     info!("Decrypting {}", opts.filename);
-    let filesystem = match crate::zip::AgeZipFs::open(opts.filename, decryptor) {
-        Ok(fs) => fs,
+    let file = match File::open(opts.filename) {
+        Ok(f) => f,
         Err(e) => {
-            error!("{}", e);
+            eprintln!("Failed to open file: {}", e);
             return;
         }
     };
 
-    let fuse_args: Vec<&OsStr> = vec![&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
+    let stream = match decryptor.trial_decrypt_seekable(file) {
+        Ok(stream) => stream,
+        Err(e) => {
+            eprintln!("Failed to decrypt file: {}", e);
+            return;
+        }
+    };
 
-    info!("Mounting as FUSE filesystem");
-    fuse_mt::mount(
-        fuse_mt::FuseMT::new(filesystem, 1),
-        &opts.mountpoint,
-        &fuse_args,
-    )
-    .unwrap();
+    match opts.types.as_str() {
+        "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),
+        "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), opts.mountpoint),
+        t => {
+            error!("Unknown filesystem type \"{}\"", t);
+            return;
+        }
+    };
 }

@@ -90,13 +90,9 @@ pub struct AgeZipFs {
 }
 
 impl AgeZipFs {
-    pub fn open(filename: String, decryptor: age::Decryptor) -> io::Result<Self> {
-        let f = File::open(filename)?;
-        let d = decryptor
-            .trial_decrypt_seekable(f)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    pub fn open(stream: age::StreamReader<File>) -> io::Result<Self> {
         let mut archive =
-            ZipArchive::new(d).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();

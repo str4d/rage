@@ -109,12 +109,7 @@ pub struct AgeTarFs {
 }
 
 impl AgeTarFs {
-    pub fn open(filename: String, decryptor: age::Decryptor) -> io::Result<Self> {
-        let f = File::open(filename)?;
-        let d = decryptor
-            .trial_decrypt_seekable(f)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-
+    pub fn open(stream: age::StreamReader<File>) -> io::Result<Self> {
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root
@@ -122,7 +117,7 @@ impl AgeTarFs {
         // Build a file map for the archive
         let mut file_map: HashMap<PathBuf, (FileAttr, u64)> = HashMap::new();
 
-        let mut archive = Archive::new(d);
+        let mut archive = Archive::new(stream);
         for file in archive.entries().expect("StreamReader is at start") {
             let file = file?;
             if let Some(filetype) = tar_to_filetype(&file) {
