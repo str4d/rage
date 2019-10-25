@@ -19,18 +19,20 @@ const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
 /// Pick an scrypt work factor that will take around 1 second on this device.
+///
+/// Guaranteed to return a valid work factor (less than 64).
 fn target_scrypt_work_factor() -> u8 {
     // Time a work factor that should always be fast.
     let mut log_n = 10;
 
     let start = SystemTime::now();
-    scrypt(&[], log_n, "").unwrap();
+    scrypt(&[], log_n, "").expect("log_n < 64");
     let duration = SystemTime::now().duration_since(start);
 
     duration
         .map(|mut d| {
             // Use duration as a proxy for CPU usage, which scales linearly with N.
-            while d < ONE_SECOND {
+            while d < ONE_SECOND && log_n < 63 {
                 log_n += 1;
                 d *= 2;
             }
@@ -63,10 +65,10 @@ impl Encryptor {
 
                 let log_n = target_scrypt_work_factor();
 
-                let enc_key = scrypt(&salt, log_n, passphrase).unwrap();
+                let enc_key = scrypt(&salt, log_n, passphrase).expect("log_n < 64");
                 let encrypted_file_key = {
                     let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
                     key
                 };
 
@@ -119,7 +121,7 @@ impl Decryptor {
                     return None;
                 }
 
-                let enc_key = scrypt(&s.salt, s.log_n, &passphrase).unwrap();
+                let enc_key = scrypt(&s.salt, s.log_n, &passphrase).ok()?;
                 aead_decrypt(&enc_key, &s.encrypted_file_key).map(|pt| {
                     // It's ours!
                     let mut file_key = [0; 16];

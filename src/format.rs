@@ -91,16 +91,18 @@ impl Header {
             mac: [0; 32],
         };
 
-        let mut mac = HmacWriter::new(&mac_key);
-        cookie_factory::gen(write::header_minus_mac(&header), &mut mac).unwrap();
+        let mut mac = HmacWriter::new(mac_key);
+        cookie_factory::gen(write::header_minus_mac(&header), &mut mac)
+            .expect("can serialize Header into HmacWriter");
         header.mac.copy_from_slice(mac.result().code().as_slice());
 
         header
     }
 
     pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Option<()> {
-        let mut mac = HmacWriter::new(&mac_key);
-        cookie_factory::gen(write::header_minus_mac(self), &mut mac).unwrap();
+        let mut mac = HmacWriter::new(mac_key);
+        cookie_factory::gen(write::header_minus_mac(self), &mut mac)
+            .expect("can serialize Header into HmacWriter");
         mac.verify(&self.mac).ok()
     }
 
@@ -204,8 +206,8 @@ mod read {
 
     fn scrypt_log_n(input: &[u8]) -> IResult<&[u8], u8> {
         map_res(digit1, |log_n_str| {
-            // digit1 will only return valid ASCII bytes
-            let log_n_str = std::str::from_utf8(log_n_str).unwrap();
+            let log_n_str =
+                std::str::from_utf8(log_n_str).expect("digit1 only returns valid ASCII bytes");
             u8::from_str_radix(log_n_str, 10)
         })(input)
     }

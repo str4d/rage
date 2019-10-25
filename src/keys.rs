@@ -229,7 +229,7 @@ impl RecipientKey {
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
                 let encrypted_file_key = {
                     let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
                     key
                 };
 
@@ -246,7 +246,7 @@ impl RecipientKey {
                     &mut h,
                     Some(SSH_RSA_OAEP_LABEL.to_owned()),
                 )
-                .unwrap();
+                .expect("pubkey is valid and message is not too long");
 
                 RecipientLine::ssh_rsa(ssh_tag(&ssh_key), encrypted_file_key)
             }
@@ -266,7 +266,7 @@ impl RecipientKey {
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, &shared_secret);
                 let encrypted_file_key = {
                     let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key).unwrap());
+                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
                     key
                 };
 

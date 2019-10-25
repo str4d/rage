@@ -89,7 +89,7 @@ fn read_recipients(
 
     let mut recipients = vec![];
     while !arguments.is_empty() {
-        let arg = arguments.pop().unwrap();
+        let arg = arguments.pop().expect("arguments is not empty");
 
         if let Ok(f) = File::open(&arg) {
             let buf = BufReader::new(f);

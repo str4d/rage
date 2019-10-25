@@ -291,7 +291,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
                             write_binary::ssh_rsa_pubkey(&privkey.to_public_key()),
                             &mut ssh_key,
                         )
-                        .unwrap();
+                        .expect("can write into a Vec");
                         vec![SecretKey::SshRsa(ssh_key, Box::new(privkey))]
                     })
                 },

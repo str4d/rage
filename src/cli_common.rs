@@ -43,7 +43,7 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<SecretKey>> {
                 io::ErrorKind::NotFound,
                 format!(
                     "no keys specified as arguments, and default file {} does not exist",
-                    default_filename.to_str().unwrap()
+                    default_filename.to_str().unwrap_or("")
                 ),
             ),
             _ => e,

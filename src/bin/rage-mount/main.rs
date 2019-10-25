@@ -39,7 +39,9 @@ where
     match open().map(|fs| fuse_mt::FuseMT::new(fs, 1)) {
         Ok(fs) => {
             info!("Mounting as FUSE filesystem");
-            fuse_mt::mount(fs, &mountpoint, &fuse_args).unwrap();
+            if let Err(e) = fuse_mt::mount(fs, &mountpoint, &fuse_args) {
+                error!("{}", e);
+            }
         }
         Err(e) => {
             error!("{}", e);

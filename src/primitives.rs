@@ -19,10 +19,10 @@ pub(crate) mod stream;
 /// ChaCha20-Poly1305 from [RFC 7539] with a zero nonce.
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
-pub(crate) fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, &'static str> {
+pub(crate) fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
     let c = ChaCha20Poly1305::new((*key).into());
     c.encrypt(&[0; 12].into(), plaintext)
-        .map_err(|_| "Failed to encrypt")
+        .expect("we won't overflow the ChaCha20 block counter")
 }
 
 /// `decrypt[key](ciphertext)`
@@ -44,7 +44,7 @@ pub(crate) fn hkdf(salt: &[u8], label: &[u8], ikm: &[u8]) -> [u8; 32] {
     let mut okm = [0; 32];
     Hkdf::<Sha256>::new(Some(salt), ikm)
         .expand(label, &mut okm)
-        .unwrap();
+        .expect("okm is the correct length");
     okm
 }
 
@@ -59,9 +59,9 @@ pub(crate) struct HmacWriter {
 
 impl HmacWriter {
     /// Constructs a new writer to process input data.
-    pub(crate) fn new(key: &[u8]) -> Self {
+    pub(crate) fn new(key: [u8; 32]) -> Self {
         HmacWriter {
-            inner: Hmac::new_varkey(key).unwrap(),
+            inner: Hmac::new_varkey(&key).expect("key is the correct length"),
         }
     }
 
@@ -96,7 +96,8 @@ pub(crate) fn scrypt(salt: &[u8], log_n: u8, password: &str) -> Result<[u8; 32],
     let params = ScryptParams::new(log_n, 8, 1)?;
 
     let mut output = [0; 32];
-    scrypt_inner(password.as_bytes(), salt, &params, &mut output).unwrap();
+    scrypt_inner(password.as_bytes(), salt, &params, &mut output)
+        .expect("output is the correct length");
     Ok(output)
 }
 
@@ -108,7 +109,7 @@ mod tests {
     fn aead_round_trip() {
         let key = [14; 32];
         let plaintext = b"12345678";
-        let encrypted = aead_encrypt(&key, plaintext).unwrap();
+        let encrypted = aead_encrypt(&key, plaintext);
         let decrypted = aead_decrypt(&key, &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
     }
