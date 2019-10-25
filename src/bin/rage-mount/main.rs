@@ -3,6 +3,7 @@ use gumdrop::Options;
 use log::{error, info};
 use std::ffi::OsStr;
 
+mod tar;
 mod zip;
 
 #[derive(Debug, Options)]
