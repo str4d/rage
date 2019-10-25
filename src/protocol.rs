@@ -158,9 +158,9 @@ impl Decryptor {
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
     }
 
-    /// Attempts to decrypt a message from the given reader.
+    /// Attempts to decrypt a message from the given seekable reader.
     ///
-    /// If successful, returns a reader that will provide the plaintext.
+    /// If successful, returns a seekable reader that will provide the plaintext.
     pub fn trial_decrypt_seekable<R: Read + Seek>(
         &self,
         mut input: R,

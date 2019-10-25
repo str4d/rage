@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::keys::SecretKey;
 
-/// Returns the age config directory.ALIAS_PREFIX
+/// Returns the age config directory.
 ///
 /// Replicates the behaviour of [os.UserConfigDir] from Golang, which the
 /// reference implementation uses. See [this issue] for more details.
