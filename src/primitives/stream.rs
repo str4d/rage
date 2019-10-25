@@ -56,7 +56,7 @@ impl Stream {
             inner,
             start: 0,
             cur_plaintext_pos: 0,
-            unread: vec![],
+            chunk: None,
         }
     }
 
@@ -77,7 +77,7 @@ impl Stream {
             inner,
             start,
             cur_plaintext_pos: 0,
-            unread: vec![],
+            chunk: None,
         })
     }
 
@@ -191,12 +191,12 @@ pub struct StreamReader<R: Read> {
     inner: R,
     start: u64,
     cur_plaintext_pos: u64,
-    unread: Vec<u8>,
+    chunk: Option<Vec<u8>>,
 }
 
 impl<R: Read> Read for StreamReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.unread.is_empty() {
+        if self.chunk.is_none() {
             let mut chunk = vec![0; ENCRYPTED_CHUNK_SIZE];
             let mut end = 0;
             while end < ENCRYPTED_CHUNK_SIZE {
@@ -227,21 +227,27 @@ impl<R: Read> Read for StreamReader<R> {
             // decryption failure.
             let last = end < ENCRYPTED_CHUNK_SIZE;
 
-            self.unread = match (self.stream.decrypt_chunk(&chunk[..end], last), last) {
-                (Ok(chunk), _) => chunk,
-                (Err(_), false) => self.stream.decrypt_chunk(&chunk[..end], true)?,
+            self.chunk = match (self.stream.decrypt_chunk(&chunk[..end], last), last) {
+                (Ok(chunk), _) => Some(chunk),
+                (Err(_), false) => Some(self.stream.decrypt_chunk(&chunk[..end], true)?),
                 (Err(e), true) => return Err(e),
             };
         }
 
-        let mut to_read = self.unread.len();
+        let chunk = self.chunk.as_ref().expect("we have decrypted a chunk");
+        let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
+
+        let mut to_read = chunk.len() - cur_chunk_offset;
         if to_read > buf.len() {
             to_read = buf.len()
         }
 
-        buf[..to_read].copy_from_slice(&self.unread[..to_read]);
-        self.unread = self.unread.split_off(to_read);
+        buf[..to_read].copy_from_slice(&chunk[cur_chunk_offset..cur_chunk_offset + to_read]);
         self.cur_plaintext_pos += to_read as u64;
+        if self.cur_plaintext_pos % CHUNK_SIZE as u64 == 0 {
+            // We've finished with the current chunk.
+            self.chunk = None;
+        }
 
         Ok(to_read)
     }
@@ -284,33 +290,30 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
             }
         };
 
-        let offset = {
-            let cur_chunk_index = self.cur_plaintext_pos / CHUNK_SIZE as u64;
-            let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
+        let cur_chunk_index = self.cur_plaintext_pos / CHUNK_SIZE as u64;
 
-            let target_chunk_index = target_pos / CHUNK_SIZE as u64;
-            let target_chunk_offset = target_pos as usize % CHUNK_SIZE;
+        let target_chunk_index = target_pos / CHUNK_SIZE as u64;
+        let target_chunk_offset = target_pos % CHUNK_SIZE as u64;
 
-            if target_chunk_index == cur_chunk_index && target_chunk_offset >= cur_chunk_offset {
-                // We just need to skip forward a few bytes
-                target_chunk_offset - cur_chunk_offset
-            } else {
-                // Seek to the beginning of the target chunk
-                self.inner.seek(SeekFrom::Start(
-                    self.start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
-                ))?;
-                self.stream.set_counter(target_chunk_index);
-                self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
-                self.unread.clear();
+        if target_chunk_index == cur_chunk_index {
+            // We just need to reposition ourselves within the current chunk.
+            self.cur_plaintext_pos = target_pos;
+        } else {
+            // Clear the current chunk
+            self.chunk = None;
 
-                target_chunk_offset
+            // Seek to the beginning of the target chunk
+            self.inner.seek(SeekFrom::Start(
+                self.start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
+            ))?;
+            self.stream.set_counter(target_chunk_index);
+            self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
+
+            // Read and drop bytes from the chunk to reach the target position.
+            if target_chunk_offset > 0 {
+                let mut to_drop = vec![0; target_chunk_offset as usize];
+                self.read_exact(&mut to_drop)?;
             }
-        };
-
-        // Read and drop bytes from the chunk to reach the target position.
-        if offset > 0 {
-            let mut to_drop = vec![0; offset];
-            self.read_exact(&mut to_drop)?;
         }
 
         // All done!
