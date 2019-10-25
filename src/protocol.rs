@@ -136,13 +136,11 @@ impl Decryptor {
     /// Attempts to decrypt a message from the given reader.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read>(&self, mut input: R) -> Result<impl Read, &'static str> {
-        let header = Header::read(&mut input).map_err(|_| "failed to read header")?;
+    pub fn trial_decrypt<R: Read>(&self, mut input: R) -> io::Result<impl Read> {
+        let header = Header::read(&mut input)?;
 
         let mut nonce = [0; 16];
-        input
-            .read_exact(&mut nonce)
-            .map_err(|_| "failed to read nonce")?;
+        input.read_exact(&mut nonce)?;
 
         header
             .recipients
@@ -157,7 +155,7 @@ impl Decryptor {
                 })
             })
             .map(|payload_key| Stream::decrypt(&payload_key, input))
-            .ok_or("no matching keys")
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
     }
 
     /// Attempts to decrypt a message from the given reader.
@@ -166,13 +164,11 @@ impl Decryptor {
     pub fn trial_decrypt_seekable<R: Read + Seek>(
         &self,
         mut input: R,
-    ) -> Result<StreamReader<R>, &'static str> {
-        let header = Header::read(&mut input).map_err(|_| "failed to read header")?;
+    ) -> io::Result<StreamReader<R>> {
+        let header = Header::read(&mut input)?;
 
         let mut nonce = [0; 16];
-        input
-            .read_exact(&mut nonce)
-            .map_err(|_| "failed to read nonce")?;
+        input.read_exact(&mut nonce)?;
 
         header
             .recipients
@@ -186,11 +182,8 @@ impl Decryptor {
                     Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
                 })
             })
-            .ok_or("no matching keys")
-            .and_then(|payload_key| {
-                Stream::decrypt_seekable(&payload_key, input)
-                    .map_err(|_| "failed to seek on reader")
-            })
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
+            .and_then(|payload_key| Stream::decrypt_seekable(&payload_key, input))
     }
 }
 
