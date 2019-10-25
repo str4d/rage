@@ -477,8 +477,8 @@ mod tests {
     fn stream_seeking() {
         let key = [7; 32];
         let mut data = vec![0; 100 * 1024];
-        for i in 0..data.len() {
-            data[i] = i as u8;
+        for (i, b) in data.iter_mut().enumerate() {
+            *b = i as u8;
         }
 
         let mut encrypted = vec![];
