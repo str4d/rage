@@ -2,7 +2,7 @@ use man::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
 
-fn main() {
+fn rage_page() {
     let page = Manual::new("rage")
         .about("A simple, secure, and modern encryption tool")
         .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
@@ -105,4 +105,52 @@ fn main() {
         File::create("./target/rage.1").expect("Should be able to open file in target directory");
     file.write_all(page.as_bytes())
         .expect("Should be able to write to file in target directory");
+}
+
+fn rage_mount_page() {
+    let page = Manual::new("rage-mount")
+        .about("Mount an age-encrypted ZIP file")
+        .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
+        .flag(
+            Flag::new()
+                .short("-p")
+                .long("--passphrase")
+                .help("Use a passphrase instead of public keys"),
+        )
+        .flag(
+            Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Display help text and exit"),
+        )
+        .arg(Arg::new("filename"))
+        .arg(Arg::new("mountpoint"))
+        .arg(Arg::new("[keys...]"))
+        .example(
+            Example::new()
+                .text("Mounting an archive with keys at ~/.config/age/keys.txt")
+                .command("rage-mount encrypted.zip.age ./tmp"),
+        )
+        .example(
+            Example::new()
+                .text("Mounting an archive with custom keys")
+                .command("rage-mount encrypted.zip.age ./tmp key.txt"),
+        )
+        .example(
+            Example::new()
+                .text("Mounting an archive encrypted with a passphrase")
+                .command("rage-mount -p encrypted.zip.age ./tmp")
+                .output("Type passphrase:"),
+        )
+        .render();
+
+    let mut file = File::create("./target/rage-mount.1")
+        .expect("Should be able to open file in target directory");
+    file.write_all(page.as_bytes())
+        .expect("Should be able to write to file in target directory");
+}
+
+fn main() {
+    rage_page();
+    rage_mount_page();
 }
