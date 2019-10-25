@@ -36,7 +36,13 @@ fn rage_page() {
                 .long("--output")
                 .help("The file path to write output to (defaults to stdout)"),
         )
-        .arg(Arg::new("arguments"))
+        .flag(
+            Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Display help text and exit"),
+        )
+        .arg(Arg::new("[arguments...]"))
         .example(
             Example::new()
                 .text("Generate a new key pair")
@@ -91,13 +97,13 @@ fn rage_page() {
         .example(
             Example::new()
                 .text("Decryption with keys at ~/.config/age/keys.txt")
-                .command("age -decrypt -i hello.age")
+                .command("rage --decrypt -i hello.age")
                 .output("_o/"),
         )
         .example(
             Example::new()
                 .text("Decryption with custom keys")
-                .command("age -d -o hello -i hello.age keyA.txt keyB.txt"),
+                .command("rage -d -o hello -i hello.age keyA.txt keyB.txt"),
         )
         .render();
 
