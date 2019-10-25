@@ -115,6 +115,7 @@ mod read_asn1 {
 }
 
 mod read_binary {
+    use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
@@ -235,14 +236,12 @@ mod read_binary {
         )(input)
     }
 
-    pub(super) fn ssh_ed25519_pubkey(input: &[u8]) -> IResult<&[u8], [u8; 32]> {
+    pub(super) fn ssh_ed25519_pubkey(input: &[u8]) -> IResult<&[u8], EdwardsPoint> {
         preceded(
             length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
             map_opt(length_data(be_u32), |buf| {
                 if buf.len() == 32 {
-                    let mut pk = [0; 32];
-                    pk.copy_from_slice(&buf);
-                    Some(pk)
+                    CompressedEdwardsY::from_slice(buf).decompress()
                 } else {
                     None
                 }

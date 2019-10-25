@@ -1,6 +1,6 @@
 //! Key structs and serialization.
 
-use curve25519_dalek::edwards::CompressedEdwardsY;
+use curve25519_dalek::edwards::EdwardsPoint;
 use getrandom::getrandom;
 use sha2::{Digest, Sha256, Sha512};
 use std::io::{self, BufRead};
@@ -17,14 +17,6 @@ const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
 const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
 const SSH_ED25519_TWEAK_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
-
-fn convert_ed25519_to_x25519(ed: &[u8; 32]) -> [u8; 32] {
-    CompressedEdwardsY::from_slice(ed)
-        .decompress()
-        .expect("we only deal in valid points")
-        .to_montgomery()
-        .to_bytes()
-}
 
 fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
     let tag_bytes = Sha256::digest(pubkey);
@@ -180,7 +172,7 @@ pub enum RecipientKey {
     /// An ssh-rsa public key.
     SshRsa(Vec<u8>, rsa::RSAPublicKey),
     /// An ssh-ed25519 public key.
-    SshEd25519(Vec<u8>, [u8; 32]),
+    SshEd25519(Vec<u8>, EdwardsPoint),
 }
 
 #[derive(Debug)]
@@ -260,7 +252,7 @@ impl RecipientKey {
             }
             RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
                 let tweak = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]);
-                let pk = x25519(tweak, convert_ed25519_to_x25519(ed25519_pk));
+                let pk = x25519(tweak, ed25519_pk.to_montgomery().to_bytes());
 
                 let mut esk = [0; 32];
                 getrandom(&mut esk).expect("Should not fail");
