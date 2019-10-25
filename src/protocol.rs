@@ -51,11 +51,12 @@ pub enum Encryptor {
 }
 
 impl Encryptor {
-    fn wrap(&self, file_key: &[u8; 16]) -> Vec<RecipientLine> {
+    fn wrap_file_key(&self, file_key: &[u8; 16]) -> Vec<RecipientLine> {
         match self {
-            Encryptor::Keys(recipients) => {
-                recipients.iter().map(|key| key.wrap(file_key)).collect()
-            }
+            Encryptor::Keys(recipients) => recipients
+                .iter()
+                .map(|key| key.wrap_file_key(file_key))
+                .collect(),
             Encryptor::Passphrase(passphrase) => {
                 let mut salt = [0; 16];
                 getrandom(&mut salt).expect("Should not fail");
@@ -85,7 +86,10 @@ impl Encryptor {
         let mut file_key = [0; 16];
         getrandom(&mut file_key).expect("Should not fail");
 
-        let header = Header::new(self.wrap(&file_key), hkdf(&[], HEADER_KEY_LABEL, &file_key));
+        let header = Header::new(
+            self.wrap_file_key(&file_key),
+            hkdf(&[], HEADER_KEY_LABEL, &file_key),
+        );
         header.write(&mut output)?;
 
         let mut nonce = [0; 16];
@@ -106,9 +110,9 @@ pub enum Decryptor {
 }
 
 impl Decryptor {
-    fn unwrap(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
         match (self, line) {
-            (Decryptor::Keys(keys), _) => keys.iter().find_map(|key| key.unwrap(line)),
+            (Decryptor::Keys(keys), _) => keys.iter().find_map(|key| key.unwrap_file_key(line)),
             (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
                 // Place bounds on the work factor we will accept (roughly 16 seconds).
                 if s.log_n > (target_scrypt_work_factor() + 4) {
@@ -142,7 +146,7 @@ impl Decryptor {
             .recipients
             .iter()
             .find_map(|r| {
-                self.unwrap(r).and_then(|file_key| {
+                self.unwrap_file_key(r).and_then(|file_key| {
                     // Verify the MAC
                     header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 
@@ -172,7 +176,7 @@ impl Decryptor {
             .recipients
             .iter()
             .find_map(|r| {
-                self.unwrap(r).and_then(|file_key| {
+                self.unwrap_file_key(r).and_then(|file_key| {
                     // Verify the MAC
                     header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 

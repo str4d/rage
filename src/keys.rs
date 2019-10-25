@@ -89,7 +89,7 @@ impl SecretKey {
         }
     }
 
-    pub(crate) fn unwrap(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 let pk = x25519(*sk, X25519_BASEPOINT_BYTES);
@@ -214,7 +214,7 @@ impl RecipientKey {
         }
     }
 
-    pub(crate) fn wrap(&self, file_key: &[u8; 16]) -> RecipientLine {
+    pub(crate) fn wrap_file_key(&self, file_key: &[u8; 16]) -> RecipientLine {
         match self {
             RecipientKey::X25519(pk) => {
                 let mut esk = [0; 32];
@@ -418,8 +418,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let file_key = [12; 16];
 
-        let wrapped = pk.wrap(&file_key);
-        let unwrapped = sk[0].unwrap(&wrapped);
+        let wrapped = pk.wrap_file_key(&file_key);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped);
         assert_eq!(unwrapped, Some(file_key));
     }
 
@@ -431,8 +431,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let file_key = [12; 16];
 
-        let wrapped = pk.wrap(&file_key);
-        let unwrapped = sk[0].unwrap(&wrapped);
+        let wrapped = pk.wrap_file_key(&file_key);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped);
         assert_eq!(unwrapped, Some(file_key));
     }
 }
