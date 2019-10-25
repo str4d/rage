@@ -202,7 +202,7 @@ mod read_binary {
                     terminated(
                         alt((
                             map(openssh_rsa_privkey, |sk| {
-                                SecretKey::SshRsa(ssh_key.to_vec(), sk)
+                                SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
                             }),
                             map(openssh_ed25519_privkey, |privkey| {
                                 SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
@@ -293,7 +293,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
                             &mut ssh_key,
                         )
                         .unwrap();
-                        vec![SecretKey::SshRsa(ssh_key, privkey)]
+                        vec![SecretKey::SshRsa(ssh_key, Box::new(privkey))]
                     })
                 },
             ),

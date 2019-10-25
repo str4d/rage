@@ -38,7 +38,7 @@ pub enum SecretKey {
     /// An X25519 secret key.
     X25519([u8; 32]),
     /// An ssh-rsa private key.
-    SshRsa(Vec<u8>, rsa::RSAPrivateKey),
+    SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, [u8; 64]),
 }
