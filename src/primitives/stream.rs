@@ -308,13 +308,9 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
         };
 
         // Read and drop bytes from the chunk to reach the target position.
-        // A single call to self.read() is sufficient, because we know it will
-        // read a full chunk from the inner reader, and offset is always smaller
-        // than a chunk.
         if offset > 0 {
-            let mut to_drop = Vec::with_capacity(offset);
-            to_drop.resize(offset, 0);
-            self.read(&mut to_drop)?;
+            let mut to_drop = vec![0; offset];
+            self.read_exact(&mut to_drop)?;
         }
 
         // All done!

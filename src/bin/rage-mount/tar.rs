@@ -24,7 +24,7 @@ fn tar_to_filetype<R: Read>(entry: &Entry<R>) -> Option<FileType> {
 
 fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
     let kind = tar_to_filetype(entry)
-        .ok_or(io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
     let perm = (entry.header().mode()? & 0o7777) as u16;
 
     let mtime = Timespec::new(entry.header().mtime()? as i64, 0);
@@ -100,12 +100,14 @@ fn add_to_dir_map(
         .push(DirectoryEntry { name, kind });
 }
 
+type OpenFile = (PathBuf, u64, u64);
+
 pub struct AgeTarFs {
     inner: Mutex<age::StreamReader<File>>,
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     file_map: HashMap<PathBuf, (FileAttr, u64)>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
-    open_files: Mutex<(HashMap<u64, (PathBuf, u64, u64)>, u64)>,
+    open_files: Mutex<(HashMap<u64, OpenFile>, u64)>,
 }
 
 impl AgeTarFs {

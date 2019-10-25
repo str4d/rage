@@ -107,7 +107,6 @@ fn main() {
         "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), opts.mountpoint),
         t => {
             error!("Unknown filesystem type \"{}\"", t);
-            return;
         }
     };
 }
