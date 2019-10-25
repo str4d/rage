@@ -56,7 +56,12 @@ impl SecretKey {
         let mut buf = String::new();
         loop {
             match read::secret_keys(&buf) {
-                Ok((_, keys)) => break Ok(keys),
+                Ok((_, keys)) => {
+                    // Ensure we've found all keys in the file
+                    if data.read_line(&mut buf)? == 0 {
+                        break Ok(keys);
+                    }
+                }
                 Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
                     data.read_line(&mut buf)?;
                 }
