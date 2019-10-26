@@ -92,7 +92,7 @@ impl Header {
         };
 
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_minus_mac(&header), &mut mac)
+        cookie_factory::gen(write::canonical_header_minus_mac(&header), &mut mac)
             .expect("can serialize Header into HmacWriter");
         header.mac.copy_from_slice(mac.result().code().as_slice());
 
@@ -101,7 +101,7 @@ impl Header {
 
     pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Option<()> {
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_minus_mac(self), &mut mac)
+        cookie_factory::gen(write::canonical_header_minus_mac(self), &mut mac)
             .expect("can serialize Header into HmacWriter");
         mac.verify(&self.mac).ok()
     }
@@ -109,7 +109,7 @@ impl Header {
     pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
         let mut data = vec![];
         loop {
-            match read::header(&data) {
+            match read::canonical_header(&data) {
                 Ok((_, header)) => break Ok(header),
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
@@ -127,7 +127,7 @@ impl Header {
     }
 
     pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
-        cookie_factory::gen(write::header(self), &mut output)
+        cookie_factory::gen(write::canonical_header(self), &mut output)
             .map(|_| ())
             .map_err(|e| {
                 io::Error::new(
@@ -142,7 +142,7 @@ mod read {
     use nom::{
         branch::alt,
         bytes::streaming::{tag, take},
-        character::streaming::{digit1, newline},
+        character::streaming::digit1,
         combinator::{map, map_opt, map_res},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
@@ -185,19 +185,23 @@ mod read {
         encoded_data(32, [0; 32])(input)
     }
 
-    fn x25519_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(X25519_RECIPIENT_TAG),
-            map(
-                separated_pair(x25519_epk, newline, encoded_data(32, [0; 32])),
-                |(epk, encrypted_file_key)| {
-                    RecipientLine::X25519(X25519RecipientLine {
-                        epk,
-                        encrypted_file_key,
-                    })
-                },
-            ),
-        )(input)
+    fn x25519_recipient_line<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
+        move |input: &[u8]| {
+            preceded(
+                tag(X25519_RECIPIENT_TAG),
+                map(
+                    separated_pair(x25519_epk, line_ending, encoded_data(32, [0; 32])),
+                    |(epk, encrypted_file_key)| {
+                        RecipientLine::X25519(X25519RecipientLine {
+                            epk,
+                            encrypted_file_key,
+                        })
+                    },
+                ),
+            )(input)
+        }
     }
 
     fn scrypt_salt(input: &[u8]) -> IResult<&[u8], [u8; 16]> {
@@ -212,111 +216,142 @@ mod read {
         })(input)
     }
 
-    fn scrypt_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(SCRYPT_RECIPIENT_TAG),
-            map(
-                separated_pair(
-                    separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
-                    newline,
-                    encoded_data(32, [0; 32]),
+    fn scrypt_recipient_line<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
+        move |input: &[u8]| {
+            preceded(
+                tag(SCRYPT_RECIPIENT_TAG),
+                map(
+                    separated_pair(
+                        separated_pair(scrypt_salt, tag(" "), scrypt_log_n),
+                        line_ending,
+                        encoded_data(32, [0; 32]),
+                    ),
+                    |((salt, log_n), encrypted_file_key)| {
+                        RecipientLine::Scrypt(ScryptRecipientLine {
+                            salt,
+                            log_n,
+                            encrypted_file_key,
+                        })
+                    },
                 ),
-                |((salt, log_n), encrypted_file_key)| {
-                    RecipientLine::Scrypt(ScryptRecipientLine {
-                        salt,
-                        log_n,
-                        encrypted_file_key,
-                    })
-                },
-            ),
-        )(input)
+            )(input)
+        }
     }
 
     fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
         encoded_data(4, [0; 4])(input)
     }
 
-    fn ssh_rsa_body(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
-        map_opt(
-            separated_nonempty_list(newline, take_b64_line(base64::URL_SAFE_NO_PAD)),
-            |chunks| {
-                // Enforce that the only chunk allowed to be shorter than 56 characters
-                // is the last chunk.
-                if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
-                    || chunks.last().map(|s| s.len() > 56) == Some(true)
-                {
-                    None
-                } else {
-                    let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                    base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
-                }
-            },
-        )(input)
-    }
-
-    fn ssh_rsa_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(SSH_RSA_RECIPIENT_TAG),
-            map(
-                separated_pair(ssh_tag, newline, ssh_rsa_body),
-                |(tag, encrypted_file_key)| {
-                    RecipientLine::SshRsa(SshRsaRecipientLine {
-                        tag,
-                        encrypted_file_key,
-                    })
+    fn ssh_rsa_body<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
+        move |input: &[u8]| {
+            map_opt(
+                separated_nonempty_list(line_ending, take_b64_line(base64::URL_SAFE_NO_PAD)),
+                |chunks| {
+                    // Enforce that the only chunk allowed to be shorter than 56 characters
+                    // is the last chunk.
+                    if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
+                        || chunks.last().map(|s| s.len() > 56) == Some(true)
+                    {
+                        None
+                    } else {
+                        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                        base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
+                    }
                 },
-            ),
-        )(input)
+            )(input)
+        }
     }
 
-    fn ssh_ed25519_recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(SSH_ED25519_RECIPIENT_TAG),
-            map(
-                separated_pair(
-                    separated_pair(ssh_tag, tag(" "), x25519_epk),
-                    newline,
-                    encoded_data(32, [0; 32]),
-                ),
-                |((tag, epk), encrypted_file_key)| {
-                    RecipientLine::SshEd25519(SshEd25519RecipientLine {
-                        tag,
-                        rest: X25519RecipientLine {
-                            epk,
+    fn ssh_rsa_recipient_line<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
+        move |input: &[u8]| {
+            preceded(
+                tag(SSH_RSA_RECIPIENT_TAG),
+                map(
+                    separated_pair(ssh_tag, line_ending, ssh_rsa_body(line_ending)),
+                    |(tag, encrypted_file_key)| {
+                        RecipientLine::SshRsa(SshRsaRecipientLine {
+                            tag,
                             encrypted_file_key,
-                        },
-                    })
-                },
-            ),
-        )(input)
-    }
-
-    fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(RECIPIENT_TAG),
-            alt((
-                x25519_recipient_line,
-                scrypt_recipient_line,
-                ssh_rsa_recipient_line,
-                ssh_ed25519_recipient_line,
-            )),
-        )(input)
-    }
-
-    pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
-        preceded(
-            pair(tag(V1_MAGIC), newline),
-            map(
-                pair(
-                    terminated(separated_nonempty_list(newline, recipient_line), newline),
-                    preceded(
-                        pair(tag(MAC_TAG), tag(b" ")),
-                        terminated(encoded_data(32, [0; 32]), newline),
-                    ),
+                        })
+                    },
                 ),
-                |(recipients, mac)| Header { recipients, mac },
-            ),
-        )(input)
+            )(input)
+        }
+    }
+
+    fn ssh_ed25519_recipient_line<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
+        move |input: &[u8]| {
+            preceded(
+                tag(SSH_ED25519_RECIPIENT_TAG),
+                map(
+                    separated_pair(
+                        separated_pair(ssh_tag, tag(" "), x25519_epk),
+                        line_ending,
+                        encoded_data(32, [0; 32]),
+                    ),
+                    |((tag, epk), encrypted_file_key)| {
+                        RecipientLine::SshEd25519(SshEd25519RecipientLine {
+                            tag,
+                            rest: X25519RecipientLine {
+                                epk,
+                                encrypted_file_key,
+                            },
+                        })
+                    },
+                ),
+            )(input)
+        }
+    }
+
+    fn recipient_line<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
+        move |input: &[u8]| {
+            preceded(
+                tag(RECIPIENT_TAG),
+                alt((
+                    x25519_recipient_line(line_ending),
+                    scrypt_recipient_line(line_ending),
+                    ssh_rsa_recipient_line(line_ending),
+                    ssh_ed25519_recipient_line(line_ending),
+                )),
+            )(input)
+        }
+    }
+
+    fn header<'a>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Header> {
+        move |input: &[u8]| {
+            preceded(
+                pair(tag(V1_MAGIC), line_ending),
+                map(
+                    pair(
+                        terminated(
+                            separated_nonempty_list(line_ending, recipient_line(line_ending)),
+                            line_ending,
+                        ),
+                        preceded(
+                            pair(tag(MAC_TAG), tag(b" ")),
+                            terminated(encoded_data(32, [0; 32]), line_ending),
+                        ),
+                    ),
+                    |(recipients, mac)| Header { recipients, mac },
+                ),
+            )(input)
+        }
+    }
+
+    pub(super) fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
+        header(&nom::character::streaming::newline)(input)
     }
 }
 
@@ -336,25 +371,34 @@ mod write {
         string(encoded)
     }
 
-    fn x25519_recipient_line<W: Write>(r: &X25519RecipientLine) -> impl SerializeFn<W> {
+    fn x25519_recipient_line<'a, W: 'a + Write>(
+        r: &X25519RecipientLine,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(X25519_RECIPIENT_TAG),
             encoded_data(&r.epk),
-            string("\n"),
+            string(line_ending),
             encoded_data(&r.encrypted_file_key),
         ))
     }
 
-    fn scrypt_recipient_line<W: Write>(r: &ScryptRecipientLine) -> impl SerializeFn<W> {
+    fn scrypt_recipient_line<'a, W: 'a + Write>(
+        r: &ScryptRecipientLine,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SCRYPT_RECIPIENT_TAG),
             encoded_data(&r.salt),
-            string(format!(" {}\n", r.log_n)),
+            string(format!(" {}{}", r.log_n, line_ending)),
             encoded_data(&r.encrypted_file_key),
         ))
     }
 
-    fn ssh_rsa_body<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
+    fn ssh_rsa_body<'a, W: 'a + Write>(
+        data: &[u8],
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
 
         move |mut w: WriteContext<W>| {
@@ -364,7 +408,7 @@ mod write {
                 let (l, r) = s.split_at(56);
                 w = string(l)(w)?;
                 if !r.is_empty() {
-                    w = string("\n")(w)?;
+                    w = string(line_ending)(w)?;
                 }
                 s = r;
             }
@@ -373,55 +417,82 @@ mod write {
         }
     }
 
-    fn ssh_rsa_recipient_line<W: Write>(r: &SshRsaRecipientLine) -> impl SerializeFn<W> {
+    fn ssh_rsa_recipient_line<'a, W: 'a + Write>(
+        r: &SshRsaRecipientLine,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_RSA_RECIPIENT_TAG),
             encoded_data(&r.tag),
-            string("\n"),
-            ssh_rsa_body(&r.encrypted_file_key),
+            string(line_ending),
+            ssh_rsa_body(&r.encrypted_file_key, line_ending),
         ))
     }
 
-    fn ssh_ed25519_recipient_line<W: Write>(r: &SshEd25519RecipientLine) -> impl SerializeFn<W> {
+    fn ssh_ed25519_recipient_line<'a, W: 'a + Write>(
+        r: &SshEd25519RecipientLine,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_ED25519_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(" "),
             encoded_data(&r.rest.epk),
-            string("\n"),
+            string(line_ending),
             encoded_data(&r.rest.encrypted_file_key),
         ))
     }
 
-    fn recipient_line<'a, W: 'a + Write>(r: &'a RecipientLine) -> impl SerializeFn<W> + 'a {
+    fn recipient_line<'a, W: 'a + Write>(
+        r: &'a RecipientLine,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let out = slice(RECIPIENT_TAG)(w)?;
             match r {
-                RecipientLine::X25519(r) => x25519_recipient_line(r)(out),
-                RecipientLine::Scrypt(r) => scrypt_recipient_line(r)(out),
-                RecipientLine::SshRsa(r) => ssh_rsa_recipient_line(r)(out),
-                RecipientLine::SshEd25519(r) => ssh_ed25519_recipient_line(r)(out),
+                RecipientLine::X25519(r) => x25519_recipient_line(r, line_ending)(out),
+                RecipientLine::Scrypt(r) => scrypt_recipient_line(r, line_ending)(out),
+                RecipientLine::SshRsa(r) => ssh_rsa_recipient_line(r, line_ending)(out),
+                RecipientLine::SshEd25519(r) => ssh_ed25519_recipient_line(r, line_ending)(out),
             }
         }
     }
 
-    pub(super) fn header_minus_mac<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    fn header_minus_mac<'a, W: 'a + Write>(
+        h: &'a Header,
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(V1_MAGIC),
-            string("\n"),
-            separated_list(string("\n"), h.recipients.iter().map(recipient_line)),
-            string("\n"),
+            string(line_ending),
+            separated_list(
+                string(line_ending),
+                h.recipients
+                    .iter()
+                    .map(move |r| recipient_line(r, line_ending)),
+            ),
+            string(line_ending),
             slice(MAC_TAG),
         ))
     }
 
-    pub(super) fn header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    fn header<'a, W: 'a + Write>(h: &'a Header, line_ending: &'a str) -> impl SerializeFn<W> + 'a {
         tuple((
-            header_minus_mac(h),
+            header_minus_mac(h, line_ending),
             string(" "),
             encoded_data(&h.mac),
-            string("\n"),
+            string(line_ending),
         ))
+    }
+
+    pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
+        h: &'a Header,
+    ) -> impl SerializeFn<W> + 'a {
+        header_minus_mac(h, "\n")
+    }
+
+    pub(super) fn canonical_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+        header(h, "\n")
     }
 }
 
