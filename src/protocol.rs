@@ -11,6 +11,7 @@ use crate::{
         aead_decrypt, aead_encrypt, hkdf, scrypt,
         stream::{Stream, StreamReader},
     },
+    util::ArmoredWriter,
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
@@ -77,14 +78,15 @@ impl Encryptor {
         }
     }
 
-    /// Creates a wrapper around a writer that will encrypt its input.
+    /// Creates a wrapper around a writer that will encrypt its input, and optionally
+    /// ASCII armor the output.
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
     /// You **MUST** call `flush()` when you are done writing, in order to finish the
     /// encryption process. Failing to call `flush()` will result in a truncated message
     /// that will fail to decrypt.
-    pub fn wrap_output<W: Write>(&self, mut output: W) -> io::Result<impl Write> {
+    pub fn wrap_output<W: Write>(&self, mut output: W, armored: bool) -> io::Result<impl Write> {
         let mut file_key = [0; 16];
         getrandom(&mut file_key).expect("Should not fail");
 
@@ -92,7 +94,9 @@ impl Encryptor {
             self.wrap_file_key(&file_key),
             hkdf(&[], HEADER_KEY_LABEL, &file_key),
         );
-        header.write(&mut output)?;
+        header.write(&mut output, armored)?;
+
+        let mut output = ArmoredWriter::wrap_output(output, armored);
 
         let mut nonce = [0; 16];
         getrandom(&mut nonce).expect("Should not fail");
@@ -233,7 +237,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         let mut encrypted = vec![];
         let e = Encryptor::Keys(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted).unwrap();
+            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
             w.write_all(test_msg).unwrap();
             w.flush().unwrap();
         }
@@ -257,7 +261,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         let mut encrypted = vec![];
         let e = Encryptor::Keys(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted).unwrap();
+            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
             w.write_all(test_msg).unwrap();
             w.flush().unwrap();
         }

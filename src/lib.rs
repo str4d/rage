@@ -23,7 +23,7 @@
 //! let encryptor = age::Encryptor::Keys(vec![pubkey]);
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.flush()?;
 //! };
@@ -51,7 +51,7 @@
 //! let encryptor = age::Encryptor::Passphrase(passphrase.to_owned());
 //! let mut encrypted = vec![];
 //! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.flush()?;
 //! };

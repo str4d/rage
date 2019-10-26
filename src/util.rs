@@ -4,6 +4,14 @@ use nom::{
     multi::separated_nonempty_list,
     IResult,
 };
+use std::io::{self, Write};
+
+#[cfg(windows)]
+pub(crate) const LINE_ENDING: &str = "\r\n";
+#[cfg(not(windows))]
+pub(crate) const LINE_ENDING: &str = "\n";
+
+const ARMORED_END_MARKER: &[u8] = b"***";
 
 /// Returns the slice of input up to (but not including) the first newline
 /// character, if that slice is entirely Base64 characters
@@ -107,5 +115,109 @@ pub(crate) fn read_wrapped_str_while_encoded(
                 base64::decode_config(&data, config)
             },
         )(input)
+    }
+}
+
+pub(crate) struct ArmoredWriter<W: Write> {
+    inner: W,
+    enabled: bool,
+    chunk: (Option<u8>, Option<u8>, Option<u8>),
+    line_length: usize,
+}
+
+impl<W: Write> ArmoredWriter<W> {
+    pub(crate) fn wrap_output(inner: W, enabled: bool) -> Self {
+        ArmoredWriter {
+            inner,
+            enabled,
+            chunk: (None, None, None),
+            line_length: 0,
+        }
+    }
+}
+
+impl<W: Write> Write for ArmoredWriter<W> {
+    fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
+        if !self.enabled {
+            return self.inner.write(buf);
+        }
+
+        let mut bytes_written = 0;
+
+        while !buf.is_empty() {
+            let byte = buf[0];
+            buf = &buf[1..];
+            bytes_written += 1;
+
+            match self.chunk {
+                (None, None, None) => self.chunk.0 = Some(byte),
+                (Some(_), None, None) => self.chunk.1 = Some(byte),
+                (Some(_), Some(_), None) => self.chunk.2 = Some(byte),
+                (Some(a), Some(b), Some(c)) => {
+                    // Wrap the line if needed
+                    if self.line_length >= 56 {
+                        self.inner.write_all(LINE_ENDING.as_bytes())?;
+                        self.line_length = 0;
+                    }
+
+                    // Process the bytes we already have
+                    let mut encoded = [0; 4];
+                    assert_eq!(
+                        base64::encode_config_slice(
+                            &[a, b, c],
+                            base64::URL_SAFE_NO_PAD,
+                            &mut encoded
+                        ),
+                        4
+                    );
+                    self.inner.write_all(&encoded)?;
+                    self.line_length += 4;
+
+                    // Store the new byte
+                    self.chunk = (Some(byte), None, None);
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(bytes_written)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        if self.enabled {
+            // Wrap the line if needed
+            if self.line_length >= 56 {
+                self.inner.write_all(LINE_ENDING.as_bytes())?;
+                self.line_length = 0;
+            }
+
+            // Process the remaining bytes
+            let mut encoded = [0; 4];
+            let encoded_size = match self.chunk {
+                (None, None, None) => 0,
+                (Some(a), None, None) => {
+                    base64::encode_config_slice(&[a], base64::URL_SAFE_NO_PAD, &mut encoded)
+                }
+                (Some(a), Some(b), None) => {
+                    base64::encode_config_slice(&[a, b], base64::URL_SAFE_NO_PAD, &mut encoded)
+                }
+                (Some(a), Some(b), Some(c)) => {
+                    base64::encode_config_slice(&[a, b, c], base64::URL_SAFE_NO_PAD, &mut encoded)
+                }
+                _ => unreachable!(),
+            };
+            self.inner.write_all(&encoded[0..encoded_size])?;
+            self.line_length += encoded_size;
+
+            // Write a line ending if there is anything on the final line
+            if self.line_length > 0 {
+                self.inner.write_all(LINE_ENDING.as_bytes())?;
+            }
+
+            // Write the end marker
+            self.inner.write_all(ARMORED_END_MARKER)?;
+            self.inner.write_all(LINE_ENDING.as_bytes())?;
+        }
+        self.inner.flush()
     }
 }

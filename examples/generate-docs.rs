@@ -24,6 +24,12 @@ fn rage_page() {
                 .long("--passphrase")
                 .help("Use a passphrase instead of public keys"),
         )
+        .flag(
+            Flag::new()
+                .short("-A")
+                .long("--armor")
+                .help("Create ASCII armored output (default is age binary format)"),
+        )
         .option(
             Opt::new("input")
                 .short("-i")

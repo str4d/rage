@@ -4,7 +4,9 @@ use std::io::{self, Read, Write};
 
 use crate::primitives::HmacWriter;
 
-const V1_MAGIC: &[u8] = b"This is a file encrypted with age-tool.com, version 1";
+const BINARY_MAGIC: &[u8] = b"This is a file";
+const ARMORED_MAGIC: &[u8] = b"This is an armored file";
+const V1_MAGIC: &[u8] = b"encrypted with age-tool.com, version 1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
 const SCRYPT_RECIPIENT_TAG: &[u8] = b"scrypt ";
@@ -126,15 +128,19 @@ impl Header {
         }
     }
 
-    pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
-        cookie_factory::gen(write::canonical_header(self), &mut output)
-            .map(|_| ())
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to write header: {}", e),
-                )
-            })
+    pub(crate) fn write<W: Write>(&self, mut output: W, armored: bool) -> io::Result<()> {
+        if armored {
+            cookie_factory::gen(write::armored_header(self), &mut output)
+        } else {
+            cookie_factory::gen(write::canonical_header(self), &mut output)
+        }
+        .map(|_| ())
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("failed to write header: {}", e),
+            )
+        })
     }
 }
 
@@ -351,7 +357,10 @@ mod read {
     }
 
     pub(super) fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
-        header(&nom::character::streaming::newline)(input)
+        preceded(
+            pair(tag(BINARY_MAGIC), tag(b" ")),
+            header(&nom::character::streaming::newline),
+        )(input)
     }
 }
 
@@ -365,6 +374,7 @@ mod write {
     use std::io::Write;
 
     use super::*;
+    use crate::util::LINE_ENDING;
 
     fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
         let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
@@ -488,11 +498,15 @@ mod write {
     pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
         h: &'a Header,
     ) -> impl SerializeFn<W> + 'a {
-        header_minus_mac(h, "\n")
+        tuple((slice(BINARY_MAGIC), string(" "), header_minus_mac(h, "\n")))
     }
 
     pub(super) fn canonical_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
-        header(h, "\n")
+        tuple((slice(BINARY_MAGIC), string(" "), header(h, "\n")))
+    }
+
+    pub(super) fn armored_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+        tuple((slice(ARMORED_MAGIC), string(" "), header(h, LINE_ENDING)))
     }
 }
 
@@ -523,7 +537,7 @@ fYCo_w
 ";
         let h = Header::read(test_header.as_bytes()).unwrap();
         let mut data = vec![];
-        h.write(&mut data).unwrap();
+        h.write(&mut data, false).unwrap();
         assert_eq!(std::str::from_utf8(&data), Ok(test_header));
     }
 }

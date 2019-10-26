@@ -174,6 +174,9 @@ struct AgeOptions {
 
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
+
+    #[options(help = "create ASCII armored output (default is age binary format)")]
+    armor: bool,
 }
 
 fn generate_new_key() {
@@ -229,7 +232,7 @@ fn encrypt(opts: AgeOptions) {
         }
     };
 
-    match encryptor.wrap_output(output) {
+    match encryptor.wrap_output(output, opts.armor) {
         Ok(mut w) => {
             if let Err(e) = io::copy(&mut input, &mut w) {
                 eprintln!("Error while encrypting: {}", e);
