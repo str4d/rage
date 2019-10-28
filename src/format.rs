@@ -108,11 +108,11 @@ impl Header {
         mac.verify(&self.mac).ok()
     }
 
-    pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
+    pub(crate) fn read<R: Read>(mut input: R) -> io::Result<(Self, bool)> {
         let mut data = vec![];
         loop {
-            match read::canonical_header(&data) {
-                Ok((_, header)) => break Ok(header),
+            match read::any_header(&data) {
+                Ok((_, (header, armored))) => break Ok((header, armored)),
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
                     // parser is constructed, because if we read more than we need, the
@@ -191,8 +191,8 @@ mod read {
         encoded_data(32, [0; 32])(input)
     }
 
-    fn x25519_recipient_line<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn x25519_recipient_line<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
         move |input: &[u8]| {
             preceded(
@@ -222,8 +222,8 @@ mod read {
         })(input)
     }
 
-    fn scrypt_recipient_line<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn scrypt_recipient_line<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
         move |input: &[u8]| {
             preceded(
@@ -250,8 +250,8 @@ mod read {
         encoded_data(4, [0; 4])(input)
     }
 
-    fn ssh_rsa_body<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn ssh_rsa_body<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
         move |input: &[u8]| {
             map_opt(
@@ -272,8 +272,8 @@ mod read {
         }
     }
 
-    fn ssh_rsa_recipient_line<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn ssh_rsa_recipient_line<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
         move |input: &[u8]| {
             preceded(
@@ -291,8 +291,8 @@ mod read {
         }
     }
 
-    fn ssh_ed25519_recipient_line<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn ssh_ed25519_recipient_line<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
         move |input: &[u8]| {
             preceded(
@@ -317,8 +317,8 @@ mod read {
         }
     }
 
-    fn recipient_line<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn recipient_line<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
         move |input: &[u8]| {
             preceded(
@@ -333,8 +333,8 @@ mod read {
         }
     }
 
-    fn header<'a>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], char>,
+    fn header<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Header> {
         move |input: &[u8]| {
             preceded(
@@ -356,11 +356,25 @@ mod read {
         }
     }
 
-    pub(super) fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
+    fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
         preceded(
             pair(tag(BINARY_MAGIC), tag(b" ")),
             header(&nom::character::streaming::newline),
         )(input)
+    }
+
+    fn armored_header(input: &[u8]) -> IResult<&[u8], Header> {
+        preceded(
+            pair(tag(ARMORED_MAGIC), tag(b" ")),
+            header(&nom::character::streaming::line_ending),
+        )(input)
+    }
+
+    pub(super) fn any_header(input: &[u8]) -> IResult<&[u8], (Header, bool)> {
+        alt((
+            map(canonical_header, |h| (h, false)),
+            map(armored_header, |h| (h, true)),
+        ))(input)
     }
 }
 
@@ -535,7 +549,8 @@ fYCo_w
 51eEu5Oo2JYAG7OU4oamH03FDRP18_GnzeCrY7Z-sa8
 --- fgMiVLJHMlg9fW7CVG_hPS5EAU4Zeg19LyCP7SoH5nA
 ";
-        let h = Header::read(test_header.as_bytes()).unwrap();
+        let (h, armored) = Header::read(test_header.as_bytes()).unwrap();
+        assert!(!armored);
         let mut data = vec![];
         h.write(&mut data, false).unwrap();
         assert_eq!(std::str::from_utf8(&data), Ok(test_header));

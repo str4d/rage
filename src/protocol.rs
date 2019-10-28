@@ -11,7 +11,7 @@ use crate::{
         aead_decrypt, aead_encrypt, hkdf, scrypt,
         stream::{Stream, StreamReader},
     },
-    util::ArmoredWriter,
+    util::{ArmoredReader, ArmoredWriter},
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
@@ -141,7 +141,9 @@ impl Decryptor {
     ///
     /// If successful, returns a reader that will provide the plaintext.
     pub fn trial_decrypt<R: Read>(&self, mut input: R) -> io::Result<impl Read> {
-        let header = Header::read(&mut input)?;
+        let (header, armored) = Header::read(&mut input)?;
+
+        let mut input = ArmoredReader::from_reader(input, armored);
 
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce)?;
@@ -169,7 +171,13 @@ impl Decryptor {
         &self,
         mut input: R,
     ) -> io::Result<StreamReader<R>> {
-        let header = Header::read(&mut input)?;
+        let (header, armored) = Header::read(&mut input)?;
+        if armored {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "armored messages not supported for seeking",
+            ));
+        }
 
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce)?;
