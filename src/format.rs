@@ -1,6 +1,7 @@
 //! The age message format.
 
 use std::io::{self, Read, Write};
+use x25519_dalek::PublicKey;
 
 use crate::primitives::HmacWriter;
 
@@ -16,7 +17,7 @@ const MAC_TAG: &[u8] = b"---";
 
 #[derive(Debug)]
 pub(crate) struct X25519RecipientLine {
-    pub(crate) epk: [u8; 32],
+    pub(crate) epk: PublicKey,
     pub(crate) encrypted_file_key: [u8; 32],
 }
 
@@ -48,7 +49,7 @@ pub(crate) enum RecipientLine {
 }
 
 impl RecipientLine {
-    pub(crate) fn x25519(epk: [u8; 32], encrypted_file_key: [u8; 32]) -> Self {
+    pub(crate) fn x25519(epk: PublicKey, encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::X25519(X25519RecipientLine {
             epk,
             encrypted_file_key,
@@ -70,7 +71,7 @@ impl RecipientLine {
         })
     }
 
-    pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: [u8; 32], encrypted_file_key: [u8; 32]) -> Self {
+    pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: PublicKey, encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::SshEd25519(SshEd25519RecipientLine {
             tag,
             rest: X25519RecipientLine {
@@ -187,8 +188,8 @@ mod read {
         }
     }
 
-    fn x25519_epk(input: &[u8]) -> IResult<&[u8], [u8; 32]> {
-        encoded_data(32, [0; 32])(input)
+    fn x25519_epk(input: &[u8]) -> IResult<&[u8], PublicKey> {
+        map(encoded_data(32, [0; 32]), PublicKey::from)(input)
     }
 
     fn x25519_recipient_line<'a, N>(
@@ -401,7 +402,7 @@ mod write {
     ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(X25519_RECIPIENT_TAG),
-            encoded_data(&r.epk),
+            encoded_data(r.epk.as_bytes()),
             string(line_ending),
             encoded_data(&r.encrypted_file_key),
         ))
@@ -461,7 +462,7 @@ mod write {
             slice(SSH_ED25519_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(" "),
-            encoded_data(&r.rest.epk),
+            encoded_data(r.rest.epk.as_bytes()),
             string(line_ending),
             encoded_data(&r.rest.encrypted_file_key),
         ))
