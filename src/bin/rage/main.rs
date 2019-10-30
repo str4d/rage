@@ -163,20 +163,20 @@ struct AgeOptions {
     #[options(help = "decrypt the input (default is to encrypt)")]
     decrypt: bool,
 
+    #[options(help = "use a passphrase instead of public keys")]
+    passphrase: bool,
+
+    #[options(help = "create ASCII armored output (default is age binary format)")]
+    armor: bool,
+
     #[options(help = "read from INPUT (default stdin)")]
     input: Option<String>,
 
     #[options(help = "output to OUTPUT (default stdout)")]
     output: Option<String>,
 
-    #[options(help = "load the aliases list from ALIASES")]
+    #[options(help = "load the aliases list from ALIASES", no_short)]
     aliases: Option<String>,
-
-    #[options(help = "use a passphrase instead of public keys")]
-    passphrase: bool,
-
-    #[options(help = "create ASCII armored output (default is age binary format)")]
-    armor: bool,
 }
 
 fn generate_new_key() {

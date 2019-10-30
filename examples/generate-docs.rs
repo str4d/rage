@@ -8,6 +8,12 @@ fn rage_page() {
         .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
         .flag(
             Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
                 .short("-g")
                 .long("--generate")
                 .help("Generate a new age key pair"),
@@ -26,7 +32,7 @@ fn rage_page() {
         )
         .flag(
             Flag::new()
-                .short("-A")
+                .short("-a")
                 .long("--armor")
                 .help("Create ASCII armored output (default is age binary format)"),
         )
@@ -42,11 +48,10 @@ fn rage_page() {
                 .long("--output")
                 .help("The file path to write output to (defaults to stdout)"),
         )
-        .flag(
-            Flag::new()
-                .short("-h")
-                .long("--help")
-                .help("Display help text and exit"),
+        .option(
+            Opt::new("aliases")
+                .long("--aliases")
+                .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
         )
         .arg(Arg::new("[arguments...]"))
         .example(
@@ -94,10 +99,7 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text(
-                    "Encryption to an alias \
-                     (stored at ~/.config/age/aliases.txt, change with --aliases)",
-                )
+                .text("Encryption to an alias")
                 .command("tar cv ~/xxx | rage alias:str4d > xxx.tar.age"),
         )
         .example(
@@ -125,6 +127,12 @@ fn rage_mount_page() {
         .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
         .flag(
             Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
                 .short("-t")
                 .long("--types")
                 .help("The type of the filesystem (one of \"tar\", \"zip\")"),
@@ -134,12 +142,6 @@ fn rage_mount_page() {
                 .short("-p")
                 .long("--passphrase")
                 .help("Use a passphrase instead of public keys"),
-        )
-        .flag(
-            Flag::new()
-                .short("-h")
-                .long("--help")
-                .help("Display help text and exit"),
         )
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
