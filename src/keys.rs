@@ -165,7 +165,7 @@ impl SecretKey {
 }
 
 /// A key that can be used to encrypt an age message to a recipient.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519(PublicKey),
