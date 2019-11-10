@@ -50,6 +50,31 @@ jobs:
           command: test
           args: --verbose
 
+  codecov:
+    name: Code coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.37.0
+          override: true
+      - name: Install cargo-tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-tarpaulin
+      - name: Generate coverage report
+        uses: actions-rs/cargo@v1
+        with:
+          command: tarpaulin
+          args: --release --timeout 180 --out Xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1.0.3
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+
   doc-links:
     name: Nightly lint
     runs-on: ubuntu-latest
