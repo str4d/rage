@@ -90,6 +90,26 @@ mod read_asn1 {
         }
     }
 
+    /// A PKCS#1-encoded RSA private key.
+    ///
+    /// From [RFC 8017](https://tools.ietf.org/html/rfc8017#appendix-A.1.2):
+    /// ```text
+    /// RSAPrivateKey ::= SEQUENCE {
+    ///  version           Version,
+    ///  modulus           INTEGER,  -- n
+    ///  publicExponent    INTEGER,  -- e
+    ///  privateExponent   INTEGER,  -- d
+    ///  prime1            INTEGER,  -- p
+    ///  prime2            INTEGER,  -- q
+    ///  exponent1         INTEGER,  -- d mod (p-1)
+    ///  exponent2         INTEGER,  -- d mod (q-1)
+    ///  coefficient       INTEGER,  -- (inverse of q) mod p
+    ///  otherPrimeInfos   OtherPrimeInfos OPTIONAL
+    /// }
+    /// ```
+    ///
+    /// We only support the two-prime encoding, where `version = 0` and `otherPrimeInfos`
+    /// is omitted.
     pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
         preceded(
             // Type: Universal | Constructed | SEQUENCE
@@ -130,6 +150,9 @@ mod read_binary {
     use super::{SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX};
     use crate::keys::SecretKey;
 
+    /// Internal OpenSSH encoding of an RSA private key.
+    ///
+    /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
         preceded(
             length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
@@ -154,6 +177,9 @@ mod read_binary {
         )(input)
     }
 
+    /// Internal OpenSSH encoding of an Ed25519 private key.
+    ///
+    /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3277-L3283)
     fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], [u8; 64]> {
         preceded(
             length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
@@ -172,6 +198,9 @@ mod read_binary {
         )(input)
     }
 
+    /// An OpenSSH-formatted private key.
+    ///
+    /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Vec<SecretKey>> {
         let (mut mid, num_keys) = preceded(
             tuple((
@@ -180,7 +209,7 @@ mod read_binary {
                 length_value(be_u32, tag(b"none")),
                 // KDF name
                 length_value(be_u32, tag(b"none")),
-                // KDF
+                // KDF options
                 length_value(be_u32, tag(b"")),
             )),
             be_u32,
@@ -221,6 +250,14 @@ mod read_binary {
         Ok((mid, keys))
     }
 
+    /// An SSH-encoded RSA public key.
+    ///
+    /// From [RFC 4253](https://tools.ietf.org/html/rfc4253#section-6.6):
+    /// ```text
+    /// string    "ssh-rsa"
+    /// mpint     e
+    /// mpint     n
+    /// ```
     pub(super) fn ssh_rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
         preceded(
             length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
@@ -236,6 +273,13 @@ mod read_binary {
         )(input)
     }
 
+    /// An SSH-encoded Ed25519 public key.
+    ///
+    /// From [draft-ietf-curdle-ssh-ed25519-02](https://tools.ietf.org/html/draft-ietf-curdle-ssh-ed25519-02#section-4):
+    /// ```text
+    /// string    "ssh-ed25519"
+    /// string    key
+    /// ```
     pub(super) fn ssh_ed25519_pubkey(input: &[u8]) -> IResult<&[u8], EdwardsPoint> {
         preceded(
             length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),

@@ -319,6 +319,11 @@ mod read {
     }
 
     pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
+        // We try parsing the string as a single multi-line SSH key.
+        // If that fails, we parse as multiple single-line age keys.
+        //
+        // TODO: Support "proper" PEM format, where the file is allowed to contain
+        // anything before the "-----BEGIN" tag.
         alt((ssh_secret_keys, age_secret_keys))(input)
     }
 
