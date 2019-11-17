@@ -99,12 +99,7 @@ impl SecretKey {
                 salt.extend_from_slice(pk.as_bytes());
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                aead_decrypt(&enc_key, &r.encrypted_file_key).map(|pt| {
-                    // It's ours!
-                    let mut file_key = [0; 16];
-                    file_key.copy_from_slice(&pt);
-                    file_key
-                })
+                aead_decrypt(&enc_key, &r.encrypted_file_key)
             }
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -122,12 +117,6 @@ impl SecretKey {
                     Some(SSH_RSA_OAEP_LABEL.to_owned()),
                 )
                 .ok()
-                .map(|pt| {
-                    // It's ours!
-                    let mut file_key = [0; 16];
-                    file_key.copy_from_slice(&pt);
-                    file_key
-                })
             }
             (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -152,15 +141,16 @@ impl SecretKey {
                 salt.extend_from_slice(pk.as_bytes());
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                aead_decrypt(&enc_key, &r.rest.encrypted_file_key).map(|pt| {
-                    // It's ours!
-                    let mut file_key = [0; 16];
-                    file_key.copy_from_slice(&pt);
-                    file_key
-                })
+                aead_decrypt(&enc_key, &r.rest.encrypted_file_key)
             }
             _ => None,
         }
+        .map(|pt| {
+            // It's ours!
+            let mut file_key = [0; 16];
+            file_key.copy_from_slice(&pt);
+            file_key
+        })
     }
 }
 
