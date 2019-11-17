@@ -26,7 +26,6 @@ hkdf = "0.8"
 hmac = "0.7"
 nom = "5"
 num-bigint-dig = "0.4"
-rand_os = "0.1"
 rand = "0.6"
 rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
 scrypt = { version = "0.2", default-features = false }

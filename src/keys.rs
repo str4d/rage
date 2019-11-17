@@ -1,7 +1,7 @@
 //! Key structs and serialization.
 
 use curve25519_dalek::edwards::EdwardsPoint;
-use rand_os::OsRng;
+use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
 use std::io::{self, BufRead};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -106,7 +106,7 @@ impl SecretKey {
                     return None;
                 }
 
-                let mut rng = rand::rngs::OsRng::new().expect("should have RNG");
+                let mut rng = OsRng::new().expect("should have RNG");
                 let mut h = Sha256::default();
 
                 rsa::oaep::decrypt(
@@ -226,7 +226,7 @@ impl RecipientKey {
                 RecipientLine::x25519(epk, encrypted_file_key)
             }
             RecipientKey::SshRsa(ssh_key, pk) => {
-                let mut rng = rand::rngs::OsRng::new().expect("should have RNG");
+                let mut rng = OsRng::new().expect("should have RNG");
                 let mut h = Sha256::default();
 
                 let encrypted_file_key = rsa::oaep::encrypt(
