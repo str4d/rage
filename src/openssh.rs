@@ -336,6 +336,7 @@ mod read_ssh {
 mod write_ssh {
     use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
     use num_bigint_dig::BigUint;
+    use num_traits::identities::Zero;
     use rsa::PublicKey;
     use std::io::Write;
 
@@ -352,8 +353,13 @@ mod write_ssh {
 
         // From RFC 4251 section 5:
         //     If the most significant bit would be set for a positive number,
-        //     the number MUST be preceded by a zero byte.
-        if bytes[0] >> 7 != 0 {
+        //     the number MUST be preceded by a zero byte. Unnecessary leading
+        //     bytes with the value 0 or 255 MUST NOT be included. The value
+        //     zero MUST be stored as a string with zero bytes of data.
+        if value.is_zero() {
+            // BigUint represents zero as vec![0]
+            bytes = vec![];
+        } else if bytes[0] >> 7 != 0 {
             bytes.insert(0, 0);
         }
 
