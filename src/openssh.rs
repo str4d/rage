@@ -134,7 +134,7 @@ mod read_asn1 {
     }
 }
 
-mod read_binary {
+mod read_ssh {
     use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
     use nom::{
         branch::alt,
@@ -150,29 +150,38 @@ mod read_binary {
     use super::{SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX};
     use crate::keys::SecretKey;
 
+    /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
+    fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        length_data(be_u32)(input)
+    }
+
+    /// Recognizes an SSH `string` matching a tag.
+    pub fn string_tag(value: &'static str) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
+        move |input: &[u8]| length_value(be_u32, tag(value))(input)
+    }
+
+    /// The SSH `mpint` data type.
+    ///
+    /// From [RFC 4251](https://tools.ietf.org/html/rfc4251#section-5):
+    /// ```text
+    /// Represents multiple precision integers in two's complement format,
+    /// stored as a string, 8 bits per byte, MSB first.
+    /// ```
+    fn mpint(input: &[u8]) -> IResult<&[u8], BigUint> {
+        // This currently only supports positive numbers, and does not enforce the
+        // canonical encoding. TODO: Fix this.
+        map(string, BigUint::from_bytes_be)(input)
+    }
+
     /// Internal OpenSSH encoding of an RSA private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
         preceded(
-            length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
+            string_tag(SSH_RSA_KEY_PREFIX),
             map(
-                tuple((
-                    length_data(be_u32),
-                    length_data(be_u32),
-                    length_data(be_u32),
-                    length_data(be_u32),
-                    length_data(be_u32),
-                    length_data(be_u32),
-                )),
-                |(n, e, d, _iqmp, p, q)| {
-                    rsa::RSAPrivateKey::from_components(
-                        BigUint::from_bytes_be(n),
-                        BigUint::from_bytes_be(e),
-                        BigUint::from_bytes_be(d),
-                        vec![BigUint::from_bytes_be(p), BigUint::from_bytes_be(q)],
-                    )
-                },
+                tuple((mpint, mpint, mpint, mpint, mpint, mpint)),
+                |(n, e, d, _iqmp, p, q)| rsa::RSAPrivateKey::from_components(n, e, d, vec![p, q]),
             ),
         )(input)
     }
@@ -182,19 +191,16 @@ mod read_binary {
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3277-L3283)
     fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], [u8; 64]> {
         preceded(
-            length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
-            map_opt(
-                tuple((length_data(be_u32), length_data(be_u32))),
-                |(pubkey_bytes, privkey_bytes)| {
-                    if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
-                        let mut privkey = [0; 64];
-                        privkey.copy_from_slice(&privkey_bytes);
-                        Some(privkey)
-                    } else {
-                        None
-                    }
-                },
-            ),
+            string_tag(SSH_ED25519_KEY_PREFIX),
+            map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
+                if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
+                    let mut privkey = [0; 64];
+                    privkey.copy_from_slice(&privkey_bytes);
+                    Some(privkey)
+                } else {
+                    None
+                }
+            }),
         )(input)
     }
 
@@ -206,18 +212,19 @@ mod read_binary {
             tuple((
                 tag(b"openssh-key-v1\x00"),
                 // Cipher name
-                length_value(be_u32, tag(b"none")),
+                string_tag("none"),
                 // KDF name
-                length_value(be_u32, tag(b"none")),
+                string_tag("none"),
                 // KDF options
-                length_value(be_u32, tag(b"")),
+                string_tag(""),
             )),
             be_u32,
         )(input)?;
 
         let mut keys = vec![];
         for _ in 0..num_keys {
-            let (i, ssh_key) = length_data(be_u32)(mid)?;
+            let (i, ssh_key) = string(mid)?;
+            // This is an SSH string data type containing a private key
             let (i, key) = length_value(
                 be_u32,
                 preceded(
@@ -239,7 +246,7 @@ mod read_binary {
                             }),
                         )),
                         // Comment
-                        length_data(be_u32),
+                        string,
                     ),
                 ),
             )(i)?;
@@ -258,18 +265,12 @@ mod read_binary {
     /// mpint     e
     /// mpint     n
     /// ```
-    pub(super) fn ssh_rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
+    pub(super) fn rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
         preceded(
-            length_value(be_u32, tag(SSH_RSA_KEY_PREFIX)),
-            map_res(
-                tuple((length_data(be_u32), length_data(be_u32))),
-                |(exponent, modulus)| {
-                    rsa::RSAPublicKey::new(
-                        BigUint::from_bytes_be(modulus),
-                        BigUint::from_bytes_be(exponent),
-                    )
-                },
-            ),
+            string_tag(SSH_RSA_KEY_PREFIX),
+            map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
+                rsa::RSAPublicKey::new(modulus, exponent)
+            }),
         )(input)
     }
 
@@ -280,10 +281,10 @@ mod read_binary {
     /// string    "ssh-ed25519"
     /// string    key
     /// ```
-    pub(super) fn ssh_ed25519_pubkey(input: &[u8]) -> IResult<&[u8], EdwardsPoint> {
+    pub(super) fn ed25519_pubkey(input: &[u8]) -> IResult<&[u8], EdwardsPoint> {
         preceded(
-            length_value(be_u32, tag(SSH_ED25519_KEY_PREFIX)),
-            map_opt(length_data(be_u32), |buf| {
+            string_tag(SSH_ED25519_KEY_PREFIX),
+            map_opt(string, |buf| {
                 if buf.len() == 32 {
                     CompressedEdwardsY::from_slice(buf).decompress()
                 } else {
@@ -294,7 +295,7 @@ mod read_binary {
     }
 }
 
-mod write_binary {
+mod write_ssh {
     use cookie_factory::{
         bytes::be_u32,
         combinator::{slice, string},
@@ -306,7 +307,7 @@ mod write_binary {
 
     use super::SSH_RSA_KEY_PREFIX;
 
-    pub(super) fn ssh_rsa_pubkey<W: Write>(pubkey: &rsa::RSAPublicKey) -> impl SerializeFn<W> {
+    pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::RSAPublicKey) -> impl SerializeFn<W> {
         let exponent = pubkey.e().to_bytes_be();
         let modulus = pubkey.n().to_bytes_be();
         tuple((
@@ -332,7 +333,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
                     read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
                         let mut ssh_key = vec![];
                         cookie_factory::gen(
-                            write_binary::ssh_rsa_pubkey(&privkey.to_public_key()),
+                            write_ssh::rsa_pubkey(&privkey.to_public_key()),
                             &mut ssh_key,
                         )
                         .expect("can write into a Vec");
@@ -352,7 +353,7 @@ fn openssh_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
             map_opt(
                 read_wrapped_str_while_encoded(base64::STANDARD),
                 |privkey| {
-                    read_binary::openssh_privkey(&privkey)
+                    read_ssh::openssh_privkey(&privkey)
                         .ok()
                         .map(|(_, keys)| keys)
                 },
@@ -370,7 +371,7 @@ fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
         map_opt(read_str_while_encoded(base64::STANDARD_NO_PAD), |ssh_key| {
-            match read_binary::ssh_rsa_pubkey(&ssh_key) {
+            match read_ssh::rsa_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(Some(RecipientKey::SshRsa(ssh_key, pk))),
                 Err(_) => None,
             }
@@ -382,7 +383,7 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
         map_opt(read_encoded_str(51, base64::STANDARD_NO_PAD), |ssh_key| {
-            match read_binary::ssh_ed25519_pubkey(&ssh_key) {
+            match read_ssh::ed25519_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(Some(RecipientKey::SshEd25519(ssh_key, pk))),
                 Err(_) => None,
             }
