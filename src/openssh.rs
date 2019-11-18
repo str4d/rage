@@ -37,6 +37,13 @@ enum OpenSshKdf {
     Bcrypt { salt: Vec<u8>, rounds: u32 },
 }
 
+pub struct EncryptedOpenSshKey {
+    ssh_key: Vec<u8>,
+    cipher: OpenSshCipher,
+    kdf: OpenSshKdf,
+    encrypted: Vec<u8>,
+}
+
 mod read_asn1 {
     use nom::{
         bytes::complete::{tag, take},
@@ -167,7 +174,9 @@ mod read_ssh {
     };
     use num_bigint_dig::BigUint;
 
-    use super::{OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX};
+    use super::{
+        EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
+    };
     use crate::keys::SecretKey;
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
@@ -348,7 +357,17 @@ mod read_ssh {
         // The public key in SSH format
         let (i, ssh_key) = string(i)?;
 
-        map_parser(string, openssh_unencrypted_privkey(ssh_key))(i)
+        match encryption {
+            None => map_parser(string, openssh_unencrypted_privkey(ssh_key))(i),
+            Some((cipher, kdf)) => map(string, |encrypted| {
+                SecretKey::EncryptedOpenSsh(EncryptedOpenSshKey {
+                    ssh_key: ssh_key.to_vec(),
+                    cipher,
+                    kdf: kdf.clone(),
+                    encrypted: encrypted.to_vec(),
+                })
+            })(i),
+        }
     }
 
     /// An SSH-encoded RSA public key.

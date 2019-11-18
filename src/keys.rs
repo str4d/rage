@@ -8,6 +8,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     format::RecipientLine,
+    openssh::EncryptedOpenSshKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
@@ -33,6 +34,8 @@ pub enum SecretKey {
     SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, [u8; 64]),
+    /// An encrypted OpenSSH private key.
+    EncryptedOpenSsh(EncryptedOpenSshKey),
 }
 
 impl SecretKey {
@@ -76,6 +79,7 @@ impl SecretKey {
             ),
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
+            SecretKey::EncryptedOpenSsh(_) => unimplemented!(),
         }
     }
 
@@ -85,6 +89,7 @@ impl SecretKey {
             SecretKey::X25519(sk) => RecipientKey::X25519(sk.into()),
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
+            SecretKey::EncryptedOpenSsh(_) => unimplemented!(),
         }
     }
 
