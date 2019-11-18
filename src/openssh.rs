@@ -334,29 +334,45 @@ mod read_ssh {
 }
 
 mod write_ssh {
-    use cookie_factory::{
-        bytes::be_u32,
-        combinator::{slice, string},
-        sequence::tuple,
-        SerializeFn,
-    };
+    use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
+    use num_bigint_dig::BigUint;
     use rsa::PublicKey;
     use std::io::Write;
 
     use super::SSH_RSA_KEY_PREFIX;
 
+    /// Writes the SSH `string` data type.
+    fn string<S: AsRef<[u8]>, W: Write>(value: S) -> impl SerializeFn<W> {
+        tuple((be_u32(value.as_ref().len() as u32), slice(value)))
+    }
+
+    /// Writes the SSH `mpint` data type.
+    fn mpint<W: Write>(value: &BigUint) -> impl SerializeFn<W> {
+        let mut bytes = value.to_bytes_be();
+
+        // From RFC 4251 section 5:
+        //     If the most significant bit would be set for a positive number,
+        //     the number MUST be preceded by a zero byte.
+        if bytes[0] >> 7 != 0 {
+            bytes.insert(0, 0);
+        }
+
+        string(bytes)
+    }
+
+    /// Writes an SSH-encoded RSA public key.
+    ///
+    /// From [RFC 4253](https://tools.ietf.org/html/rfc4253#section-6.6):
+    /// ```text
+    /// string    "ssh-rsa"
+    /// mpint     e
+    /// mpint     n
+    /// ```
     pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::RSAPublicKey) -> impl SerializeFn<W> {
-        let exponent = pubkey.e().to_bytes_be();
-        let modulus = pubkey.n().to_bytes_be();
         tuple((
-            be_u32(SSH_RSA_KEY_PREFIX.len() as u32),
             string(SSH_RSA_KEY_PREFIX),
-            be_u32(exponent.len() as u32),
-            slice(exponent),
-            be_u32(modulus.len() as u32 + 1),
-            // TODO: Why is this extra zero here???
-            slice(&[0]),
-            slice(modulus),
+            mpint(pubkey.e()),
+            mpint(pubkey.n()),
         ))
     }
 }
