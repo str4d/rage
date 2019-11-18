@@ -139,7 +139,7 @@ mod read_ssh {
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
-        combinator::{map, map_opt, map_res},
+        combinator::{map, map_opt, map_parser, map_res},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{pair, preceded, terminated, tuple},
@@ -204,57 +204,95 @@ mod read_ssh {
         )(input)
     }
 
+    /// Unencrypted, padded list of private keys.
+    ///
+    /// From the [specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key):
+    /// ```text
+    /// uint32  checkint
+    /// uint32  checkint
+    /// string  privatekey1
+    /// string  comment1
+    /// string  privatekey2
+    /// string  comment2
+    /// ...
+    /// string  privatekeyN
+    /// string  commentN
+    /// char    1
+    /// char    2
+    /// char    3
+    /// ...
+    /// char    padlen % 255
+    /// ```
+    ///
+    /// Note however that the `string` type for the private keys is wrong; it should be
+    /// an opaque type, or the composite type `(string, byte[])`.
+    ///
+    /// We only support a single key, like OpenSSH.
+    #[allow(clippy::needless_lifetimes)]
+    fn openssh_unencrypted_privkey<'a>(
+        ssh_key: &'a [u8],
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
+        move |input: &[u8]| {
+            let (mut padding, key) = preceded(
+                // Repeated checkint, intended for verifying correct decryption.
+                // Don't copy this idea into a new protocol; use an AEAD instead.
+                map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
+                    if c1 == c2 {
+                        Some(c1)
+                    } else {
+                        None
+                    }
+                }),
+                terminated(
+                    alt((
+                        map(openssh_rsa_privkey, |sk| {
+                            SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
+                        }),
+                        map(openssh_ed25519_privkey, |privkey| {
+                            SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
+                        }),
+                    )),
+                    // Comment
+                    string,
+                ),
+            )(input)?;
+
+            // Check deterministic padding
+            let padlen = padding.len();
+            for i in 1..=padlen {
+                let (mid, _) = tag(&[i as u8])(padding)?;
+                padding = mid;
+            }
+
+            Ok((padding, key))
+        }
+    }
+
     /// An OpenSSH-formatted private key.
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
-    pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Vec<SecretKey>> {
-        let (mut mid, num_keys) = preceded(
-            tuple((
-                tag(b"openssh-key-v1\x00"),
-                // Cipher name
-                string_tag("none"),
-                // KDF name
-                string_tag("none"),
-                // KDF options
-                string_tag(""),
-            )),
-            be_u32,
+    pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], SecretKey> {
+        let (i, _cipher_info) = preceded(
+            tag(b"openssh-key-v1\x00"),
+            terminated(
+                tuple((
+                    // Cipher name
+                    string_tag("none"),
+                    // KDF name
+                    string_tag("none"),
+                    // KDF options
+                    string_tag(""),
+                )),
+                // We only support a single key, like OpenSSH:
+                // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
+                tag(b"\x00\x00\x00\x01"),
+            ),
         )(input)?;
 
-        let mut keys = vec![];
-        for _ in 0..num_keys {
-            let (i, ssh_key) = string(mid)?;
-            // This is an SSH string data type containing a private key
-            let (i, key) = length_value(
-                be_u32,
-                preceded(
-                    // Repeated checksum thing?
-                    map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
-                        if c1 == c2 {
-                            Some(c1)
-                        } else {
-                            None
-                        }
-                    }),
-                    terminated(
-                        alt((
-                            map(openssh_rsa_privkey, |sk| {
-                                SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
-                            }),
-                            map(openssh_ed25519_privkey, |privkey| {
-                                SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
-                            }),
-                        )),
-                        // Comment
-                        string,
-                    ),
-                ),
-            )(i)?;
-            keys.push(key);
-            mid = i;
-        }
+        // The public key in SSH format
+        let (i, ssh_key) = string(i)?;
 
-        Ok((mid, keys))
+        map_parser(string, openssh_unencrypted_privkey(ssh_key))(i)
     }
 
     /// An SSH-encoded RSA public key.
@@ -355,7 +393,7 @@ fn openssh_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
                 |privkey| {
                     read_ssh::openssh_privkey(&privkey)
                         .ok()
-                        .map(|(_, keys)| keys)
+                        .map(|(_, key)| vec![key])
                 },
             ),
             pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
