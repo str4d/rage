@@ -3,10 +3,10 @@
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use nom::{
     branch::alt,
-    bytes::streaming::tag,
+    bytes::streaming::{is_not, tag},
     character::streaming::newline,
-    combinator::{map, map_opt},
-    sequence::{pair, preceded, terminated},
+    combinator::{map, map_opt, opt},
+    sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
 
@@ -517,13 +517,23 @@ mod write_ssh {
     }
 }
 
+fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
+    preceded(
+        tuple((tag("Proc-Type: 4,ENCRYPTED"), newline, tag("DEK-Info: "))),
+        terminated(is_not("\n"), newline),
+    )(input)
+}
+
 fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
     preceded(
         pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
         terminated(
             map_opt(
-                read_wrapped_str_while_encoded(base64::STANDARD),
-                |privkey| {
+                pair(
+                    opt(terminated(rsa_pem_encryption_header, newline)),
+                    read_wrapped_str_while_encoded(base64::STANDARD),
+                ),
+                |(enc_header, privkey)| {
                     read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
                         let mut ssh_key = vec![];
                         cookie_factory::gen(
