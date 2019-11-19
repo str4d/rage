@@ -16,6 +16,7 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 aead = "0.1"
+aes-ctr = "0.3"
 base64 = "0.10"
 blowfish = { version = "0.4", features = ["bcrypt"] }
 byteorder = "1"

@@ -1,5 +1,6 @@
 //! Parser for OpenSSH public and private key formats.
 
+use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use nom::{
     branch::alt,
     bytes::streaming::tag,
@@ -33,10 +34,31 @@ enum OpenSshCipher {
     ChaCha20Poly1305,
 }
 
+impl OpenSshCipher {
+    fn decrypt(self, kdf: &OpenSshKdf, p: String, ct: &[u8]) -> Result<Vec<u8>, &'static str> {
+        match self {
+            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
+            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
+            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
+            _ => Err("Unsupported encryption scheme"),
+        }
+    }
+}
+
 /// OpenSSH-supported KDFs.
 #[derive(Clone, Debug)]
 enum OpenSshKdf {
     Bcrypt { salt: Vec<u8>, rounds: u32 },
+}
+
+impl OpenSshKdf {
+    fn derive(&self, passphrase: String, out_len: usize) -> Vec<u8> {
+        match self {
+            OpenSshKdf::Bcrypt { salt, rounds } => {
+                bcrypt::bcrypt_pbkdf(&passphrase, &salt, *rounds, out_len)
+            }
+        }
+    }
 }
 
 pub struct EncryptedOpenSshKey {
@@ -44,6 +66,41 @@ pub struct EncryptedOpenSshKey {
     cipher: OpenSshCipher,
     kdf: OpenSshKdf,
     encrypted: Vec<u8>,
+}
+
+impl EncryptedOpenSshKey {
+    pub fn decrypt(&self, passphrase: String) -> Result<SecretKey, &'static str> {
+        let decrypted = self
+            .cipher
+            .decrypt(&self.kdf, passphrase, &self.encrypted)?;
+
+        let parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
+        parser(&decrypted)
+            .map(|(_, sk)| sk)
+            .map_err(|_| "Invalid private key")
+    }
+}
+
+mod decrypt {
+    use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
+
+    use super::OpenSshKdf;
+
+    pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(
+        kdf: &OpenSshKdf,
+        passphrase: String,
+        ciphertext: &[u8],
+        key_len: usize,
+    ) -> Vec<u8> {
+        let kdf_output = kdf.derive(passphrase, key_len + 16);
+        let (key, nonce) = kdf_output.split_at(key_len);
+
+        let mut cipher = C::new_var(key, nonce).expect("key and nonce are correct length");
+
+        let mut plaintext = ciphertext.to_vec();
+        cipher.decrypt(&mut plaintext);
+        plaintext
+    }
 }
 
 mod read_asn1 {
@@ -303,7 +360,7 @@ mod read_ssh {
     ///
     /// We only support a single key, like OpenSSH.
     #[allow(clippy::needless_lifetimes)]
-    fn openssh_unencrypted_privkey<'a>(
+    pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &'a [u8],
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
         move |input: &[u8]| {
