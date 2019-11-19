@@ -17,8 +17,11 @@ maintenance = { status = "experimental" }
 [dependencies]
 aead = "0.1"
 base64 = "0.10"
+blowfish = { version = "0.4", features = ["bcrypt"] }
+byteorder = "1"
 chacha20poly1305 = "0.1"
 cookie-factory = "0.3"
+crypto-mac = "0.7"
 curve25519-dalek = "1"
 generic-array = "0.12"
 getrandom = "0.1"
@@ -27,6 +30,7 @@ hmac = "0.7"
 nom = "5"
 num-bigint-dig = "0.4"
 num-traits = "0.2"
+pbkdf2 = "0.3"
 rand = "0.6"
 rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
 scrypt = { version = "0.2", default-features = false }

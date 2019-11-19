@@ -14,6 +14,8 @@ use crate::{
     util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
 };
 
+mod bcrypt;
+
 const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 
