@@ -93,7 +93,7 @@ impl SecretKey {
         }
     }
 
-    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    fn unwrap_file_key_inner(&self, line: &RecipientLine) -> Option<[u8; 16]> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 let pk: PublicKey = sk.into();
@@ -156,6 +156,28 @@ impl SecretKey {
             file_key.copy_from_slice(&pt);
             file_key
         })
+    }
+
+    pub(crate) fn unwrap_file_key<P: Fn() -> Option<String>>(
+        &self,
+        line: &RecipientLine,
+        request_passphrase: P,
+    ) -> Option<[u8; 16]> {
+        match self {
+            SecretKey::EncryptedOpenSsh(enc) => {
+                let passphrase = request_passphrase()?;
+                let decrypted = match enc.decrypt(passphrase) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        // TODO: Expose this error
+                        eprintln!("{}", e);
+                        return None;
+                    }
+                };
+                decrypted.unwrap_file_key_inner(line)
+            }
+            _ => self.unwrap_file_key_inner(line),
+        }
     }
 }
 
@@ -422,7 +444,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped, || None);
         assert_eq!(unwrapped, Some(file_key));
     }
 
@@ -435,7 +457,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped, || None);
         assert_eq!(unwrapped, Some(file_key));
     }
 }

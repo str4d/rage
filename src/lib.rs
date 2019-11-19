@@ -29,7 +29,7 @@
 //! };
 //!
 //! let decryptor = age::Decryptor::Keys(vec![key]);
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..], || None)?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!
@@ -57,7 +57,7 @@
 //! };
 //!
 //! let decryptor = age::Decryptor::Passphrase(passphrase.to_owned());
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
+//! let mut reader = decryptor.trial_decrypt(&encrypted[..], || None)?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
 //!

@@ -291,7 +291,7 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let maybe_decrypted = decryptor.trial_decrypt(input);
+    let maybe_decrypted = decryptor.trial_decrypt(input, || read_passphrase(false).ok());
 
     match maybe_decrypted {
         Ok(mut r) => {
