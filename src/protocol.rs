@@ -116,7 +116,7 @@ pub enum Decryptor {
 }
 
 impl Decryptor {
-    fn unwrap_file_key<P: Fn() -> Option<String> + Copy>(
+    fn unwrap_file_key<P: Fn(&str) -> Option<String> + Copy>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
@@ -149,7 +149,7 @@ impl Decryptor {
     /// to be decrypted before it can be used to decrypt the message.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read, P: Fn() -> Option<String> + Copy>(
+    pub fn trial_decrypt<R: Read, P: Fn(&str) -> Option<String> + Copy>(
         &self,
         mut input: R,
         request_passphrase: P,
@@ -184,7 +184,7 @@ impl Decryptor {
     /// to be decrypted before it can be used to decrypt the message.
     ///
     /// If successful, returns a seekable reader that will provide the plaintext.
-    pub fn trial_decrypt_seekable<R: Read + Seek, P: Fn() -> Option<String> + Copy>(
+    pub fn trial_decrypt_seekable<R: Read + Seek, P: Fn(&str) -> Option<String> + Copy>(
         &self,
         mut input: R,
         request_passphrase: P,
@@ -241,8 +241,8 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
 
         let buf = BufReader::new(test_key.as_bytes());
         let d = Decryptor::Keys(SecretKey::from_data(buf).unwrap());
-        let mut r1 = d.trial_decrypt(&test_msg_1[..], || None).unwrap();
-        let mut r2 = d.trial_decrypt(&test_msg_2[..], || None).unwrap();
+        let mut r1 = d.trial_decrypt(&test_msg_1[..], |_| None).unwrap();
+        let mut r2 = d.trial_decrypt(&test_msg_2[..], |_| None).unwrap();
 
         let mut msg1 = String::new();
         r1.read_to_string(&mut msg1).unwrap();
@@ -270,7 +270,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         }
 
         let d = Decryptor::Keys(sk);
-        let mut r = d.trial_decrypt(&encrypted[..], || None).unwrap();
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
@@ -294,7 +294,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         }
 
         let d = Decryptor::Keys(sk);
-        let mut r = d.trial_decrypt(&encrypted[..], || None).unwrap();
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 

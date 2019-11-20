@@ -158,14 +158,16 @@ impl SecretKey {
         })
     }
 
-    pub(crate) fn unwrap_file_key<P: Fn() -> Option<String>>(
+    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<String>>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
     ) -> Option<[u8; 16]> {
         match self {
             SecretKey::EncryptedOpenSsh(enc) => {
-                let passphrase = request_passphrase()?;
+                let passphrase = request_passphrase(
+                    "Type passphrase for OpenSSH key (TODO: figure out how to identify which one)",
+                )?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
                     Err(e) => {
@@ -444,7 +446,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped, || None);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped, |_| None);
         assert_eq!(unwrapped, Some(file_key));
     }
 
@@ -457,7 +459,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped, || None);
+        let unwrapped = sk[0].unwrap_file_key(&wrapped, |_| None);
         assert_eq!(unwrapped, Some(file_key));
     }
 }

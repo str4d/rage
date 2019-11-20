@@ -202,7 +202,7 @@ fn encrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_passphrase(true) {
+        match read_passphrase("Type passphrase", true) {
             Ok(passphrase) => age::Encryptor::Passphrase(passphrase),
             Err(_) => return,
         }
@@ -261,7 +261,7 @@ fn decrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_passphrase(false) {
+        match read_passphrase("Type passphrase", false) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return,
         }
@@ -291,7 +291,8 @@ fn decrypt(opts: AgeOptions) {
         }
     };
 
-    let maybe_decrypted = decryptor.trial_decrypt(input, || read_passphrase(false).ok());
+    let maybe_decrypted =
+        decryptor.trial_decrypt(input, |prompt| read_passphrase(prompt, false).ok());
 
     match maybe_decrypted {
         Ok(mut r) => {
