@@ -61,9 +61,9 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<SecretKey>> {
 }
 
 /// Reads a passphrase from stdin.
-pub fn read_passphrase(confirm: bool) -> io::Result<String> {
+pub fn read_passphrase(prompt: &str, confirm: bool) -> io::Result<String> {
     let mut input = PasswordInput::new();
-    input.with_prompt("Type passphrase");
+    input.with_prompt(prompt);
     if confirm {
         input.with_confirmation("Confirm passphrase", "Passphrases mismatching");
     }

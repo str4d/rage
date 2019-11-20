@@ -116,9 +116,15 @@ pub enum Decryptor {
 }
 
 impl Decryptor {
-    fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    fn unwrap_file_key<P: Fn(&str) -> Option<String> + Copy>(
+        &self,
+        line: &RecipientLine,
+        request_passphrase: P,
+    ) -> Option<[u8; 16]> {
         match (self, line) {
-            (Decryptor::Keys(keys), _) => keys.iter().find_map(|key| key.unwrap_file_key(line)),
+            (Decryptor::Keys(keys), _) => keys
+                .iter()
+                .find_map(|key| key.unwrap_file_key(line, request_passphrase)),
             (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
                 // Place bounds on the work factor we will accept (roughly 16 seconds).
                 if s.log_n > (target_scrypt_work_factor() + 4) {
@@ -139,8 +145,15 @@ impl Decryptor {
 
     /// Attempts to decrypt a message from the given reader.
     ///
+    /// `request_passphrase` is a closure that will be called when an underlying key needs
+    /// to be decrypted before it can be used to decrypt the message.
+    ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read>(&self, mut input: R) -> io::Result<impl Read> {
+    pub fn trial_decrypt<R: Read, P: Fn(&str) -> Option<String> + Copy>(
+        &self,
+        mut input: R,
+        request_passphrase: P,
+    ) -> io::Result<impl Read> {
         let (header, armored) = Header::read(&mut input)?;
 
         let mut input = ArmoredReader::from_reader(input, armored);
@@ -152,13 +165,14 @@ impl Decryptor {
             .recipients
             .iter()
             .find_map(|r| {
-                self.unwrap_file_key(r).and_then(|file_key| {
-                    // Verify the MAC
-                    header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                self.unwrap_file_key(r, request_passphrase)
+                    .and_then(|file_key| {
+                        // Verify the MAC
+                        header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 
-                    // Return the payload key
-                    Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
-                })
+                        // Return the payload key
+                        Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                    })
             })
             .map(|payload_key| Stream::decrypt(&payload_key, input))
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
@@ -166,10 +180,14 @@ impl Decryptor {
 
     /// Attempts to decrypt a message from the given seekable reader.
     ///
+    /// `request_passphrase` is a closure that will be called when an underlying key needs
+    /// to be decrypted before it can be used to decrypt the message.
+    ///
     /// If successful, returns a seekable reader that will provide the plaintext.
-    pub fn trial_decrypt_seekable<R: Read + Seek>(
+    pub fn trial_decrypt_seekable<R: Read + Seek, P: Fn(&str) -> Option<String> + Copy>(
         &self,
         mut input: R,
+        request_passphrase: P,
     ) -> io::Result<StreamReader<R>> {
         let (header, armored) = Header::read(&mut input)?;
         if armored {
@@ -186,13 +204,14 @@ impl Decryptor {
             .recipients
             .iter()
             .find_map(|r| {
-                self.unwrap_file_key(r).and_then(|file_key| {
-                    // Verify the MAC
-                    header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                self.unwrap_file_key(r, request_passphrase)
+                    .and_then(|file_key| {
+                        // Verify the MAC
+                        header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 
-                    // Return the payload key
-                    Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
-                })
+                        // Return the payload key
+                        Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                    })
             })
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
             .and_then(|payload_key| Stream::decrypt_seekable(&payload_key, input))
@@ -222,8 +241,8 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
 
         let buf = BufReader::new(test_key.as_bytes());
         let d = Decryptor::Keys(SecretKey::from_data(buf).unwrap());
-        let mut r1 = d.trial_decrypt(&test_msg_1[..]).unwrap();
-        let mut r2 = d.trial_decrypt(&test_msg_2[..]).unwrap();
+        let mut r1 = d.trial_decrypt(&test_msg_1[..], |_| None).unwrap();
+        let mut r2 = d.trial_decrypt(&test_msg_2[..], |_| None).unwrap();
 
         let mut msg1 = String::new();
         r1.read_to_string(&mut msg1).unwrap();
@@ -251,7 +270,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         }
 
         let d = Decryptor::Keys(sk);
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
@@ -275,7 +294,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         }
 
         let d = Decryptor::Keys(sk);
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 

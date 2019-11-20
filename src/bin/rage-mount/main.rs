@@ -73,7 +73,7 @@ fn main() {
             return;
         }
 
-        match read_passphrase(false) {
+        match read_passphrase("Type passphrase", false) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return,
         }
@@ -96,7 +96,9 @@ fn main() {
         }
     };
 
-    let stream = match decryptor.trial_decrypt_seekable(file) {
+    let stream = match decryptor
+        .trial_decrypt_seekable(file, |prompt| read_passphrase(prompt, false).ok())
+    {
         Ok(stream) => stream,
         Err(e) => {
             eprintln!("Failed to decrypt file: {}", e);

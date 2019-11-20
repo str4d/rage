@@ -1,5 +1,6 @@
 //! Parser for OpenSSH public and private key formats.
 
+use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use nom::{
     branch::alt,
     bytes::streaming::tag,
@@ -14,8 +15,93 @@ use crate::{
     util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
 };
 
+mod bcrypt;
+
 const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
+
+/// OpenSSH-supported ciphers.
+#[derive(Clone, Copy, Debug)]
+enum OpenSshCipher {
+    Aes128Cbc,
+    Aes192Cbc,
+    Aes256Cbc,
+    Aes128Ctr,
+    Aes192Ctr,
+    Aes256Ctr,
+    Aes128Gcm,
+    Aes256Gcm,
+    ChaCha20Poly1305,
+}
+
+impl OpenSshCipher {
+    fn decrypt(self, kdf: &OpenSshKdf, p: String, ct: &[u8]) -> Result<Vec<u8>, &'static str> {
+        match self {
+            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
+            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
+            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
+            _ => Err("Unsupported encryption scheme"),
+        }
+    }
+}
+
+/// OpenSSH-supported KDFs.
+#[derive(Clone, Debug)]
+enum OpenSshKdf {
+    Bcrypt { salt: Vec<u8>, rounds: u32 },
+}
+
+impl OpenSshKdf {
+    fn derive(&self, passphrase: String, out_len: usize) -> Vec<u8> {
+        match self {
+            OpenSshKdf::Bcrypt { salt, rounds } => {
+                bcrypt::bcrypt_pbkdf(&passphrase, &salt, *rounds, out_len)
+            }
+        }
+    }
+}
+
+pub struct EncryptedOpenSshKey {
+    ssh_key: Vec<u8>,
+    cipher: OpenSshCipher,
+    kdf: OpenSshKdf,
+    encrypted: Vec<u8>,
+}
+
+impl EncryptedOpenSshKey {
+    pub fn decrypt(&self, passphrase: String) -> Result<SecretKey, &'static str> {
+        let decrypted = self
+            .cipher
+            .decrypt(&self.kdf, passphrase, &self.encrypted)?;
+
+        let parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
+        parser(&decrypted)
+            .map(|(_, sk)| sk)
+            .map_err(|_| "Invalid private key")
+    }
+}
+
+mod decrypt {
+    use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
+
+    use super::OpenSshKdf;
+
+    pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(
+        kdf: &OpenSshKdf,
+        passphrase: String,
+        ciphertext: &[u8],
+        key_len: usize,
+    ) -> Vec<u8> {
+        let kdf_output = kdf.derive(passphrase, key_len + 16);
+        let (key, nonce) = kdf_output.split_at(key_len);
+
+        let mut cipher = C::new_var(key, nonce).expect("key and nonce are correct length");
+
+        let mut plaintext = ciphertext.to_vec();
+        cipher.decrypt(&mut plaintext);
+        plaintext
+    }
+}
 
 mod read_asn1 {
     use nom::{
@@ -147,7 +233,9 @@ mod read_ssh {
     };
     use num_bigint_dig::BigUint;
 
-    use super::{SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX};
+    use super::{
+        EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
+    };
     use crate::keys::SecretKey;
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
@@ -171,6 +259,49 @@ mod read_ssh {
         // This currently only supports positive numbers, and does not enforce the
         // canonical encoding. TODO: Fix this.
         map(string, BigUint::from_bytes_be)(input)
+    }
+
+    /// Parse a cipher and KDF.
+    fn encryption_header(input: &[u8]) -> IResult<&[u8], Option<(OpenSshCipher, OpenSshKdf)>> {
+        alt((
+            // If either cipher or KDF is None, both must be.
+            map(
+                tuple((string_tag("none"), string_tag("none"), string_tag(""))),
+                |_| None,
+            ),
+            map(
+                tuple((
+                    alt((
+                        map(string_tag("aes128-cbc"), |_| OpenSshCipher::Aes128Cbc),
+                        map(string_tag("aes192-cbc"), |_| OpenSshCipher::Aes192Cbc),
+                        map(string_tag("aes256-cbc"), |_| OpenSshCipher::Aes256Cbc),
+                        map(string_tag("aes128-ctr"), |_| OpenSshCipher::Aes128Ctr),
+                        map(string_tag("aes192-ctr"), |_| OpenSshCipher::Aes192Ctr),
+                        map(string_tag("aes256-ctr"), |_| OpenSshCipher::Aes256Ctr),
+                        map(string_tag("aes128-gcm@openssh.com"), |_| {
+                            OpenSshCipher::Aes128Gcm
+                        }),
+                        map(string_tag("aes256-gcm@openssh.com"), |_| {
+                            OpenSshCipher::Aes256Gcm
+                        }),
+                        map(string_tag("chacha20-poly1305@openssh.com"), |_| {
+                            OpenSshCipher::ChaCha20Poly1305
+                        }),
+                    )),
+                    map(
+                        preceded(
+                            string_tag("bcrypt"),
+                            map_parser(string, tuple((string, be_u32))),
+                        ),
+                        |(salt, rounds)| OpenSshKdf::Bcrypt {
+                            salt: salt.into(),
+                            rounds,
+                        },
+                    ),
+                )),
+                Some,
+            ),
+        ))(input)
     }
 
     /// Internal OpenSSH encoding of an RSA private key.
@@ -229,7 +360,7 @@ mod read_ssh {
     ///
     /// We only support a single key, like OpenSSH.
     #[allow(clippy::needless_lifetimes)]
-    fn openssh_unencrypted_privkey<'a>(
+    pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &'a [u8],
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
         move |input: &[u8]| {
@@ -272,17 +403,10 @@ mod read_ssh {
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], SecretKey> {
-        let (i, _cipher_info) = preceded(
+        let (i, encryption) = preceded(
             tag(b"openssh-key-v1\x00"),
             terminated(
-                tuple((
-                    // Cipher name
-                    string_tag("none"),
-                    // KDF name
-                    string_tag("none"),
-                    // KDF options
-                    string_tag(""),
-                )),
+                encryption_header,
                 // We only support a single key, like OpenSSH:
                 // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
                 tag(b"\x00\x00\x00\x01"),
@@ -292,7 +416,17 @@ mod read_ssh {
         // The public key in SSH format
         let (i, ssh_key) = string(i)?;
 
-        map_parser(string, openssh_unencrypted_privkey(ssh_key))(i)
+        match encryption {
+            None => map_parser(string, openssh_unencrypted_privkey(ssh_key))(i),
+            Some((cipher, kdf)) => map(string, |encrypted| {
+                SecretKey::EncryptedOpenSsh(EncryptedOpenSshKey {
+                    ssh_key: ssh_key.to_vec(),
+                    cipher,
+                    kdf: kdf.clone(),
+                    encrypted: encrypted.to_vec(),
+                })
+            })(i),
+        }
     }
 
     /// An SSH-encoded RSA public key.
