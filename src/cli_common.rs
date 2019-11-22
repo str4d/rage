@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 
-use crate::keys::SecretKey;
+use crate::keys::Identity;
 
 /// Returns the age config directory.
 ///
@@ -28,7 +28,7 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads keys from the provided files if given, or the default system locations
 /// if no files are given.
-pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<SecretKey>> {
+pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
     let mut keys = vec![];
 
     if filenames.is_empty() {
@@ -49,11 +49,11 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<SecretKey>> {
             _ => e,
         })?;
         let buf = BufReader::new(f);
-        keys.extend(SecretKey::from_data(buf)?);
+        keys.extend(Identity::from_data(buf)?);
     } else {
         for filename in filenames {
             let buf = BufReader::new(File::open(filename)?);
-            keys.extend(SecretKey::from_data(buf)?);
+            keys.extend(Identity::from_data(buf)?);
         }
     }
 

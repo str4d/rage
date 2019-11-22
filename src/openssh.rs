@@ -11,7 +11,7 @@ use nom::{
 };
 
 use crate::{
-    keys::{RecipientKey, SecretKey},
+    keys::{Identity, RecipientKey, SecretKey},
     util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
 };
 
@@ -236,7 +236,7 @@ mod read_ssh {
     use super::{
         EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
     };
-    use crate::keys::SecretKey;
+    use crate::keys::{EncryptedKey, Identity, SecretKey};
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
     fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -402,7 +402,7 @@ mod read_ssh {
     /// An OpenSSH-formatted private key.
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
-    pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], SecretKey> {
+    pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Identity> {
         let (i, encryption) = preceded(
             tag(b"openssh-key-v1\x00"),
             terminated(
@@ -417,14 +417,18 @@ mod read_ssh {
         let (i, ssh_key) = string(i)?;
 
         match encryption {
-            None => map_parser(string, openssh_unencrypted_privkey(ssh_key))(i),
+            None => map(
+                map_parser(string, openssh_unencrypted_privkey(ssh_key)),
+                Identity::from,
+            )(i),
             Some((cipher, kdf)) => map(string, |encrypted| {
-                SecretKey::EncryptedOpenSsh(EncryptedOpenSshKey {
+                EncryptedKey::OpenSsh(EncryptedOpenSshKey {
                     ssh_key: ssh_key.to_vec(),
                     cipher,
                     kdf: kdf.clone(),
                     encrypted: encrypted.to_vec(),
                 })
+                .into()
             })(i),
         }
     }
@@ -524,7 +528,7 @@ fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
-fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
+fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
         terminated(
@@ -541,7 +545,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
                             &mut ssh_key,
                         )
                         .expect("can write into a Vec");
-                        vec![SecretKey::SshRsa(ssh_key, Box::new(privkey))]
+                        Identity::Unencrypted(SecretKey::SshRsa(ssh_key, Box::new(privkey)))
                     })
                 },
             ),
@@ -550,24 +554,20 @@ fn rsa_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
     )(input)
 }
 
-fn openssh_privkey(input: &str) -> IResult<&str, Vec<SecretKey>> {
+fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
         terminated(
             map_opt(
                 read_wrapped_str_while_encoded(base64::STANDARD),
-                |privkey| {
-                    read_ssh::openssh_privkey(&privkey)
-                        .ok()
-                        .map(|(_, key)| vec![key])
-                },
+                |privkey| read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key),
             ),
             pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
         ),
     )(input)
 }
 
-pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
+pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Identity> {
     alt((rsa_privkey, openssh_privkey))(input)
 }
 

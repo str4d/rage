@@ -28,7 +28,7 @@
 //!     writer.flush()?;
 //! };
 //!
-//! let decryptor = age::Decryptor::Keys(vec![key]);
+//! let decryptor = age::Decryptor::Keys(vec![key.into()]);
 //! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);
