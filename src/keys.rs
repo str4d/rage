@@ -3,6 +3,7 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
+use std::fmt;
 use std::io::{self, BufRead};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
@@ -34,8 +35,6 @@ pub enum SecretKey {
     SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, [u8; 64]),
-    /// An encrypted OpenSSH private key.
-    EncryptedOpenSsh(EncryptedOpenSshKey),
 }
 
 impl SecretKey {
@@ -43,30 +42,6 @@ impl SecretKey {
     pub fn generate() -> Self {
         let mut rng = OsRng::new().expect("can construct OsRng");
         SecretKey::X25519(StaticSecret::new(&mut rng))
-    }
-
-    /// Parses a list of secret keys from a string.
-    pub fn from_data<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
-        let mut buf = String::new();
-        loop {
-            match read::secret_keys(&buf) {
-                Ok((_, keys)) => {
-                    // Ensure we've found all keys in the file
-                    if data.read_line(&mut buf)? == 0 {
-                        break Ok(keys);
-                    }
-                }
-                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
-                    data.read_line(&mut buf)?;
-                }
-                Err(_) => {
-                    break Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid secret key file",
-                    ));
-                }
-            }
-        }
     }
 
     /// Serializes this secret key as a string.
@@ -79,7 +54,6 @@ impl SecretKey {
             ),
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
-            SecretKey::EncryptedOpenSsh(_) => unimplemented!(),
         }
     }
 
@@ -89,11 +63,10 @@ impl SecretKey {
             SecretKey::X25519(sk) => RecipientKey::X25519(sk.into()),
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
-            SecretKey::EncryptedOpenSsh(_) => unimplemented!(),
         }
     }
 
-    fn unwrap_file_key_inner(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 let pk: PublicKey = sk.into();
@@ -157,14 +130,22 @@ impl SecretKey {
             file_key
         })
     }
+}
 
+/// An encrypted secret key.
+pub enum EncryptedKey {
+    /// An encrypted OpenSSH private key.
+    OpenSsh(EncryptedOpenSshKey),
+}
+
+impl EncryptedKey {
     pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<String>>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
     ) -> Option<[u8; 16]> {
         match self {
-            SecretKey::EncryptedOpenSsh(enc) => {
+            EncryptedKey::OpenSsh(enc) => {
                 let passphrase = request_passphrase(
                     "Type passphrase for OpenSSH key (TODO: figure out how to identify which one)",
                 )?;
@@ -176,9 +157,115 @@ impl SecretKey {
                         return None;
                     }
                 };
-                decrypted.unwrap_file_key_inner(line)
+                decrypted.unwrap_file_key(line)
             }
-            _ => self.unwrap_file_key_inner(line),
+        }
+    }
+}
+
+/// A key that we know how to parse, but that we do not support.
+///
+/// The Display impl provides details for each unsupported key as to why we don't support
+/// it, and how a user can migrate to a supported key.
+#[derive(Debug)]
+pub enum UnsupportedKey {
+    EncryptedPem,
+}
+
+impl fmt::Display for UnsupportedKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UnsupportedKey::EncryptedPem => {
+                let message = [
+                    "Insecure Encrypted Key Format",
+                    "-----------------------------",
+                    "Prior to OpenSSH version 7.8, if a password was set when generating a new",
+                    "DSA, ECDSA, or RSA key, ssh-keygen would encrypt the key using the encrypted",
+                    "PEM format. This encryption format is insecure and should no longer be used.",
+                    "",
+                    "You can migrate your key to the encrypted OpenSSH private key format (which",
+                    "has been supported by OpenSSH since version 6.5, released in January 2014)",
+                    "by changing its passphrase with the following command:",
+                    "",
+                    "    ssh-keygen -o -p",
+                    "",
+                    "If you are using an OpenSSH version between 6.5 and 7.7 (such as the default",
+                    "OpenSSH provided on Ubuntu 18.04 LTS), you can use the following command to",
+                    "force keys to be generated using the new format:",
+                    "",
+                    "    ssh-keygen -o",
+                ];
+                for line in &message {
+                    writeln!(f, "{}", line)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// An identity that has been parsed from some input.
+pub enum Identity {
+    /// An unencrypted key.
+    Unencrypted(SecretKey),
+    /// An encrypted key.
+    Encrypted(EncryptedKey),
+    /// An unsupported key.
+    Unsupported(UnsupportedKey),
+}
+
+impl From<SecretKey> for Identity {
+    fn from(key: SecretKey) -> Self {
+        Identity::Unencrypted(key)
+    }
+}
+
+impl From<EncryptedKey> for Identity {
+    fn from(key: EncryptedKey) -> Self {
+        Identity::Encrypted(key)
+    }
+}
+
+impl From<UnsupportedKey> for Identity {
+    fn from(key: UnsupportedKey) -> Self {
+        Identity::Unsupported(key)
+    }
+}
+
+impl Identity {
+    /// Parses a list of secret keys from a string.
+    pub fn from_data<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
+        let mut buf = String::new();
+        loop {
+            match read::secret_keys(&buf) {
+                Ok((_, keys)) => {
+                    // Ensure we've found all keys in the file
+                    if data.read_line(&mut buf)? == 0 {
+                        break Ok(keys);
+                    }
+                }
+                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
+                    data.read_line(&mut buf)?;
+                }
+                Err(_) => {
+                    break Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid secret key file",
+                    ));
+                }
+            }
+        }
+    }
+
+    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<String>>(
+        &self,
+        line: &RecipientLine,
+        request_passphrase: P,
+    ) -> Option<[u8; 16]> {
+        match self {
+            Identity::Unencrypted(key) => key.unwrap_file_key(line),
+            Identity::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
+            Identity::Unsupported(_) => None,
         }
     }
 }
@@ -311,18 +398,18 @@ mod read {
     use super::*;
     use crate::{openssh::ssh_secret_keys, util::read_encoded_str};
 
-    fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
+    fn age_secret_key(input: &str) -> IResult<&str, Identity> {
         preceded(
             tag(SECRET_KEY_PREFIX),
             map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
                 let mut pk = [0; 32];
                 pk.copy_from_slice(&buf);
-                SecretKey::X25519(pk.into())
+                Identity::Unencrypted(SecretKey::X25519(pk.into()))
             }),
         )(input)
     }
 
-    fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<SecretKey>> {
+    fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<Identity>> {
         let mut keys = vec![];
         while !input.is_empty() {
             // Skip comments
@@ -347,13 +434,13 @@ mod read {
         Ok((input, keys))
     }
 
-    pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
+    pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
         // We try parsing the string as a single multi-line SSH key.
         // If that fails, we parse as multiple single-line age keys.
         //
         // TODO: Support "proper" PEM format, where the file is allowed to contain
         // anything before the "-----BEGIN" tag.
-        alt((ssh_secret_keys, age_secret_keys))(input)
+        alt((map(ssh_secret_keys, |key| vec![key]), age_secret_keys))(input)
     }
 
     pub(super) fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
@@ -372,7 +459,7 @@ mod read {
 pub(crate) mod tests {
     use std::io::BufReader;
 
-    use super::{RecipientKey, SecretKey};
+    use super::{Identity, RecipientKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_QAvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
     const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
@@ -418,9 +505,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn secret_key_encoding() {
         let buf = BufReader::new(TEST_SK.as_bytes());
-        let keys = SecretKey::from_data(buf).unwrap();
+        let keys = Identity::from_data(buf).unwrap();
         assert_eq!(keys.len(), 1);
-        assert_eq!(keys[0].to_str(), TEST_SK);
+        let key = match &keys[0] {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
+        assert_eq!(key.to_str(), TEST_SK);
     }
 
     #[test]
@@ -432,34 +523,46 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn pubkey_from_secret_key() {
         let buf = BufReader::new(TEST_SK.as_bytes());
-        let keys = SecretKey::from_data(buf).unwrap();
+        let keys = Identity::from_data(buf).unwrap();
         assert_eq!(keys.len(), 1);
-        assert_eq!(keys[0].to_public().to_str(), TEST_PK);
+        let key = match &keys[0] {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
+        assert_eq!(key.to_public().to_str(), TEST_PK);
     }
 
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
-        let sk = SecretKey::from_data(buf).unwrap();
+        let keys = Identity::from_data(buf).unwrap();
+        let sk = match &keys[0] {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
 
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped, |_| None);
+        let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(unwrapped, Some(file_key));
     }
 
     #[test]
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
-        let sk = SecretKey::from_data(buf).unwrap();
+        let keys = Identity::from_data(buf).unwrap();
+        let sk = match &keys[0] {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
         let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();
 
         let file_key = [12; 16];
 
         let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk[0].unwrap_file_key(&wrapped, |_| None);
+        let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(unwrapped, Some(file_key));
     }
 }
