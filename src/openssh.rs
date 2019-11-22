@@ -11,7 +11,7 @@ use nom::{
 };
 
 use crate::{
-    keys::{Identity, RecipientKey, SecretKey},
+    keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
     util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
 };
 
@@ -538,15 +538,19 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                     read_wrapped_str_while_encoded(base64::STANDARD),
                 ),
                 |(enc_header, privkey)| {
-                    read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
-                        let mut ssh_key = vec![];
-                        cookie_factory::gen(
-                            write_ssh::rsa_pubkey(&privkey.to_public_key()),
-                            &mut ssh_key,
-                        )
-                        .expect("can write into a Vec");
-                        Identity::Unencrypted(SecretKey::SshRsa(ssh_key, Box::new(privkey)))
-                    })
+                    if enc_header.is_some() {
+                        Some(UnsupportedKey::EncryptedPem.into())
+                    } else {
+                        read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
+                            let mut ssh_key = vec![];
+                            cookie_factory::gen(
+                                write_ssh::rsa_pubkey(&privkey.to_public_key()),
+                                &mut ssh_key,
+                            )
+                            .expect("can write into a Vec");
+                            Identity::Unencrypted(SecretKey::SshRsa(ssh_key, Box::new(privkey)))
+                        })
+                    }
                 },
             ),
             pair(newline, tag("-----END RSA PRIVATE KEY-----")),

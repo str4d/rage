@@ -3,6 +3,7 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
+use std::fmt;
 use std::io::{self, BufRead};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
@@ -162,12 +163,55 @@ impl EncryptedKey {
     }
 }
 
+/// A key that we know how to parse, but that we do not support.
+///
+/// The Display impl provides details for each unsupported key as to why we don't support
+/// it, and how a user can migrate to a supported key.
+#[derive(Debug)]
+pub enum UnsupportedKey {
+    EncryptedPem,
+}
+
+impl fmt::Display for UnsupportedKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UnsupportedKey::EncryptedPem => {
+                let message = [
+                    "Insecure Encrypted Key Format",
+                    "-----------------------------",
+                    "Prior to OpenSSH version 7.8, if a password was set when generating a new",
+                    "DSA, ECDSA, or RSA key, ssh-keygen would encrypt the key using the encrypted",
+                    "PEM format. This encryption format is insecure and should no longer be used.",
+                    "",
+                    "You can migrate your key to the encrypted OpenSSH private key format (which",
+                    "has been supported by OpenSSH since version 6.5, released in January 2014)",
+                    "by changing its passphrase with the following command:",
+                    "",
+                    "    ssh-keygen -o -p",
+                    "",
+                    "If you are using an OpenSSH version between 6.5 and 7.7 (such as the default",
+                    "OpenSSH provided on Ubuntu 18.04 LTS), you can use the following command to",
+                    "force keys to be generated using the new format:",
+                    "",
+                    "    ssh-keygen -o",
+                ];
+                for line in &message {
+                    writeln!(f, "{}", line)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// An identity that has been parsed from some input.
 pub enum Identity {
     /// An unencrypted key.
     Unencrypted(SecretKey),
     /// An encrypted key.
     Encrypted(EncryptedKey),
+    /// An unsupported key.
+    Unsupported(UnsupportedKey),
 }
 
 impl From<SecretKey> for Identity {
@@ -179,6 +223,12 @@ impl From<SecretKey> for Identity {
 impl From<EncryptedKey> for Identity {
     fn from(key: EncryptedKey) -> Self {
         Identity::Encrypted(key)
+    }
+}
+
+impl From<UnsupportedKey> for Identity {
+    fn from(key: UnsupportedKey) -> Self {
+        Identity::Unsupported(key)
     }
 }
 
@@ -215,6 +265,7 @@ impl Identity {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(line),
             Identity::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
+            Identity::Unsupported(_) => None,
         }
     }
 }
