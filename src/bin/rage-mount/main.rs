@@ -79,7 +79,18 @@ fn main() {
         }
     } else {
         match read_keys(opts.keys) {
-            Ok(keys) => age::Decryptor::Keys(keys),
+            Ok(keys) => {
+                // Check for unsupported keys and alert the user
+                for key in &keys {
+                    if let age::Identity::Unsupported(k) = key {
+                        eprintln!("Unsupported key: {}", "TODO: key path here");
+                        eprintln!();
+                        eprintln!("{}", k);
+                        return;
+                    }
+                }
+                age::Decryptor::Keys(keys)
+            }
             Err(e) => {
                 error!("Error while reading keys: {}", e);
                 return;
