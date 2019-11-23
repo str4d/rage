@@ -17,11 +17,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
       - uses: actions/upload-artifact@v1
         with:
           name: rage
-          path: target/release/rage
+          path: target/debug/rage
 
   build-age:
     name: Build age
