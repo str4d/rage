@@ -2,6 +2,7 @@
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
+use secrecy::{ExposeSecret, Secret, SecretString};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::io::{self, BufRead};
@@ -34,7 +35,7 @@ pub enum SecretKey {
     /// An ssh-rsa private key.
     SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
-    SshEd25519(Vec<u8>, [u8; 64]),
+    SshEd25519(Vec<u8>, Secret<[u8; 64]>),
 }
 
 impl SecretKey {
@@ -104,7 +105,7 @@ impl SecretKey {
                 let sk: StaticSecret = {
                     let mut sk = [0; 32];
                     // privkey format is seed || pubkey
-                    sk.copy_from_slice(&Sha512::digest(&privkey[0..32])[0..32]);
+                    sk.copy_from_slice(&Sha512::digest(&privkey.expose_secret()[0..32])[0..32]);
                     sk.into()
                 };
 
@@ -139,7 +140,7 @@ pub enum EncryptedKey {
 }
 
 impl EncryptedKey {
-    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<String>>(
+    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<SecretString>>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
@@ -257,7 +258,7 @@ impl Identity {
         }
     }
 
-    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<String>>(
+    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<SecretString>>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,

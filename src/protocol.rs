@@ -1,6 +1,7 @@
 //! Encryption and decryption routines for age.
 
 use getrandom::getrandom;
+use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
 use std::time::{Duration, SystemTime};
 
@@ -50,7 +51,7 @@ pub enum Encryptor {
     /// Encryption to a list of recipients identified by keys.
     Keys(Vec<RecipientKey>),
     /// Encryption to a passphrase.
-    Passphrase(String),
+    Passphrase(SecretString),
 }
 
 impl Encryptor {
@@ -66,7 +67,7 @@ impl Encryptor {
 
                 let log_n = target_scrypt_work_factor();
 
-                let enc_key = scrypt(&salt, log_n, passphrase).expect("log_n < 64");
+                let enc_key = scrypt(&salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
                 let encrypted_file_key = {
                     let mut key = [0; 32];
                     key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
@@ -112,11 +113,11 @@ pub enum Decryptor {
     /// Trial decryption against a list of secret keys.
     Keys(Vec<Identity>),
     /// Decryption with a passphrase.
-    Passphrase(String),
+    Passphrase(SecretString),
 }
 
 impl Decryptor {
-    fn unwrap_file_key<P: Fn(&str) -> Option<String> + Copy>(
+    fn unwrap_file_key<P: Fn(&str) -> Option<SecretString> + Copy>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
@@ -131,7 +132,7 @@ impl Decryptor {
                     return None;
                 }
 
-                let enc_key = scrypt(&s.salt, s.log_n, &passphrase).ok()?;
+                let enc_key = scrypt(&s.salt, s.log_n, passphrase.expose_secret()).ok()?;
                 aead_decrypt(&enc_key, &s.encrypted_file_key).map(|pt| {
                     // It's ours!
                     let mut file_key = [0; 16];
@@ -149,7 +150,7 @@ impl Decryptor {
     /// to be decrypted before it can be used to decrypt the message.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read, P: Fn(&str) -> Option<String> + Copy>(
+    pub fn trial_decrypt<R: Read, P: Fn(&str) -> Option<SecretString> + Copy>(
         &self,
         mut input: R,
         request_passphrase: P,
@@ -184,7 +185,7 @@ impl Decryptor {
     /// to be decrypted before it can be used to decrypt the message.
     ///
     /// If successful, returns a seekable reader that will provide the plaintext.
-    pub fn trial_decrypt_seekable<R: Read + Seek, P: Fn(&str) -> Option<String> + Copy>(
+    pub fn trial_decrypt_seekable<R: Read + Seek, P: Fn(&str) -> Option<SecretString> + Copy>(
         &self,
         mut input: R,
         request_passphrase: P,

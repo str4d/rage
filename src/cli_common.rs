@@ -1,6 +1,7 @@
 //! Common helpers for CLI binaries.
 
 use dialoguer::PasswordInput;
+use secrecy::SecretString;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
@@ -61,11 +62,11 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
 }
 
 /// Reads a passphrase from stdin.
-pub fn read_passphrase(prompt: &str, confirm: bool) -> io::Result<String> {
+pub fn read_passphrase(prompt: &str, confirm: bool) -> io::Result<SecretString> {
     let mut input = PasswordInput::new();
     input.with_prompt(prompt);
     if confirm {
         input.with_confirmation("Confirm passphrase", "Passphrases mismatching");
     }
-    input.interact()
+    input.interact().map(SecretString::new)
 }

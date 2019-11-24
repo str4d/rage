@@ -9,6 +9,7 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
+use secrecy::{ExposeSecret, SecretString};
 
 use crate::{
     keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
@@ -35,7 +36,12 @@ enum OpenSshCipher {
 }
 
 impl OpenSshCipher {
-    fn decrypt(self, kdf: &OpenSshKdf, p: String, ct: &[u8]) -> Result<Vec<u8>, &'static str> {
+    fn decrypt(
+        self,
+        kdf: &OpenSshKdf,
+        p: SecretString,
+        ct: &[u8],
+    ) -> Result<Vec<u8>, &'static str> {
         match self {
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
@@ -52,10 +58,10 @@ enum OpenSshKdf {
 }
 
 impl OpenSshKdf {
-    fn derive(&self, passphrase: String, out_len: usize) -> Vec<u8> {
+    fn derive(&self, passphrase: SecretString, out_len: usize) -> Vec<u8> {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
-                bcrypt::bcrypt_pbkdf(&passphrase, &salt, *rounds, out_len)
+                bcrypt::bcrypt_pbkdf(passphrase.expose_secret(), &salt, *rounds, out_len)
             }
         }
     }
@@ -69,7 +75,7 @@ pub struct EncryptedOpenSshKey {
 }
 
 impl EncryptedOpenSshKey {
-    pub fn decrypt(&self, passphrase: String) -> Result<SecretKey, &'static str> {
+    pub fn decrypt(&self, passphrase: SecretString) -> Result<SecretKey, &'static str> {
         let decrypted = self
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
@@ -83,12 +89,13 @@ impl EncryptedOpenSshKey {
 
 mod decrypt {
     use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
+    use secrecy::SecretString;
 
     use super::OpenSshKdf;
 
     pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(
         kdf: &OpenSshKdf,
-        passphrase: String,
+        passphrase: SecretString,
         ciphertext: &[u8],
         key_len: usize,
     ) -> Vec<u8> {
@@ -232,6 +239,7 @@ mod read_ssh {
         IResult,
     };
     use num_bigint_dig::BigUint;
+    use secrecy::Secret;
 
     use super::{
         EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
@@ -320,14 +328,14 @@ mod read_ssh {
     /// Internal OpenSSH encoding of an Ed25519 private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3277-L3283)
-    fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], [u8; 64]> {
+    fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], Secret<[u8; 64]>> {
         preceded(
             string_tag(SSH_ED25519_KEY_PREFIX),
             map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
                 if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
                     let mut privkey = [0; 64];
                     privkey.copy_from_slice(&privkey_bytes);
-                    Some(privkey)
+                    Some(Secret::new(privkey))
                 } else {
                     None
                 }

@@ -42,13 +42,14 @@
 //! ## Passphrase-based encryption
 //!
 //! ```
+//! use secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
 //! # fn run_main() -> std::io::Result<()> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
-//! let encryptor = age::Encryptor::Passphrase(passphrase.to_owned());
+//! let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
 //! let mut encrypted = vec![];
 //! {
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
@@ -56,7 +57,7 @@
 //!     writer.flush()?;
 //! };
 //!
-//! let decryptor = age::Decryptor::Passphrase(passphrase.to_owned());
+//! let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
 //! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
 //! let mut decrypted = vec![];
 //! reader.read_to_end(&mut decrypted);

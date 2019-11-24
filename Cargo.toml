@@ -35,6 +35,7 @@ pbkdf2 = "0.3"
 rand = "0.6"
 rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
 scrypt = { version = "0.2", default-features = false }
+secrecy = "0.5"
 sha2 = "0.8"
 x25519-dalek = "0.5"
 
