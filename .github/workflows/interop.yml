@@ -73,9 +73,6 @@ jobs:
         run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI | ${{ matrix.bob }}/${{ matrix.bob }} -d key.txt | grep -q "^Test string$"
       - name: Encrypt to file
         run: echo "2 test 2 string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test2.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
-      - name: Convert file to CRLF
-        if: matrix.line_ending == 'CRLF'
-        run: unix2dos test2.age
       - name: Decrypt from file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test2.age key.txt | grep -q "^2 test 2 string$"
       - name: Encrypt to ASCII-armored file
