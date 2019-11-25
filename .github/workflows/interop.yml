@@ -47,14 +47,13 @@ jobs:
           path: ../age/age
 
   test:
-    name: ${{ matrix.alice }} (${{ matrix.line_ending }}) -> ${{ matrix.bob }}
+    name: ${{ matrix.alice }} -> ${{ matrix.bob }}
     runs-on: ubuntu-latest
     needs: [build-rage, build-age]
     strategy:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
-        line_ending: [CRLF, LF]
 
     steps:
       - uses: actions/download-artifact@v1
@@ -77,8 +76,9 @@ jobs:
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test2.age key.txt | grep -q "^2 test 2 string$"
       - name: Encrypt to ASCII-armored file
         run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -a -o test3.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
-      - name: Convert file to CRLF
-        if: matrix.line_ending == 'CRLF'
-        run: unix2dos test3.age
       - name: Decrypt from ASCII-armored file
+        run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test3.age key.txt | grep -q "^Test string 3 - ASCII Drift$"
+      - name: Convert file to CRLF
+        run: unix2dos test3.age
+      - name: Decrypt from ASCII-armored CRLF file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test3.age key.txt | grep -q "^Test string 3 - ASCII Drift$"
