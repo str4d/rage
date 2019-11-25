@@ -5,5 +5,5 @@ use age::Decryptor;
 
 fuzz_target!(|data: &[u8]| {
     let decryptor = Decryptor::Keys(vec![]);
-    let _ = decryptor.trial_decrypt(data);
+    let _ = decryptor.trial_decrypt(data, |_| None);
 });
