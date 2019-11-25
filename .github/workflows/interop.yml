@@ -47,13 +47,14 @@ jobs:
           path: ../age/age
 
   test:
-    name: ${{ matrix.alice }} -> ${{ matrix.bob }}
+    name: ${{ matrix.alice }} (${{ matrix.line_ending }}) -> ${{ matrix.bob }}
     runs-on: ubuntu-latest
     needs: [build-rage, build-age]
     strategy:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
+        line_ending: [CRLF, LF]
 
     steps:
       - uses: actions/download-artifact@v1
@@ -64,15 +65,23 @@ jobs:
           name: age
       - run: chmod +x rage/rage
       - run: chmod +x age/age
+      - name: Install dos2unix for simulating Windows files
+        run: sudo apt install dos2unix
       - name: Write (very not private) key
         run: echo "AGE_SECRET_KEY_CEOQVF2ZAEAYcPmOFH9huOX18t5rxBQ65L7k2WLa604" >key.txt
       - name: Pipes!
         run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI | ${{ matrix.bob }}/${{ matrix.bob }} -d key.txt | grep -q "^Test string$"
       - name: Encrypt to file
         run: echo "2 test 2 string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test2.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
+      - name: Convert file to CRLF
+        if: matrix.line_ending == 'CRLF'
+        run: unix2dos test2.age
       - name: Decrypt from file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test2.age key.txt | grep -q "^2 test 2 string$"
       - name: Encrypt to ASCII-armored file
         run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -a -o test3.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
+      - name: Convert file to CRLF
+        if: matrix.line_ending == 'CRLF'
+        run: unix2dos test3.age
       - name: Decrypt from ASCII-armored file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test3.age key.txt | grep -q "^Test string 3 - ASCII Drift$"
