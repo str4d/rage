@@ -38,6 +38,7 @@ scrypt = { version = "0.2", default-features = false }
 secrecy = "0.5"
 sha2 = "0.8"
 x25519-dalek = "0.5"
+zeroize = "1"
 
 # Common CLI dependencies
 dialoguer = { version = "0.4", optional = true }
