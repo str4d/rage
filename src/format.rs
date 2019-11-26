@@ -367,7 +367,16 @@ mod read {
     fn armored_header(input: &[u8]) -> IResult<&[u8], Header> {
         preceded(
             pair(tag(ARMORED_MAGIC), tag(b" ")),
-            header(&nom::character::streaming::line_ending),
+            header(&|input: &[u8]| {
+                // line_ending returns the total number of bytes it needs, not the
+                // additional number of bytes like other APIs.
+                nom::character::streaming::line_ending(input).map_err(|e| match e {
+                    nom::Err::Incomplete(nom::Needed::Size(n)) => {
+                        nom::Err::Incomplete(nom::Needed::Size(n - input.len()))
+                    }
+                    e => e,
+                })
+            }),
         )(input)
     }
 
