@@ -83,13 +83,15 @@ impl RecipientLine {
 }
 
 pub struct Header {
+    pub(crate) armored: bool,
     pub(crate) recipients: Vec<RecipientLine>,
     pub(crate) mac: [u8; 32],
 }
 
 impl Header {
-    pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+    pub(crate) fn new(armored: bool, recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
         let mut header = Header {
+            armored,
             recipients,
             mac: [0; 32],
         };
@@ -109,11 +111,11 @@ impl Header {
         mac.verify(&self.mac)
     }
 
-    pub(crate) fn read<R: Read>(mut input: R) -> io::Result<(Self, bool)> {
+    pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
         let mut data = vec![];
         loop {
             match read::any_header(&data) {
-                Ok((_, (header, armored))) => break Ok((header, armored)),
+                Ok((_, header)) => break Ok(header),
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
                     // parser is constructed, because if we read more than we need, the
@@ -129,11 +131,11 @@ impl Header {
         }
     }
 
-    pub(crate) fn write<W: Write>(&self, mut output: W, armored: bool) -> io::Result<()> {
-        if armored {
+    pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
+        if self.armored {
             cookie_factory::gen(write::armored_header(self), &mut output)
         } else {
-            cookie_factory::gen(write::canonical_header(self), &mut output)
+            cookie_factory::gen(write::binary_header(self), &mut output)
         }
         .map(|_| ())
         .map_err(|e| {
@@ -335,6 +337,7 @@ mod read {
     }
 
     fn header<'a, N>(
+        armored: bool,
         line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Header> {
         move |input: &[u8]| {
@@ -351,7 +354,11 @@ mod read {
                             terminated(encoded_data(32, [0; 32]), line_ending),
                         ),
                     ),
-                    |(recipients, mac)| Header { recipients, mac },
+                    |(recipients, mac)| Header {
+                        armored,
+                        recipients,
+                        mac,
+                    },
                 ),
             )(input)
         }
@@ -360,14 +367,14 @@ mod read {
     fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
         preceded(
             pair(tag(BINARY_MAGIC), tag(b" ")),
-            header(&nom::character::streaming::newline),
+            header(false, &nom::character::streaming::newline),
         )(input)
     }
 
     fn armored_header(input: &[u8]) -> IResult<&[u8], Header> {
         preceded(
             pair(tag(ARMORED_MAGIC), tag(b" ")),
-            header(&|input: &[u8]| {
+            header(true, &|input: &[u8]| {
                 // line_ending returns the total number of bytes it needs, not the
                 // additional number of bytes like other APIs.
                 nom::character::streaming::line_ending(input).map_err(|e| match e {
@@ -380,11 +387,8 @@ mod read {
         )(input)
     }
 
-    pub(super) fn any_header(input: &[u8]) -> IResult<&[u8], (Header, bool)> {
-        alt((
-            map(canonical_header, |h| (h, false)),
-            map(armored_header, |h| (h, true)),
-        ))(input)
+    pub(super) fn any_header(input: &[u8]) -> IResult<&[u8], Header> {
+        alt((canonical_header, armored_header))(input)
     }
 }
 
@@ -522,10 +526,18 @@ mod write {
     pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
         h: &'a Header,
     ) -> impl SerializeFn<W> + 'a {
-        tuple((slice(BINARY_MAGIC), string(" "), header_minus_mac(h, "\n")))
+        tuple((
+            slice(if h.armored {
+                ARMORED_MAGIC
+            } else {
+                BINARY_MAGIC
+            }),
+            string(" "),
+            header_minus_mac(h, "\n"),
+        ))
     }
 
-    pub(super) fn canonical_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    pub(super) fn binary_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         tuple((slice(BINARY_MAGIC), string(" "), header(h, "\n")))
     }
 
@@ -559,10 +571,10 @@ fYCo_w
 51eEu5Oo2JYAG7OU4oamH03FDRP18_GnzeCrY7Z-sa8
 --- fgMiVLJHMlg9fW7CVG_hPS5EAU4Zeg19LyCP7SoH5nA
 ";
-        let (h, armored) = Header::read(test_header.as_bytes()).unwrap();
-        assert!(!armored);
+        let h = Header::read(test_header.as_bytes()).unwrap();
+        assert!(!h.armored);
         let mut data = vec![];
-        h.write(&mut data, false).unwrap();
+        h.write(&mut data).unwrap();
         assert_eq!(std::str::from_utf8(&data), Ok(test_header));
     }
 }
