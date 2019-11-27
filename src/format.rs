@@ -135,7 +135,7 @@ impl Header {
         if self.armored {
             cookie_factory::gen(write::armored_header(self), &mut output)
         } else {
-            cookie_factory::gen(write::canonical_header(self), &mut output)
+            cookie_factory::gen(write::binary_header(self), &mut output)
         }
         .map(|_| ())
         .map_err(|e| {
@@ -526,10 +526,18 @@ mod write {
     pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
         h: &'a Header,
     ) -> impl SerializeFn<W> + 'a {
-        tuple((slice(BINARY_MAGIC), string(" "), header_minus_mac(h, "\n")))
+        tuple((
+            slice(if h.armored {
+                ARMORED_MAGIC
+            } else {
+                BINARY_MAGIC
+            }),
+            string(" "),
+            header_minus_mac(h, "\n"),
+        ))
     }
 
-    pub(super) fn canonical_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    pub(super) fn binary_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         tuple((slice(BINARY_MAGIC), string(" "), header(h, "\n")))
     }
 
