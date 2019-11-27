@@ -6,6 +6,7 @@ use std::io::{self, Read, Seek, Write};
 use std::time::{Duration, SystemTime};
 
 use crate::{
+    error::Error,
     format::{Header, RecipientLine},
     keys::{Identity, RecipientKey},
     primitives::{
@@ -121,26 +122,31 @@ impl Decryptor {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Option<[u8; 16]> {
+    ) -> Result<Option<[u8; 16]>, Error> {
         match (self, line) {
+            (Decryptor::Keys(_), RecipientLine::Scrypt(_)) => Err(Error::MessageRequiresPassphrase),
             (Decryptor::Keys(keys), _) => keys
                 .iter()
-                .find_map(|key| key.unwrap_file_key(line, request_passphrase)),
+                .find_map(|key| key.unwrap_file_key(line, request_passphrase))
+                .transpose(),
             (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
                 // Place bounds on the work factor we will accept (roughly 16 seconds).
                 if s.log_n > (target_scrypt_work_factor() + 4) {
-                    return None;
+                    return Err(Error::ExcessiveWork);
                 }
 
-                let enc_key = scrypt(&s.salt, s.log_n, passphrase.expose_secret()).ok()?;
-                aead_decrypt(&enc_key, &s.encrypted_file_key).map(|pt| {
-                    // It's ours!
-                    let mut file_key = [0; 16];
-                    file_key.copy_from_slice(&pt);
-                    file_key
-                })
+                let enc_key = scrypt(&s.salt, s.log_n, passphrase.expose_secret())
+                    .map_err(|_| Error::ExcessiveWork)?;
+                aead_decrypt(&enc_key, &s.encrypted_file_key)
+                    .map(|pt| {
+                        // It's ours!
+                        let mut file_key = [0; 16];
+                        file_key.copy_from_slice(&pt);
+                        Some(file_key)
+                    })
+                    .map_err(Error::from)
             }
-            _ => None,
+            (Decryptor::Passphrase(_), _) => Err(Error::MessageRequiresKeys),
         }
     }
 
@@ -154,7 +160,7 @@ impl Decryptor {
         &self,
         mut input: R,
         request_passphrase: P,
-    ) -> io::Result<impl Read> {
+    ) -> Result<impl Read, Error> {
         let (header, armored) = Header::read(&mut input)?;
 
         let mut input = ArmoredReader::from_reader(input, armored);
@@ -167,16 +173,19 @@ impl Decryptor {
             .iter()
             .find_map(|r| {
                 self.unwrap_file_key(r, request_passphrase)
-                    .and_then(|file_key| {
-                        // Verify the MAC
-                        header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                    .transpose()
+                    .map(|res| {
+                        res.and_then(|file_key| {
+                            // Verify the MAC
+                            header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 
-                        // Return the payload key
-                        Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                            // Return the payload key
+                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                        })
                     })
             })
+            .unwrap_or(Err(Error::NoMatchingKeys))
             .map(|payload_key| Stream::decrypt(&payload_key, input))
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
     }
 
     /// Attempts to decrypt a message from the given seekable reader.
@@ -189,13 +198,10 @@ impl Decryptor {
         &self,
         mut input: R,
         request_passphrase: P,
-    ) -> io::Result<StreamReader<R>> {
+    ) -> Result<StreamReader<R>, Error> {
         let (header, armored) = Header::read(&mut input)?;
         if armored {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "armored messages not supported for seeking",
-            ));
+            return Err(Error::ArmoredWhenSeeking);
         }
 
         let mut nonce = [0; 16];
@@ -206,16 +212,21 @@ impl Decryptor {
             .iter()
             .find_map(|r| {
                 self.unwrap_file_key(r, request_passphrase)
-                    .and_then(|file_key| {
-                        // Verify the MAC
-                        header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                    .transpose()
+                    .map(|res| {
+                        res.and_then(|file_key| {
+                            // Verify the MAC
+                            header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
 
-                        // Return the payload key
-                        Some(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                            // Return the payload key
+                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                        })
                     })
             })
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no matching keys"))
-            .and_then(|payload_key| Stream::decrypt_seekable(&payload_key, input))
+            .unwrap_or(Err(Error::NoMatchingKeys))
+            .and_then(|payload_key| {
+                Stream::decrypt_seekable(&payload_key, input).map_err(Error::from)
+            })
     }
 }
 

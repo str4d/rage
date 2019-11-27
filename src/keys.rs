@@ -9,6 +9,7 @@ use std::io::{self, BufRead};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
+    error::Error,
     format::RecipientLine,
     openssh::EncryptedOpenSshKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
@@ -67,7 +68,11 @@ impl SecretKey {
         }
     }
 
-    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<[u8; 16]> {
+    /// Returns:
+    /// - `Some(Ok(file_key))` on success.
+    /// - `Some(Err(e))` if a decryption error occurs.
+    /// - `None` if the [`RecipientLine`] does not match this key.
+    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<[u8; 16], Error>> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 let pk: PublicKey = sk.into();
@@ -78,7 +83,11 @@ impl SecretKey {
                 salt.extend_from_slice(pk.as_bytes());
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                aead_decrypt(&enc_key, &r.encrypted_file_key)
+
+                // A failure to decrypt is non-fatal (we try to decrypt the recipient line
+                // with other X25519 keys), because we cannot tell which key matches a
+                // particular line.
+                aead_decrypt(&enc_key, &r.encrypted_file_key).ok().map(Ok)
             }
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -88,14 +97,18 @@ impl SecretKey {
                 let mut rng = OsRng::new().expect("should have RNG");
                 let mut h = Sha256::default();
 
-                rsa::oaep::decrypt(
-                    Some(&mut rng),
-                    &sk,
-                    &r.encrypted_file_key,
-                    &mut h,
-                    Some(SSH_RSA_OAEP_LABEL.to_owned()),
+                // A failure to decrypt is fatal, because we assume that we won't
+                // encounter 32-bit collisions on the key tag embedded in the header.
+                Some(
+                    rsa::oaep::decrypt(
+                        Some(&mut rng),
+                        &sk,
+                        &r.encrypted_file_key,
+                        &mut h,
+                        Some(SSH_RSA_OAEP_LABEL.to_owned()),
+                    )
+                    .map_err(Error::from),
                 )
-                .ok()
             }
             (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -120,15 +133,20 @@ impl SecretKey {
                 salt.extend_from_slice(pk.as_bytes());
 
                 let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                aead_decrypt(&enc_key, &r.rest.encrypted_file_key)
+
+                // A failure to decrypt is fatal, because we assume that we won't
+                // encounter 32-bit collisions on the key tag embedded in the header.
+                Some(aead_decrypt(&enc_key, &r.rest.encrypted_file_key).map_err(Error::from))
             }
             _ => None,
         }
-        .map(|pt| {
-            // It's ours!
-            let mut file_key = [0; 16];
-            file_key.copy_from_slice(&pt);
-            file_key
+        .map(|res| {
+            res.map(|pt| {
+                // It's ours!
+                let mut file_key = [0; 16];
+                file_key.copy_from_slice(&pt);
+                file_key
+            })
         })
     }
 }
@@ -144,7 +162,7 @@ impl EncryptedKey {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Option<[u8; 16]> {
+    ) -> Option<Result<[u8; 16], Error>> {
         match self {
             EncryptedKey::OpenSsh(enc) => {
                 let passphrase = request_passphrase(
@@ -262,7 +280,7 @@ impl Identity {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Option<[u8; 16]> {
+    ) -> Option<Result<[u8; 16], Error>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(line),
             Identity::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
@@ -547,7 +565,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped, Some(file_key));
+        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
     }
 
     #[test]
@@ -564,6 +582,6 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped, Some(file_key));
+        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
     }
 }

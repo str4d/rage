@@ -30,9 +30,9 @@ pub(crate) fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
 /// ChaCha20-Poly1305 from [RFC 7539] with a zero nonce.
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
-pub(crate) fn aead_decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn aead_decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>, aead::Error> {
     let c = ChaCha20Poly1305::new((*key).into());
-    c.decrypt(&[0; 12].into(), ciphertext).ok()
+    c.decrypt(&[0; 12].into(), ciphertext)
 }
 
 /// `HKDF[salt, label](key, 32)`
