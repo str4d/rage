@@ -93,10 +93,11 @@ impl Encryptor {
         getrandom(&mut file_key).expect("Should not fail");
 
         let header = Header::new(
+            armored,
             self.wrap_file_key(&file_key),
             hkdf(&[], HEADER_KEY_LABEL, &file_key),
         );
-        header.write(&mut output, armored)?;
+        header.write(&mut output)?;
 
         let mut output = ArmoredWriter::wrap_output(output, armored);
 
@@ -161,9 +162,9 @@ impl Decryptor {
         mut input: R,
         request_passphrase: P,
     ) -> Result<impl Read, Error> {
-        let (header, armored) = Header::read(&mut input)?;
+        let header = Header::read(&mut input)?;
 
-        let mut input = ArmoredReader::from_reader(input, armored);
+        let mut input = ArmoredReader::from_reader(input, header.armored);
 
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce)?;
@@ -199,8 +200,8 @@ impl Decryptor {
         mut input: R,
         request_passphrase: P,
     ) -> Result<StreamReader<R>, Error> {
-        let (header, armored) = Header::read(&mut input)?;
-        if armored {
+        let header = Header::read(&mut input)?;
+        if header.armored {
             return Err(Error::ArmoredWhenSeeking);
         }
 
