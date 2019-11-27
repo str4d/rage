@@ -12,6 +12,7 @@ use nom::{
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::{
+    error::Error,
     keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
     util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
 };
@@ -36,17 +37,12 @@ enum OpenSshCipher {
 }
 
 impl OpenSshCipher {
-    fn decrypt(
-        self,
-        kdf: &OpenSshKdf,
-        p: SecretString,
-        ct: &[u8],
-    ) -> Result<Vec<u8>, &'static str> {
+    fn decrypt(self, kdf: &OpenSshKdf, p: SecretString, ct: &[u8]) -> Result<Vec<u8>, Error> {
         match self {
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
             OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
-            _ => Err("Unsupported encryption scheme"),
+            _ => Err(Error::UnsupportedEncryptedKey),
         }
     }
 }
@@ -75,7 +71,7 @@ pub struct EncryptedOpenSshKey {
 }
 
 impl EncryptedOpenSshKey {
-    pub fn decrypt(&self, passphrase: SecretString) -> Result<SecretKey, &'static str> {
+    pub fn decrypt(&self, passphrase: SecretString) -> Result<SecretKey, Error> {
         let decrypted = self
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
@@ -83,7 +79,7 @@ impl EncryptedOpenSshKey {
         let parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
         parser(&decrypted)
             .map(|(_, sk)| sk)
-            .map_err(|_| "Invalid private key")
+            .map_err(|_| Error::KeyDecryptionFailed)
     }
 }
 

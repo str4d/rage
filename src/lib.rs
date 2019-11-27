@@ -14,7 +14,7 @@
 //! ```
 //! use std::io::{Read, Write};
 //!
-//! # fn run_main() -> std::io::Result<()> {
+//! # fn run_main() -> Result<(), age::Error> {
 //! let key = age::SecretKey::generate();
 //! let pubkey = key.to_public();
 //!
@@ -45,7 +45,7 @@
 //! use secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
-//! # fn run_main() -> std::io::Result<()> {
+//! # fn run_main() -> Result<(), age::Error> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
@@ -72,6 +72,7 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
+mod error;
 mod format;
 mod keys;
 mod openssh;
@@ -79,6 +80,7 @@ mod primitives;
 mod protocol;
 mod util;
 
+pub use error::Error;
 pub use keys::{Identity, RecipientKey, SecretKey};
 pub use primitives::stream::StreamReader;
 pub use protocol::{Decryptor, Encryptor};
