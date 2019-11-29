@@ -5,7 +5,8 @@ use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret, SecretString};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
-use std::io::{self, BufRead};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
@@ -247,8 +248,8 @@ impl fmt::Display for UnsupportedKey {
     }
 }
 
-/// An identity that has been parsed from some input.
-pub enum Identity {
+/// An key that has been parsed from some input.
+pub enum IdentityKey {
     /// An unencrypted key.
     Unencrypted(SecretKey),
     /// An encrypted key.
@@ -257,26 +258,54 @@ pub enum Identity {
     Unsupported(UnsupportedKey),
 }
 
+/// An identity that has been parsed from some input.
+pub struct Identity {
+    filename: Option<String>,
+    key: IdentityKey,
+}
+
 impl From<SecretKey> for Identity {
     fn from(key: SecretKey) -> Self {
-        Identity::Unencrypted(key)
+        Identity {
+            filename: None,
+            key: IdentityKey::Unencrypted(key),
+        }
     }
 }
 
 impl From<EncryptedKey> for Identity {
     fn from(key: EncryptedKey) -> Self {
-        Identity::Encrypted(key)
+        Identity {
+            filename: None,
+            key: IdentityKey::Encrypted(key),
+        }
     }
 }
 
 impl From<UnsupportedKey> for Identity {
     fn from(key: UnsupportedKey) -> Self {
-        Identity::Unsupported(key)
+        Identity {
+            filename: None,
+            key: IdentityKey::Unsupported(key),
+        }
     }
 }
 
 impl Identity {
-    /// Parses a list of secret keys from a buffered input containing valid UTF-8.
+    /// Parses one or more identities from a file containing valid UTF-8.
+    pub fn from_file(filename: String) -> io::Result<Vec<Self>> {
+        let buf = BufReader::new(File::open(filename.clone())?);
+        let mut keys = Identity::from_buffer(buf)?;
+
+        // We have context here about the filename.
+        for key in &mut keys {
+            key.filename = Some(filename.clone());
+        }
+
+        Ok(keys)
+    }
+
+    /// Parses one or more identities from a buffered input containing valid UTF-8.
     pub fn from_buffer<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
         let mut buf = String::new();
         loop {
@@ -300,15 +329,25 @@ impl Identity {
         }
     }
 
+    /// Returns the filename this identity was parsed from, if known.
+    pub fn filename(&self) -> Option<&str> {
+        self.filename.as_ref().map(|s| s.as_str())
+    }
+
+    /// Returns the key corresponding to this identity.
+    pub fn key(&self) -> &IdentityKey {
+        &self.key
+    }
+
     pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<SecretString>>(
         &self,
         line: &RecipientLine,
         request_passphrase: P,
     ) -> Option<Result<[u8; 16], Error>> {
-        match self {
-            Identity::Unencrypted(key) => key.unwrap_file_key(line),
-            Identity::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
-            Identity::Unsupported(_) => None,
+        match &self.key {
+            IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
+            IdentityKey::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
+            IdentityKey::Unsupported(_) => None,
         }
     }
 }
@@ -447,7 +486,7 @@ mod read {
             map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
                 let mut pk = [0; 32];
                 pk.copy_from_slice(&buf);
-                Identity::Unencrypted(SecretKey::X25519(pk.into()))
+                SecretKey::X25519(pk.into()).into()
             }),
         )(input)
     }
@@ -502,7 +541,7 @@ mod read {
 pub(crate) mod tests {
     use std::io::BufReader;
 
-    use super::{Identity, RecipientKey};
+    use super::{Identity, IdentityKey, RecipientKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_QAvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
     const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
@@ -550,8 +589,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let buf = BufReader::new(TEST_SK.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
         assert_eq!(keys.len(), 1);
-        let key = match &keys[0] {
-            Identity::Unencrypted(key) => key,
+        let key = match keys[0].key() {
+            IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
         assert_eq!(key.to_str(), TEST_SK);
@@ -568,8 +607,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         let buf = BufReader::new(TEST_SK.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
         assert_eq!(keys.len(), 1);
-        let key = match &keys[0] {
-            Identity::Unencrypted(key) => key,
+        let key = match keys[0].key() {
+            IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
         assert_eq!(key.to_public().to_str(), TEST_PK);
@@ -579,8 +618,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
-        let sk = match &keys[0] {
-            Identity::Unencrypted(key) => key,
+        let sk = match keys[0].key() {
+            IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
@@ -596,8 +635,8 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
-        let sk = match &keys[0] {
-            Identity::Unencrypted(key) => key,
+        let sk = match keys[0].key() {
+            IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
         let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();

@@ -429,10 +429,9 @@ mod read_ssh {
                 })
                 .into()
             })(i),
-            Some((CipherResult::Unsupported(cipher), _)) => Ok((
-                i,
-                Identity::Unsupported(UnsupportedKey::EncryptedOpenSsh(cipher)),
-            )),
+            Some((CipherResult::Unsupported(cipher), _)) => {
+                Ok((i, UnsupportedKey::EncryptedOpenSsh(cipher).into()))
+            }
         }
     }
 
@@ -551,7 +550,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                                 &mut ssh_key,
                             )
                             .expect("can write into a Vec");
-                            Identity::Unencrypted(SecretKey::SshRsa(ssh_key, Box::new(privkey)))
+                            SecretKey::SshRsa(ssh_key, Box::new(privkey)).into()
                         })
                     }
                 },

@@ -291,7 +291,7 @@ fn decrypt(opts: AgeOptions) {
             Ok(keys) => {
                 // Check for unsupported keys and alert the user
                 for key in &keys {
-                    if let age::Identity::Unsupported(k) = key {
+                    if let age::IdentityKey::Unsupported(k) = key.key() {
                         eprintln!("Unsupported key: {}", "TODO: key path here");
                         eprintln!();
                         eprintln!("{}", k);

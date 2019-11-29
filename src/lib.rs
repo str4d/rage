@@ -81,7 +81,7 @@ mod protocol;
 mod util;
 
 pub use error::Error;
-pub use keys::{Identity, RecipientKey, SecretKey};
+pub use keys::{Identity, IdentityKey, RecipientKey, SecretKey};
 pub use primitives::stream::StreamReader;
 pub use protocol::{Decryptor, Encryptor};
 
