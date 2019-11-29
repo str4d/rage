@@ -149,8 +149,8 @@ fn read_recipients(
 
 #[derive(Debug, Options)]
 struct AgeOptions {
-    #[options(free, help = "recipients for encryption, or key files for decryption")]
-    arguments: Vec<String>,
+    #[options(free, help = "file to read input from (default stdin)")]
+    input: Option<String>,
 
     #[options(help = "print help message")]
     help: bool,
@@ -164,8 +164,11 @@ struct AgeOptions {
     #[options(help = "create ASCII armored output (default is age binary format)")]
     armor: bool,
 
-    #[options(help = "read from INPUT (default stdin)")]
-    input: Option<String>,
+    #[options(help = "recipient to encrypt to (may be repeated)")]
+    recipient: Vec<String>,
+
+    #[options(help = "identity to decrypt with (may be repeated)")]
+    identity: Vec<String>,
 
     #[options(help = "output to OUTPUT (default stdout)")]
     output: Option<String>,
@@ -175,14 +178,22 @@ struct AgeOptions {
 }
 
 fn encrypt(opts: AgeOptions) {
+    if !opts.identity.is_empty() {
+        eprintln!("Error: -i/--identity can't be used in encryption mode.");
+        eprintln!("Did you forget to specify -d/--decrypt?");
+        return;
+    }
+
     let encryptor = if opts.passphrase {
-        if !opts.arguments.is_empty() {
-            eprintln!("Positional arguments are not accepted when using a passphrase");
+        if !opts.recipient.is_empty() {
+            eprintln!("Error: -r/--recipient can't be used with -p/--passphrase");
             return;
         }
 
         if opts.input.is_none() {
-            eprintln!("File to encrypt must be passed in with --input when using a passphrase");
+            eprintln!(
+                "Error: file to encrypt must be passed as an argument when using -p/--passphrase"
+            );
             return;
         }
 
@@ -191,7 +202,13 @@ fn encrypt(opts: AgeOptions) {
             Err(_) => return,
         }
     } else {
-        match read_recipients(opts.arguments, opts.aliases) {
+        if opts.recipient.is_empty() {
+            eprintln!("Error: missing recipients.");
+            eprintln!("Did you forget to specify -r/--recipient?");
+            return;
+        }
+
+        match read_recipients(opts.recipient, opts.aliases) {
             Ok(recipients) => age::Encryptor::Keys(recipients),
             Err(e) => {
                 eprintln!("Error while reading recipients: {}", e);
@@ -234,14 +251,28 @@ fn encrypt(opts: AgeOptions) {
 }
 
 fn decrypt(opts: AgeOptions) {
+    if opts.armor {
+        eprintln!("Error: -a/--armor can't be used with -d/--decrypt.");
+        eprintln!("Note that armored files are detected automatically.");
+        return;
+    }
+
+    if !opts.recipient.is_empty() {
+        eprintln!("Error: -r/--recipient can't be used with -d/--decrypt.");
+        eprintln!("Did you mean to use -i/--identity to specify a private key?");
+        return;
+    }
+
     let decryptor = if opts.passphrase {
-        if !opts.arguments.is_empty() {
-            eprintln!("Positional arguments are not accepted when using a passphrase");
+        if !opts.identity.is_empty() {
+            eprintln!("Error: -i/--identity can't be used with -p/--passphrase");
             return;
         }
 
         if opts.input.is_none() {
-            eprintln!("File to decrypt must be passed in with --input when using a passphrase");
+            eprintln!(
+                "Error: file to decrypt must be passed as an argument when using -p/--passphrase"
+            );
             return;
         }
 
@@ -250,7 +281,13 @@ fn decrypt(opts: AgeOptions) {
             Err(_) => return,
         }
     } else {
-        match read_keys(opts.arguments) {
+        if opts.identity.is_empty() {
+            eprintln!("Error: missing identities.");
+            eprintln!("Did you forget to specify -i/--identity?");
+            return;
+        }
+
+        match read_keys(opts.identity) {
             Ok(keys) => {
                 // Check for unsupported keys and alert the user
                 for key in &keys {

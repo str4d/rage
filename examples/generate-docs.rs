@@ -31,10 +31,16 @@ fn rage_page() {
                 .help("Create ASCII armored output (default is age binary format)"),
         )
         .option(
-            Opt::new("input")
+            Opt::new("recipient")
+                .short("-r")
+                .long("--recipient")
+                .help("A recipient to encrypt to (can be repeated)"),
+        )
+        .option(
+            Opt::new("identity")
                 .short("-i")
-                .long("--input")
-                .help("The file path to read input from (defaults to stdin)"),
+                .long("--identity")
+                .help("An identity to decrypt with (can be repeated)"),
         )
         .option(
             Opt::new("output")
@@ -47,35 +53,35 @@ fn rage_page() {
                 .long("--aliases")
                 .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
         )
-        .arg(Arg::new("[arguments...]"))
+        .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
         .example(Example::new().text("Encryption to a public key").command(
-            "echo \"_o/\" | rage -o hello.age pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I",
+            "echo \"_o/\" | rage -o hello.age -r pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I",
         ))
         .example(
             Example::new()
                 .text("Encryption to multiple public keys (with default output to stdout)")
                 .command(
-                    "echo \"_o/\" | rage pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I \
-                     pubkey:jqmfMHBjlb7HoIjjTsCQ9NHIk_q53Uy_ZxmXBhdIpx4 > hello.age",
+                    "echo \"_o/\" | rage -r pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I \
+                     -r pubkey:jqmfMHBjlb7HoIjjTsCQ9NHIk_q53Uy_ZxmXBhdIpx4 > hello.age",
                 ),
         )
         .example(
             Example::new()
                 .text("Encryption with a password (interactive only, use public keys for batch!)")
-                .command("rage -i hello.txt -o hello.txt.age -p")
+                .command("rage -p -o hello.txt.age hello.txt")
                 .output("Type passphrase:"),
         )
         .example(
             Example::new()
                 .text("Encryption to a list of recipients in a file")
-                .command("tar cv ~/xxx | rage recipients.txt > xxx.tar.age"),
+                .command("tar cv ~/xxx | rage -r recipients.txt > xxx.tar.age"),
         )
         .example(
             Example::new()
-                .text("Encryption to a list of age recipients at a URL")
+                .text("Encryption to a list of recipients at an HTTPS URL")
                 .command(
                     "echo \"_o/\" | rage -o hello.age \
-                     https://filippo.io/.well-known/age.keys > hello.age",
+                     -r https://filippo.io/.well-known/age.keys > hello.age",
                 ),
         )
         .example(
@@ -84,23 +90,23 @@ fn rage_page() {
                     "Encryption to a GitHub user \
                      (equivalent to https://github.com/str4d.keys)",
                 )
-                .command("echo \"_o/\" | rage github:str4d | nc 192.0.2.0 1234"),
+                .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
         )
         .example(
             Example::new()
                 .text("Encryption to an alias")
-                .command("tar cv ~/xxx | rage alias:str4d > xxx.tar.age"),
+                .command("tar cv ~/xxx | rage -r alias:str4d > xxx.tar.age"),
         )
         .example(
             Example::new()
                 .text("Decryption with keys at ~/.config/age/keys.txt")
-                .command("rage --decrypt -i hello.age")
+                .command("rage --decrypt hello.age")
                 .output("_o/"),
         )
         .example(
             Example::new()
                 .text("Decryption with custom keys")
-                .command("rage -d -o hello -i hello.age keyA.txt keyB.txt"),
+                .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
         )
         .render();
 
@@ -166,9 +172,14 @@ fn rage_mount_page() {
                 .long("--passphrase")
                 .help("Use a passphrase instead of public keys"),
         )
+        .option(
+            Opt::new("identity")
+                .short("-i")
+                .long("--identity")
+                .help("An identity to decrypt with (can be repeated)"),
+        )
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
-        .arg(Arg::new("[keys...]"))
         .example(
             Example::new()
                 .text("Mounting an archive with keys at ~/.config/age/keys.txt")

@@ -17,9 +17,6 @@ struct AgeMountOptions {
     #[options(free, help = "The directory to mount the filesystem at")]
     mountpoint: String,
 
-    #[options(free, help = "key files for decryption")]
-    keys: Vec<String>,
-
     #[options(help = "print help message")]
     help: bool,
 
@@ -28,6 +25,9 @@ struct AgeMountOptions {
 
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
+
+    #[options(help = "identity to decrypt with (may be repeated)")]
+    identity: Vec<String>,
 }
 
 fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: String)
@@ -55,21 +55,21 @@ fn main() {
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
     if opts.filename.is_empty() {
-        error!("Missing filename");
+        error!("Error: Missing filename");
         return;
     }
     if opts.mountpoint.is_empty() {
-        error!("Missing mountpoint");
+        error!("Error: Missing mountpoint");
         return;
     }
     if opts.types.is_empty() {
-        error!("Missing filesystem type");
+        error!("Error: Missing -t/--types");
         return;
     }
 
     let decryptor = if opts.passphrase {
-        if !opts.keys.is_empty() {
-            error!("Keys are not accepted when using a passphrase");
+        if !opts.identity.is_empty() {
+            eprintln!("Error: -i/--identity can't be used with -p/--passphrase");
             return;
         }
 
@@ -78,7 +78,13 @@ fn main() {
             Err(_) => return,
         }
     } else {
-        match read_keys(opts.keys) {
+        if opts.identity.is_empty() {
+            eprintln!("Error: missing identities.");
+            eprintln!("Did you forget to specify -i/--identity?");
+            return;
+        }
+
+        match read_keys(opts.identity) {
             Ok(keys) => {
                 // Check for unsupported keys and alert the user
                 for key in &keys {
