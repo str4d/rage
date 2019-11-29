@@ -29,10 +29,10 @@ pub fn get_config_dir() -> Option<PathBuf> {
     }
 }
 
-/// Reads keys from the provided files if given, or the default system locations
-/// if no files are given.
-pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
-    let mut keys = vec![];
+/// Reads identities from the provided files if given, or the default system
+/// locations if no files are given.
+pub fn read_identities(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
+    let mut identities = vec![];
 
     if filenames.is_empty() {
         let default_filename = get_config_dir()
@@ -52,15 +52,14 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
             _ => e,
         })?;
         let buf = BufReader::new(f);
-        keys.extend(Identity::from_buffer(buf)?);
+        identities.extend(Identity::from_buffer(buf)?);
     } else {
         for filename in filenames {
-            let buf = BufReader::new(File::open(filename)?);
-            keys.extend(Identity::from_buffer(buf)?);
+            identities.extend(Identity::from_file(filename)?);
         }
     }
 
-    Ok(keys)
+    Ok(identities)
 }
 
 /// Reads a passphrase from stdin.

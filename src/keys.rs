@@ -163,12 +163,14 @@ impl EncryptedKey {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
+        filename: Option<&str>,
     ) -> Option<Result<[u8; 16], Error>> {
         match self {
             EncryptedKey::OpenSsh(enc) => {
-                let passphrase = request_passphrase(
-                    "Type passphrase for OpenSSH key (TODO: figure out how to identify which one)",
-                )?;
+                let passphrase = request_passphrase(&format!(
+                    "Type passphrase for OpenSSH key '{}'",
+                    filename.unwrap_or_default()
+                ))?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
                     Err(e) => {
@@ -346,7 +348,9 @@ impl Identity {
     ) -> Option<Result<[u8; 16], Error>> {
         match &self.key {
             IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
-            IdentityKey::Encrypted(key) => key.unwrap_file_key(line, request_passphrase),
+            IdentityKey::Encrypted(key) => {
+                key.unwrap_file_key(line, request_passphrase, self.filename())
+            }
             IdentityKey::Unsupported(_) => None,
         }
     }

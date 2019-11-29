@@ -1,4 +1,4 @@
-use age::cli_common::{file_io, get_config_dir, read_keys, read_passphrase};
+use age::cli_common::{file_io, get_config_dir, read_identities, read_passphrase};
 use gumdrop::Options;
 use std::collections::HashMap;
 use std::fs::{read_to_string, File};
@@ -287,21 +287,24 @@ fn decrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_keys(opts.identity) {
-            Ok(keys) => {
+        match read_identities(opts.identity) {
+            Ok(identities) => {
                 // Check for unsupported keys and alert the user
-                for key in &keys {
-                    if let age::IdentityKey::Unsupported(k) = key.key() {
-                        eprintln!("Unsupported key: {}", "TODO: key path here");
+                for identity in &identities {
+                    if let age::IdentityKey::Unsupported(k) = identity.key() {
+                        eprintln!(
+                            "Unsupported key: {}",
+                            identity.filename().unwrap_or_default()
+                        );
                         eprintln!();
                         eprintln!("{}", k);
                         return;
                     }
                 }
-                age::Decryptor::Keys(keys)
+                age::Decryptor::Keys(identities)
             }
             Err(e) => {
-                eprintln!("Error while reading keys: {}", e);
+                eprintln!("Error while reading identities: {}", e);
                 return;
             }
         }
