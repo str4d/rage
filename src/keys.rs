@@ -189,6 +189,7 @@ impl EncryptedKey {
 #[derive(Debug)]
 pub enum UnsupportedKey {
     EncryptedPem,
+    EncryptedOpenSsh(String),
 }
 
 impl fmt::Display for UnsupportedKey {
@@ -213,6 +214,29 @@ impl fmt::Display for UnsupportedKey {
                     "force keys to be generated using the new format:",
                     "",
                     "    ssh-keygen -o",
+                ];
+                for line in &message {
+                    writeln!(f, "{}", line)?;
+                }
+            }
+            UnsupportedKey::EncryptedOpenSsh(cipher) => {
+                let currently_unsupported = format!("currently-unsupported cipher ({}).", cipher);
+                let new_issue = format!(
+                    "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{}",
+                    cipher,
+                );
+                let message = [
+                    "Unsupported Cipher for Encrypted OpenSSH Key",
+                    "--------------------------------------------",
+                    "OpenSSH internally supports several different ciphers for encrypted keys,",
+                    "but it has only ever directly generated a few of them. rage supports all",
+                    "ciphers that ssh-keygen might generate, and is being updated on a",
+                    "case-by-case basis with support for non-standard ciphers. Your key uses a",
+                    &currently_unsupported,
+                    "",
+                    "If you would like support for this key type, please open an issue here:",
+                    "",
+                    &new_issue,
                 ];
                 for line in &message {
                     writeln!(f, "{}", line)?;

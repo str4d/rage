@@ -25,15 +25,9 @@ const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 /// OpenSSH-supported ciphers.
 #[derive(Clone, Copy, Debug)]
 enum OpenSshCipher {
-    Aes128Cbc,
-    Aes192Cbc,
-    Aes256Cbc,
     Aes128Ctr,
     Aes192Ctr,
     Aes256Ctr,
-    Aes128Gcm,
-    Aes256Gcm,
-    ChaCha20Poly1305,
 }
 
 impl OpenSshCipher {
@@ -42,7 +36,6 @@ impl OpenSshCipher {
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
             OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
-            _ => Err(Error::UnsupportedEncryptedKey),
         }
     }
 }
@@ -240,7 +233,7 @@ mod read_ssh {
     use super::{
         EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
     };
-    use crate::keys::{EncryptedKey, Identity, SecretKey};
+    use crate::keys::{EncryptedKey, Identity, SecretKey, UnsupportedKey};
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
     fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -265,8 +258,13 @@ mod read_ssh {
         map(string, BigUint::from_bytes_be)(input)
     }
 
+    enum CipherResult {
+        Supported(OpenSshCipher),
+        Unsupported(String),
+    }
+
     /// Parse a cipher and KDF.
-    fn encryption_header(input: &[u8]) -> IResult<&[u8], Option<(OpenSshCipher, OpenSshKdf)>> {
+    fn encryption_header(input: &[u8]) -> IResult<&[u8], Option<(CipherResult, OpenSshKdf)>> {
         alt((
             // If either cipher or KDF is None, both must be.
             map(
@@ -276,20 +274,17 @@ mod read_ssh {
             map(
                 tuple((
                     alt((
-                        map(string_tag("aes128-cbc"), |_| OpenSshCipher::Aes128Cbc),
-                        map(string_tag("aes192-cbc"), |_| OpenSshCipher::Aes192Cbc),
-                        map(string_tag("aes256-cbc"), |_| OpenSshCipher::Aes256Cbc),
-                        map(string_tag("aes128-ctr"), |_| OpenSshCipher::Aes128Ctr),
-                        map(string_tag("aes192-ctr"), |_| OpenSshCipher::Aes192Ctr),
-                        map(string_tag("aes256-ctr"), |_| OpenSshCipher::Aes256Ctr),
-                        map(string_tag("aes128-gcm@openssh.com"), |_| {
-                            OpenSshCipher::Aes128Gcm
+                        map(string_tag("aes128-ctr"), |_| {
+                            CipherResult::Supported(OpenSshCipher::Aes128Ctr)
                         }),
-                        map(string_tag("aes256-gcm@openssh.com"), |_| {
-                            OpenSshCipher::Aes256Gcm
+                        map(string_tag("aes192-ctr"), |_| {
+                            CipherResult::Supported(OpenSshCipher::Aes192Ctr)
                         }),
-                        map(string_tag("chacha20-poly1305@openssh.com"), |_| {
-                            OpenSshCipher::ChaCha20Poly1305
+                        map(string_tag("aes256-ctr"), |_| {
+                            CipherResult::Supported(OpenSshCipher::Aes256Ctr)
+                        }),
+                        map(string, |s| {
+                            CipherResult::Unsupported(String::from_utf8_lossy(s).into_owned())
                         }),
                     )),
                     map(
@@ -425,7 +420,7 @@ mod read_ssh {
                 map_parser(string, openssh_unencrypted_privkey(ssh_key)),
                 Identity::from,
             )(i),
-            Some((cipher, kdf)) => map(string, |encrypted| {
+            Some((CipherResult::Supported(cipher), kdf)) => map(string, |encrypted| {
                 EncryptedKey::OpenSsh(EncryptedOpenSshKey {
                     ssh_key: ssh_key.to_vec(),
                     cipher,
@@ -434,6 +429,10 @@ mod read_ssh {
                 })
                 .into()
             })(i),
+            Some((CipherResult::Unsupported(cipher), _)) => Ok((
+                i,
+                Identity::Unsupported(UnsupportedKey::EncryptedOpenSsh(cipher)),
+            )),
         }
     }
 

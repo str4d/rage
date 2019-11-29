@@ -24,8 +24,6 @@ pub enum Error {
     MessageRequiresPassphrase,
     /// None of the provided keys could be used to decrypt the message.
     NoMatchingKeys,
-    /// The encrypted OpenSSH key is currently unsupported.
-    UnsupportedEncryptedKey,
 }
 
 impl fmt::Display for Error {
@@ -42,7 +40,6 @@ impl fmt::Display for Error {
                 write!(f, "This message requires a passphrase to decrypt")
             }
             Error::NoMatchingKeys => write!(f, "No matching keys found"),
-            Error::UnsupportedEncryptedKey => write!(f, "Unsupported encrypted key"),
         }
     }
 }
