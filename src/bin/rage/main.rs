@@ -1,10 +1,8 @@
-use age::cli_common::{get_config_dir, read_keys, read_passphrase};
+use age::cli_common::{file_io, get_config_dir, read_keys, read_passphrase};
 use gumdrop::Options;
 use std::collections::HashMap;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
-
-mod file_io;
 
 const ALIAS_PREFIX: &str = "alias:";
 const GITHUB_PREFIX: &str = "github:";
@@ -157,9 +155,6 @@ struct AgeOptions {
     #[options(help = "print help message")]
     help: bool,
 
-    #[options(help = "generate a new age key pair")]
-    generate: bool,
-
     #[options(help = "decrypt the input (default is to encrypt)")]
     decrypt: bool,
 
@@ -177,17 +172,6 @@ struct AgeOptions {
 
     #[options(help = "load the aliases list from ALIASES", no_short)]
     aliases: Option<String>,
-}
-
-fn generate_new_key() {
-    let sk = age::SecretKey::generate();
-
-    println!(
-        "# created: {}",
-        chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-    );
-    println!("# {}", sk.to_public().to_str());
-    println!("{}", sk.to_str());
 }
 
 fn encrypt(opts: AgeOptions) {
@@ -318,9 +302,7 @@ fn decrypt(opts: AgeOptions) {
 fn main() {
     let opts = AgeOptions::parse_args_default_or_exit();
 
-    if opts.generate {
-        generate_new_key();
-    } else if opts.decrypt {
+    if opts.decrypt {
         decrypt(opts);
     } else {
         encrypt(opts);

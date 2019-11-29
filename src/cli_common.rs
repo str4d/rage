@@ -8,6 +8,8 @@ use std::path::PathBuf;
 
 use crate::keys::Identity;
 
+pub mod file_io;
+
 /// Returns the age config directory.
 ///
 /// Replicates the behaviour of [os.UserConfigDir] from Golang, which the

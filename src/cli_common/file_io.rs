@@ -1,3 +1,5 @@
+//! File I/O helpers for CLI binaries.
+
 use std::fs::File;
 use std::io::{self, Read, Write};
 
@@ -7,7 +9,9 @@ const TRUNCATED_TTY_MSG: &[u8] =
 
 /// Wrapper around either a file or standard input.
 pub enum InputReader {
+    /// Wrapper around a file.
     File(File),
+    /// Wrapper around standard input.
     Stdin(io::Stdin),
 }
 
@@ -31,6 +35,7 @@ impl Read for InputReader {
     }
 }
 
+/// Writer that wraps standard output to handle TTYs nicely.
 pub struct StdoutWriter {
     inner: io::Stdout,
     count: usize,
@@ -101,7 +106,9 @@ impl Write for StdoutWriter {
 
 /// Wrapper around either a file or standard output.
 pub enum OutputWriter {
+    /// Wrapper around a file.
     File(File),
+    /// Wrapper around standard output.
     Stdout(StdoutWriter),
 }
 

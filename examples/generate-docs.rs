@@ -14,12 +14,6 @@ fn rage_page() {
         )
         .flag(
             Flag::new()
-                .short("-g")
-                .long("--generate")
-                .help("Generate a new age key pair"),
-        )
-        .flag(
-            Flag::new()
                 .short("-d")
                 .long("--decrypt")
                 .help("Decrypt the input (default is to encrypt)"),
@@ -54,11 +48,6 @@ fn rage_page() {
                 .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
         )
         .arg(Arg::new("[arguments...]"))
-        .example(
-            Example::new()
-                .text("Generate a new key pair")
-                .command("rage -g"),
-        )
         .example(Example::new().text("Encryption to a public key").command(
             "echo \"_o/\" | rage -o hello.age pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I",
         ))
@@ -121,6 +110,40 @@ fn rage_page() {
         .expect("Should be able to write to file in target directory");
 }
 
+fn rage_keygen_page() {
+    let page = Manual::new("rage-keygen")
+        .about("Generate age-compatible encryption key pairs")
+        .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
+        .flag(
+            Flag::new()
+                .short("-h")
+                .long("--help")
+                .help("Display help text and exit"),
+        )
+        .option(
+            Opt::new("output")
+                .short("-o")
+                .long("--output")
+                .help("The file path to write the key pair to (defaults to stdout)"),
+        )
+        .example(
+            Example::new()
+                .text("Generate a new key pair")
+                .command("rage-keygen"),
+        )
+        .example(
+            Example::new()
+                .text("Generate a new key pair and save it to a file")
+                .command("rage-keygen -o key.txt"),
+        )
+        .render();
+
+    let mut file = File::create("./target/rage-keygen.1")
+        .expect("Should be able to open file in target directory");
+    file.write_all(page.as_bytes())
+        .expect("Should be able to write to file in target directory");
+}
+
 fn rage_mount_page() {
     let page = Manual::new("rage-mount")
         .about("Mount an age-encrypted filesystem")
@@ -172,5 +195,6 @@ fn rage_mount_page() {
 
 fn main() {
     rage_page();
+    rage_keygen_page();
     rage_mount_page();
 }
