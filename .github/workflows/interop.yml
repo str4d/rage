@@ -54,6 +54,8 @@ jobs:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
+    env:
+      AGE_PUBKEY: pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
 
     steps:
       - uses: actions/download-artifact@v1
@@ -66,16 +68,16 @@ jobs:
       - run: chmod +x age/age
       - name: Install dos2unix for simulating Windows files
         run: sudo apt install dos2unix
-      - name: Write (very not private) key
+      - name: Write (very not private) age key
         run: echo "AGE_SECRET_KEY_CEOQVF2ZAEAYcPmOFH9huOX18t5rxBQ65L7k2WLa604" >key.txt
       - name: Pipes!
-        run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI | ${{ matrix.bob }}/${{ matrix.bob }} -d key.txt | grep -q "^Test string$"
+        run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} $AGE_PUBKEY | ${{ matrix.bob }}/${{ matrix.bob }} -d key.txt | grep -q "^Test string$"
       - name: Encrypt to file
-        run: echo "2 test 2 string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test2.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
+        run: echo "2 test 2 string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test2.age $AGE_PUBKEY
       - name: Decrypt from file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test2.age key.txt | grep -q "^2 test 2 string$"
       - name: Encrypt to ASCII-armored file
-        run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -a -o test3.age pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
+        run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -a -o test3.age $AGE_PUBKEY
       - name: Decrypt from ASCII-armored file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i test3.age key.txt | grep -q "^Test string 3 - ASCII Drift$"
       - name: Convert file to CRLF
