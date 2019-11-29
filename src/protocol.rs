@@ -253,7 +253,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
 \xfbM84W\x98#\x0bj\xc8\x96\x95\xa7\x9ac\xb9\xaa-\xd5\xd0&aM\xba#H~\xbc\x97\xc8i\x1f\x14\x08\xba&4\xb2\x87\x9d\x80Sb\xed\xbe0\xda\x93\xc7\xab^o";
 
         let buf = BufReader::new(test_key.as_bytes());
-        let d = Decryptor::Keys(Identity::from_data(buf).unwrap());
+        let d = Decryptor::Keys(Identity::from_buffer(buf).unwrap());
         let mut r1 = d.trial_decrypt(&test_msg_1[..], |_| None).unwrap();
         let mut r2 = d.trial_decrypt(&test_msg_2[..], |_| None).unwrap();
 
@@ -269,7 +269,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
-        let sk = Identity::from_data(buf).unwrap();
+        let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
 
         let test_msg = b"This is a test message. For testing.";
@@ -293,7 +293,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
     #[test]
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
-        let sk = Identity::from_data(buf).unwrap();
+        let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
 
         let test_msg = b"This is a test message. For testing.";

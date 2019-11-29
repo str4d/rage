@@ -276,8 +276,8 @@ impl From<UnsupportedKey> for Identity {
 }
 
 impl Identity {
-    /// Parses a list of secret keys from a string.
-    pub fn from_data<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
+    /// Parses a list of secret keys from a buffered input containing valid UTF-8.
+    pub fn from_buffer<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
         let mut buf = String::new();
         loop {
             match read::secret_keys(&buf) {
@@ -548,7 +548,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn secret_key_encoding() {
         let buf = BufReader::new(TEST_SK.as_bytes());
-        let keys = Identity::from_data(buf).unwrap();
+        let keys = Identity::from_buffer(buf).unwrap();
         assert_eq!(keys.len(), 1);
         let key = match &keys[0] {
             Identity::Unencrypted(key) => key,
@@ -566,7 +566,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn pubkey_from_secret_key() {
         let buf = BufReader::new(TEST_SK.as_bytes());
-        let keys = Identity::from_data(buf).unwrap();
+        let keys = Identity::from_buffer(buf).unwrap();
         assert_eq!(keys.len(), 1);
         let key = match &keys[0] {
             Identity::Unencrypted(key) => key,
@@ -578,7 +578,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
-        let keys = Identity::from_data(buf).unwrap();
+        let keys = Identity::from_buffer(buf).unwrap();
         let sk = match &keys[0] {
             Identity::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
@@ -595,7 +595,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
-        let keys = Identity::from_data(buf).unwrap();
+        let keys = Identity::from_buffer(buf).unwrap();
         let sk = match &keys[0] {
             Identity::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),

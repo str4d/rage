@@ -52,11 +52,11 @@ pub fn read_keys(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
             _ => e,
         })?;
         let buf = BufReader::new(f);
-        keys.extend(Identity::from_data(buf)?);
+        keys.extend(Identity::from_buffer(buf)?);
     } else {
         for filename in filenames {
             let buf = BufReader::new(File::open(filename)?);
-            keys.extend(Identity::from_data(buf)?);
+            keys.extend(Identity::from_buffer(buf)?);
         }
     }
 
