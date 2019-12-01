@@ -108,7 +108,7 @@ mod read_asn1 {
         sequence::{preceded, terminated, tuple},
         IResult,
     };
-    use num_bigint_dig::BigUint;
+    use rsa::BigUint;
 
     fn der_type(class: u8, pc: u8, num: u8) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
         assert!(class < 4);
@@ -227,7 +227,7 @@ mod read_ssh {
         sequence::{pair, preceded, terminated, tuple},
         IResult,
     };
-    use num_bigint_dig::BigUint;
+    use rsa::BigUint;
     use secrecy::Secret;
 
     use super::{
@@ -475,8 +475,8 @@ mod read_ssh {
 
 mod write_ssh {
     use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
-    use num_bigint_dig::BigUint;
     use num_traits::identities::Zero;
+    use rsa::BigUint;
     use rsa::PublicKey;
     use std::io::Write;
 

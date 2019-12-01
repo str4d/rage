@@ -29,11 +29,10 @@ getrandom = "0.1"
 hkdf = "0.8"
 hmac = "0.7"
 nom = "5"
-num-bigint-dig = "0.4"
 num-traits = "0.2"
 pbkdf2 = "0.3"
 rand = "0.6"
-rsa = { git = "https://github.com/lucdew/RSA", branch = "oaep" }
+rsa = "0.1.4"
 scrypt = { version = "0.2", default-features = false }
 secrecy = "0.5"
 sha2 = "0.8"
@@ -71,3 +70,6 @@ mount = ["cli-common", "env_logger", "fuse_mt", "libc", "log", "tar", "time", "z
 [[bin]]
 name = "rage-mount"
 required-features = ["mount"]
+
+[patch.crates-io]
+rsa = { git = "https://github.com/str4d/RSA", branch = "oaep" }
