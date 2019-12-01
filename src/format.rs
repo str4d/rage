@@ -150,45 +150,16 @@ impl Header {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{tag, take},
+        bytes::streaming::tag,
         character::streaming::digit1,
-        combinator::{map, map_opt, map_res},
-        error::{make_error, ErrorKind},
+        combinator::{map, map_res},
         multi::separated_nonempty_list,
         sequence::{pair, preceded, separated_pair, terminated},
         IResult,
     };
 
     use super::*;
-    use crate::util::take_b64_line;
-
-    fn encoded_data<T: Copy + AsMut<[u8]>>(
-        count: usize,
-        template: T,
-    ) -> impl Fn(&[u8]) -> IResult<&[u8], T> {
-        // Unpadded encoded length
-        let encoded_count = ((4 * count) + 2) / 3;
-
-        move |input: &[u8]| {
-            // Cannot take the input directly, so we copy it here. We only call this with
-            // short slices, so this continues to avoid allocations.
-            let mut buf = template;
-
-            // take() returns the total number of bytes it needs, not the
-            // additional number of bytes like other APIs.
-            let (i, data) = take(encoded_count)(input).map_err(|e| match e {
-                nom::Err::Incomplete(nom::Needed::Size(n)) if n == encoded_count => {
-                    nom::Err::Incomplete(nom::Needed::Size(encoded_count - input.len()))
-                }
-                e => e,
-            })?;
-
-            match base64::decode_config_slice(data, base64::URL_SAFE_NO_PAD, buf.as_mut()) {
-                Ok(_) => Ok((i, buf)),
-                Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
-            }
-        }
-    }
+    use crate::util::read::{encoded_data, wrapped_encoded_data};
 
     fn x25519_epk(input: &[u8]) -> IResult<&[u8], PublicKey> {
         map(encoded_data(32, [0; 32]), PublicKey::from)(input)
@@ -253,28 +224,6 @@ mod read {
         encoded_data(4, [0; 4])(input)
     }
 
-    fn ssh_rsa_body<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
-        move |input: &[u8]| {
-            map_opt(
-                separated_nonempty_list(line_ending, take_b64_line(base64::URL_SAFE_NO_PAD)),
-                |chunks| {
-                    // Enforce that the only chunk allowed to be shorter than 56 characters
-                    // is the last chunk.
-                    if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
-                        || chunks.last().map(|s| s.len() > 56) == Some(true)
-                    {
-                        None
-                    } else {
-                        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                        base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
-                    }
-                },
-            )(input)
-        }
-    }
-
     fn ssh_rsa_recipient_line<'a, N>(
         line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
@@ -282,7 +231,7 @@ mod read {
             preceded(
                 tag(SSH_RSA_RECIPIENT_TAG),
                 map(
-                    separated_pair(ssh_tag, line_ending, ssh_rsa_body(line_ending)),
+                    separated_pair(ssh_tag, line_ending, wrapped_encoded_data(line_ending)),
                     |(tag, encrypted_file_key)| {
                         RecipientLine::SshRsa(SshRsaRecipientLine {
                             tag,
@@ -402,12 +351,10 @@ mod write {
     use std::io::Write;
 
     use super::*;
-    use crate::util::LINE_ENDING;
-
-    fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
-        string(encoded)
-    }
+    use crate::util::{
+        write::{encoded_data, wrapped_encoded_data},
+        LINE_ENDING,
+    };
 
     fn x25519_recipient_line<'a, W: 'a + Write>(
         r: &X25519RecipientLine,
@@ -433,28 +380,6 @@ mod write {
         ))
     }
 
-    fn ssh_rsa_body<'a, W: 'a + Write>(
-        data: &[u8],
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
-
-        move |mut w: WriteContext<W>| {
-            let mut s = encoded.as_str();
-
-            while s.len() > 56 {
-                let (l, r) = s.split_at(56);
-                w = string(l)(w)?;
-                if !r.is_empty() {
-                    w = string(line_ending)(w)?;
-                }
-                s = r;
-            }
-
-            string(s)(w)
-        }
-    }
-
     fn ssh_rsa_recipient_line<'a, W: 'a + Write>(
         r: &SshRsaRecipientLine,
         line_ending: &'a str,
@@ -463,7 +388,7 @@ mod write {
             slice(SSH_RSA_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(line_ending),
-            ssh_rsa_body(&r.encrypted_file_key, line_ending),
+            wrapped_encoded_data(&r.encrypted_file_key, line_ending),
         ))
     }
 
