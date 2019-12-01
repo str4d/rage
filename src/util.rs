@@ -12,7 +12,7 @@ const ARMORED_END_MARKER: &str = "--- end of file ---";
 
 pub(crate) mod read {
     use nom::{
-        combinator::map_res,
+        combinator::{map_opt, map_res},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
         IResult,
@@ -118,6 +118,58 @@ pub(crate) mod read {
                 |chunks| {
                     let data = chunks.join("");
                     base64::decode_config(&data, config)
+                },
+            )(input)
+        }
+    }
+
+    pub(crate) fn encoded_data<T: Copy + AsMut<[u8]>>(
+        count: usize,
+        template: T,
+    ) -> impl Fn(&[u8]) -> IResult<&[u8], T> {
+        use nom::bytes::streaming::take;
+
+        // Unpadded encoded length
+        let encoded_count = ((4 * count) + 2) / 3;
+
+        move |input: &[u8]| {
+            // Cannot take the input directly, so we copy it here. We only call this with
+            // short slices, so this continues to avoid allocations.
+            let mut buf = template;
+
+            // take() returns the total number of bytes it needs, not the
+            // additional number of bytes like other APIs.
+            let (i, data) = take(encoded_count)(input).map_err(|e| match e {
+                nom::Err::Incomplete(nom::Needed::Size(n)) if n == encoded_count => {
+                    nom::Err::Incomplete(nom::Needed::Size(encoded_count - input.len()))
+                }
+                e => e,
+            })?;
+
+            match base64::decode_config_slice(data, base64::URL_SAFE_NO_PAD, buf.as_mut()) {
+                Ok(_) => Ok((i, buf)),
+                Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
+            }
+        }
+    }
+
+    pub(crate) fn wrapped_encoded_data<'a, N>(
+        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
+        move |input: &[u8]| {
+            map_opt(
+                separated_nonempty_list(line_ending, take_b64_line(base64::URL_SAFE_NO_PAD)),
+                |chunks| {
+                    // Enforce that the only chunk allowed to be shorter than 56 characters
+                    // is the last chunk.
+                    if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
+                        || chunks.last().map(|s| s.len() > 56) == Some(true)
+                    {
+                        None
+                    } else {
+                        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                        base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
+                    }
                 },
             )(input)
         }
