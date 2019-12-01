@@ -319,7 +319,12 @@ impl Identity {
                     }
                 }
                 Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
-                    data.read_line(&mut buf)?;
+                    if data.read_line(&mut buf)? == 0 {
+                        break Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "incomplete secret keys in file",
+                        ));
+                    };
                 }
                 Err(_) => {
                     break Err(io::Error::new(
@@ -598,6 +603,12 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
             _ => panic!("key should be unencrypted"),
         };
         assert_eq!(key.to_str(), TEST_SK);
+    }
+
+    #[test]
+    fn incomplete_secret_key_encoding() {
+        let buf = BufReader::new(&TEST_SK.as_bytes()[..4]);
+        assert!(Identity::from_buffer(buf).is_err());
     }
 
     #[test]
