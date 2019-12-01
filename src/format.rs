@@ -160,7 +160,7 @@ mod read {
     };
 
     use super::*;
-    use crate::util::take_b64_line;
+    use crate::util::read::take_b64_line;
 
     fn encoded_data<T: Copy + AsMut<[u8]>>(
         count: usize,

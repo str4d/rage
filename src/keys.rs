@@ -487,12 +487,12 @@ mod read {
     };
 
     use super::*;
-    use crate::{openssh::ssh_secret_keys, util::read_encoded_str};
+    use crate::{openssh::ssh_secret_keys, util::read::encoded_str};
 
     fn age_secret_key(input: &str) -> IResult<&str, Identity> {
         preceded(
             tag(SECRET_KEY_PREFIX),
-            map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
+            map(encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
                 let mut pk = [0; 32];
                 pk.copy_from_slice(&buf);
                 SecretKey::X25519(pk.into()).into()
@@ -537,7 +537,7 @@ mod read {
     pub(super) fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
         preceded(
             tag(PUBLIC_KEY_PREFIX),
-            map(read_encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
+            map(encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
                 let mut pk = [0; 32];
                 pk.copy_from_slice(&buf);
                 RecipientKey::X25519(pk.into())

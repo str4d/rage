@@ -14,7 +14,7 @@ use secrecy::{ExposeSecret, SecretString};
 use crate::{
     error::Error,
     keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
-    util::{read_encoded_str, read_str_while_encoded, read_wrapped_str_while_encoded},
+    util::read::{encoded_str, str_while_encoded, wrapped_str_while_encoded},
 };
 
 mod bcrypt;
@@ -537,7 +537,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
             map_opt(
                 pair(
                     opt(terminated(rsa_pem_encryption_header, newline)),
-                    read_wrapped_str_while_encoded(base64::STANDARD),
+                    wrapped_str_while_encoded(base64::STANDARD),
                 ),
                 |(enc_header, privkey)| {
                     if enc_header.is_some() {
@@ -564,10 +564,9 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
         terminated(
-            map_opt(
-                read_wrapped_str_while_encoded(base64::STANDARD),
-                |privkey| read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key),
-            ),
+            map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
+                read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
+            }),
             pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
         ),
     )(input)
@@ -580,24 +579,26 @@ pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Identity> {
 fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
-        map_opt(read_str_while_encoded(base64::STANDARD_NO_PAD), |ssh_key| {
-            match read_ssh::rsa_pubkey(&ssh_key) {
+        map_opt(
+            str_while_encoded(base64::STANDARD_NO_PAD),
+            |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(Some(RecipientKey::SshRsa(ssh_key, pk))),
                 Err(_) => None,
-            }
-        }),
+            },
+        ),
     )(input)
 }
 
 fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
-        map_opt(read_encoded_str(51, base64::STANDARD_NO_PAD), |ssh_key| {
-            match read_ssh::ed25519_pubkey(&ssh_key) {
+        map_opt(
+            encoded_str(51, base64::STANDARD_NO_PAD),
+            |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(Some(RecipientKey::SshEd25519(ssh_key, pk))),
                 Err(_) => None,
-            }
-        }),
+            },
+        ),
     )(input)
 }
 
@@ -605,7 +606,7 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     // Key types we want to ignore in SSH pubkey files
     preceded(
         pair(tag("ecdsa-sha2-nistp256"), tag(" ")),
-        map(read_str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
+        map(str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
     )(input)
 }
 
