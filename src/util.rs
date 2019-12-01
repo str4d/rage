@@ -124,6 +124,38 @@ pub(crate) mod read {
     }
 }
 
+pub(crate) mod write {
+    use cookie_factory::{combinator::string, SerializeFn, WriteContext};
+    use std::io::Write;
+
+    pub(crate) fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
+        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
+        string(encoded)
+    }
+
+    pub(crate) fn wrapped_encoded_data<'a, W: 'a + Write>(
+        data: &[u8],
+        line_ending: &'a str,
+    ) -> impl SerializeFn<W> + 'a {
+        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
+
+        move |mut w: WriteContext<W>| {
+            let mut s = encoded.as_str();
+
+            while s.len() > 56 {
+                let (l, r) = s.split_at(56);
+                w = string(l)(w)?;
+                if !r.is_empty() {
+                    w = string(line_ending)(w)?;
+                }
+                s = r;
+            }
+
+            string(s)(w)
+        }
+    }
+}
+
 pub(crate) struct ArmoredWriter<W: Write> {
     inner: W,
     enabled: bool,

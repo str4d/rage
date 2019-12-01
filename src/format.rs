@@ -402,12 +402,10 @@ mod write {
     use std::io::Write;
 
     use super::*;
-    use crate::util::LINE_ENDING;
-
-    fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
-        string(encoded)
-    }
+    use crate::util::{
+        write::{encoded_data, wrapped_encoded_data},
+        LINE_ENDING,
+    };
 
     fn x25519_recipient_line<'a, W: 'a + Write>(
         r: &X25519RecipientLine,
@@ -433,28 +431,6 @@ mod write {
         ))
     }
 
-    fn ssh_rsa_body<'a, W: 'a + Write>(
-        data: &[u8],
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
-
-        move |mut w: WriteContext<W>| {
-            let mut s = encoded.as_str();
-
-            while s.len() > 56 {
-                let (l, r) = s.split_at(56);
-                w = string(l)(w)?;
-                if !r.is_empty() {
-                    w = string(line_ending)(w)?;
-                }
-                s = r;
-            }
-
-            string(s)(w)
-        }
-    }
-
     fn ssh_rsa_recipient_line<'a, W: 'a + Write>(
         r: &SshRsaRecipientLine,
         line_ending: &'a str,
@@ -463,7 +439,7 @@ mod write {
             slice(SSH_RSA_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(line_ending),
-            ssh_rsa_body(&r.encrypted_file_key, line_ending),
+            wrapped_encoded_data(&r.encrypted_file_key, line_ending),
         ))
     }
 
