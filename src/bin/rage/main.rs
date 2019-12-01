@@ -1,6 +1,7 @@
 use age::cli_common::{file_io, get_config_dir, read_identities, read_passphrase};
 use gumdrop::Options;
 use std::collections::HashMap;
+use std::env;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
 
@@ -340,6 +341,10 @@ fn decrypt(opts: AgeOptions) {
 }
 
 fn main() {
+    if env::var("RUST_LOG").is_ok() {
+        env_logger::builder().format_timestamp(None).init();
+    }
+
     let opts = AgeOptions::parse_args_default_or_exit();
 
     if opts.decrypt {

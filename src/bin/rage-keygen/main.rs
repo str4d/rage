@@ -1,5 +1,6 @@
 use age::cli_common::file_io;
 use gumdrop::Options;
+use std::env;
 use std::io::Write;
 
 #[derive(Debug, Options)]
@@ -12,6 +13,10 @@ struct AgeOptions {
 }
 
 fn main() {
+    if env::var("RUST_LOG").is_ok() {
+        env_logger::builder().format_timestamp(None).init();
+    }
+
     let opts = AgeOptions::parse_args_default_or_exit();
 
     let mut output = match file_io::OutputWriter::new(opts.output, false) {

@@ -44,7 +44,7 @@ dialoguer = { version = "0.4", optional = true }
 dirs = { version = "2", optional = true }
 gumdrop = { version = "0.6", optional = true }
 
-# rage dependencies
+# rage and rage-keygen dependencies
 chrono = { version = "0.4", optional = true }
 console = { version = "0.9", optional = true }
 minreq = { version = "1.4", features = ["https"], optional = true }
@@ -64,7 +64,7 @@ man = "0.3"
 [features]
 default = ["cli"]
 cli-common = ["dialoguer", "dirs", "gumdrop"]
-cli = ["cli-common", "chrono", "console", "minreq"]
+cli = ["cli-common", "chrono", "console", "env_logger", "minreq"]
 mount = ["cli-common", "env_logger", "fuse_mt", "libc", "log", "tar", "time", "zip"]
 
 [[bin]]
