@@ -43,7 +43,7 @@ pub enum SecretKey {
 impl SecretKey {
     /// Generates a new secret key.
     pub fn generate() -> Self {
-        let mut rng = OsRng::new().expect("can construct OsRng");
+        let mut rng = OsRng;
         SecretKey::X25519(StaticSecret::new(&mut rng))
     }
 
@@ -95,7 +95,7 @@ impl SecretKey {
                     return None;
                 }
 
-                let mut rng = OsRng::new().expect("should have RNG");
+                let mut rng = OsRng;
                 let mut h = Sha256::default();
 
                 // A failure to decrypt is fatal, because we assume that we won't
@@ -414,7 +414,7 @@ impl RecipientKey {
     pub(crate) fn wrap_file_key(&self, file_key: &[u8; 16]) -> RecipientLine {
         match self {
             RecipientKey::X25519(pk) => {
-                let mut rng = OsRng::new().expect("can construct OsRng");
+                let mut rng = OsRng;
                 let esk = EphemeralSecret::new(&mut rng);
                 let epk: PublicKey = (&esk).into();
                 let shared_secret = esk.diffie_hellman(pk);
@@ -433,7 +433,7 @@ impl RecipientKey {
                 RecipientLine::x25519(epk, encrypted_file_key)
             }
             RecipientKey::SshRsa(ssh_key, pk) => {
-                let mut rng = OsRng::new().expect("should have RNG");
+                let mut rng = OsRng;
                 let mut h = Sha256::default();
 
                 let encrypted_file_key = rsa::oaep::encrypt(
@@ -454,7 +454,7 @@ impl RecipientKey {
                     .as_bytes())
                 .into();
 
-                let mut rng = OsRng::new().expect("can construct OsRng");
+                let mut rng = OsRng;
                 let esk = EphemeralSecret::new(&mut rng);
                 let epk: PublicKey = (&esk).into();
                 let shared_secret = esk.diffie_hellman(&pk);
