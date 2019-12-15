@@ -40,7 +40,7 @@ jobs:
       - name: go build
         run: |
           cd $GITHUB_WORKSPACE/../age
-          go build github.com/FiloSottile/age/cmd/age
+          go build filippo.io/age/cmd/age
       - uses: actions/upload-artifact@v1
         with:
           name: age
