@@ -43,6 +43,7 @@ zeroize = "1"
 dialoguer = { version = "0.4", optional = true }
 dirs = { version = "2", optional = true }
 gumdrop = { version = "0.6", optional = true }
+log = { version = "0.4", optional = true }
 
 # rage and rage-keygen dependencies
 chrono = { version = "0.4", optional = true }
@@ -53,7 +54,6 @@ minreq = { version = "1.4", features = ["https"], optional = true }
 env_logger = { version = "0.7", optional = true }
 fuse_mt = { version = "0.5", optional = true }
 libc = { version = "0.2", optional = true }
-log = { version = "0.4", optional = true }
 tar = { version = "0.4", optional = true }
 time = { version = "0.1", optional = true }
 zip = { version = "0.5", optional = true }
@@ -63,9 +63,9 @@ man = "0.3"
 
 [features]
 default = ["cli"]
-cli-common = ["dialoguer", "dirs", "gumdrop"]
+cli-common = ["dialoguer", "dirs", "gumdrop", "log"]
 cli = ["cli-common", "chrono", "console", "env_logger", "minreq"]
-mount = ["cli-common", "env_logger", "fuse_mt", "libc", "log", "tar", "time", "zip"]
+mount = ["cli-common", "env_logger", "fuse_mt", "libc", "tar", "time", "zip"]
 
 [[bin]]
 name = "rage-mount"

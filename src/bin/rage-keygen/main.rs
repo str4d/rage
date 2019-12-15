@@ -1,6 +1,6 @@
 use age::cli_common::file_io;
 use gumdrop::Options;
-use std::env;
+use log::error;
 use std::io::Write;
 
 #[derive(Debug, Options)]
@@ -13,16 +13,14 @@ struct AgeOptions {
 }
 
 fn main() {
-    if env::var("RUST_LOG").is_ok() {
-        env_logger::builder().format_timestamp(None).init();
-    }
+    env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
     let mut output = match file_io::OutputWriter::new(opts.output, false) {
         Ok(output) => output,
         Err(e) => {
-            eprintln!("Failed to open output: {}", e);
+            error!("Failed to open output: {}", e);
             return;
         }
     };
@@ -38,6 +36,6 @@ fn main() {
         writeln!(output, "# {}", sk.to_public().to_str())?;
         writeln!(output, "{}", sk.to_str())
     })() {
-        eprintln!("Failed to write to output: {}", e);
+        error!("Failed to write to output: {}", e);
     }
 }

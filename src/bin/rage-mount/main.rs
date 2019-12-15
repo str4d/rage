@@ -50,26 +50,26 @@ where
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
     if opts.filename.is_empty() {
-        error!("Error: Missing filename");
+        error!("Missing filename");
         return;
     }
     if opts.mountpoint.is_empty() {
-        error!("Error: Missing mountpoint");
+        error!("Missing mountpoint");
         return;
     }
     if opts.types.is_empty() {
-        error!("Error: Missing -t/--types");
+        error!("Missing -t/--types");
         return;
     }
 
     let decryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
-            eprintln!("Error: -i/--identity can't be used with -p/--passphrase");
+            error!("-i/--identity can't be used with -p/--passphrase");
             return;
         }
 
@@ -79,8 +79,8 @@ fn main() {
         }
     } else {
         if opts.identity.is_empty() {
-            eprintln!("Error: missing identities.");
-            eprintln!("Did you forget to specify -i/--identity?");
+            error!("Missing identities.");
+            error!("Did you forget to specify -i/--identity?");
             return;
         }
 
@@ -89,19 +89,19 @@ fn main() {
                 // Check for unsupported keys and alert the user
                 for identity in &identities {
                     if let age::IdentityKey::Unsupported(k) = identity.key() {
-                        eprintln!(
+                        error!(
                             "Unsupported key: {}",
                             identity.filename().unwrap_or_default()
                         );
-                        eprintln!();
-                        eprintln!("{}", k);
+                        error!("");
+                        error!("{}", k);
                         return;
                     }
                 }
                 age::Decryptor::Keys(identities)
             }
             Err(e) => {
-                eprintln!("Error while reading identities: {}", e);
+                error!("Failed to read identities: {}", e);
                 return;
             }
         }
@@ -111,7 +111,7 @@ fn main() {
     let file = match File::open(opts.filename) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("Failed to open file: {}", e);
+            error!("Failed to open file: {}", e);
             return;
         }
     };
@@ -121,7 +121,7 @@ fn main() {
     {
         Ok(stream) => stream,
         Err(e) => {
-            eprintln!("Failed to decrypt file: {}", e);
+            error!("Failed to decrypt file: {}", e);
             return;
         }
     };

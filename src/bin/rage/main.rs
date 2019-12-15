@@ -1,7 +1,7 @@
 use age::cli_common::{file_io, get_config_dir, read_identities, read_passphrase};
 use gumdrop::Options;
+use log::{error, warn};
 use std::collections::HashMap;
-use std::env;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
 
@@ -54,7 +54,7 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
                 Ok(key) => recipients.push(key),
                 Err(<age::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
                 Err(e) => {
-                    eprintln!("{:?}", e);
+                    error!("{:?}", e);
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         format!("recipients file {} contains non-recipient data", filename),
@@ -97,7 +97,7 @@ fn read_recipients(
             recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
             if seen_aliases.contains(&arg) {
-                eprintln!("Warning: duplicate {}", arg);
+                warn!("Duplicate {}", arg);
             } else {
                 // Replace the alias in the arguments list with its expansion
                 arguments.extend(aliases.remove(&arg[ALIAS_PREFIX.len()..]).ok_or_else(|| {
@@ -180,21 +180,19 @@ struct AgeOptions {
 
 fn encrypt(opts: AgeOptions) {
     if !opts.identity.is_empty() {
-        eprintln!("Error: -i/--identity can't be used in encryption mode.");
-        eprintln!("Did you forget to specify -d/--decrypt?");
+        error!("-i/--identity can't be used in encryption mode.");
+        error!("Did you forget to specify -d/--decrypt?");
         return;
     }
 
     let encryptor = if opts.passphrase {
         if !opts.recipient.is_empty() {
-            eprintln!("Error: -r/--recipient can't be used with -p/--passphrase");
+            error!("-r/--recipient can't be used with -p/--passphrase");
             return;
         }
 
         if opts.input.is_none() {
-            eprintln!(
-                "Error: file to encrypt must be passed as an argument when using -p/--passphrase"
-            );
+            error!("File to encrypt must be passed as an argument when using -p/--passphrase");
             return;
         }
 
@@ -204,15 +202,15 @@ fn encrypt(opts: AgeOptions) {
         }
     } else {
         if opts.recipient.is_empty() {
-            eprintln!("Error: missing recipients.");
-            eprintln!("Did you forget to specify -r/--recipient?");
+            error!("Missing recipients.");
+            error!("Did you forget to specify -r/--recipient?");
             return;
         }
 
         match read_recipients(opts.recipient, opts.aliases) {
             Ok(recipients) => age::Encryptor::Keys(recipients),
             Err(e) => {
-                eprintln!("Error while reading recipients: {}", e);
+                error!("Error while reading recipients: {}", e);
                 return;
             }
         }
@@ -221,7 +219,7 @@ fn encrypt(opts: AgeOptions) {
     let mut input = match file_io::InputReader::new(opts.input) {
         Ok(input) => input,
         Err(e) => {
-            eprintln!("Failed to open input: {}", e);
+            error!("Failed to open input: {}", e);
             return;
         }
     };
@@ -229,7 +227,7 @@ fn encrypt(opts: AgeOptions) {
     let output = match file_io::OutputWriter::new(opts.output, true) {
         Ok(output) => output,
         Err(e) => {
-            eprintln!("Failed to open output: {}", e);
+            error!("Failed to open output: {}", e);
             return;
         }
     };
@@ -237,43 +235,41 @@ fn encrypt(opts: AgeOptions) {
     match encryptor.wrap_output(output, opts.armor) {
         Ok(mut w) => {
             if let Err(e) = io::copy(&mut input, &mut w) {
-                eprintln!("Error while encrypting: {}", e);
+                error!("Error while encrypting: {}", e);
                 return;
             }
             if let Err(e) = w.flush() {
-                eprintln!("Error while encrypting: {}", e);
+                error!("Error while encrypting: {}", e);
                 return;
             }
         }
         Err(e) => {
-            eprintln!("Failed to encrypt: {}", e);
+            error!("Failed to encrypt: {}", e);
         }
     }
 }
 
 fn decrypt(opts: AgeOptions) {
     if opts.armor {
-        eprintln!("Error: -a/--armor can't be used with -d/--decrypt.");
-        eprintln!("Note that armored files are detected automatically.");
+        error!("-a/--armor can't be used with -d/--decrypt.");
+        error!("Note that armored files are detected automatically.");
         return;
     }
 
     if !opts.recipient.is_empty() {
-        eprintln!("Error: -r/--recipient can't be used with -d/--decrypt.");
-        eprintln!("Did you mean to use -i/--identity to specify a private key?");
+        error!("-r/--recipient can't be used with -d/--decrypt.");
+        error!("Did you mean to use -i/--identity to specify a private key?");
         return;
     }
 
     let decryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
-            eprintln!("Error: -i/--identity can't be used with -p/--passphrase");
+            error!("-i/--identity can't be used with -p/--passphrase");
             return;
         }
 
         if opts.input.is_none() {
-            eprintln!(
-                "Error: file to decrypt must be passed as an argument when using -p/--passphrase"
-            );
+            error!("File to decrypt must be passed as an argument when using -p/--passphrase");
             return;
         }
 
@@ -283,8 +279,8 @@ fn decrypt(opts: AgeOptions) {
         }
     } else {
         if opts.identity.is_empty() {
-            eprintln!("Error: missing identities.");
-            eprintln!("Did you forget to specify -i/--identity?");
+            error!("Missing identities.");
+            error!("Did you forget to specify -i/--identity?");
             return;
         }
 
@@ -293,19 +289,19 @@ fn decrypt(opts: AgeOptions) {
                 // Check for unsupported keys and alert the user
                 for identity in &identities {
                     if let age::IdentityKey::Unsupported(k) = identity.key() {
-                        eprintln!(
+                        error!(
                             "Unsupported key: {}",
                             identity.filename().unwrap_or_default()
                         );
-                        eprintln!();
-                        eprintln!("{}", k);
+                        error!("");
+                        error!("{}", k);
                         return;
                     }
                 }
                 age::Decryptor::Keys(identities)
             }
             Err(e) => {
-                eprintln!("Error while reading identities: {}", e);
+                error!("Error while reading identities: {}", e);
                 return;
             }
         }
@@ -314,7 +310,7 @@ fn decrypt(opts: AgeOptions) {
     let input = match file_io::InputReader::new(opts.input) {
         Ok(input) => input,
         Err(e) => {
-            eprintln!("Failed to open input: {}", e);
+            error!("Failed to open input: {}", e);
             return;
         }
     };
@@ -322,7 +318,7 @@ fn decrypt(opts: AgeOptions) {
     let mut output = match file_io::OutputWriter::new(opts.output, false) {
         Ok(output) => output,
         Err(e) => {
-            eprintln!("Failed to open output: {}", e);
+            error!("Failed to open output: {}", e);
             return;
         }
     };
@@ -333,17 +329,15 @@ fn decrypt(opts: AgeOptions) {
     match maybe_decrypted {
         Ok(mut r) => {
             if let Err(e) = io::copy(&mut r, &mut output) {
-                eprintln!("Error while decrypting: {}", e);
+                error!("Error while decrypting: {}", e);
             }
         }
-        Err(e) => eprintln!("Failed to decrypt: {}", e),
+        Err(e) => error!("Failed to decrypt: {}", e),
     }
 }
 
 fn main() {
-    if env::var("RUST_LOG").is_ok() {
-        env_logger::builder().format_timestamp(None).init();
-    }
+    env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
