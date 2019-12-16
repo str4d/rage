@@ -411,3 +411,36 @@ impl<R: Read> Read for ArmoredReader<R> {
         Ok(buf_len - buf.len())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Read, Write};
+
+    use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
+
+    #[test]
+    fn armored_round_trip() {
+        const MAX_LEN: usize = ARMORED_BYTES_PER_LINE * 50;
+
+        let mut data = Vec::with_capacity(MAX_LEN);
+
+        for i in 0..MAX_LEN {
+            data.push(i as u8);
+
+            let mut encoded = vec![];
+            {
+                let mut out = ArmoredWriter::wrap_output(&mut encoded, true);
+                out.write_all(&data).unwrap();
+                out.flush().unwrap();
+            }
+
+            let mut buf = vec![];
+            {
+                let mut input = ArmoredReader::from_reader(&encoded[..], true);
+                input.read_to_end(&mut buf).unwrap();
+            }
+
+            assert_eq!(buf, data);
+        }
+    }
+}
