@@ -6,21 +6,15 @@ use x25519_dalek::PublicKey;
 use crate::primitives::HmacWriter;
 
 pub(crate) mod scrypt;
+pub(crate) mod ssh_rsa;
 pub(crate) mod x25519;
 
 const BINARY_MAGIC: &[u8] = b"This is a file";
 const ARMORED_MAGIC: &[u8] = b"This is an armored file";
 const V1_MAGIC: &[u8] = b"encrypted with age-tool.com, version 1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
-const SSH_RSA_RECIPIENT_TAG: &[u8] = b"ssh-rsa ";
 const SSH_ED25519_RECIPIENT_TAG: &[u8] = b"ssh-ed25519 ";
 const MAC_TAG: &[u8] = b"---";
-
-#[derive(Debug)]
-pub(crate) struct SshRsaRecipientLine {
-    pub(crate) tag: [u8; 4],
-    pub(crate) encrypted_file_key: Vec<u8>,
-}
 
 #[derive(Debug)]
 pub(crate) struct SshEd25519RecipientLine {
@@ -32,7 +26,7 @@ pub(crate) struct SshEd25519RecipientLine {
 pub(crate) enum RecipientLine {
     X25519(x25519::RecipientLine),
     Scrypt(scrypt::RecipientLine),
-    SshRsa(SshRsaRecipientLine),
+    SshRsa(ssh_rsa::RecipientLine),
     SshEd25519(SshEd25519RecipientLine),
 }
 
@@ -48,14 +42,13 @@ impl From<scrypt::RecipientLine> for RecipientLine {
     }
 }
 
-impl RecipientLine {
-    pub(crate) fn ssh_rsa(tag: [u8; 4], encrypted_file_key: Vec<u8>) -> Self {
-        RecipientLine::SshRsa(SshRsaRecipientLine {
-            tag,
-            encrypted_file_key,
-        })
+impl From<ssh_rsa::RecipientLine> for RecipientLine {
+    fn from(line: ssh_rsa::RecipientLine) -> Self {
+        RecipientLine::SshRsa(line)
     }
+}
 
+impl RecipientLine {
     pub(crate) fn ssh_ed25519(tag: [u8; 4], epk: PublicKey, encrypted_file_key: [u8; 32]) -> Self {
         RecipientLine::SshEd25519(SshEd25519RecipientLine {
             tag,
@@ -143,29 +136,10 @@ mod read {
     };
 
     use super::*;
-    use crate::util::read::{encoded_data, wrapped_encoded_data};
+    use crate::util::read::encoded_data;
 
     fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
         encoded_data(4, [0; 4])(input)
-    }
-
-    fn ssh_rsa_recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(SSH_RSA_RECIPIENT_TAG),
-                map(
-                    separated_pair(ssh_tag, line_ending, wrapped_encoded_data(line_ending)),
-                    |(tag, encrypted_file_key)| {
-                        RecipientLine::SshRsa(SshRsaRecipientLine {
-                            tag,
-                            encrypted_file_key,
-                        })
-                    },
-                ),
-            )(input)
-        }
     }
 
     fn ssh_ed25519_recipient_line<'a, N>(
@@ -209,7 +183,10 @@ mod read {
                         scrypt::read::recipient_line(line_ending),
                         RecipientLine::from,
                     ),
-                    ssh_rsa_recipient_line(line_ending),
+                    map(
+                        ssh_rsa::read::recipient_line(line_ending),
+                        RecipientLine::from,
+                    ),
                     ssh_ed25519_recipient_line(line_ending),
                 )),
             )(input)
@@ -282,22 +259,7 @@ mod write {
     use std::io::Write;
 
     use super::*;
-    use crate::util::{
-        write::{encoded_data, wrapped_encoded_data},
-        LINE_ENDING,
-    };
-
-    fn ssh_rsa_recipient_line<'a, W: 'a + Write>(
-        r: &SshRsaRecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
-        tuple((
-            slice(SSH_RSA_RECIPIENT_TAG),
-            encoded_data(&r.tag),
-            string(line_ending),
-            wrapped_encoded_data(&r.encrypted_file_key, line_ending),
-        ))
-    }
+    use crate::util::{write::encoded_data, LINE_ENDING};
 
     fn ssh_ed25519_recipient_line<'a, W: 'a + Write>(
         r: &SshEd25519RecipientLine,
@@ -322,7 +284,7 @@ mod write {
             match r {
                 RecipientLine::X25519(r) => x25519::write::recipient_line(r, line_ending)(out),
                 RecipientLine::Scrypt(r) => scrypt::write::recipient_line(r, line_ending)(out),
-                RecipientLine::SshRsa(r) => ssh_rsa_recipient_line(r, line_ending)(out),
+                RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r, line_ending)(out),
                 RecipientLine::SshEd25519(r) => ssh_ed25519_recipient_line(r, line_ending)(out),
             }
         }

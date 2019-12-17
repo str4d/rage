@@ -11,7 +11,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
-    format::{x25519, RecipientLine},
+    format::{ssh_rsa, x25519, RecipientLine},
     openssh::EncryptedOpenSshKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
@@ -19,7 +19,6 @@ use crate::{
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 
-const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
 const SSH_ED25519_TWEAK_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
 
 fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
@@ -81,25 +80,7 @@ impl SecretKey {
                 r.unwrap_file_key(sk).ok().map(Ok)
             }
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
-                if ssh_tag(&ssh_key) != r.tag {
-                    return None;
-                }
-
-                let mut rng = OsRng;
-                let mut h = Sha256::default();
-
-                // A failure to decrypt is fatal, because we assume that we won't
-                // encounter 32-bit collisions on the key tag embedded in the header.
-                Some(
-                    rsa::oaep::decrypt(
-                        Some(&mut rng),
-                        &sk,
-                        &r.encrypted_file_key,
-                        &mut h,
-                        Some(SSH_RSA_OAEP_LABEL.to_owned()),
-                    )
-                    .map_err(Error::from),
-                )
+                r.unwrap_file_key(ssh_key, sk)
             }
             (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -409,19 +390,7 @@ impl RecipientKey {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
             RecipientKey::SshRsa(ssh_key, pk) => {
-                let mut rng = OsRng;
-                let mut h = Sha256::default();
-
-                let encrypted_file_key = rsa::oaep::encrypt(
-                    &mut rng,
-                    &pk,
-                    file_key,
-                    &mut h,
-                    Some(SSH_RSA_OAEP_LABEL.to_owned()),
-                )
-                .expect("pubkey is valid and message is not too long");
-
-                RecipientLine::ssh_rsa(ssh_tag(&ssh_key), encrypted_file_key)
+                ssh_rsa::RecipientLine::wrap_file_key(file_key, ssh_key, pk).into()
             }
             RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
                 let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]).into();
