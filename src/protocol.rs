@@ -1,52 +1,22 @@
 //! Encryption and decryption routines for age.
 
 use getrandom::getrandom;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::io::{self, Read, Seek, Write};
-use std::time::{Duration, SystemTime};
 
 use crate::{
     error::Error,
     format::{scrypt, Header, RecipientLine},
     keys::{Identity, RecipientKey},
     primitives::{
-        aead_decrypt, aead_encrypt,
         armor::{ArmoredReader, ArmoredWriter},
-        hkdf, scrypt,
+        hkdf,
         stream::{Stream, StreamReader, StreamWriter},
     },
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
-
-const ONE_SECOND: Duration = Duration::from_secs(1);
-
-/// Pick an scrypt work factor that will take around 1 second on this device.
-///
-/// Guaranteed to return a valid work factor (less than 64).
-fn target_scrypt_work_factor() -> u8 {
-    // Time a work factor that should always be fast.
-    let mut log_n = 10;
-
-    let start = SystemTime::now();
-    scrypt(&[], log_n, "").expect("log_n < 64");
-    let duration = SystemTime::now().duration_since(start);
-
-    duration
-        .map(|mut d| {
-            // Use duration as a proxy for CPU usage, which scales linearly with N.
-            while d < ONE_SECOND && log_n < 63 {
-                log_n += 1;
-                d *= 2;
-            }
-            log_n
-        })
-        .unwrap_or({
-            // Couldn't measure, so guess. This is roughly 1 second on a modern machine.
-            18
-        })
-}
 
 /// Handles the various types of age encryption.
 pub enum Encryptor {
@@ -64,24 +34,7 @@ impl Encryptor {
                 .map(|key| key.wrap_file_key(file_key))
                 .collect(),
             Encryptor::Passphrase(passphrase) => {
-                let mut salt = [0; 16];
-                getrandom(&mut salt).expect("Should not fail");
-
-                let log_n = target_scrypt_work_factor();
-
-                let enc_key = scrypt(&salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
-                let encrypted_file_key = {
-                    let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
-                    key
-                };
-
-                vec![scrypt::RecipientLine {
-                    salt,
-                    log_n,
-                    encrypted_file_key,
-                }
-                .into()]
+                vec![scrypt::RecipientLine::wrap_file_key(file_key, passphrase).into()]
             }
         }
     }
@@ -141,21 +94,7 @@ impl Decryptor {
                 .find_map(|key| key.unwrap_file_key(line, request_passphrase))
                 .transpose(),
             (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
-                // Place bounds on the work factor we will accept (roughly 16 seconds).
-                if s.log_n > (target_scrypt_work_factor() + 4) {
-                    return Err(Error::ExcessiveWork);
-                }
-
-                let enc_key = scrypt(&s.salt, s.log_n, passphrase.expose_secret())
-                    .map_err(|_| Error::ExcessiveWork)?;
-                aead_decrypt(&enc_key, &s.encrypted_file_key)
-                    .map(|pt| {
-                        // It's ours!
-                        let mut file_key = [0; 16];
-                        file_key.copy_from_slice(&pt);
-                        Some(file_key)
-                    })
-                    .map_err(Error::from)
+                s.unwrap_file_key(passphrase)
             }
             (Decryptor::Passphrase(_), _) => Err(Error::MessageRequiresKeys),
         }
