@@ -1,33 +1,31 @@
 //! Key structs and serialization.
 
 use curve25519_dalek::edwards::EdwardsPoint;
+use getrandom::getrandom;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret, SecretString};
-use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
-    format::RecipientLine,
+    format::{ssh_ed25519, ssh_rsa, x25519, RecipientLine},
     openssh::EncryptedOpenSshKey,
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 
-const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
-const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
-const SSH_ED25519_TWEAK_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
+pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
 
-fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
-    let tag_bytes = Sha256::digest(pubkey);
-    let mut tag = [0; 4];
-    tag.copy_from_slice(&tag_bytes[..4]);
-    tag
+impl FileKey {
+    pub(crate) fn generate() -> Self {
+        let mut file_key = [0; 16];
+        getrandom(&mut file_key).expect("Should not fail");
+        FileKey(Secret::new(file_key))
+    }
 }
 
 /// A secret key for decrypting an age message.
@@ -73,82 +71,22 @@ impl SecretKey {
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
     /// - `None` if the [`RecipientLine`] does not match this key.
-    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<[u8; 16], Error>> {
+    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<FileKey, Error>> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
-                let pk: PublicKey = sk.into();
-                let shared_secret = sk.diffie_hellman(&r.epk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(r.epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-
                 // A failure to decrypt is non-fatal (we try to decrypt the recipient line
                 // with other X25519 keys), because we cannot tell which key matches a
                 // particular line.
-                aead_decrypt(&enc_key, &r.encrypted_file_key).ok().map(Ok)
+                r.unwrap_file_key(sk).ok().map(Ok)
             }
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
-                if ssh_tag(&ssh_key) != r.tag {
-                    return None;
-                }
-
-                let mut rng = OsRng;
-                let mut h = Sha256::default();
-
-                // A failure to decrypt is fatal, because we assume that we won't
-                // encounter 32-bit collisions on the key tag embedded in the header.
-                Some(
-                    rsa::oaep::decrypt(
-                        Some(&mut rng),
-                        &sk,
-                        &r.encrypted_file_key,
-                        &mut h,
-                        Some(SSH_RSA_OAEP_LABEL.to_owned()),
-                    )
-                    .map_err(Error::from),
-                )
+                r.unwrap_file_key(ssh_key, sk)
             }
             (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
-                if ssh_tag(&ssh_key) != r.tag {
-                    return None;
-                }
-
-                let sk: StaticSecret = {
-                    let mut sk = [0; 32];
-                    // privkey format is seed || pubkey
-                    sk.copy_from_slice(&Sha512::digest(&privkey.expose_secret()[0..32])[0..32]);
-                    sk.into()
-                };
-
-                let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]).into();
-                let pk = tweak.diffie_hellman(&(&sk).into());
-
-                let shared_secret = tweak
-                    .diffie_hellman(&PublicKey::from(*sk.diffie_hellman(&r.rest.epk).as_bytes()));
-
-                let mut salt = vec![];
-                salt.extend_from_slice(r.rest.epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-
-                // A failure to decrypt is fatal, because we assume that we won't
-                // encounter 32-bit collisions on the key tag embedded in the header.
-                Some(aead_decrypt(&enc_key, &r.rest.encrypted_file_key).map_err(Error::from))
+                r.unwrap_file_key(ssh_key, privkey.expose_secret())
             }
             _ => None,
         }
-        .map(|res| {
-            res.map(|pt| {
-                // It's ours!
-                let mut file_key = [0; 16];
-                file_key.copy_from_slice(&pt);
-                file_key
-            })
-        })
     }
 }
 
@@ -164,7 +102,7 @@ impl EncryptedKey {
         line: &RecipientLine,
         request_passphrase: P,
         filename: Option<&str>,
-    ) -> Option<Result<[u8; 16], Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         match self {
             EncryptedKey::OpenSsh(enc) => {
                 let passphrase = request_passphrase(&format!(
@@ -350,7 +288,7 @@ impl Identity {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Option<Result<[u8; 16], Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         match &self.key {
             IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
             IdentityKey::Encrypted(key) => {
@@ -411,66 +349,14 @@ impl RecipientKey {
         }
     }
 
-    pub(crate) fn wrap_file_key(&self, file_key: &[u8; 16]) -> RecipientLine {
+    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientLine {
         match self {
-            RecipientKey::X25519(pk) => {
-                let mut rng = OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
-                let epk: PublicKey = (&esk).into();
-                let shared_secret = esk.diffie_hellman(pk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                let encrypted_file_key = {
-                    let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
-                    key
-                };
-
-                RecipientLine::x25519(epk, encrypted_file_key)
-            }
+            RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
             RecipientKey::SshRsa(ssh_key, pk) => {
-                let mut rng = OsRng;
-                let mut h = Sha256::default();
-
-                let encrypted_file_key = rsa::oaep::encrypt(
-                    &mut rng,
-                    &pk,
-                    file_key,
-                    &mut h,
-                    Some(SSH_RSA_OAEP_LABEL.to_owned()),
-                )
-                .expect("pubkey is valid and message is not too long");
-
-                RecipientLine::ssh_rsa(ssh_tag(&ssh_key), encrypted_file_key)
+                ssh_rsa::RecipientLine::wrap_file_key(file_key, ssh_key, pk).into()
             }
             RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
-                let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]).into();
-                let pk: PublicKey = (*tweak
-                    .diffie_hellman(&ed25519_pk.to_montgomery().to_bytes().into())
-                    .as_bytes())
-                .into();
-
-                let mut rng = OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
-                let epk: PublicKey = (&esk).into();
-                let shared_secret = esk.diffie_hellman(&pk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                let encrypted_file_key = {
-                    let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
-                    key
-                };
-
-                RecipientLine::ssh_ed25519(ssh_tag(&ssh_key), epk, encrypted_file_key)
+                ssh_ed25519::RecipientLine::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
             }
         }
     }
@@ -548,9 +434,10 @@ mod read {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use secrecy::{ExposeSecret, Secret};
     use std::io::BufReader;
 
-    use super::{Identity, IdentityKey, RecipientKey};
+    use super::{FileKey, Identity, IdentityKey, RecipientKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_QAvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
     const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
@@ -639,11 +526,14 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
 
-        let file_key = [12; 16];
+        let file_key = FileKey(Secret::new([12; 16]));
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
     }
 
     #[test]
@@ -656,10 +546,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();
 
-        let file_key = [12; 16];
+        let file_key = FileKey(Secret::new([12; 16]));
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
     }
 }
