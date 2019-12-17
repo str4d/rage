@@ -3,30 +3,19 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret, SecretString};
-use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
-    format::{ssh_rsa, x25519, RecipientLine},
+    format::{ssh_ed25519, ssh_rsa, x25519, RecipientLine},
     openssh::EncryptedOpenSshKey,
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
-
-const SSH_ED25519_TWEAK_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
-
-fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
-    let tag_bytes = Sha256::digest(pubkey);
-    let mut tag = [0; 4];
-    tag.copy_from_slice(&tag_bytes[..4]);
-    tag
-}
 
 /// A secret key for decrypting an age message.
 pub enum SecretKey {
@@ -83,36 +72,7 @@ impl SecretKey {
                 r.unwrap_file_key(ssh_key, sk)
             }
             (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
-                if ssh_tag(&ssh_key) != r.tag {
-                    return None;
-                }
-
-                let sk: StaticSecret = {
-                    let mut sk = [0; 32];
-                    // privkey format is seed || pubkey
-                    sk.copy_from_slice(&Sha512::digest(&privkey.expose_secret()[0..32])[0..32]);
-                    sk.into()
-                };
-
-                let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]).into();
-                let pk = tweak.diffie_hellman(&(&sk).into());
-
-                let shared_secret = tweak
-                    .diffie_hellman(&PublicKey::from(*sk.diffie_hellman(&r.rest.epk).as_bytes()));
-
-                let mut salt = vec![];
-                salt.extend_from_slice(r.rest.epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(
-                    &salt,
-                    x25519::X25519_RECIPIENT_KEY_LABEL,
-                    shared_secret.as_bytes(),
-                );
-
-                // A failure to decrypt is fatal, because we assume that we won't
-                // encounter 32-bit collisions on the key tag embedded in the header.
-                Some(aead_decrypt(&enc_key, &r.rest.encrypted_file_key).map_err(Error::from))
+                r.unwrap_file_key(ssh_key, privkey.expose_secret())
             }
             _ => None,
         }
@@ -393,33 +353,7 @@ impl RecipientKey {
                 ssh_rsa::RecipientLine::wrap_file_key(file_key, ssh_key, pk).into()
             }
             RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
-                let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_TWEAK_LABEL, &[]).into();
-                let pk: PublicKey = (*tweak
-                    .diffie_hellman(&ed25519_pk.to_montgomery().to_bytes().into())
-                    .as_bytes())
-                .into();
-
-                let mut rng = OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
-                let epk: PublicKey = (&esk).into();
-                let shared_secret = esk.diffie_hellman(&pk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(
-                    &salt,
-                    x25519::X25519_RECIPIENT_KEY_LABEL,
-                    shared_secret.as_bytes(),
-                );
-                let encrypted_file_key = {
-                    let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
-                    key
-                };
-
-                RecipientLine::ssh_ed25519(ssh_tag(&ssh_key), epk, encrypted_file_key)
+                ssh_ed25519::RecipientLine::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
             }
         }
     }
