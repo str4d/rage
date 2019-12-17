@@ -12,6 +12,7 @@ use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, ScryptParams};
 use sha2::Sha256;
 use std::io::{self, Write};
 
+pub(crate) mod armor;
 pub(crate) mod stream;
 
 /// `encrypt[key](plaintext)`

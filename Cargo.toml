@@ -31,6 +31,7 @@ hmac = "0.7"
 nom = "5"
 num-traits = "0.2"
 pbkdf2 = "0.3"
+radix64 = "0.6"
 rand = "0.7"
 rsa = "0.2"
 scrypt = { version = "0.2", default-features = false }
