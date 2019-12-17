@@ -1,13 +1,13 @@
 //! Encryption and decryption routines for age.
 
 use getrandom::getrandom;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
 
 use crate::{
     error::Error,
     format::{scrypt, Header, RecipientLine},
-    keys::{Identity, RecipientKey},
+    keys::{FileKey, Identity, RecipientKey},
     primitives::{
         armor::{ArmoredReader, ArmoredWriter},
         hkdf,
@@ -27,7 +27,7 @@ pub enum Encryptor {
 }
 
 impl Encryptor {
-    fn wrap_file_key(&self, file_key: &[u8; 16]) -> Vec<RecipientLine> {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Vec<RecipientLine> {
         match self {
             Encryptor::Keys(recipients) => recipients
                 .iter()
@@ -52,13 +52,12 @@ impl Encryptor {
         mut output: W,
         armored: bool,
     ) -> io::Result<StreamWriter<W>> {
-        let mut file_key = [0; 16];
-        getrandom(&mut file_key).expect("Should not fail");
+        let file_key = FileKey::generate();
 
         let header = Header::new(
             armored,
             self.wrap_file_key(&file_key),
-            hkdf(&[], HEADER_KEY_LABEL, &file_key),
+            hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
         );
         header.write(&mut output)?;
 
@@ -68,7 +67,7 @@ impl Encryptor {
         getrandom(&mut nonce).expect("Should not fail");
         output.write_all(&nonce)?;
 
-        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key);
+        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
         Ok(Stream::encrypt(&payload_key, output))
     }
 }
@@ -86,7 +85,7 @@ impl Decryptor {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Result<Option<[u8; 16]>, Error> {
+    ) -> Result<Option<FileKey>, Error> {
         match (self, line) {
             (Decryptor::Keys(_), RecipientLine::Scrypt(_)) => Err(Error::MessageRequiresPassphrase),
             (Decryptor::Keys(keys), _) => keys
@@ -127,10 +126,14 @@ impl Decryptor {
                     .map(|res| {
                         res.and_then(|file_key| {
                             // Verify the MAC
-                            header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                            header.verify_mac(hkdf(
+                                &[],
+                                HEADER_KEY_LABEL,
+                                file_key.0.expose_secret(),
+                            ))?;
 
                             // Return the payload key
-                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
                         })
                     })
             })
@@ -166,10 +169,14 @@ impl Decryptor {
                     .map(|res| {
                         res.and_then(|file_key| {
                             // Verify the MAC
-                            header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, &file_key))?;
+                            header.verify_mac(hkdf(
+                                &[],
+                                HEADER_KEY_LABEL,
+                                file_key.0.expose_secret(),
+                            ))?;
 
                             // Return the payload key
-                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, &file_key))
+                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
                         })
                     })
             })

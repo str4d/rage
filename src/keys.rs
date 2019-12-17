@@ -1,6 +1,7 @@
 //! Key structs and serialization.
 
 use curve25519_dalek::edwards::EdwardsPoint;
+use getrandom::getrandom;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::fmt;
@@ -16,6 +17,16 @@ use crate::{
 
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
+
+pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
+
+impl FileKey {
+    pub(crate) fn generate() -> Self {
+        let mut file_key = [0; 16];
+        getrandom(&mut file_key).expect("Should not fail");
+        FileKey(Secret::new(file_key))
+    }
+}
 
 /// A secret key for decrypting an age message.
 pub enum SecretKey {
@@ -60,7 +71,7 @@ impl SecretKey {
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
     /// - `None` if the [`RecipientLine`] does not match this key.
-    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<[u8; 16], Error>> {
+    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<FileKey, Error>> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
                 // A failure to decrypt is non-fatal (we try to decrypt the recipient line
@@ -76,14 +87,6 @@ impl SecretKey {
             }
             _ => None,
         }
-        .map(|res| {
-            res.map(|pt| {
-                // It's ours!
-                let mut file_key = [0; 16];
-                file_key.copy_from_slice(&pt);
-                file_key
-            })
-        })
     }
 }
 
@@ -99,7 +102,7 @@ impl EncryptedKey {
         line: &RecipientLine,
         request_passphrase: P,
         filename: Option<&str>,
-    ) -> Option<Result<[u8; 16], Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         match self {
             EncryptedKey::OpenSsh(enc) => {
                 let passphrase = request_passphrase(&format!(
@@ -285,7 +288,7 @@ impl Identity {
         &self,
         line: &RecipientLine,
         request_passphrase: P,
-    ) -> Option<Result<[u8; 16], Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         match &self.key {
             IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
             IdentityKey::Encrypted(key) => {
@@ -346,7 +349,7 @@ impl RecipientKey {
         }
     }
 
-    pub(crate) fn wrap_file_key(&self, file_key: &[u8; 16]) -> RecipientLine {
+    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientLine {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
             RecipientKey::SshRsa(ssh_key, pk) => {
@@ -431,9 +434,10 @@ mod read {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use secrecy::{ExposeSecret, Secret};
     use std::io::BufReader;
 
-    use super::{Identity, IdentityKey, RecipientKey};
+    use super::{FileKey, Identity, IdentityKey, RecipientKey};
 
     const TEST_SK: &str = "AGE_SECRET_KEY_QAvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
     const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
@@ -522,11 +526,14 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
 
-        let file_key = [12; 16];
+        let file_key = FileKey(Secret::new([12; 16]));
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
     }
 
     #[test]
@@ -539,10 +546,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();
 
-        let file_key = [12; 16];
+        let file_key = FileKey(Secret::new([12; 16]));
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
-        assert_eq!(unwrapped.unwrap().unwrap(), file_key);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
     }
 }

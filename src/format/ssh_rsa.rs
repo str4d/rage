@@ -1,8 +1,9 @@
 use rand::rngs::OsRng;
 use rsa::{RSAPrivateKey, RSAPublicKey};
+use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256};
 
-use crate::error::Error;
+use crate::{error::Error, keys::FileKey};
 
 const SSH_RSA_RECIPIENT_TAG: &[u8] = b"ssh-rsa ";
 const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
@@ -21,14 +22,14 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(crate) fn wrap_file_key(file_key: &[u8; 16], ssh_key: &[u8], pk: &RSAPublicKey) -> Self {
+    pub(crate) fn wrap_file_key(file_key: &FileKey, ssh_key: &[u8], pk: &RSAPublicKey) -> Self {
         let mut rng = OsRng;
         let mut h = Sha256::default();
 
         let encrypted_file_key = rsa::oaep::encrypt(
             &mut rng,
             &pk,
-            file_key,
+            file_key.0.expose_secret(),
             &mut h,
             Some(SSH_RSA_OAEP_LABEL.to_owned()),
         )
@@ -44,7 +45,7 @@ impl RecipientLine {
         &self,
         ssh_key: &[u8],
         sk: &RSAPrivateKey,
-    ) -> Option<Result<Vec<u8>, Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         if ssh_tag(&ssh_key) != self.tag {
             return None;
         }
@@ -62,7 +63,13 @@ impl RecipientLine {
                 &mut h,
                 Some(SSH_RSA_OAEP_LABEL.to_owned()),
             )
-            .map_err(Error::from),
+            .map_err(Error::from)
+            .map(|pt| {
+                // It's ours!
+                let mut file_key = [0; 16];
+                file_key.copy_from_slice(&pt);
+                FileKey(Secret::new(file_key))
+            }),
         )
     }
 }

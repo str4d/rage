@@ -1,9 +1,10 @@
 use getrandom::getrandom;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::{ExposeSecret, Secret, SecretString};
 use std::time::{Duration, SystemTime};
 
 use crate::{
     error::Error,
+    keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, scrypt},
 };
 
@@ -44,7 +45,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(crate) fn wrap_file_key(file_key: &[u8; 16], passphrase: &SecretString) -> Self {
+    pub(crate) fn wrap_file_key(file_key: &FileKey, passphrase: &SecretString) -> Self {
         let mut salt = [0; 16];
         getrandom(&mut salt).expect("Should not fail");
 
@@ -53,7 +54,7 @@ impl RecipientLine {
         let enc_key = scrypt(&salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = {
             let mut key = [0; 32];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
 
@@ -67,7 +68,7 @@ impl RecipientLine {
     pub(crate) fn unwrap_file_key(
         &self,
         passphrase: &SecretString,
-    ) -> Result<Option<[u8; 16]>, Error> {
+    ) -> Result<Option<FileKey>, Error> {
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         if self.log_n > (target_scrypt_work_factor() + 4) {
             return Err(Error::ExcessiveWork);
@@ -80,7 +81,7 @@ impl RecipientLine {
                 // It's ours!
                 let mut file_key = [0; 16];
                 file_key.copy_from_slice(&pt);
-                Some(file_key)
+                Some(FileKey(Secret::new(file_key)))
             })
             .map_err(Error::from)
     }

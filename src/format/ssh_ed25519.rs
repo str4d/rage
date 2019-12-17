@@ -1,10 +1,12 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
+use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256, Sha512};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
+    keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
@@ -26,7 +28,7 @@ pub(crate) struct RecipientLine {
 
 impl RecipientLine {
     pub(crate) fn wrap_file_key(
-        file_key: &[u8; 16],
+        file_key: &FileKey,
         ssh_key: &[u8],
         ed25519_pk: &EdwardsPoint,
     ) -> Self {
@@ -52,7 +54,7 @@ impl RecipientLine {
         );
         let encrypted_file_key = {
             let mut key = [0; 32];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
 
@@ -69,7 +71,7 @@ impl RecipientLine {
         &self,
         ssh_key: &[u8],
         privkey: &[u8; 64],
-    ) -> Option<Result<Vec<u8>, Error>> {
+    ) -> Option<Result<FileKey, Error>> {
         if ssh_tag(&ssh_key) != self.tag {
             return None;
         }
@@ -100,7 +102,16 @@ impl RecipientLine {
 
         // A failure to decrypt is fatal, because we assume that we won't
         // encounter 32-bit collisions on the key tag embedded in the header.
-        Some(aead_decrypt(&enc_key, &self.rest.encrypted_file_key).map_err(Error::from))
+        Some(
+            aead_decrypt(&enc_key, &self.rest.encrypted_file_key)
+                .map_err(Error::from)
+                .map(|pt| {
+                    // It's ours!
+                    let mut file_key = [0; 16];
+                    file_key.copy_from_slice(&pt);
+                    FileKey(Secret::new(file_key))
+                }),
+        )
     }
 }
 

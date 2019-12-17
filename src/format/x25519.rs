@@ -1,8 +1,10 @@
 use rand::rngs::OsRng;
+use secrecy::{ExposeSecret, Secret};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
+    keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
@@ -16,7 +18,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(crate) fn wrap_file_key(file_key: &[u8; 16], pk: &PublicKey) -> Self {
+    pub(crate) fn wrap_file_key(file_key: &FileKey, pk: &PublicKey) -> Self {
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
@@ -29,7 +31,7 @@ impl RecipientLine {
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = {
             let mut key = [0; 32];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
 
@@ -39,7 +41,7 @@ impl RecipientLine {
         }
     }
 
-    pub(crate) fn unwrap_file_key(&self, sk: &StaticSecret) -> Result<Vec<u8>, Error> {
+    pub(crate) fn unwrap_file_key(&self, sk: &StaticSecret) -> Result<FileKey, Error> {
         let pk: PublicKey = sk.into();
         let shared_secret = sk.diffie_hellman(&self.epk);
 
@@ -49,7 +51,14 @@ impl RecipientLine {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
 
-        aead_decrypt(&enc_key, &self.encrypted_file_key).map_err(Error::from)
+        aead_decrypt(&enc_key, &self.encrypted_file_key)
+            .map_err(Error::from)
+            .map(|pt| {
+                // It's ours!
+                let mut file_key = [0; 16];
+                file_key.copy_from_slice(&pt);
+                FileKey(Secret::new(file_key))
+            })
     }
 }
 
