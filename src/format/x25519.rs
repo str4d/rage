@@ -118,3 +118,35 @@ pub(super) mod write {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use quickcheck::TestResult;
+    use quickcheck_macros::quickcheck;
+    use secrecy::{ExposeSecret, Secret};
+    use x25519_dalek::{PublicKey, StaticSecret};
+
+    use super::RecipientLine;
+    use crate::keys::FileKey;
+
+    #[quickcheck]
+    fn wrap_and_unwrap(sk_bytes: Vec<u8>) -> TestResult {
+        if sk_bytes.len() > 32 {
+            return TestResult::discard();
+        }
+
+        let file_key = FileKey(Secret::new([7; 16]));
+        let sk = {
+            let mut tmp = [0; 32];
+            tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);
+            StaticSecret::from(tmp)
+        };
+
+        let line = RecipientLine::wrap_file_key(&file_key, &PublicKey::from(&sk));
+        let res = line.unwrap_file_key(&sk);
+
+        TestResult::from_bool(
+            res.is_ok() && res.unwrap().0.expose_secret() == file_key.0.expose_secret(),
+        )
+    }
+}
