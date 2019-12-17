@@ -19,7 +19,6 @@ use crate::{
 const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
 const PUBLIC_KEY_PREFIX: &str = "pubkey:";
 
-const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
 const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
 const SSH_ED25519_TWEAK_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
 
@@ -76,19 +75,10 @@ impl SecretKey {
     pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<[u8; 16], Error>> {
         match (self, line) {
             (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
-                let pk: PublicKey = sk.into();
-                let shared_secret = sk.diffie_hellman(&r.epk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(r.epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-
                 // A failure to decrypt is non-fatal (we try to decrypt the recipient line
                 // with other X25519 keys), because we cannot tell which key matches a
                 // particular line.
-                aead_decrypt(&enc_key, &r.encrypted_file_key).ok().map(Ok)
+                r.unwrap_file_key(sk).ok().map(Ok)
             }
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
                 if ssh_tag(&ssh_key) != r.tag {
@@ -133,7 +123,11 @@ impl SecretKey {
                 salt.extend_from_slice(r.rest.epk.as_bytes());
                 salt.extend_from_slice(pk.as_bytes());
 
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
+                let enc_key = hkdf(
+                    &salt,
+                    x25519::X25519_RECIPIENT_KEY_LABEL,
+                    shared_secret.as_bytes(),
+                );
 
                 // A failure to decrypt is fatal, because we assume that we won't
                 // encounter 32-bit collisions on the key tag embedded in the header.
@@ -413,28 +407,7 @@ impl RecipientKey {
 
     pub(crate) fn wrap_file_key(&self, file_key: &[u8; 16]) -> RecipientLine {
         match self {
-            RecipientKey::X25519(pk) => {
-                let mut rng = OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
-                let epk: PublicKey = (&esk).into();
-                let shared_secret = esk.diffie_hellman(pk);
-
-                let mut salt = vec![];
-                salt.extend_from_slice(epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
-
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
-                let encrypted_file_key = {
-                    let mut key = [0; 32];
-                    key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
-                    key
-                };
-
-                x25519::RecipientLine {
-                    epk,
-                    encrypted_file_key,
-                }.into()
-            }
+            RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
             RecipientKey::SshRsa(ssh_key, pk) => {
                 let mut rng = OsRng;
                 let mut h = Sha256::default();
@@ -466,7 +439,11 @@ impl RecipientKey {
                 salt.extend_from_slice(epk.as_bytes());
                 salt.extend_from_slice(pk.as_bytes());
 
-                let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
+                let enc_key = hkdf(
+                    &salt,
+                    x25519::X25519_RECIPIENT_KEY_LABEL,
+                    shared_secret.as_bytes(),
+                );
                 let encrypted_file_key = {
                     let mut key = [0; 32];
                     key.copy_from_slice(&aead_encrypt(&enc_key, file_key));

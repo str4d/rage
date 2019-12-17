@@ -1,11 +1,56 @@
-use x25519_dalek::PublicKey;
+use rand::rngs::OsRng;
+use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+
+use crate::{
+    error::Error,
+    primitives::{aead_decrypt, aead_encrypt, hkdf},
+};
 
 const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
+pub(crate) const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
     pub(crate) epk: PublicKey,
     pub(crate) encrypted_file_key: [u8; 32],
+}
+
+impl RecipientLine {
+    pub(crate) fn wrap_file_key(file_key: &[u8; 16], pk: &PublicKey) -> Self {
+        let mut rng = OsRng;
+        let esk = EphemeralSecret::new(&mut rng);
+        let epk: PublicKey = (&esk).into();
+        let shared_secret = esk.diffie_hellman(pk);
+
+        let mut salt = vec![];
+        salt.extend_from_slice(epk.as_bytes());
+        salt.extend_from_slice(pk.as_bytes());
+
+        let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
+        let encrypted_file_key = {
+            let mut key = [0; 32];
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key));
+            key
+        };
+
+        RecipientLine {
+            epk,
+            encrypted_file_key,
+        }
+    }
+
+    pub(crate) fn unwrap_file_key(&self, sk: &StaticSecret) -> Result<Vec<u8>, Error> {
+        let pk: PublicKey = sk.into();
+        let shared_secret = sk.diffie_hellman(&self.epk);
+
+        let mut salt = vec![];
+        salt.extend_from_slice(self.epk.as_bytes());
+        salt.extend_from_slice(pk.as_bytes());
+
+        let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
+
+        aead_decrypt(&enc_key, &self.encrypted_file_key).map_err(Error::from)
+    }
 }
 
 pub(super) mod read {
