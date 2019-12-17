@@ -3,7 +3,7 @@ use gumdrop::Options;
 use log::{error, warn};
 use std::collections::HashMap;
 use std::fs::{read_to_string, File};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader};
 
 const ALIAS_PREFIX: &str = "alias:";
 const GITHUB_PREFIX: &str = "github:";
@@ -238,7 +238,7 @@ fn encrypt(opts: AgeOptions) {
                 error!("Error while encrypting: {}", e);
                 return;
             }
-            if let Err(e) = w.flush() {
+            if let Err(e) = w.finish() {
                 error!("Error while encrypting: {}", e);
                 return;
             }

@@ -10,10 +10,11 @@ use crate::{
     format::{Header, RecipientLine},
     keys::{Identity, RecipientKey},
     primitives::{
-        aead_decrypt, aead_encrypt, hkdf, scrypt,
-        stream::{Stream, StreamReader},
+        aead_decrypt, aead_encrypt,
+        armor::{ArmoredReader, ArmoredWriter},
+        hkdf, scrypt,
+        stream::{Stream, StreamReader, StreamWriter},
     },
-    util::{ArmoredReader, ArmoredWriter},
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
@@ -85,10 +86,14 @@ impl Encryptor {
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
-    /// You **MUST** call `flush()` when you are done writing, in order to finish the
-    /// encryption process. Failing to call `flush()` will result in a truncated message
+    /// You **MUST** call `finish()` when you are done writing, in order to finish the
+    /// encryption process. Failing to call `finish()` will result in a truncated message
     /// that will fail to decrypt.
-    pub fn wrap_output<W: Write>(&self, mut output: W, armored: bool) -> io::Result<impl Write> {
+    pub fn wrap_output<W: Write>(
+        &self,
+        mut output: W,
+        armored: bool,
+    ) -> io::Result<StreamWriter<W>> {
         let mut file_key = [0; 16];
         getrandom(&mut file_key).expect("Should not fail");
 
@@ -279,7 +284,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         {
             let mut w = e.wrap_output(&mut encrypted, false).unwrap();
             w.write_all(test_msg).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         }
 
         let d = Decryptor::Keys(sk);
@@ -303,7 +308,7 @@ _vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
         {
             let mut w = e.wrap_output(&mut encrypted, false).unwrap();
             w.write_all(test_msg).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         }
 
         let d = Decryptor::Keys(sk);

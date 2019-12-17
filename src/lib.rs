@@ -25,7 +25,7 @@
 //! {
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
-//!     writer.flush()?;
+//!     writer.finish()?;
 //! };
 //!
 //! let decryptor = age::Decryptor::Keys(vec![key.into()]);
@@ -54,7 +54,7 @@
 //! {
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
-//!     writer.flush()?;
+//!     writer.finish()?;
 //! };
 //!
 //! let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));

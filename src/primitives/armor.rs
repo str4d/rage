@@ -1,6 +1,7 @@
 use radix64::{configs::UrlSafeNoPad, io::EncodeWriter, URL_SAFE_NO_PAD};
 use std::cmp;
-use std::io::{self, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
+use zeroize::Zeroizing;
 
 use crate::util::LINE_ENDING;
 
@@ -106,6 +107,139 @@ impl<W: Write> Write for ArmoredWriter<W> {
         match self {
             ArmoredWriter::Enabled { encoder } => encoder.flush(),
             ArmoredWriter::Disabled { inner } => inner.flush(),
+        }
+    }
+}
+
+pub(crate) struct ArmoredReader<R: Read> {
+    inner: BufReader<R>,
+    enabled: bool,
+    line_buf: Zeroizing<String>,
+    byte_buf: Zeroizing<[u8; ARMORED_BYTES_PER_LINE]>,
+    byte_start: usize,
+    byte_end: usize,
+    found_end: bool,
+}
+
+impl<R: Read> ArmoredReader<R> {
+    pub(crate) fn from_reader(inner: R, enabled: bool) -> Self {
+        ArmoredReader {
+            inner: BufReader::new(inner),
+            enabled,
+            line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
+            byte_buf: Zeroizing::new([0; ARMORED_BYTES_PER_LINE]),
+            byte_start: ARMORED_BYTES_PER_LINE,
+            byte_end: ARMORED_BYTES_PER_LINE,
+            found_end: false,
+        }
+    }
+}
+
+impl<R: Read> Read for ArmoredReader<R> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        if !self.enabled {
+            return self.inner.read(buf);
+        }
+        if self.found_end {
+            return Ok(0);
+        }
+
+        let buf_len = buf.len();
+
+        // Output any remaining bytes from the previous line
+        if self.byte_start + buf_len <= self.byte_end {
+            buf.copy_from_slice(&self.byte_buf[self.byte_start..self.byte_start + buf_len]);
+            self.byte_start += buf_len;
+            return Ok(buf_len);
+        } else {
+            let to_read = self.byte_end - self.byte_start;
+            buf[..to_read].copy_from_slice(&self.byte_buf[self.byte_start..self.byte_end]);
+            buf = &mut buf[to_read..];
+        }
+
+        loop {
+            // Read the next line
+            self.line_buf.clear();
+            self.inner.read_line(&mut self.line_buf)?;
+
+            // Handle line endings
+            let line = if self.line_buf.ends_with("\r\n") {
+                // trim_end_matches will trim the pattern repeatedly, but because
+                // BufRead::read_line splits on line endings, this will never occur.
+                self.line_buf.trim_end_matches("\r\n")
+            } else if self.line_buf.ends_with('\n') {
+                self.line_buf.trim_end_matches('\n')
+            } else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "missing line ending",
+                ));
+            };
+            if line.contains('\r') {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "line contains CR",
+                ));
+            }
+
+            // If this line is the EOF marker, we are done!
+            if line == ARMORED_END_MARKER {
+                self.found_end = true;
+                break;
+            }
+
+            // Decode the line
+            self.byte_end = base64::decode_config_slice(
+                line.as_bytes(),
+                base64::URL_SAFE_NO_PAD,
+                self.byte_buf.as_mut(),
+            )
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            // Output as much as we can of this line
+            if buf.len() <= self.byte_end {
+                buf.copy_from_slice(&self.byte_buf[..buf.len()]);
+                self.byte_start = buf.len();
+                return Ok(buf_len);
+            } else {
+                buf[..self.byte_end].copy_from_slice(&self.byte_buf[..self.byte_end]);
+                buf = &mut buf[self.byte_end..];
+            }
+        }
+
+        Ok(buf_len - buf.len())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Read, Write};
+
+    use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
+
+    #[test]
+    fn armored_round_trip() {
+        const MAX_LEN: usize = ARMORED_BYTES_PER_LINE * 50;
+
+        let mut data = Vec::with_capacity(MAX_LEN);
+
+        for i in 0..MAX_LEN {
+            data.push(i as u8);
+
+            let mut encoded = vec![];
+            {
+                let mut out = ArmoredWriter::wrap_output(&mut encoded, true);
+                out.write_all(&data).unwrap();
+                out.finish().unwrap();
+            }
+
+            let mut buf = vec![];
+            {
+                let mut input = ArmoredReader::from_reader(&encoded[..], true);
+                input.read_to_end(&mut buf).unwrap();
+            }
+
+            assert_eq!(buf, data);
         }
     }
 }

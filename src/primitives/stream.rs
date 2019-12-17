@@ -7,6 +7,8 @@ use chacha20poly1305::ChaCha20Poly1305;
 use generic_array::{typenum::U12, GenericArray};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
+use super::armor::ArmoredWriter;
+
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
@@ -35,7 +37,7 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: crate::primitives::hkdf
-    pub fn encrypt<W: Write>(key: &[u8; 32], inner: W) -> impl Write {
+    pub(crate) fn encrypt<W: Write>(key: &[u8; 32], inner: ArmoredWriter<W>) -> StreamWriter<W> {
         StreamWriter {
             stream: Self::new(key),
             inner,
@@ -143,10 +145,19 @@ impl Stream {
     }
 }
 
-struct StreamWriter<W: Write> {
+/// Writes an encrypted age message.
+pub struct StreamWriter<W: Write> {
     stream: Stream,
-    inner: W,
+    inner: ArmoredWriter<W>,
     chunk: Vec<u8>,
+}
+
+impl<W: Write> StreamWriter<W> {
+    pub fn finish(mut self) -> io::Result<W> {
+        let encrypted = self.stream.encrypt_chunk(&self.chunk, true)?;
+        self.inner.write_all(&encrypted)?;
+        self.inner.finish()
+    }
 }
 
 impl<W: Write> Write for StreamWriter<W> {
@@ -167,7 +178,7 @@ impl<W: Write> Write for StreamWriter<W> {
             assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
 
             // Only encrypt the chunk if we have more data to write, as the last
-            // chunk must be written in flush().
+            // chunk must be written in finish().
             if !buf.is_empty() {
                 let encrypted = self.stream.encrypt_chunk(&self.chunk, false)?;
                 self.inner.write_all(&encrypted)?;
@@ -179,8 +190,6 @@ impl<W: Write> Write for StreamWriter<W> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let encrypted = self.stream.encrypt_chunk(&self.chunk, true)?;
-        self.inner.write_all(&encrypted)?;
         self.inner.flush()
     }
 }
@@ -326,6 +335,7 @@ mod tests {
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
+    use crate::primitives::armor::ArmoredWriter;
 
     #[test]
     fn chunk_round_trip() {
@@ -394,9 +404,9 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
             w.write_all(&data).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         };
 
         let decrypted = {
@@ -416,9 +426,9 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
             w.write_all(&data).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         };
 
         let decrypted = {
@@ -438,9 +448,9 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
             w.write_all(&data).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         };
 
         let decrypted = {
@@ -460,9 +470,9 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
             w.write_all(&data).unwrap();
-            // Forget to call w.flush()!
+            // Forget to call w.finish()!
         };
 
         let mut buf = vec![];
@@ -483,9 +493,9 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
             w.write_all(&data).unwrap();
-            w.flush().unwrap();
+            w.finish().unwrap();
         };
 
         let mut r = Stream::decrypt_seekable(&key, Cursor::new(encrypted)).unwrap();
