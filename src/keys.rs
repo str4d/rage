@@ -11,7 +11,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
-    format::RecipientLine,
+    format::{x25519, RecipientLine},
     openssh::EncryptedOpenSshKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
@@ -430,7 +430,10 @@ impl RecipientKey {
                     key
                 };
 
-                RecipientLine::x25519(epk, encrypted_file_key)
+                x25519::RecipientLine {
+                    epk,
+                    encrypted_file_key,
+                }.into()
             }
             RecipientKey::SshRsa(ssh_key, pk) => {
                 let mut rng = OsRng;

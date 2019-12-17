@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     error::Error,
-    format::{Header, RecipientLine},
+    format::{scrypt, Header, RecipientLine},
     keys::{Identity, RecipientKey},
     primitives::{
         aead_decrypt, aead_encrypt,
@@ -76,7 +76,12 @@ impl Encryptor {
                     key
                 };
 
-                vec![RecipientLine::scrypt(salt, log_n, encrypted_file_key)]
+                vec![scrypt::RecipientLine {
+                    salt,
+                    log_n,
+                    encrypted_file_key,
+                }
+                .into()]
             }
         }
     }
