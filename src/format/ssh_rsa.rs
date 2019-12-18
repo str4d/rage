@@ -91,20 +91,20 @@ pub(super) mod read {
         encoded_data(4, [0; 4])(input)
     }
 
-    /// Returns the slice of input up to (but not including) the first newline
+    /// Returns the slice of input up to (but not including) the first CR or LF
     /// character, if that slice is entirely Base64 characters
     ///
     /// # Errors
     ///
     /// - Returns Failure on an empty slice.
-    /// - Returns Incomplete(1) if a newline is not found.
+    /// - Returns Incomplete(1) if a CR or LF is not found.
     fn take_b64_line(config: base64::Config) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
         move |input: &[u8]| {
             let mut end = 0;
             while end < input.len() {
                 let c = input[end];
 
-                if c == b'\n' {
+                if c == b'\r' || c == b'\n' {
                     break;
                 }
 
