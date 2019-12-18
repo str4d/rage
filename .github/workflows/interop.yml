@@ -47,17 +47,18 @@ jobs:
           path: ../age/age
 
   test:
-    name: ${{ matrix.alice }} -> ${{ matrix.bob }}
+    name: ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]
     runs-on: ubuntu-latest
     needs: [build-rage, build-age]
     strategy:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
-    env:
-      AGE_PUBKEY: pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI
+        recipient: [x25519, ssh-rsa, ssh-ed25519]
+      fail-fast: false
 
     steps:
+      # Download the binaries to test
       - uses: actions/download-artifact@v1
         with:
           name: rage
@@ -66,10 +67,27 @@ jobs:
           name: age
       - run: chmod +x rage/rage
       - run: chmod +x age/age
+
+      # Prepare the test environment
       - name: Install dos2unix for simulating Windows files
         run: sudo apt install dos2unix
-      - name: Write (very not private) age key
+      - name: Write (very not private) age X25519 key
+        if: matrix.recipient == 'x25519'
         run: echo "AGE_SECRET_KEY_CEOQVF2ZAEAYcPmOFH9huOX18t5rxBQ65L7k2WLa604" >key.txt
+      - name: Set the corresponding age x25519 recipient
+        if: matrix.recipient == 'x25519'
+        run: echo "::set-env name=AGE_PUBKEY::pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI"
+      - name: Generate an ssh-rsa key
+        if: matrix.recipient == 'ssh-rsa'
+        run: ssh-keygen -t rsa -N "" -f key.txt
+      - name: Generate an ssh-ed25519 key
+        if: matrix.recipient == 'ssh-ed25519'
+        run: ssh-keygen -t ed25519 -N "" -f key.txt
+      - name: Set the corresponding SSH recipient
+        if: matrix.recipient == 'ssh-rsa' || matrix.recipient == 'ssh-ed25519'
+        run: echo "::set-env name=AGE_PUBKEY::key.txt.pub"
+
+      # Tests!
       - name: Encrypt to file
         run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test.age -r $AGE_PUBKEY
       - name: Decrypt from file
