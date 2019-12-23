@@ -9,6 +9,7 @@ use crate::{
 };
 
 const SCRYPT_RECIPIENT_TAG: &[u8] = b"scrypt ";
+const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
 /// Pick an scrypt work factor that will take around 1 second on this device.
@@ -49,9 +50,13 @@ impl RecipientLine {
         let mut salt = [0; 16];
         getrandom(&mut salt).expect("Should not fail");
 
+        let mut inner_salt = vec![];
+        inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
+        inner_salt.extend_from_slice(&salt);
+
         let log_n = target_scrypt_work_factor();
 
-        let enc_key = scrypt(&salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
+        let enc_key = scrypt(&inner_salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = {
             let mut key = [0; 32];
             key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
@@ -74,7 +79,11 @@ impl RecipientLine {
             return Err(Error::ExcessiveWork);
         }
 
-        let enc_key = scrypt(&self.salt, self.log_n, passphrase.expose_secret())
+        let mut inner_salt = vec![];
+        inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
+        inner_salt.extend_from_slice(&self.salt);
+
+        let enc_key = scrypt(&inner_salt, self.log_n, passphrase.expose_secret())
             .map_err(|_| Error::ExcessiveWork)?;
         aead_decrypt(&enc_key, &self.encrypted_file_key)
             .map(|pt| {
