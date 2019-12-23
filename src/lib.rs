@@ -5,7 +5,7 @@
 //!
 //! This is an **alpha release** for experimentation only. The age specification is still
 //! in flux, and should not currently be relied on for any usage. The in-progress
-//! specification is available [here](https://age-tool.com).
+//! specification is available [here](https://age-encryption.org/v1).
 //!
 //! # Examples
 //!

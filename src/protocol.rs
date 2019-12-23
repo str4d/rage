@@ -195,31 +195,27 @@ mod tests {
     use crate::keys::{Identity, RecipientKey};
 
     #[test]
-    fn message_decryption() {
-        let test_key = "AGE-SECRET-KEY-19P4Q33FVRKF7PFDWQWRJR429KF9MET5QW7ZEGSXLZWASVUJLH3RQWEQXA3";
-        let test_msg_1 = b"This is a file encrypted with age-tool.com, version 1
--> X25519 8wBndPxeTabOgA0sw54InE8rJ3nmu_OligUpX5DCOEY
-zbr2uOfVU47gBMC1XgYUtf2dILYR3Cb42lWgdV8oJ1k
---- 3-WbKsFc00oygch1_sbsreKSClVeCNt1DX_07wcJT-w
-\xc1D\x19\r\xe4\xef\xe7>\xe9E<s*\"5w]f\xe6! \xe1b\x9c\x7f+\xb2?Htt\xa0\xa0\x9e\xb7b\xd6\xef\xachU\x1a\xbc&h|\x95\xbb+5`\xd7C\x1a\xc8\xbd";
-        let test_msg_2 = b"This is a file encrypted with age-tool.com, version 1
--> X25519 vzquGLRW47PBkSfeiMDbOJeJO6mR9zMhcRljFTcIRT8
-_vLg6QnGTU5UQSVs3cUJDmVMJ1Qj07oSXntDpsqi0Zw
---- GSJyv5JBG1FyMQJ5F7sV8CsmfWPwRPsblxXjoF-imV0
-\xfbM84W\x98#\x0bj\xc8\x96\x95\xa7\x9ac\xb9\xaa-\xd5\xd0&aM\xba#H~\xbc\x97\xc8i\x1f\x14\x08\xba&4\xb2\x87\x9d\x80Sb\xed\xbe0\xda\x93\xc7\xab^o";
+    fn x25519_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
+        let sk = Identity::from_buffer(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
 
-        let buf = BufReader::new(test_key.as_bytes());
-        let d = Decryptor::Keys(Identity::from_buffer(buf).unwrap());
-        let mut r1 = d.trial_decrypt(&test_msg_1[..], |_| None).unwrap();
-        let mut r2 = d.trial_decrypt(&test_msg_2[..], |_| None).unwrap();
+        let test_msg = b"This is a test message. For testing.";
 
-        let mut msg1 = String::new();
-        r1.read_to_string(&mut msg1).unwrap();
-        assert_eq!(msg1, "hello Rust from Go! \\o/\n");
+        let mut encrypted = vec![];
+        let e = Encryptor::Keys(vec![pk]);
+        {
+            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
+            w.write_all(test_msg).unwrap();
+            w.finish().unwrap();
+        }
 
-        let mut msg2 = String::new();
-        r2.read_to_string(&mut msg2).unwrap();
-        assert_eq!(msg2, "*hyped crab noises*\n");
+        let d = Decryptor::Keys(sk);
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
+        let mut decrypted = vec![];
+        r.read_to_end(&mut decrypted).unwrap();
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
     }
 
     #[test]

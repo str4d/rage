@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use crate::{error::Error, keys::FileKey};
 
 const SSH_RSA_RECIPIENT_TAG: &[u8] = b"ssh-rsa ";
-const SSH_RSA_OAEP_LABEL: &str = "age-tool.com ssh-rsa";
+const SSH_RSA_OAEP_LABEL: &str = "age-encryption.org/v1/ssh-rsa";
 
 fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
     let tag_bytes = Sha256::digest(pubkey);

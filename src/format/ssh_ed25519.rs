@@ -11,7 +11,7 @@ use crate::{
 };
 
 const SSH_ED25519_RECIPIENT_TAG: &[u8] = b"ssh-ed25519 ";
-const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com ssh-ed25519";
+const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
 
 fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
     let tag_bytes = Sha256::digest(pubkey);

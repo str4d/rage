@@ -11,7 +11,7 @@ pub(crate) mod x25519;
 
 const BINARY_MAGIC: &[u8] = b"This is a file";
 const ARMORED_MAGIC: &[u8] = b"This is an armored file";
-const V1_MAGIC: &[u8] = b"encrypted with age-tool.com, version 1";
+const V1_MAGIC: &[u8] = b"encrypted with age-encryption.org/v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
@@ -294,7 +294,7 @@ mod tests {
 
     #[test]
     fn parse_header() {
-        let test_header = "This is a file encrypted with age-tool.com, version 1
+        let test_header = "This is a file encrypted with age-encryption.org/v1
 -> X25519 CJM36AHmTbdHSuOQL-NESqyVQE75f2e610iRdLPEN20
 C3ZAeY64NXS4QFrksLm3EGz-uPRyI0eQsWw7LWbbYig
 -> X25519 ytazqsbmUnPwVWMVx0c1X9iUtGdY4yAB08UQTY2hNCI
