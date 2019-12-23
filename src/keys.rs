@@ -1,9 +1,11 @@
 //! Key structs and serialization.
 
+use bech32::{FromBase32, ToBase32};
 use curve25519_dalek::edwards::EdwardsPoint;
 use getrandom::getrandom;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret, SecretString};
+use std::convert::TryInto;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -15,8 +17,23 @@ use crate::{
     openssh::EncryptedOpenSshKey,
 };
 
-const SECRET_KEY_PREFIX: &str = "AGE_SECRET_KEY_";
-const PUBLIC_KEY_PREFIX: &str = "pubkey:";
+// Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
+const SECRET_KEY_PREFIX: &str = "age-secret-key-";
+const PUBLIC_KEY_PREFIX: &str = "age";
+
+fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static str>> {
+    bech32::decode(s).ok().map(|(hrp, data)| {
+        if hrp == expected_hrp.to_lowercase() {
+            if let Ok(bytes) = Vec::from_base32(&data) {
+                bytes[..].try_into().map_err(|_| "incorrect pubkey length")
+            } else {
+                Err("incorrect Bech32 data padding")
+            }
+        } else {
+            Err("incorrect HRP")
+        }
+    })
+}
 
 pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
 
@@ -48,11 +65,9 @@ impl SecretKey {
     /// Serializes this secret key as a string.
     pub fn to_str(&self) -> String {
         match self {
-            SecretKey::X25519(sk) => format!(
-                "{}{}",
-                SECRET_KEY_PREFIX,
-                base64::encode_config(&sk.to_bytes(), base64::URL_SAFE_NO_PAD)
-            ),
+            SecretKey::X25519(sk) => bech32::encode(SECRET_KEY_PREFIX, sk.to_bytes().to_base32())
+                .expect("HRP is valid")
+                .to_uppercase(),
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -322,8 +337,11 @@ impl std::str::FromStr for RecipientKey {
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Try parsing as an age pubkey
-        if let Ok((_, pk)) = read::age_recipient_key(s) {
-            return Ok(pk);
+        if let Some(pk) = parse_bech32(s, PUBLIC_KEY_PREFIX) {
+            return pk
+                .map_err(ParseRecipientKeyError::Invalid)
+                .map(PublicKey::from)
+                .map(RecipientKey::X25519);
         }
 
         // Try parsing as an OpenSSH pubkey
@@ -339,11 +357,9 @@ impl RecipientKey {
     /// Serializes this recipient key as a string.
     pub fn to_str(&self) -> String {
         match self {
-            RecipientKey::X25519(pk) => format!(
-                "{}{}",
-                PUBLIC_KEY_PREFIX,
-                base64::encode_config(pk.as_bytes(), base64::URL_SAFE_NO_PAD)
-            ),
+            RecipientKey::X25519(pk) => {
+                bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
+            }
             RecipientKey::SshRsa(_, _) => unimplemented!(),
             RecipientKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -365,24 +381,23 @@ impl RecipientKey {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{tag, take_until},
+        bytes::streaming::{take, take_until},
         character::streaming::newline,
-        combinator::map,
-        sequence::preceded,
+        combinator::{map, map_opt, map_res},
         IResult,
     };
 
     use super::*;
-    use crate::{openssh::ssh_secret_keys, util::read::encoded_str};
+    use crate::openssh::ssh_secret_keys;
 
     fn age_secret_key(input: &str) -> IResult<&str, Identity> {
-        preceded(
-            tag(SECRET_KEY_PREFIX),
-            map(encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
-                let mut pk = [0; 32];
-                pk.copy_from_slice(&buf);
-                SecretKey::X25519(pk.into()).into()
-            }),
+        map_res(
+            map_opt(take(74u32), |buf| parse_bech32(buf, SECRET_KEY_PREFIX)),
+            |pk| {
+                pk.map(StaticSecret::from)
+                    .map(SecretKey::X25519)
+                    .map(Identity::from)
+            },
         )(input)
     }
 
@@ -419,17 +434,6 @@ mod read {
         // anything before the "-----BEGIN" tag.
         alt((map(ssh_secret_keys, |key| vec![key]), age_secret_keys))(input)
     }
-
-    pub(super) fn age_recipient_key(input: &str) -> IResult<&str, RecipientKey> {
-        preceded(
-            tag(PUBLIC_KEY_PREFIX),
-            map(encoded_str(32, base64::URL_SAFE_NO_PAD), |buf| {
-                let mut pk = [0; 32];
-                pk.copy_from_slice(&buf);
-                RecipientKey::X25519(pk.into())
-            }),
-        )(input)
-    }
 }
 
 #[cfg(test)]
@@ -439,8 +443,9 @@ pub(crate) mod tests {
 
     use super::{FileKey, Identity, IdentityKey, RecipientKey};
 
-    const TEST_SK: &str = "AGE_SECRET_KEY_QAvvHYA29yZk8Lelpiz8lW7QdlxkE4djb1NOjLgeUFg";
-    const TEST_PK: &str = "pubkey:X4ZiZYoURuOqC2_GPISYiWbJn1-j_HECyac7BpD6kHU";
+    const TEST_SK: &str =
+        "AGE-SECRET-KEY-1GQ9778VQXMMJVE8SK7J6VT8UJ4HDQAJUVSFCWCM02D8GEWQ72PVQ2Y5J33";
+    const TEST_PK: &str = "age1t7rxyev2z3rw82stdlrrepyc39nvn86l5078zqkf5uasdy86jp6svpy7pa";
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEAxO5yF0xjbmkQTfbaCP8DQC7kHnPJr5bdIie6Nzmg9lL6Chye
