@@ -69,6 +69,7 @@ default = ["cli"]
 cli-common = ["dialoguer", "dirs", "gumdrop", "log"]
 cli = ["cli-common", "chrono", "console", "env_logger", "minreq"]
 mount = ["cli-common", "env_logger", "fuse_mt", "libc", "tar", "time", "zip"]
+unstable = []
 
 [[bin]]
 name = "rage-mount"

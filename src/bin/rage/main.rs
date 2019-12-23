@@ -174,6 +174,7 @@ struct AgeOptions {
     #[options(help = "output to OUTPUT (default stdout)")]
     output: Option<String>,
 
+    #[cfg(feature = "unstable")]
     #[options(help = "load the aliases list from ALIASES", no_short)]
     aliases: Option<String>,
 }
@@ -207,7 +208,13 @@ fn encrypt(opts: AgeOptions) {
             return;
         }
 
-        match read_recipients(opts.recipient, opts.aliases) {
+        #[cfg(feature = "unstable")]
+        let aliases = opts.aliases;
+
+        #[cfg(not(feature = "unstable"))]
+        let aliases = None;
+
+        match read_recipients(opts.recipient, aliases) {
             Ok(recipients) => age::Encryptor::Keys(recipients),
             Err(e) => {
                 error!("Error while reading recipients: {}", e);

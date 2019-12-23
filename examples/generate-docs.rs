@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 fn rage_page() {
-    let page = Manual::new("rage")
+    let builder = Manual::new("rage")
         .about("A simple, secure, and modern encryption tool")
         .author(Author::new("Jack Grigg").email("thestr4d@gmail.com"))
         .flag(
@@ -48,11 +48,6 @@ fn rage_page() {
                 .long("--output")
                 .help("The file path to write output to (defaults to stdout)"),
         )
-        .option(
-            Opt::new("aliases")
-                .long("--aliases")
-                .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
-        )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
         .example(Example::new().text("Encryption to a public key").command(
             "echo \"_o/\" | rage -o hello.age -r pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I",
@@ -94,11 +89,6 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Encryption to an alias")
-                .command("tar cv ~/xxx | rage -r alias:str4d > xxx.tar.age"),
-        )
-        .example(
-            Example::new()
                 .text("Decryption with keys at ~/.config/age/keys.txt")
                 .command("rage --decrypt hello.age")
                 .output("_o/"),
@@ -107,8 +97,20 @@ fn rage_page() {
             Example::new()
                 .text("Decryption with custom keys")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
+        );
+    #[cfg(feature = "unstable")]
+    let builder = builder
+        .option(
+            Opt::new("aliases")
+                .long("--aliases")
+                .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
         )
-        .render();
+        .example(
+            Example::new()
+                .text("Encryption to an alias")
+                .command("tar cv ~/xxx | rage -r alias:str4d > xxx.tar.age"),
+        );
+    let page = builder.render();
 
     let mut file =
         File::create("./target/rage.1").expect("Should be able to open file in target directory");
