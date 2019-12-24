@@ -152,6 +152,18 @@ dependencies = [
 [[package]]
 name = "age-plugin-yubikey"
 version = "0.0.0"
+dependencies = [
+ "age-core",
+ "age-plugin",
+ "base64 0.12.3",
+ "bech32",
+ "elliptic-curve",
+ "gumdrop",
+ "p256",
+ "ring",
+ "secrecy",
+ "sha2",
+]
 
 [[package]]
 name = "aho-corasick"
@@ -688,6 +700,17 @@ name = "either"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd56b59865bce947ac5958779cfa508f6c3b9497cc762b7e24a12d11ccde2c4f"
+
+[[package]]
+name = "elliptic-curve"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9abe4578ed343c7a2c9d617cd2b1895ba0a87a6a4dee97bde156d65f608c7b2d"
+dependencies = [
+ "generic-array 0.14.4",
+ "rand_core",
+ "subtle",
+]
 
 [[package]]
 name = "encode_unicode"
@@ -1237,6 +1260,15 @@ name = "os_str_bytes"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ac6fe3538f701e339953a3ebbe4f39941aababa8a3f6964635b24ab526daeac"
+
+[[package]]
+name = "p256"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9f8aff5e98a6a83e374418a0a510ae4d9d45d714b5b0767c2e23ea007d0ba54"
+dependencies = [
+ "elliptic-curve",
+]
 
 [[package]]
 name = "pbkdf2"

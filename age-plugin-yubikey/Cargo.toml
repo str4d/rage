@@ -8,3 +8,13 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
+age-core = { version = "0.4.0", path = "../age-core" }
+age-plugin = { version = "0.0.0", path = "../age-plugin" }
+base64 = "0.12"
+bech32 = "0.7"
+elliptic-curve = "0.5"
+gumdrop = "0.8"
+p256 = "0.4"
+ring = "0.16.15"
+secrecy = "0.7"
+sha2 = "0.9"
