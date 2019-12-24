@@ -18,3 +18,4 @@ p256 = "0.4"
 ring = "0.16.15"
 secrecy = "0.7"
 sha2 = "0.9"
+yubikey-piv = { version = "0.0.3", features = ["untested"] }

@@ -6,3 +6,6 @@ members = [
     "age-plugin-yubikey",
     "rage",
 ]
+
+[patch.crates-io]
+yubikey-piv = { git = "https://github.com/str4d/yubikey-piv.rs.git", branch = "update-deps" }

@@ -2,6 +2,7 @@ use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_encrypt, hkdf},
 };
+use age_plugin::Error;
 use bech32::ToBase32;
 use ring::{
     agreement::{agree_ephemeral, EphemeralPrivateKey, UnparsedPublicKey, ECDH_P256},
@@ -13,9 +14,10 @@ use std::convert::TryInto;
 
 use crate::{p256::PublicKey, RECIPIENT_PREFIX, RECIPIENT_TAG};
 
-const RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/yubikey";
+pub(crate) const RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/yubikey";
 
 const TAG_BYTES: usize = 4;
+const EPK_BYTES: usize = 33;
 const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
 pub(crate) fn piv_to_str(pk: &PublicKey) -> String {
@@ -29,9 +31,9 @@ pub(crate) fn piv_tag(pk: &PublicKey) -> [u8; TAG_BYTES] {
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
-    tag: [u8; TAG_BYTES],
-    epk: PublicKey,
-    encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
+    pub(crate) tag: [u8; TAG_BYTES],
+    pub(crate) epk: PublicKey,
+    pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
 
 impl From<RecipientLine> for Stanza {
@@ -48,6 +50,45 @@ impl From<RecipientLine> for Stanza {
 }
 
 impl RecipientLine {
+    pub(super) fn from_stanza(s: &Stanza) -> Option<Result<Self, Error>> {
+        if s.tag != RECIPIENT_TAG {
+            return None;
+        }
+
+        fn base64_arg<A: AsRef<[u8]>, B: AsMut<[u8]>>(arg: &A, mut buf: B) -> Option<B> {
+            if arg.as_ref().len() != ((4 * buf.as_mut().len()) + 2) / 3 {
+                return None;
+            }
+
+            match base64::decode_config_slice(arg, base64::STANDARD_NO_PAD, buf.as_mut()) {
+                Ok(_) => Some(buf),
+                Err(_) => None,
+            }
+        }
+
+        let tag = s
+            .args
+            .get(0)
+            .and_then(|arg| base64_arg(arg, [0; TAG_BYTES]));
+        let epk = s
+            .args
+            .get(1)
+            .and_then(|arg| base64_arg(arg, vec![0; EPK_BYTES]))
+            .and_then(|bytes| PublicKey::from_bytes(&bytes));
+
+        Some(match (tag, epk) {
+            (Some(tag), Some(epk)) => Ok(RecipientLine {
+                tag,
+                epk,
+                encrypted_file_key: s.body[..].try_into().ok()?,
+            }),
+            _ => Err(Error {
+                kind: "stanza".to_owned(),
+                message: "Invalid yubikey stanza".to_owned(),
+            }),
+        })
+    }
+
     pub(crate) fn wrap_file_key(file_key: &FileKey, pk: &PublicKey) -> Self {
         let rng = SystemRandom::new();
 

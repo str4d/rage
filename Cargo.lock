@@ -163,6 +163,7 @@ dependencies = [
  "ring",
  "secrecy",
  "sha2",
+ "yubikey-piv",
 ]
 
 [[package]]
@@ -664,6 +665,49 @@ dependencies = [
  "rand_core",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "data-encoding"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4d0e2d24e5ee3b23a01de38eefdcd978907890701f08ffffd4cb457ca4ee8d6"
+
+[[package]]
+name = "der-oid-macro"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e66558629d772c3be040566b7be07be8c8f5aecee95e4a092dfe2efc313277ad"
+dependencies = [
+ "nom",
+ "num-bigint 0.3.0",
+ "num-traits",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "der-parser"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c97e68dc033b340ff19244dd3caa94c6148383711361d5e3c74f64175760a93c"
+dependencies = [
+ "der-oid-macro",
+ "nom",
+ "num-bigint 0.3.0",
+ "num-traits",
+ "proc-macro-hack",
+ "rusticata-macros",
+]
+
+[[package]]
+name = "des"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e084b5048dec677e6c9f27d7abc551dde7d127cf4127fea82323c98a30d7fa0d"
+dependencies = [
+ "block-cipher 0.8.0",
+ "byteorder",
+ "opaque-debug 0.3.0",
 ]
 
 [[package]]
@@ -1173,6 +1217,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-bigint"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f3fc75e3697059fb1bc465e3d8cca6cf92f56854f201158b3f9c77d5a3cfa0"
+dependencies = [
+ "autocfg 1.0.1",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "num-bigint-dig"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1271,12 +1326,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "p384"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a21dedbfa7a0603d7c9429b8b427edc4a113c3741e31610ba4a3cbfebe0ff08"
+dependencies = [
+ "elliptic-curve",
+]
+
+[[package]]
 name = "pbkdf2"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7170d73bf11f39b4ce1809aabc95bf5c33564cdc16fc3200ddda17a5f6e5e48b"
 dependencies = [
+ "base64 0.12.3",
  "crypto-mac 0.9.1",
+ "hmac 0.9.0",
+ "rand",
+ "rand_core",
+ "sha2",
+ "subtle",
+]
+
+[[package]]
+name = "pcsc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88e09a8d8705a2c9b1ffe1f9dd9580efe3f8e80c19fc9f99038fe99b7bb56c83"
+dependencies = [
+ "bitflags",
+ "pcsc-sys",
+]
+
+[[package]]
+name = "pcsc-sys"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1b7bfecba2c0f1b5efb0e7caf7533ab1c295024165bcbb066231f60d33e23ea"
+dependencies = [
+ "pkg-config",
 ]
 
 [[package]]
@@ -1669,6 +1758,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusticata-macros"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8a9050636e8a1b487ba1fbe99114021cd7594dde3ce6ed95bfc1691e5b5367b"
+dependencies = [
+ "nom",
+]
+
+[[package]]
 name = "rustls"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1679,6 +1777,17 @@ dependencies = [
  "ring",
  "sct",
  "webpki",
+]
+
+[[package]]
+name = "rustversion"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9bdc5e856e51e685846fb6c13a1f5e5432946c2c90501bdc76a1319f19e29da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1786,6 +1895,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha-1"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "170a36ea86c864a3f16dd2687712dd6646f7019f301e57537c7f4dc9f5916770"
+dependencies = [
+ "block-buffer",
+ "cfg-if",
+ "cpuid-bool",
+ "digest",
+ "opaque-debug 0.3.0",
+]
+
+[[package]]
 name = "sha2"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1805,7 +1927,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "692ca13de57ce0613a363c8c2f1de925adebc81b04c923ac60c5488bb44abe4b"
 dependencies = [
  "chrono",
- "num-bigint",
+ "num-bigint 0.2.6",
  "num-traits",
 ]
 
@@ -1863,6 +1985,15 @@ name = "subtle"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "502d53007c02d7605a05df1c1a73ee436952781653da5d0bf57ad608f66932c1"
+
+[[package]]
+name = "subtle-encoding"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dcb1ed7b8330c5eed5441052651dd7a12c75e2ed88f2ec024ae1fa3a5e59945"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "syn"
@@ -2223,12 +2354,72 @@ dependencies = [
 ]
 
 [[package]]
+name = "x509"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9335b8ff50b6a0de184b3eeb11fdce74224e3af90ca7265012512e73fc999d1a"
+dependencies = [
+ "chrono",
+ "cookie-factory",
+]
+
+[[package]]
+name = "x509-parser"
+version = "0.8.0-beta4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "585710d3abbfc2f12099e0e1bfd7f715a84e9374c9113a63ca4b02d8c20fd322"
+dependencies = [
+ "base64 0.12.3",
+ "chrono",
+ "data-encoding",
+ "der-oid-macro",
+ "der-parser",
+ "lazy_static",
+ "nom",
+ "num-bigint 0.3.0",
+ "rusticata-macros",
+ "rustversion",
+]
+
+[[package]]
 name = "xattr"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "244c3741f4240ef46274860397c7c74e50eb23624996930e484c16679633a54c"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "yubikey-piv"
+version = "0.0.3"
+source = "git+https://github.com/str4d/yubikey-piv.rs.git?branch=update-deps#c39697149690d9b905ad77d6fe1218532ec22948"
+dependencies = [
+ "chrono",
+ "cookie-factory",
+ "der-parser",
+ "des",
+ "elliptic-curve",
+ "getrandom",
+ "hmac 0.9.0",
+ "log 0.4.11",
+ "nom",
+ "num-bigint-dig",
+ "num-integer",
+ "num-traits",
+ "p256",
+ "p384",
+ "pbkdf2",
+ "pcsc",
+ "rsa",
+ "secrecy",
+ "sha-1",
+ "sha2",
+ "subtle",
+ "subtle-encoding",
+ "x509",
+ "x509-parser",
+ "zeroize",
 ]
 
 [[package]]
