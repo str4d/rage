@@ -47,21 +47,16 @@ impl Encryptor {
     /// You **MUST** call `finish()` when you are done writing, in order to finish the
     /// encryption process. Failing to call `finish()` will result in a truncated message
     /// that will fail to decrypt.
-    pub fn wrap_output<W: Write>(
-        &self,
-        mut output: W,
-        armored: bool,
-    ) -> io::Result<StreamWriter<W>> {
+    pub fn wrap_output<W: Write>(&self, output: W, armored: bool) -> io::Result<StreamWriter<W>> {
+        let mut output = ArmoredWriter::wrap_output(output, armored)?;
+
         let file_key = FileKey::generate();
 
         let header = Header::new(
-            armored,
             self.wrap_file_key(&file_key),
             hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
         );
         header.write(&mut output)?;
-
-        let mut output = ArmoredWriter::wrap_output(output, armored);
 
         let mut nonce = [0; 16];
         getrandom(&mut nonce).expect("Should not fail");
@@ -107,12 +102,12 @@ impl Decryptor {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn trial_decrypt<R: Read, P: Fn(&str) -> Option<SecretString> + Copy>(
         &self,
-        mut input: R,
+        input: R,
         request_passphrase: P,
     ) -> Result<impl Read, Error> {
-        let header = Header::read(&mut input)?;
+        let mut input = ArmoredReader::from_reader(input);
 
-        let mut input = ArmoredReader::from_reader(input, header.armored);
+        let header = Header::read(&mut input)?;
 
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce)?;
@@ -153,9 +148,6 @@ impl Decryptor {
         request_passphrase: P,
     ) -> Result<StreamReader<R>, Error> {
         let header = Header::read(&mut input)?;
-        if header.armored {
-            return Err(Error::ArmoredWhenSeeking);
-        }
 
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce)?;

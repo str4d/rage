@@ -5,9 +5,10 @@ use zeroize::Zeroizing;
 
 use crate::util::LINE_ENDING;
 
-const ARMORED_COLUMNS_PER_LINE: usize = 56;
+const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
-const ARMORED_END_MARKER: &str = "--- end of file ---";
+const ARMORED_BEGIN_MARKER: &str = "-----BEGIN AGE ENCRYPTED FILE-----";
+const ARMORED_END_MARKER: &str = "-----END AGE ENCRYPTED FILE-----";
 
 pub(crate) struct LineEndingWriter<W: Write> {
     inner: W,
@@ -15,11 +16,15 @@ pub(crate) struct LineEndingWriter<W: Write> {
 }
 
 impl<W: Write> LineEndingWriter<W> {
-    fn new(inner: W) -> Self {
-        LineEndingWriter {
+    fn new(mut inner: W) -> io::Result<Self> {
+        // Write the begin marker
+        inner.write_all(ARMORED_BEGIN_MARKER.as_bytes())?;
+        inner.write_all(LINE_ENDING.as_bytes())?;
+
+        Ok(LineEndingWriter {
             inner,
             total_written: 0,
-        }
+        })
     }
 
     fn finish(mut self) -> io::Result<W> {
@@ -74,13 +79,13 @@ pub(crate) enum ArmoredWriter<W: Write> {
 }
 
 impl<W: Write> ArmoredWriter<W> {
-    pub(crate) fn wrap_output(inner: W, enabled: bool) -> Self {
+    pub(crate) fn wrap_output(inner: W, enabled: bool) -> io::Result<Self> {
         if enabled {
-            ArmoredWriter::Enabled {
-                encoder: EncodeWriter::new(URL_SAFE_NO_PAD, LineEndingWriter::new(inner)),
-            }
+            LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
+                encoder: EncodeWriter::new(URL_SAFE_NO_PAD, w),
+            })
         } else {
-            ArmoredWriter::Disabled { inner }
+            Ok(ArmoredWriter::Disabled { inner })
         }
     }
 
@@ -113,7 +118,7 @@ impl<W: Write> Write for ArmoredWriter<W> {
 
 pub(crate) struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
-    enabled: bool,
+    is_armored: Option<bool>,
     line_buf: Zeroizing<String>,
     byte_buf: Zeroizing<[u8; ARMORED_BYTES_PER_LINE]>,
     byte_start: usize,
@@ -122,10 +127,10 @@ pub(crate) struct ArmoredReader<R: Read> {
 }
 
 impl<R: Read> ArmoredReader<R> {
-    pub(crate) fn from_reader(inner: R, enabled: bool) -> Self {
+    pub(crate) fn from_reader(inner: R) -> Self {
         ArmoredReader {
             inner: BufReader::new(inner),
-            enabled,
+            is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
             byte_buf: Zeroizing::new([0; ARMORED_BYTES_PER_LINE]),
             byte_start: ARMORED_BYTES_PER_LINE,
@@ -137,8 +142,49 @@ impl<R: Read> ArmoredReader<R> {
 
 impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        if !self.enabled {
-            return self.inner.read(buf);
+        match self.is_armored {
+            None => {
+                // Detect armor
+                self.line_buf.clear();
+                self.inner.read_line(&mut self.line_buf)?;
+
+                let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
+                self.is_armored = Some(is_armored);
+
+                if !is_armored {
+                    // The line we read was likely a header line
+                    if buf.len() < self.line_buf.len() {
+                        let remaining = self.line_buf.split_off(buf.len());
+                        buf.copy_from_slice(self.line_buf.as_bytes());
+                        self.line_buf = Zeroizing::new(remaining);
+                        return Ok(buf.len());
+                    } else {
+                        let to_read = self.line_buf.len();
+                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
+                        self.line_buf.clear();
+                        return Ok(to_read);
+                    }
+                }
+            }
+            Some(false) => {
+                if self.line_buf.is_empty() {
+                    return self.inner.read(buf);
+                } else {
+                    // Return any leftover data from armor detection
+                    if buf.len() < self.line_buf.len() {
+                        let remaining = self.line_buf.split_off(buf.len());
+                        buf.copy_from_slice(self.line_buf.as_bytes());
+                        self.line_buf = Zeroizing::new(remaining);
+                        return Ok(buf.len());
+                    } else {
+                        let to_read = self.line_buf.len();
+                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
+                        self.line_buf.clear();
+                        return Ok(to_read);
+                    }
+                }
+            }
+            Some(true) => (),
         }
         if self.found_end {
             return Ok(0);
@@ -228,14 +274,14 @@ mod tests {
 
             let mut encoded = vec![];
             {
-                let mut out = ArmoredWriter::wrap_output(&mut encoded, true);
+                let mut out = ArmoredWriter::wrap_output(&mut encoded, true).unwrap();
                 out.write_all(&data).unwrap();
                 out.finish().unwrap();
             }
 
             let mut buf = vec![];
             {
-                let mut input = ArmoredReader::from_reader(&encoded[..], true);
+                let mut input = ArmoredReader::from_reader(&encoded[..]);
                 input.read_to_end(&mut buf).unwrap();
             }
 
