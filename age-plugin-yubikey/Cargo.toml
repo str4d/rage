@@ -12,9 +12,13 @@ age-core = { version = "0.4.0", path = "../age-core" }
 age-plugin = { version = "0.0.0", path = "../age-plugin" }
 base64 = "0.12"
 bech32 = "0.7"
+chrono = "0.4"
+dialoguer = "0.6"
 elliptic-curve = "0.5"
 gumdrop = "0.8"
+hex = "0.4"
 p256 = "0.4"
+rand = "0.7"
 ring = "0.16.15"
 secrecy = "0.7"
 sha2 = "0.9"

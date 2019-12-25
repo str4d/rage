@@ -95,7 +95,7 @@ dependencies = [
  "block-modes",
  "c2-chacha",
  "chacha20poly1305",
- "console",
+ "console 0.12.0",
  "cookie-factory",
  "criterion",
  "criterion-cycles-per-byte",
@@ -157,9 +157,13 @@ dependencies = [
  "age-plugin",
  "base64 0.12.3",
  "bech32",
+ "chrono",
+ "dialoguer",
  "elliptic-curve",
  "gumdrop",
+ "hex",
  "p256",
+ "rand",
  "ring",
  "secrecy",
  "sha2",
@@ -469,6 +473,23 @@ dependencies = [
 
 [[package]]
 name = "console"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c0994e656bba7b922d8dd1245db90672ffb701e684e45be58f20719d69abc5a"
+dependencies = [
+ "encode_unicode",
+ "lazy_static",
+ "libc",
+ "regex",
+ "terminal_size",
+ "termios",
+ "unicode-width",
+ "winapi",
+ "winapi-util",
+]
+
+[[package]]
+name = "console"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0b1aacfaffdbff75be81c15a399b4bedf78aaefe840e8af1d299ac2ade885d2"
@@ -708,6 +729,17 @@ dependencies = [
  "block-cipher 0.8.0",
  "byteorder",
  "opaque-debug 0.3.0",
+]
+
+[[package]]
+name = "dialoguer"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4aa86af7b19b40ef9cbef761ed411a49f0afa06b7b6dcd3dfe2f96a3c546138"
+dependencies = [
+ "console 0.11.3",
+ "lazy_static",
+ "tempfile",
 ]
 
 [[package]]
@@ -1017,6 +1049,12 @@ checksum = "3deed196b6e7f9e44a2ae8d94225d80302d81208b1bb673fd21fe634645c85a9"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "hex"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "644f9158b2f133fd50f5fb3242878846d9eb792e445c893805ff0e3824006e35"
 
 [[package]]
 name = "hkdf"
@@ -1557,7 +1595,7 @@ dependencies = [
  "chrono",
  "clap 3.0.0-beta.1",
  "clap_generate",
- "console",
+ "console 0.12.0",
  "env_logger",
  "flate2",
  "fuse_mt",
@@ -1682,6 +1720,15 @@ name = "regex-syntax"
 version = "0.6.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26412eb97c6b088a6997e05f69403a802a92d520de2f8e63c2b65f9e0f47c4e8"
+
+[[package]]
+name = "remove_dir_all"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "ring"
@@ -2039,6 +2086,20 @@ dependencies = [
  "libc",
  "redox_syscall",
  "xattr",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a6e24d9338a0a5be79593e2fa15a648add6138caa803e2d5bc782c371732ca9"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "rand",
+ "redox_syscall",
+ "remove_dir_all",
+ "winapi",
 ]
 
 [[package]]
