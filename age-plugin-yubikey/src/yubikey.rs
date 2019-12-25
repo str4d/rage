@@ -12,6 +12,8 @@ use secrecy::ExposeSecret;
 use std::convert::TryInto;
 use std::hash;
 use std::io;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
 use yubikey_piv::{
     certificate::{Certificate, PublicKeyInfo},
     key::{decrypt_data, AlgorithmId, RetiredSlotId, SlotId},
@@ -24,6 +26,9 @@ use crate::{
     p256::PublicKey,
     IDENTITY_PREFIX,
 };
+
+const ONE_SECOND: Duration = Duration::from_secs(1);
+const FIFTEEN_SECONDS: Duration = Duration::from_secs(15);
 
 /// A reference to an age key stored in a YubiKey.
 #[derive(Debug, PartialEq)]
@@ -98,6 +103,48 @@ impl Stub {
     ) -> io::Result<Result<Connection, Error>> {
         let mut yubikey = match YubiKey::open_by_serial(self.serial) {
             Ok(yk) => yk,
+            Err(yubikey_piv::Error::NotFound) => {
+                if let Err(_) = callbacks.prompt(&format!(
+                    "Please insert YubiKey with serial {}",
+                    self.serial
+                ))? {
+                    return Ok(Err(Error {
+                        kind: "identity".to_owned(),
+                        message: format!("Could not find YubiKey with serial {}", self.serial),
+                    }));
+                }
+
+                // Start a 15-second timer waiting for the YubiKey to be inserted
+                let start = SystemTime::now();
+                loop {
+                    match YubiKey::open_by_serial(self.serial) {
+                        Ok(yubikey) => break yubikey,
+                        Err(yubikey_piv::Error::NotFound) => (),
+                        Err(_) => {
+                            return Ok(Err(Error {
+                                kind: "identity".to_owned(),
+                                message: format!(
+                                    "Could not open YubiKey with serial {}",
+                                    self.serial
+                                ),
+                            }));
+                        }
+                    }
+
+                    match SystemTime::now().duration_since(start) {
+                        Ok(end) if end >= FIFTEEN_SECONDS => {
+                            return Ok(Err(Error {
+                                kind: "identity".to_owned(),
+                                message: format!(
+                                "Timed out while waiting for YubiKey with serial {} to be inserted",
+                                self.serial
+                            ),
+                            }))
+                        }
+                        _ => sleep(ONE_SECOND),
+                    }
+                }
+            }
             Err(_) => {
                 return Ok(Err(Error {
                     kind: "identity".to_owned(),
