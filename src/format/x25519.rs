@@ -9,7 +9,7 @@ use crate::{
 };
 
 const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
-pub(crate) const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
+const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-tool.com X25519";
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
