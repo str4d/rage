@@ -135,10 +135,10 @@ pub(super) mod read {
             map_opt(
                 separated_nonempty_list(line_ending, take_b64_line(base64::STANDARD_NO_PAD)),
                 |chunks| {
-                    // Enforce that the only chunk allowed to be shorter than 56 characters
+                    // Enforce that the only chunk allowed to be shorter than 64 characters
                     // is the last chunk.
-                    if chunks.iter().rev().skip(1).any(|s| s.len() != 56)
-                        || chunks.last().map(|s| s.len() > 56) == Some(true)
+                    if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
+                        || chunks.last().map(|s| s.len() > 64) == Some(true)
                     {
                         None
                     } else {
@@ -188,8 +188,8 @@ pub(super) mod write {
         move |mut w: WriteContext<W>| {
             let mut s = encoded.as_str();
 
-            while s.len() > 56 {
-                let (l, r) = s.split_at(56);
+            while s.len() > 64 {
+                let (l, r) = s.split_at(64);
                 w = string(l)(w)?;
                 if !r.is_empty() {
                     w = string(line_ending)(w)?;
