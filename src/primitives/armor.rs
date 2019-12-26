@@ -1,4 +1,4 @@
-use radix64::{configs::StdNoPad, io::EncodeWriter, STD_NO_PAD};
+use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use zeroize::Zeroizing;
@@ -70,7 +70,7 @@ impl<W: Write> Write for LineEndingWriter<W> {
 
 pub(crate) enum ArmoredWriter<W: Write> {
     Enabled {
-        encoder: EncodeWriter<StdNoPad, LineEndingWriter<W>>,
+        encoder: EncodeWriter<Std, LineEndingWriter<W>>,
     },
 
     Disabled {
@@ -82,7 +82,7 @@ impl<W: Write> ArmoredWriter<W> {
     pub(crate) fn wrap_output(inner: W, enabled: bool) -> io::Result<Self> {
         if enabled {
             LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
-                encoder: EncodeWriter::new(STD_NO_PAD, w),
+                encoder: EncodeWriter::new(STD, w),
             })
         } else {
             Ok(ArmoredWriter::Disabled { inner })
@@ -237,7 +237,7 @@ impl<R: Read> Read for ArmoredReader<R> {
             // Decode the line
             self.byte_end = base64::decode_config_slice(
                 line.as_bytes(),
-                base64::STANDARD_NO_PAD,
+                base64::STANDARD,
                 self.byte_buf.as_mut(),
             )
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
