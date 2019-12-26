@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn message_decryption() {
-        let test_key = "AGE_SECRET_KEY_KWoIxSwdk-ClrgOHIdVFsku8roB3hZRA3xO7BnJfvEY";
+        let test_key = "AGE-SECRET-KEY-19P4Q33FVRKF7PFDWQWRJR429KF9MET5QW7ZEGSXLZWASVUJLH3RQWEQXA3";
         let test_msg_1 = b"This is a file encrypted with age-tool.com, version 1
 -> X25519 8wBndPxeTabOgA0sw54InE8rJ3nmu_OligUpX5DCOEY
 zbr2uOfVU47gBMC1XgYUtf2dILYR3Cb42lWgdV8oJ1k

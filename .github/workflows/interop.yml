@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v1
         with:
           repository: FiloSottile/age
-          ref: refs/heads/master
+          ref: refs/heads/bikeshed
       - name: go build
         run: |
           cd $GITHUB_WORKSPACE/../age
@@ -73,10 +73,10 @@ jobs:
         run: sudo apt install dos2unix
       - name: Write (very not private) age X25519 key
         if: matrix.recipient == 'x25519'
-        run: echo "AGE_SECRET_KEY_CEOQVF2ZAEAYcPmOFH9huOX18t5rxBQ65L7k2WLa604" >key.txt
+        run: echo "AGE-SECRET-KEY-1TRYTV7PQS5XPUYSTAQZCD7DQCWC7Q77YJD7UVFJRMW4J82Q6930QS70MRX" >key.txt
       - name: Set the corresponding age x25519 recipient
         if: matrix.recipient == 'x25519'
-        run: echo "::set-env name=AGE_PUBKEY::pubkey:HKxueJKWOeg9GFSOJQCts45j3Zp2TTsRDfntwgSgYiI"
+        run: echo "::set-env name=AGE_PUBKEY::age1y8m84r6pwd4da5d45zzk03rlgv2xr7fn9px80suw3psrahul44ashl0usm"
       - name: Generate an ssh-rsa key
         if: matrix.recipient == 'ssh-rsa'
         run: ssh-keygen -t rsa -N "" -f key.txt
