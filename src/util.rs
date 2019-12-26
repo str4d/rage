@@ -102,7 +102,7 @@ pub(crate) mod read {
                 e => e,
             })?;
 
-            match base64::decode_config_slice(data, base64::URL_SAFE_NO_PAD, buf.as_mut()) {
+            match base64::decode_config_slice(data, base64::STANDARD_NO_PAD, buf.as_mut()) {
                 Ok(_) => Ok((i, buf)),
                 Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
             }
@@ -115,7 +115,7 @@ pub(crate) mod write {
     use std::io::Write;
 
     pub(crate) fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
+        let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
         string(encoded)
     }
 }

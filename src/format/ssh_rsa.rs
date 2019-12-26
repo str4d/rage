@@ -133,7 +133,7 @@ pub(super) mod read {
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
         move |input: &[u8]| {
             map_opt(
-                separated_nonempty_list(line_ending, take_b64_line(base64::URL_SAFE_NO_PAD)),
+                separated_nonempty_list(line_ending, take_b64_line(base64::STANDARD_NO_PAD)),
                 |chunks| {
                     // Enforce that the only chunk allowed to be shorter than 56 characters
                     // is the last chunk.
@@ -143,7 +143,7 @@ pub(super) mod read {
                         None
                     } else {
                         let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                        base64::decode_config(&data, base64::URL_SAFE_NO_PAD).ok()
+                        base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
                     }
                 },
             )(input)
@@ -183,7 +183,7 @@ pub(super) mod write {
         data: &[u8],
         line_ending: &'a str,
     ) -> impl SerializeFn<W> + 'a {
-        let encoded = base64::encode_config(data, base64::URL_SAFE_NO_PAD);
+        let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
 
         move |mut w: WriteContext<W>| {
             let mut s = encoded.as_str();
