@@ -32,16 +32,14 @@ impl RecipientLine {
         ssh_key: &[u8],
         ed25519_pk: &EdwardsPoint,
     ) -> Self {
-        let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
-        let pk: PublicKey = (*tweak
-            .diffie_hellman(&ed25519_pk.to_montgomery().to_bytes().into())
-            .as_bytes())
-        .into();
+        let pk: PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
-        let shared_secret = esk.diffie_hellman(&pk);
+
+        let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
+        let shared_secret = tweak.diffie_hellman(&(*esk.diffie_hellman(&pk).as_bytes()).into());
 
         let mut salt = vec![];
         salt.extend_from_slice(epk.as_bytes());
@@ -82,10 +80,9 @@ impl RecipientLine {
             sk.copy_from_slice(&Sha512::digest(&privkey[0..32])[0..32]);
             sk.into()
         };
+        let pk = PublicKey::from(&sk);
 
         let tweak: StaticSecret = hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
-        let pk = tweak.diffie_hellman(&(&sk).into());
-
         let shared_secret = tweak.diffie_hellman(&PublicKey::from(
             *sk.diffie_hellman(&self.rest.epk).as_bytes(),
         ));
