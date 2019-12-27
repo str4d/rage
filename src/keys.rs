@@ -126,11 +126,7 @@ impl EncryptedKey {
                 ))?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
-                    Err(e) => {
-                        // TODO: Expose this error
-                        eprintln!("{}", e);
-                        return None;
-                    }
+                    Err(e) => return Some(Err(e)),
                 };
                 decrypted.unwrap_file_key(line)
             }
