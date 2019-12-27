@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v1
         with:
           repository: FiloSottile/age
-          ref: refs/heads/bikeshed
+          ref: refs/heads/master
       - name: go build
         run: |
           cd $GITHUB_WORKSPACE/../age

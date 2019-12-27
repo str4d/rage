@@ -404,7 +404,10 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
+            let mut w = Stream::encrypt(
+                &key,
+                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+            );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -426,7 +429,10 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
+            let mut w = Stream::encrypt(
+                &key,
+                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+            );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -448,7 +454,10 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
+            let mut w = Stream::encrypt(
+                &key,
+                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+            );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -470,7 +479,10 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
+            let mut w = Stream::encrypt(
+                &key,
+                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+            );
             w.write_all(&data).unwrap();
             // Forget to call w.finish()!
         };
@@ -493,7 +505,10 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, ArmoredWriter::wrap_output(&mut encrypted, false));
+            let mut w = Stream::encrypt(
+                &key,
+                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+            );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };

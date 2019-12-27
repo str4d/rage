@@ -9,9 +9,7 @@ pub(crate) mod ssh_ed25519;
 pub(crate) mod ssh_rsa;
 pub(crate) mod x25519;
 
-const BINARY_MAGIC: &[u8] = b"This is a file";
-const ARMORED_MAGIC: &[u8] = b"This is an armored file";
-const V1_MAGIC: &[u8] = b"encrypted with age-tool.com, version 1";
+const V1_MAGIC: &[u8] = b"age-encryption.org/v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
@@ -48,15 +46,13 @@ impl From<ssh_ed25519::RecipientLine> for RecipientLine {
 }
 
 pub struct Header {
-    pub(crate) armored: bool,
     pub(crate) recipients: Vec<RecipientLine>,
     pub(crate) mac: [u8; 32],
 }
 
 impl Header {
-    pub(crate) fn new(armored: bool, recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+    pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
         let mut header = Header {
-            armored,
             recipients,
             mac: [0; 32],
         };
@@ -79,7 +75,7 @@ impl Header {
     pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
         let mut data = vec![];
         loop {
-            match read::any_header(&data) {
+            match read::canonical_header(&data) {
                 Ok((_, header)) => break Ok(header),
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
@@ -97,18 +93,14 @@ impl Header {
     }
 
     pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
-        if self.armored {
-            cookie_factory::gen(write::armored_header(self), &mut output)
-        } else {
-            cookie_factory::gen(write::binary_header(self), &mut output)
-        }
-        .map(|_| ())
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("failed to write header: {}", e),
-            )
-        })
+        cookie_factory::gen(write::binary_header(self), &mut output)
+            .map(|_| ())
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("failed to write header: {}", e),
+                )
+            })
     }
 }
 
@@ -154,7 +146,6 @@ mod read {
     }
 
     fn header<'a, N>(
-        armored: bool,
         line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Header> {
         move |input: &[u8]| {
@@ -171,41 +162,14 @@ mod read {
                             terminated(encoded_data(32, [0; 32]), line_ending),
                         ),
                     ),
-                    |(recipients, mac)| Header {
-                        armored,
-                        recipients,
-                        mac,
-                    },
+                    |(recipients, mac)| Header { recipients, mac },
                 ),
             )(input)
         }
     }
 
-    fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
-        preceded(
-            pair(tag(BINARY_MAGIC), tag(b" ")),
-            header(false, &nom::character::streaming::newline),
-        )(input)
-    }
-
-    fn armored_header(input: &[u8]) -> IResult<&[u8], Header> {
-        preceded(
-            pair(tag(ARMORED_MAGIC), tag(b" ")),
-            header(true, &|input: &[u8]| {
-                // line_ending returns the total number of bytes it needs, not the
-                // additional number of bytes like other APIs.
-                nom::character::streaming::line_ending(input).map_err(|e| match e {
-                    nom::Err::Incomplete(nom::Needed::Size(n)) => {
-                        nom::Err::Incomplete(nom::Needed::Size(n - input.len()))
-                    }
-                    e => e,
-                })
-            }),
-        )(input)
-    }
-
-    pub(super) fn any_header(input: &[u8]) -> IResult<&[u8], Header> {
-        alt((canonical_header, armored_header))(input)
+    pub(super) fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
+        header(&nom::character::streaming::newline)(input)
     }
 }
 
@@ -219,7 +183,7 @@ mod write {
     use std::io::Write;
 
     use super::*;
-    use crate::util::{write::encoded_data, LINE_ENDING};
+    use crate::util::write::encoded_data;
 
     fn recipient_line<'a, W: 'a + Write>(
         r: &'a RecipientLine,
@@ -268,23 +232,11 @@ mod write {
     pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
         h: &'a Header,
     ) -> impl SerializeFn<W> + 'a {
-        tuple((
-            slice(if h.armored {
-                ARMORED_MAGIC
-            } else {
-                BINARY_MAGIC
-            }),
-            string(" "),
-            header_minus_mac(h, "\n"),
-        ))
+        header_minus_mac(h, "\n")
     }
 
     pub(super) fn binary_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
-        tuple((slice(BINARY_MAGIC), string(" "), header(h, "\n")))
-    }
-
-    pub(super) fn armored_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
-        tuple((slice(ARMORED_MAGIC), string(" "), header(h, LINE_ENDING)))
+        header(h, "\n")
     }
 }
 
@@ -294,27 +246,25 @@ mod tests {
 
     #[test]
     fn parse_header() {
-        let test_header = "This is a file encrypted with age-tool.com, version 1
--> X25519 CJM36AHmTbdHSuOQL-NESqyVQE75f2e610iRdLPEN20
-C3ZAeY64NXS4QFrksLm3EGz-uPRyI0eQsWw7LWbbYig
+        let test_header = "age-encryption.org/v1
+-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 -> X25519 ytazqsbmUnPwVWMVx0c1X9iUtGdY4yAB08UQTY2hNCI
-N3pgrXkbIn_RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
+N3pgrXkbIn/RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
 -> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
-ZV_AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
+ZV/AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
 -> ssh-rsa mhir0Q
-xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJ
-CRB0ErXAmgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQk
-KaMLkaqh5GjcGRrZe5MmTXRdEyNPRl8qpystNZR1q2rEDUHSEJInVLW8
-OtvQRG8P303VpjnOUU53FSBwyXxDtzxKxeloceFubn_HWGcR0mHU-1e9
-l39myQEUZjIoqFIELXvh9o6RUgYzaAI-m_uPLMQdlIkiOOdbsrE6tFes
-RLZNHAYspeRKI9MJ--Xg9i7rutU34ZM-1BL6KgZfJ9FSm-GFHiVWpr1M
-fYCo_w
--> ssh-ed25519 BjH7FA RO-wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
-51eEu5Oo2JYAG7OU4oamH03FDRP18_GnzeCrY7Z-sa8
---- fgMiVLJHMlg9fW7CVG_hPS5EAU4Zeg19LyCP7SoH5nA
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
+mgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQkKaMLkaqh5GjcGRrZ
+e5MmTXRdEyNPRl8qpystNZR1q2rEDUHSEJInVLW8OtvQRG8P303VpjnOUU53FSBw
+yXxDtzxKxeloceFubn/HWGcR0mHU+1e9l39myQEUZjIoqFIELXvh9o6RUgYzaAI+
+m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
+J9FSm+GFHiVWpr1MfYCo/w
+-> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
+51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
+--- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
 ";
         let h = Header::read(test_header.as_bytes()).unwrap();
-        assert!(!h.armored);
         let mut data = vec![];
         h.write(&mut data).unwrap();
         assert_eq!(std::str::from_utf8(&data), Ok(test_header));

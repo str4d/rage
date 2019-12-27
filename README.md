@@ -3,7 +3,7 @@
 age is meant to be a simple, secure and modern encryption tool with small
 explicit keys, no config options, and UNIX-style composability.
 
-- The spec is at https://age-tool.com.
+- The spec is at https://age-encryption.org/v1.
 - The reference implementation is https://github.com/FiloSottile/age.
 
 rage is a Rust implementation of the age tool. It is pronounced like the Japanese
