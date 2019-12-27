@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader};
 
+mod error;
+
 const ALIAS_PREFIX: &str = "alias:";
 const GITHUB_PREFIX: &str = "github:";
 
@@ -75,14 +77,7 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
 fn read_recipients(
     mut arguments: Vec<String>,
     aliases: Option<String>,
-) -> io::Result<Vec<age::RecipientKey>> {
-    if arguments.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "missing recipients",
-        ));
-    }
-
+) -> Result<Vec<age::RecipientKey>, error::EncryptError> {
     let mut aliases = load_aliases(aliases)?;
     let mut seen_aliases = vec![];
 
@@ -100,10 +95,12 @@ fn read_recipients(
                 warn!("Duplicate {}", arg);
             } else {
                 // Replace the alias in the arguments list with its expansion
-                arguments.extend(aliases.remove(&arg[ALIAS_PREFIX.len()..]).ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::InvalidInput, format!("unknown {}", arg))
-                })?);
-                seen_aliases.push(arg);
+                if let Some(new_arg) = aliases.remove(&arg[ALIAS_PREFIX.len()..]) {
+                    arguments.extend(new_arg);
+                    seen_aliases.push(arg);
+                } else {
+                    return Err(error::EncryptError::UnknownAlias(arg));
+                }
             }
         } else if arg.starts_with(GITHUB_PREFIX) {
             arguments.push(format!(
@@ -111,37 +108,27 @@ fn read_recipients(
                 &arg[GITHUB_PREFIX.len()..],
             ));
         } else if arg.starts_with("https://") {
-            match minreq::get(&arg).send() {
-                Ok(response) => match response.status_code {
-                    200 => recipients.extend(read_recipients_list(
-                        &arg,
-                        BufReader::new(response.body.as_bytes()),
-                    )?),
-                    404 => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::NotFound,
-                            format!("{} not found", arg),
-                        ))
-                    }
-                    code => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::Other,
-                            format!("{} returned an unexpected code ({})", arg, code),
-                        ))
-                    }
-                },
-                Err(e) => {
-                    return Err(io::Error::new(
+            let response = minreq::get(&arg).send()?;
+            match response.status_code {
+                200 => recipients.extend(read_recipients_list(
+                    &arg,
+                    BufReader::new(response.body.as_bytes()),
+                )?),
+                404 => {
+                    return Err(error::EncryptError::Io(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        format!("{} not found", arg),
+                    )))
+                }
+                code => {
+                    return Err(error::EncryptError::Io(io::Error::new(
                         io::ErrorKind::Other,
-                        format!("failed to fetch {}: {}", arg, e),
-                    ))
+                        format!("{} returned an unexpected code ({})", arg, code),
+                    )))
                 }
             }
         } else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "invalid recipient",
-            ));
+            return Err(error::EncryptError::InvalidRecipient(arg));
         }
     }
 
@@ -179,33 +166,27 @@ struct AgeOptions {
     aliases: Option<String>,
 }
 
-fn encrypt(opts: AgeOptions) {
+fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     if !opts.identity.is_empty() {
-        error!("-i/--identity can't be used in encryption mode.");
-        error!("Did you forget to specify -d/--decrypt?");
-        return;
+        return Err(error::EncryptError::IdentityFlag);
     }
 
     let encryptor = if opts.passphrase {
         if !opts.recipient.is_empty() {
-            error!("-r/--recipient can't be used with -p/--passphrase");
-            return;
+            return Err(error::EncryptError::MixedRecipientAndPassphrase);
         }
 
         if opts.input.is_none() {
-            error!("File to encrypt must be passed as an argument when using -p/--passphrase");
-            return;
+            return Err(error::EncryptError::PassphraseWithoutFileArgument);
         }
 
         match read_passphrase("Type passphrase", true) {
             Ok(passphrase) => age::Encryptor::Passphrase(passphrase),
-            Err(_) => return,
+            Err(_) => return Ok(()),
         }
     } else {
         if opts.recipient.is_empty() {
-            error!("Missing recipients.");
-            error!("Did you forget to specify -r/--recipient?");
-            return;
+            return Err(error::EncryptError::MissingRecipients);
         }
 
         #[cfg(feature = "unstable")]
@@ -214,143 +195,79 @@ fn encrypt(opts: AgeOptions) {
         #[cfg(not(feature = "unstable"))]
         let aliases = None;
 
-        match read_recipients(opts.recipient, aliases) {
-            Ok(recipients) => age::Encryptor::Keys(recipients),
-            Err(e) => {
-                error!("Error while reading recipients: {}", e);
-                return;
-            }
-        }
+        age::Encryptor::Keys(read_recipients(opts.recipient, aliases)?)
     };
 
-    let mut input = match file_io::InputReader::new(opts.input) {
-        Ok(input) => input,
-        Err(e) => {
-            error!("Failed to open input: {}", e);
-            return;
-        }
-    };
+    let mut input = file_io::InputReader::new(opts.input)?;
+    let mut output =
+        encryptor.wrap_output(file_io::OutputWriter::new(opts.output, true)?, opts.armor)?;
 
-    let output = match file_io::OutputWriter::new(opts.output, true) {
-        Ok(output) => output,
-        Err(e) => {
-            error!("Failed to open output: {}", e);
-            return;
-        }
-    };
+    io::copy(&mut input, &mut output)?;
+    output.finish()?;
 
-    match encryptor.wrap_output(output, opts.armor) {
-        Ok(mut w) => {
-            if let Err(e) = io::copy(&mut input, &mut w) {
-                error!("Error while encrypting: {}", e);
-                return;
-            }
-            if let Err(e) = w.finish() {
-                error!("Error while encrypting: {}", e);
-                return;
-            }
-        }
-        Err(e) => {
-            error!("Failed to encrypt: {}", e);
-        }
-    }
+    Ok(())
 }
 
-fn decrypt(opts: AgeOptions) {
+fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     if opts.armor {
-        error!("-a/--armor can't be used with -d/--decrypt.");
-        error!("Note that armored files are detected automatically.");
-        return;
+        return Err(error::DecryptError::ArmorFlag);
     }
 
     if !opts.recipient.is_empty() {
-        error!("-r/--recipient can't be used with -d/--decrypt.");
-        error!("Did you mean to use -i/--identity to specify a private key?");
-        return;
+        return Err(error::DecryptError::RecipientFlag);
     }
 
     let decryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
-            error!("-i/--identity can't be used with -p/--passphrase");
-            return;
+            return Err(error::DecryptError::MixedIdentityAndPassphrase);
         }
 
         if opts.input.is_none() {
-            error!("File to decrypt must be passed as an argument when using -p/--passphrase");
-            return;
+            return Err(error::DecryptError::PassphraseWithoutFileArgument);
         }
 
         match read_passphrase("Type passphrase", false) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
-            Err(_) => return,
+            Err(_) => return Ok(()),
         }
     } else {
         if opts.identity.is_empty() {
-            error!("Missing identities.");
-            error!("Did you forget to specify -i/--identity?");
-            return;
+            return Err(error::DecryptError::MissingIdentities);
         }
 
-        match read_identities(opts.identity) {
-            Ok(identities) => {
-                // Check for unsupported keys and alert the user
-                for identity in &identities {
-                    if let age::IdentityKey::Unsupported(k) = identity.key() {
-                        error!(
-                            "Unsupported key: {}",
-                            identity.filename().unwrap_or_default()
-                        );
-                        error!("");
-                        error!("{}", k);
-                        return;
-                    }
-                }
-                age::Decryptor::Keys(identities)
-            }
-            Err(e) => {
-                error!("Error while reading identities: {}", e);
-                return;
+        let identities = read_identities(opts.identity)?;
+
+        // Check for unsupported keys and alert the user
+        for identity in &identities {
+            if let age::IdentityKey::Unsupported(k) = identity.key() {
+                return Err(error::DecryptError::UnsupportedKey(
+                    identity.filename().unwrap_or_default().to_string(),
+                    k.clone(),
+                ));
             }
         }
+
+        age::Decryptor::Keys(identities)
     };
 
-    let input = match file_io::InputReader::new(opts.input) {
-        Ok(input) => input,
-        Err(e) => {
-            error!("Failed to open input: {}", e);
-            return;
-        }
-    };
+    let input = file_io::InputReader::new(opts.input)?;
+    let mut output = file_io::OutputWriter::new(opts.output, false)?;
 
-    let mut output = match file_io::OutputWriter::new(opts.output, false) {
-        Ok(output) => output,
-        Err(e) => {
-            error!("Failed to open output: {}", e);
-            return;
-        }
-    };
+    let mut input = decryptor.trial_decrypt(input, |prompt| read_passphrase(prompt, false).ok())?;
 
-    let maybe_decrypted =
-        decryptor.trial_decrypt(input, |prompt| read_passphrase(prompt, false).ok());
+    io::copy(&mut input, &mut output)?;
 
-    match maybe_decrypted {
-        Ok(mut r) => {
-            if let Err(e) = io::copy(&mut r, &mut output) {
-                error!("Error while decrypting: {}", e);
-            }
-        }
-        Err(e) => error!("Failed to decrypt: {}", e),
-    }
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), error::Error> {
     env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
     if opts.decrypt {
-        decrypt(opts);
+        decrypt(opts).map_err(error::Error::from)
     } else {
-        encrypt(opts);
+        encrypt(opts).map_err(error::Error::from)
     }
 }
