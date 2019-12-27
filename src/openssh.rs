@@ -227,6 +227,7 @@ mod read_ssh {
         sequence::{pair, preceded, terminated, tuple},
         IResult,
     };
+    use num_traits::Zero;
     use rsa::BigUint;
     use secrecy::Secret;
 
@@ -245,17 +246,41 @@ mod read_ssh {
         move |input: &[u8]| length_value(be_u32, tag(value))(input)
     }
 
-    /// The SSH `mpint` data type.
+    /// The SSH `mpint` data type, restricted to non-negative integers.
     ///
     /// From [RFC 4251](https://tools.ietf.org/html/rfc4251#section-5):
     /// ```text
     /// Represents multiple precision integers in two's complement format,
-    /// stored as a string, 8 bits per byte, MSB first.
+    /// stored as a string, 8 bits per byte, MSB first.  Negative numbers
+    /// have the value 1 as the most significant bit of the first byte of
+    /// the data partition.  If the most significant bit would be set for
+    /// a positive number, the number MUST be preceded by a zero byte.
+    /// Unnecessary leading bytes with the value 0 or 255 MUST NOT be
+    /// included.  The value zero MUST be stored as a string with zero
+    /// bytes of data.
     /// ```
     fn mpint(input: &[u8]) -> IResult<&[u8], BigUint> {
-        // This currently only supports positive numbers, and does not enforce the
-        // canonical encoding. TODO: Fix this.
-        map(string, BigUint::from_bytes_be)(input)
+        map_opt(string, |bytes| {
+            if bytes.is_empty() {
+                Some(BigUint::zero())
+            } else {
+                // Enforce canonicity
+                let mut non_zero_bytes = bytes;
+                while non_zero_bytes[0] == 0 {
+                    non_zero_bytes = &non_zero_bytes[1..];
+                }
+                if non_zero_bytes.is_empty() {
+                    // Non-canonical zero
+                    return None;
+                }
+                if non_zero_bytes.len() + (non_zero_bytes[0] >> 7) as usize != bytes.len() {
+                    // Negative number or non-canonical positive number
+                    return None;
+                }
+
+                Some(BigUint::from_bytes_be(bytes))
+            }
+        })(input)
     }
 
     enum CipherResult {
