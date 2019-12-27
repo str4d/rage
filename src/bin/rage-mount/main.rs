@@ -3,11 +3,72 @@ use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use log::{error, info};
 use std::ffi::OsStr;
+use std::fmt;
 use std::fs::File;
 use std::io;
 
 mod tar;
 mod zip;
+
+enum Error {
+    Age(age::Error),
+    Io(io::Error),
+    MissingFilename,
+    MissingIdentities,
+    MissingMountpoint,
+    MissingType,
+    MixedIdentityAndPassphrase,
+    UnknownType(String),
+    UnsupportedKey(String, age::UnsupportedKey),
+}
+
+impl From<age::Error> for Error {
+    fn from(e: age::Error) -> Self {
+        Error::Age(e)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::Io(e)
+    }
+}
+
+// Rust only supports `fn main() -> Result<(), E: Debug>`, so we implement `Debug`
+// manually to provide the error output we want.
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Age(e) => writeln!(f, "{}", e),
+            Error::Io(e) => writeln!(f, "{}", e),
+            Error::MissingFilename => writeln!(f, "Missing filename"),
+            Error::MissingIdentities => {
+                writeln!(f, "Missing identities.")?;
+                writeln!(f, "Did you forget to specify -i/--identity?")
+            }
+            Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
+            Error::MissingType => writeln!(f, "Missing -t/--types"),
+            Error::MixedIdentityAndPassphrase => {
+                writeln!(f, "-i/--identity can't be used with -p/--passphrase")
+            }
+            Error::UnknownType(t) => writeln!(f, "Unknown filesystem type \"{}\"", t),
+            Error::UnsupportedKey(filename, k) => {
+                writeln!(f, "Unsupported key: {}", filename)?;
+                writeln!(f)?;
+                writeln!(f, "{}", k)
+            }
+        }?;
+        writeln!(f)?;
+        writeln!(
+            f,
+            "[ Did rage not do what you expected? Could an error be more useful? ]"
+        )?;
+        write!(
+            f,
+            "[ Tell us: https://github.com/str4d/rage/issues/new/choose          ]"
+        )
+    }
+}
 
 #[derive(Debug, Options)]
 struct AgeMountOptions {
@@ -49,88 +110,63 @@ where
     }
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
     if opts.filename.is_empty() {
-        error!("Missing filename");
-        return;
+        return Err(Error::MissingFilename);
     }
     if opts.mountpoint.is_empty() {
-        error!("Missing mountpoint");
-        return;
+        return Err(Error::MissingMountpoint);
     }
     if opts.types.is_empty() {
-        error!("Missing -t/--types");
-        return;
+        return Err(Error::MissingType);
     }
 
     let decryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
-            error!("-i/--identity can't be used with -p/--passphrase");
-            return;
+            return Err(Error::MixedIdentityAndPassphrase);
         }
 
         match read_passphrase("Type passphrase", false) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
-            Err(_) => return,
+            Err(_) => return Ok(()),
         }
     } else {
         if opts.identity.is_empty() {
-            error!("Missing identities.");
-            error!("Did you forget to specify -i/--identity?");
-            return;
+            return Err(Error::MissingIdentities);
         }
 
-        match read_identities(opts.identity) {
-            Ok(identities) => {
-                // Check for unsupported keys and alert the user
-                for identity in &identities {
-                    if let age::IdentityKey::Unsupported(k) = identity.key() {
-                        error!(
-                            "Unsupported key: {}",
-                            identity.filename().unwrap_or_default()
-                        );
-                        error!("");
-                        error!("{}", k);
-                        return;
-                    }
-                }
-                age::Decryptor::Keys(identities)
-            }
-            Err(e) => {
-                error!("Failed to read identities: {}", e);
-                return;
+        let identities = read_identities(opts.identity)?;
+
+        // Check for unsupported keys and alert the user
+        for identity in &identities {
+            if let age::IdentityKey::Unsupported(k) = identity.key() {
+                return Err(Error::UnsupportedKey(
+                    identity.filename().unwrap_or_default().to_string(),
+                    k.clone(),
+                ));
             }
         }
+
+        age::Decryptor::Keys(identities)
     };
 
     info!("Decrypting {}", opts.filename);
-    let file = match File::open(opts.filename) {
-        Ok(f) => f,
-        Err(e) => {
-            error!("Failed to open file: {}", e);
-            return;
-        }
-    };
+    let file = File::open(opts.filename)?;
 
-    let stream = match decryptor
-        .trial_decrypt_seekable(file, |prompt| read_passphrase(prompt, false).ok())
-    {
-        Ok(stream) => stream,
-        Err(e) => {
-            error!("Failed to decrypt file: {}", e);
-            return;
-        }
-    };
+    let stream =
+        decryptor.trial_decrypt_seekable(file, |prompt| read_passphrase(prompt, false).ok())?;
 
     match opts.types.as_str() {
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),
         "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), opts.mountpoint),
-        t => {
-            error!("Unknown filesystem type \"{}\"", t);
+        _ => {
+            return Err(Error::UnknownType(opts.types));
         }
     };
+
+    Ok(())
 }
