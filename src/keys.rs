@@ -142,9 +142,11 @@ impl EncryptedKey {
 ///
 /// The Display impl provides details for each unsupported key as to why we don't support
 /// it, and how a user can migrate to a supported key.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum UnsupportedKey {
+    /// An encrypted `PEM` key.
     EncryptedPem,
+    /// An encrypted OpenSSH key using a specific cipher.
     EncryptedOpenSsh(String),
 }
 
