@@ -1,6 +1,6 @@
 //! File I/O helpers for CLI binaries.
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
@@ -117,7 +117,12 @@ impl OutputWriter {
     pub fn new(output: Option<String>, deny_tty: bool) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
-            Ok(OutputWriter::File(File::create(filename)?))
+            Ok(OutputWriter::File(
+                OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(filename)?,
+            ))
         } else if is_tty && deny_tty {
             Err(io::Error::new(
                 io::ErrorKind::Other,
