@@ -81,14 +81,6 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text(
-                    "Encryption to a GitHub user \
-                     (equivalent to https://github.com/str4d.keys)",
-                )
-                .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
-        )
-        .example(
-            Example::new()
                 .text("Decryption with keys at ~/.config/age/keys.txt")
                 .command("rage --decrypt hello.age")
                 .output("_o/"),
@@ -104,6 +96,14 @@ fn rage_page() {
             Opt::new("aliases")
                 .long("--aliases")
                 .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
+        )
+        .example(
+            Example::new()
+                .text(
+                    "Encryption to a GitHub user \
+                     (equivalent to https://github.com/str4d.keys)",
+                )
+                .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
         )
         .example(
             Example::new()

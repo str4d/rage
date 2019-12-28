@@ -79,7 +79,7 @@ fn read_recipients(
     aliases: Option<String>,
 ) -> Result<Vec<age::RecipientKey>, error::EncryptError> {
     let mut aliases = load_aliases(aliases)?;
-    let mut seen_aliases = vec![];
+    let mut seen_aliases: Vec<String> = vec![];
 
     let mut recipients = vec![];
     while !arguments.is_empty() {
@@ -91,6 +91,12 @@ fn read_recipients(
         } else if let Ok(pk) = arg.parse() {
             recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
+            #[cfg(not(feature = "unstable"))]
+            {
+                eprintln!("Aliases are unstable.");
+                eprintln!("To test this, build rage with --features unstable");
+            }
+
             if seen_aliases.contains(&arg) {
                 warn!("Duplicate {}", arg);
             } else {
@@ -103,6 +109,14 @@ fn read_recipients(
                 }
             }
         } else if arg.starts_with(GITHUB_PREFIX) {
+            #[cfg(not(feature = "unstable"))]
+            {
+                eprintln!("GitHub lookups are unstable, ignoring recipient.");
+                eprintln!("To test this, build rage with --features unstable");
+                continue;
+            }
+
+            #[cfg(feature = "unstable")]
             arguments.push(format!(
                 "https://github.com/{}.keys",
                 &arg[GITHUB_PREFIX.len()..],
