@@ -39,7 +39,6 @@ sha2 = "0.8"
 scrypt = { version = "0.2", default-features = false }
 
 # - CSPRNG
-getrandom = "0.1"
 rand = "0.7"
 
 # - Key encoding

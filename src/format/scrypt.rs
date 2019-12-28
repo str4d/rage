@@ -1,4 +1,4 @@
-use getrandom::getrandom;
+use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::time::{Duration, SystemTime};
 
@@ -48,7 +48,7 @@ pub(crate) struct RecipientLine {
 impl RecipientLine {
     pub(crate) fn wrap_file_key(file_key: &FileKey, passphrase: &SecretString) -> Self {
         let mut salt = [0; 16];
-        getrandom(&mut salt).expect("Should not fail");
+        OsRng.fill_bytes(&mut salt);
 
         let mut inner_salt = vec![];
         inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);

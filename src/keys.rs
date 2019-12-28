@@ -2,8 +2,7 @@
 
 use bech32::{FromBase32, ToBase32};
 use curve25519_dalek::edwards::EdwardsPoint;
-use getrandom::getrandom;
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::convert::TryInto;
 use std::fmt;
@@ -43,7 +42,7 @@ pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
 impl FileKey {
     pub(crate) fn generate() -> Self {
         let mut file_key = [0; 16];
-        getrandom(&mut file_key).expect("Should not fail");
+        OsRng.fill_bytes(&mut file_key);
         FileKey(Secret::new(file_key))
     }
 }
