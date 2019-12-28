@@ -3,8 +3,7 @@
 //! age is a simple, secure, and modern encryption tool with small explicit keys, no
 //! config options, and UNIX-style composability.
 //!
-//! This is an **alpha release** for experimentation only. The age specification is still
-//! in flux, and should not currently be relied on for any usage. The in-progress
+//! All crate versions prior to 1.0 are **beta releases** for testing purposes. The age
 //! specification is available [here](https://age-encryption.org/v1).
 //!
 //! # Examples
