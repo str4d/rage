@@ -210,6 +210,7 @@ mod tests {
         assert_eq!(&decrypted[..], &test_msg[..]);
     }
 
+    #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());

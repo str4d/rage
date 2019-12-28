@@ -258,6 +258,26 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 N3pgrXkbIn/RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
 -> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
 ZV/AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
+-> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
+51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
+--- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
+";
+        let h = Header::read(test_header.as_bytes()).unwrap();
+        let mut data = vec![];
+        h.write(&mut data).unwrap();
+        assert_eq!(std::str::from_utf8(&data), Ok(test_header));
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn parse_header_with_rsa() {
+        let test_header = "age-encryption.org/v1
+-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
+-> X25519 ytazqsbmUnPwVWMVx0c1X9iUtGdY4yAB08UQTY2hNCI
+N3pgrXkbIn/RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
+-> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
+ZV/AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
 -> ssh-rsa mhir0Q
 xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
 mgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQkKaMLkaqh5GjcGRrZ
