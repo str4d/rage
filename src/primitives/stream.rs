@@ -2,8 +2,10 @@
 //!
 //! [STREAM]: https://eprint.iacr.org/2015/189.pdf
 
-use aead::{Aead, NewAead};
-use chacha20poly1305::ChaCha20Poly1305;
+use chacha20poly1305::{
+    aead::{Aead, NewAead},
+    ChaCha20Poly1305,
+};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use super::armor::ArmoredWriter;

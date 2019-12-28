@@ -48,7 +48,6 @@ dependencies = [
 name = "age"
 version = "0.1.0"
 dependencies = [
- "aead 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -64,7 +63,6 @@ dependencies = [
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fuse_mt 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "generic-array 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "getrandom 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "gumdrop 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hkdf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",

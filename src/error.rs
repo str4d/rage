@@ -44,8 +44,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<aead::Error> for Error {
-    fn from(_: aead::Error) -> Self {
+impl From<chacha20poly1305::aead::Error> for Error {
+    fn from(_: chacha20poly1305::aead::Error) -> Self {
         Error::DecryptionFailed
     }
 }

@@ -1,11 +1,12 @@
 //! Primitive cryptographic operations used by `age`.
 
-use aead::{Aead, NewAead};
-use chacha20poly1305::ChaCha20Poly1305;
-use generic_array::typenum::U32;
+use chacha20poly1305::{
+    aead::{self, Aead, NewAead},
+    ChaCha20Poly1305,
+};
 use hkdf::Hkdf;
 use hmac::{
-    crypto_mac::{MacError, MacResult},
+    crypto_mac::{generic_array::typenum::U32, MacError, MacResult},
     Hmac, Mac,
 };
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, ScryptParams};
