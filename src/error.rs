@@ -56,8 +56,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<crypto_mac::MacError> for Error {
-    fn from(_: crypto_mac::MacError) -> Self {
+impl From<hmac::crypto_mac::MacError> for Error {
+    fn from(_: hmac::crypto_mac::MacError) -> Self {
         Error::InvalidMac
     }
 }
