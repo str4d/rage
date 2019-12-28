@@ -49,7 +49,7 @@ bech32 = "0.7"
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1 (behind unstable feature flag)
-num-traits = "0.2"
+num-traits = { version = "0.2", optional = true }
 rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", optional = true }
 
 # - Conversion of public keys from from Ed25519 to X25519
@@ -108,7 +108,7 @@ default = ["cli"]
 cli-common = ["dialoguer", "dirs", "gumdrop", "log"]
 cli = ["cli-common", "chrono", "console", "env_logger", "minreq"]
 mount = ["cli-common", "env_logger", "fuse_mt", "libc", "tar", "time", "zip"]
-unstable = ["rsa"]
+unstable = ["num-traits", "rsa"]
 
 [[bin]]
 name = "rage-mount"
