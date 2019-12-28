@@ -4,7 +4,6 @@
 
 use aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
-use generic_array::{typenum::U12, GenericArray};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use super::armor::ArmoredWriter;
@@ -19,14 +18,14 @@ const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 /// of big endian counter, and 1 byte of last block flag (0x00 / 0x01).
 pub struct Stream {
     aead: ChaCha20Poly1305,
-    nonce: GenericArray<u8, U12>,
+    nonce: [u8; 12],
 }
 
 impl Stream {
     fn new(key: &[u8; 32]) -> Self {
         Stream {
             aead: ChaCha20Poly1305::new((*key).into()),
-            nonce: [0; 12].into(),
+            nonce: [0; 12],
         }
     }
 
@@ -117,7 +116,7 @@ impl Stream {
 
         let encrypted = self
             .aead
-            .encrypt(&self.nonce, chunk)
+            .encrypt(&self.nonce.into(), chunk)
             .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size");
         self.increment_counter();
 
@@ -137,7 +136,7 @@ impl Stream {
 
         let decrypted = self
             .aead
-            .decrypt(&self.nonce, chunk)
+            .decrypt(&self.nonce.into(), chunk)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
         self.increment_counter();
 
