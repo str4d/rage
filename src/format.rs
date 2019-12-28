@@ -68,7 +68,7 @@ impl Header {
         header
     }
 
-    pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Result<(), crypto_mac::MacError> {
+    pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Result<(), hmac::crypto_mac::MacError> {
         let mut mac = HmacWriter::new(mac_key);
         cookie_factory::gen(write::canonical_header_minus_mac(self), &mut mac)
             .expect("can serialize Header into HmacWriter");

@@ -15,33 +15,66 @@ default-run = "rage"
 maintenance = { status = "experimental" }
 
 [dependencies]
-aead = "0.1"
-aes-ctr = "0.3"
+#
+# Library dependencies
+#
+
+# Dependencies required by the age specification:
+# - Base64 from RFC 4648
 base64 = "0.10"
-bech32 = "0.7"
-blowfish = { version = "0.4", features = ["bcrypt"] }
-byteorder = "1"
+
+# - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = "0.1"
-cookie-factory = "0.3"
-crypto-mac = "0.7"
-curve25519-dalek = "2"
-generic-array = "0.12"
-getrandom = "0.1"
+
+# - X25519 from RFC 7748
+x25519-dalek = "0.6"
+
+# - HKDF from RFC 5869 with SHA-256
+# - HMAC from RFC 2104 with SHA-256
 hkdf = "0.8"
 hmac = "0.7"
-nom = "5"
-num-traits = "0.2"
-pbkdf2 = "0.3"
-radix64 = "0.6"
-rand = "0.7"
-scrypt = { version = "0.2", default-features = false }
-secrecy = "0.5"
 sha2 = "0.8"
-x25519-dalek = "0.6"
+
+# - scrypt from RFC 7914
+scrypt = { version = "0.2", default-features = false }
+
+# - CSPRNG
+rand = "0.7"
+
+# - Key encoding
+bech32 = "0.7"
+
+# OpenSSH-specific dependencies:
+# - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1 (behind unstable feature flag)
+num-traits = { version = "0.2", optional = true }
+rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", optional = true }
+
+# - Conversion of public keys from from Ed25519 to X25519
+curve25519-dalek = "2"
+
+# - bcrypt (required for encrypted keys)
+blowfish = { version = "0.4", features = ["bcrypt"] }
+byteorder = "1"
+crypto-mac = "0.7"
+pbkdf2 = "0.3"
+
+# - Encrypted keys
+aes-ctr = "0.3"
+
+# Parsing
+cookie-factory = "0.3"
+nom = "5"
+
+# Armor writing
+radix64 = "0.6"
+
+# Secret management
+secrecy = "0.5"
 zeroize = "1"
 
-# Unstable dependencies
-rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", optional = true }
+#
+# Tool dependencies
+#
 
 # Common CLI dependencies
 dialoguer = { version = "0.4", optional = true }
@@ -72,7 +105,7 @@ default = ["cli"]
 cli-common = ["dialoguer", "dirs", "gumdrop", "log"]
 cli = ["cli-common", "chrono", "console", "env_logger", "minreq"]
 mount = ["cli-common", "env_logger", "fuse_mt", "libc", "tar", "time", "zip"]
-unstable = ["rsa"]
+unstable = ["num-traits", "rsa"]
 
 [[bin]]
 name = "rage-mount"

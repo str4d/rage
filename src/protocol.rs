@@ -1,6 +1,6 @@
 //! Encryption and decryption routines for age.
 
-use getrandom::getrandom;
+use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
 
@@ -59,7 +59,7 @@ impl Encryptor {
         header.write(&mut output)?;
 
         let mut nonce = [0; 16];
-        getrandom(&mut nonce).expect("Should not fail");
+        OsRng.fill_bytes(&mut nonce);
         output.write_all(&nonce)?;
 
         let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());

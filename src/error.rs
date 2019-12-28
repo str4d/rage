@@ -44,8 +44,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<aead::Error> for Error {
-    fn from(_: aead::Error) -> Self {
+impl From<chacha20poly1305::aead::Error> for Error {
+    fn from(_: chacha20poly1305::aead::Error) -> Self {
         Error::DecryptionFailed
     }
 }
@@ -56,8 +56,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<crypto_mac::MacError> for Error {
-    fn from(_: crypto_mac::MacError) -> Self {
+impl From<hmac::crypto_mac::MacError> for Error {
+    fn from(_: hmac::crypto_mac::MacError) -> Self {
         Error::InvalidMac
     }
 }
