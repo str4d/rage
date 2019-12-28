@@ -17,6 +17,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --unstable
       - uses: actions/upload-artifact@v1
         with:
           name: rage

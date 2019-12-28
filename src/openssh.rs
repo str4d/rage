@@ -3,22 +3,29 @@
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use nom::{
     branch::alt,
-    bytes::streaming::{is_not, tag},
+    bytes::streaming::tag,
     character::streaming::newline,
-    combinator::{map, map_opt, opt},
-    sequence::{pair, preceded, terminated, tuple},
+    combinator::{map, map_opt},
+    sequence::{pair, preceded, terminated},
     IResult,
 };
 use secrecy::{ExposeSecret, SecretString};
 
+#[cfg(feature = "unstable")]
+use nom::{bytes::streaming::is_not, combinator::opt, sequence::tuple};
+
 use crate::{
     error::Error,
-    keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
+    keys::{Identity, RecipientKey, SecretKey},
     util::read::{encoded_str, str_while_encoded, wrapped_str_while_encoded},
 };
 
+#[cfg(feature = "unstable")]
+use crate::keys::UnsupportedKey;
+
 mod bcrypt;
 
+#[cfg(feature = "unstable")]
 const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 
@@ -99,6 +106,7 @@ mod decrypt {
     }
 }
 
+#[cfg(feature = "unstable")]
 mod read_asn1 {
     use nom::{
         bytes::complete::{tag, take},
@@ -218,22 +226,26 @@ mod read_asn1 {
 
 mod read_ssh {
     use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+    #[cfg(feature = "unstable")]
+    use nom::combinator::map_res;
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
-        combinator::{map, map_opt, map_parser, map_res},
+        combinator::{map, map_opt, map_parser},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{pair, preceded, terminated, tuple},
         IResult,
     };
+    #[cfg(feature = "unstable")]
     use num_traits::Zero;
+    #[cfg(feature = "unstable")]
     use rsa::BigUint;
     use secrecy::Secret;
 
-    use super::{
-        EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
-    };
+    #[cfg(feature = "unstable")]
+    use super::SSH_RSA_KEY_PREFIX;
+    use super::{EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX};
     use crate::keys::{EncryptedKey, Identity, SecretKey, UnsupportedKey};
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
@@ -259,6 +271,7 @@ mod read_ssh {
     /// included.  The value zero MUST be stored as a string with zero
     /// bytes of data.
     /// ```
+    #[cfg(feature = "unstable")]
     fn mpint(input: &[u8]) -> IResult<&[u8], BigUint> {
         map_opt(string, |bytes| {
             if bytes.is_empty() {
@@ -331,6 +344,7 @@ mod read_ssh {
     /// Internal OpenSSH encoding of an RSA private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
+    #[cfg(feature = "unstable")]
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
         preceded(
             string_tag(SSH_RSA_KEY_PREFIX),
@@ -399,6 +413,7 @@ mod read_ssh {
                     }
                 }),
                 terminated(
+                    #[cfg(feature = "unstable")]
                     alt((
                         map(openssh_rsa_privkey, |sk| {
                             SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
@@ -407,6 +422,10 @@ mod read_ssh {
                             SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
                         }),
                     )),
+                    #[cfg(not(feature = "unstable"))]
+                    map(openssh_ed25519_privkey, |privkey| {
+                        SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
+                    }),
                     // Comment
                     string,
                 ),
@@ -468,6 +487,7 @@ mod read_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
+    #[cfg(feature = "unstable")]
     pub(super) fn rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
         preceded(
             string_tag(SSH_RSA_KEY_PREFIX),
@@ -498,11 +518,11 @@ mod read_ssh {
     }
 }
 
+#[cfg(feature = "unstable")]
 mod write_ssh {
     use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
     use num_traits::identities::Zero;
-    use rsa::BigUint;
-    use rsa::PublicKey;
+    use rsa::{BigUint, PublicKey};
     use std::io::Write;
 
     use super::SSH_RSA_KEY_PREFIX;
@@ -548,6 +568,7 @@ mod write_ssh {
     }
 }
 
+#[cfg(feature = "unstable")]
 fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
     preceded(
         tuple((tag("Proc-Type: 4,ENCRYPTED"), newline, tag("DEK-Info: "))),
@@ -555,6 +576,7 @@ fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
+#[cfg(feature = "unstable")]
 fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
@@ -598,9 +620,16 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
 }
 
 pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Identity> {
+    #[cfg(not(feature = "unstable"))]
+    {
+        openssh_privkey(input)
+    }
+
+    #[cfg(feature = "unstable")]
     alt((rsa_privkey, openssh_privkey))(input)
 }
 
+#[cfg(feature = "unstable")]
 fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
@@ -636,5 +665,10 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
 }
 
 pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
+    alt((
+        #[cfg(feature = "unstable")]
+        ssh_rsa_pubkey,
+        ssh_ed25519_pubkey,
+        ssh_ignore_pubkey,
+    ))(input)
 }

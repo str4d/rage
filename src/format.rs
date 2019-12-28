@@ -6,6 +6,7 @@ use crate::primitives::HmacWriter;
 
 pub(crate) mod scrypt;
 pub(crate) mod ssh_ed25519;
+#[cfg(feature = "unstable")]
 pub(crate) mod ssh_rsa;
 pub(crate) mod x25519;
 
@@ -17,6 +18,7 @@ const MAC_TAG: &[u8] = b"---";
 pub(crate) enum RecipientLine {
     X25519(x25519::RecipientLine),
     Scrypt(scrypt::RecipientLine),
+    #[cfg(feature = "unstable")]
     SshRsa(ssh_rsa::RecipientLine),
     SshEd25519(ssh_ed25519::RecipientLine),
 }
@@ -33,6 +35,7 @@ impl From<scrypt::RecipientLine> for RecipientLine {
     }
 }
 
+#[cfg(feature = "unstable")]
 impl From<ssh_rsa::RecipientLine> for RecipientLine {
     fn from(line: ssh_rsa::RecipientLine) -> Self {
         RecipientLine::SshRsa(line)
@@ -132,6 +135,7 @@ mod read {
                         scrypt::read::recipient_line(line_ending),
                         RecipientLine::from,
                     ),
+                    #[cfg(feature = "unstable")]
                     map(
                         ssh_rsa::read::recipient_line(line_ending),
                         RecipientLine::from,
@@ -194,6 +198,7 @@ mod write {
             match r {
                 RecipientLine::X25519(r) => x25519::write::recipient_line(r, line_ending)(out),
                 RecipientLine::Scrypt(r) => scrypt::write::recipient_line(r, line_ending)(out),
+                #[cfg(feature = "unstable")]
                 RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r, line_ending)(out),
                 RecipientLine::SshEd25519(r) => {
                     ssh_ed25519::write::recipient_line(r, line_ending)(out)

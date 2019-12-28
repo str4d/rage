@@ -13,9 +13,12 @@ use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
-    format::{ssh_ed25519, ssh_rsa, x25519, RecipientLine},
+    format::{ssh_ed25519, x25519, RecipientLine},
     openssh::EncryptedOpenSshKey,
 };
+
+#[cfg(feature = "unstable")]
+use crate::format::ssh_rsa;
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -50,6 +53,7 @@ pub enum SecretKey {
     /// An X25519 secret key.
     X25519(StaticSecret),
     /// An ssh-rsa private key.
+    #[cfg(feature = "unstable")]
     SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, Secret<[u8; 64]>),
@@ -68,6 +72,7 @@ impl SecretKey {
             SecretKey::X25519(sk) => bech32::encode(SECRET_KEY_PREFIX, sk.to_bytes().to_base32())
                 .expect("HRP is valid")
                 .to_uppercase(),
+            #[cfg(feature = "unstable")]
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -77,6 +82,7 @@ impl SecretKey {
     pub fn to_public(&self) -> RecipientKey {
         match self {
             SecretKey::X25519(sk) => RecipientKey::X25519(sk.into()),
+            #[cfg(feature = "unstable")]
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -94,6 +100,7 @@ impl SecretKey {
                 // particular line.
                 r.unwrap_file_key(sk).ok().map(Ok)
             }
+            #[cfg(feature = "unstable")]
             (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
                 r.unwrap_file_key(ssh_key, sk)
             }
@@ -318,6 +325,7 @@ pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519(PublicKey),
     /// An ssh-rsa public key.
+    #[cfg(feature = "unstable")]
     SshRsa(Vec<u8>, rsa::RSAPublicKey),
     /// An ssh-ed25519 public key.
     SshEd25519(Vec<u8>, EdwardsPoint),
@@ -358,6 +366,7 @@ impl RecipientKey {
             RecipientKey::X25519(pk) => {
                 bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
             }
+            #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(_, _) => unimplemented!(),
             RecipientKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -366,6 +375,7 @@ impl RecipientKey {
     pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientLine {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
+            #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(ssh_key, pk) => {
                 ssh_rsa::RecipientLine::wrap_file_key(file_key, ssh_key, pk).into()
             }
