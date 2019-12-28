@@ -44,7 +44,10 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
 }
 
 /// Reads file contents as a list of recipients
-fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<age::RecipientKey>> {
+fn read_recipients_list<R: BufRead>(
+    filename: &str,
+    buf: R,
+) -> io::Result<Vec<age::keys::RecipientKey>> {
     let mut recipients = vec![];
 
     for line in buf.lines() {
@@ -54,7 +57,7 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
         if !(line.is_empty() || line.find('#') == Some(0)) {
             match line.parse() {
                 Ok(key) => recipients.push(key),
-                Err(<age::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
+                Err(<age::keys::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
                 Err(e) => {
                     error!("{:?}", e);
                     return Err(io::Error::new(
@@ -77,7 +80,7 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<ag
 fn read_recipients(
     mut arguments: Vec<String>,
     aliases: Option<String>,
-) -> Result<Vec<age::RecipientKey>, error::EncryptError> {
+) -> Result<Vec<age::keys::RecipientKey>, error::EncryptError> {
     let mut aliases = load_aliases(aliases)?;
     let mut seen_aliases: Vec<String> = vec![];
 
@@ -253,7 +256,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
         // Check for unsupported keys and alert the user
         for identity in &identities {
-            if let age::IdentityKey::Unsupported(k) = identity.key() {
+            if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
                 return Err(error::DecryptError::UnsupportedKey(
                     identity.filename().unwrap_or_default().to_string(),
                     k.clone(),

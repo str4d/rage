@@ -50,7 +50,7 @@ pub(crate) enum DecryptError {
     MixedIdentityAndPassphrase,
     PassphraseWithoutFileArgument,
     RecipientFlag,
-    UnsupportedKey(String, age::UnsupportedKey),
+    UnsupportedKey(String, age::keys::UnsupportedKey),
 }
 
 impl From<age::Error> for DecryptError {

@@ -73,14 +73,14 @@
 
 mod error;
 mod format;
-mod keys;
+pub mod keys;
 mod openssh;
 mod primitives;
 mod protocol;
 mod util;
 
 pub use error::Error;
-pub use keys::{Identity, IdentityKey, RecipientKey, SecretKey, UnsupportedKey};
+pub use keys::SecretKey;
 pub use primitives::stream::StreamReader;
 pub use protocol::{Decryptor, Encryptor};
 

@@ -25,7 +25,7 @@ fn main() {
         }
     };
 
-    let sk = age::SecretKey::generate();
+    let sk = age::keys::SecretKey::generate();
 
     if let Err(e) = (|| {
         writeln!(

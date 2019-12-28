@@ -331,9 +331,14 @@ pub enum RecipientKey {
     SshEd25519(Vec<u8>, EdwardsPoint),
 }
 
+/// Error conditions when parsing a recipient key.
 #[derive(Debug)]
 pub enum ParseRecipientKeyError {
+    /// The string is a parseable value that should be ignored. This case is for handling
+    /// OpenSSH pubkey types that may occur in files we want to be able to parse, but that
+    /// we do not directly support.
     Ignore,
+    /// The string is not a valid recipient key.
     Invalid(&'static str),
 }
 
