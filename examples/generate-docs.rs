@@ -1,3 +1,4 @@
+use flate2::{write::GzEncoder, Compression};
 use man::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
@@ -112,9 +113,11 @@ fn rage_page() {
         );
     let page = builder.render();
 
-    let mut file =
-        File::create("./target/rage.1").expect("Should be able to open file in target directory");
-    file.write_all(page.as_bytes())
+    let file = File::create("./target/rage.1.gz")
+        .expect("Should be able to open file in target directory");
+    let mut encoder = GzEncoder::new(file, Compression::best());
+    encoder
+        .write_all(page.as_bytes())
         .expect("Should be able to write to file in target directory");
 }
 
@@ -146,9 +149,11 @@ fn rage_keygen_page() {
         )
         .render();
 
-    let mut file = File::create("./target/rage-keygen.1")
+    let file = File::create("./target/rage-keygen.1.gz")
         .expect("Should be able to open file in target directory");
-    file.write_all(page.as_bytes())
+    let mut encoder = GzEncoder::new(file, Compression::best());
+    encoder
+        .write_all(page.as_bytes())
         .expect("Should be able to write to file in target directory");
 }
 
@@ -200,9 +205,11 @@ fn rage_mount_page() {
         )
         .render();
 
-    let mut file = File::create("./target/rage-mount.1")
+    let file = File::create("./target/rage-mount.1.gz")
         .expect("Should be able to open file in target directory");
-    file.write_all(page.as_bytes())
+    let mut encoder = GzEncoder::new(file, Compression::best());
+    encoder
+        .write_all(page.as_bytes())
         .expect("Should be able to write to file in target directory");
 }
 
