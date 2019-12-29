@@ -6,6 +6,7 @@ use chacha20poly1305::{
     aead::{Aead, NewAead},
     ChaCha20Poly1305,
 };
+use secrecy::{ExposeSecret, SecretVec};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use super::armor::ArmoredWriter;
@@ -125,7 +126,7 @@ impl Stream {
         Ok(encrypted)
     }
 
-    fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<Vec<u8>> {
+    fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
         assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
 
         if self.nonce[11] != 0 {
@@ -139,6 +140,7 @@ impl Stream {
         let decrypted = self
             .aead
             .decrypt(&self.nonce.into(), chunk)
+            .map(SecretVec::new)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
         self.increment_counter();
 
@@ -201,7 +203,7 @@ pub struct StreamReader<R: Read> {
     inner: R,
     start: u64,
     cur_plaintext_pos: u64,
-    chunk: Option<Vec<u8>>,
+    chunk: Option<SecretVec<u8>>,
 }
 
 impl<R: Read> Read for StreamReader<R> {
@@ -247,12 +249,13 @@ impl<R: Read> Read for StreamReader<R> {
         let chunk = self.chunk.as_ref().expect("we have decrypted a chunk");
         let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
 
-        let mut to_read = chunk.len() - cur_chunk_offset;
+        let mut to_read = chunk.expose_secret().len() - cur_chunk_offset;
         if to_read > buf.len() {
             to_read = buf.len()
         }
 
-        buf[..to_read].copy_from_slice(&chunk[cur_chunk_offset..cur_chunk_offset + to_read]);
+        buf[..to_read]
+            .copy_from_slice(&chunk.expose_secret()[cur_chunk_offset..cur_chunk_offset + to_read]);
         self.cur_plaintext_pos += to_read as u64;
         if self.cur_plaintext_pos % CHUNK_SIZE as u64 == 0 {
             // We've finished with the current chunk.
@@ -333,6 +336,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
 
 #[cfg(test)]
 mod tests {
+    use secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
@@ -353,7 +357,7 @@ mod tests {
             s.decrypt_chunk(&encrypted, false).unwrap()
         };
 
-        assert_eq!(decrypted, data);
+        assert_eq!(decrypted.expose_secret(), &data);
     }
 
     #[test]
@@ -383,19 +387,19 @@ mod tests {
             let res = s.decrypt_chunk(&encrypted, true).unwrap();
 
             // Further calls return an error
-            assert_eq!(
-                s.decrypt_chunk(&encrypted, false).unwrap_err().kind(),
-                io::ErrorKind::UnexpectedEof
-            );
-            assert_eq!(
-                s.decrypt_chunk(&encrypted, true).unwrap_err().kind(),
-                io::ErrorKind::UnexpectedEof
-            );
+            match s.decrypt_chunk(&encrypted, false) {
+                Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                _ => panic!("Expected error"),
+            }
+            match s.decrypt_chunk(&encrypted, true) {
+                Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                _ => panic!("Expected error"),
+            }
 
             res
         };
 
-        assert_eq!(decrypted, data);
+        assert_eq!(decrypted.expose_secret(), &data);
     }
 
     #[test]
