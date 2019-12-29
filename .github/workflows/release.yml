@@ -1,0 +1,105 @@
+name: Publish release binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Publish for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        name: [linux, windows, macos]
+        include:
+          - name: linux
+            os: ubuntu-latest
+            archive_name: rage.tar.gz
+            asset_suffix: linux-amd64.tar.gz
+          - name: windows
+            os: windows-latest
+            archive_name: rage.zip
+            asset_suffix: windows-amd64.zip
+          - name: macos
+            os: macos-latest
+            archive_name: rage.tar.gz
+            asset_suffix: darwin-amd64.tar.gz
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.37.0
+          override: true
+      - name: cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --locked
+
+      - name: Create archive
+        run: |
+          mkdir rage
+          mv target/release/rage rage/
+          mv target/release/rage-keygen rage/
+          mv target/release/rage-mount rage/
+          tar czf ${{ matrix.archive_name }} rage/
+        if: matrix.name != 'windows'
+
+      - name: Create archive [Windows]
+        run: |
+          mkdir rage
+          mv target/release/rage.exe rage/
+          mv target/release/rage-keygen.exe rage/
+          mv target/release/rage-mount.exe rage/
+          7z.exe a ${{ matrix.archive_name }} rage/
+        shell: bash
+        if: matrix.name == 'windows'
+
+      - name: Upload archive to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.archive_name }}
+          asset_name: rage-${{ github.ref }}-${{ matrix.asset_suffix }}
+          tag: ${{ github.ref }}
+
+  build:
+    name: Publish Debian package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.37.0
+          override: true
+      - name: cargo install cargo-deb
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-deb
+
+      - name: cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --locked
+      - name: Generate manpages
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --example generate-docs
+      - name: cargo deb
+        uses: actions-rs/cargo@v1
+        with:
+          command: deb
+
+      - name: Upload Debian package to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/debian/*.deb
+          tag: ${{ github.ref }}
+          file_glob: true
