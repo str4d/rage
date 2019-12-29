@@ -11,6 +11,24 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 default-run = "rage"
 
+[package.metadata.deb]
+name = "rage"
+extended-description = """\
+age is a simple, secure and modern encryption format with small explicit keys, \
+no config options, and UNIX-style composability. rage is a Rust implementation \
+of the age specification."""
+section = "utils"
+assets = [
+    ["target/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["target/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["target/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/rage", "usr/bin/", "755"],
+    ["target/release/rage-keygen", "usr/bin/", "755"],
+    ["target/release/rage-mount", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/rage/README.md", "644"],
+]
+features = ["mount"]
+
 [badges]
 maintenance = { status = "experimental" }
 
