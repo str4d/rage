@@ -48,7 +48,7 @@ $ rage -o example.png.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszf
 Files can be encrypted with a passphrase by using `-p/--passphrase`.
 
 ```bash
-$ rage -o example.png.age -p example.png
+$ rage -p -o example.png.age example.png
 Type passphrase: [hidden]
 Confirm passphrase:
 $ rage -d -p example.png.age >example.png
