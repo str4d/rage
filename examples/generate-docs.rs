@@ -51,14 +51,14 @@ fn rage_page() {
         )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
         .example(Example::new().text("Encryption to a public key").command(
-            "echo \"_o/\" | rage -o hello.age -r pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I",
+            "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",
         ))
         .example(
             Example::new()
                 .text("Encryption to multiple public keys (with default output to stdout)")
                 .command(
-                    "echo \"_o/\" | rage -r pubkey:98W5ph53zfPGOzEOH-fMojQ4jUY7VLEmtmozREqnw4I \
-                     -r pubkey:jqmfMHBjlb7HoIjjTsCQ9NHIk_q53Uy_ZxmXBhdIpx4 > hello.age",
+                    "echo \"_o/\" | rage -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
+                     -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum > hello.age",
                 ),
         )
         .example(
