@@ -34,8 +34,8 @@ jobs:
           toolchain: 1.37.0
           override: true
 
-      - name: Install rage-mount build dependencies
-        run: sudo apt install libpcsclite-dev
+      - name: Install linux build dependencies
+        run: sudo apt install libfuse-dev libpcsclite-dev
         if: matrix.name == 'linux'
 
       - name: cargo build
@@ -84,8 +84,8 @@ jobs:
         with:
           command: install
           args: cargo-deb
-      - name: Install rage-mount build dependencies
-        run: sudo apt install libpcsclite-dev
+      - name: Install build dependencies
+        run: sudo apt install libfuse-dev libpcsclite-dev
 
       - name: cargo build
         uses: actions-rs/cargo@v1
