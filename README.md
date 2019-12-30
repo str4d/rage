@@ -18,10 +18,10 @@ or by emailing age-dev+subscribe@googlegroups.com.
 ## Usage
 
 ```
-Usage: rage [OPTIONS]
+Usage: rage [OPTIONS] [INPUT]
 
 Positional arguments:
-  input                      file to read input from (default stdin)
+  INPUT                      file to read input from (default stdin)
 
 Optional arguments:
   -h, --help                 print help message
@@ -31,6 +31,28 @@ Optional arguments:
   -r, --recipient RECIPIENT  recipient to encrypt to (may be repeated)
   -i, --identity IDENTITY    identity to decrypt with (may be repeated)
   -o, --output OUTPUT        output to OUTPUT (default stdout)
+```
+
+### Multiple recipients
+
+Files can be encrypted to multiple recipients by repeating `-r/--recipient`.
+Every recipient will be able to decrypt the file.
+
+```bash
+$ rage -o example.png.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
+    -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum example.png
+```
+
+### Passphrases
+
+Files can be encrypted with a passphrase by using `-p/--passphrase`.
+
+```bash
+$ rage -o example.png.age -p example.png
+Type passphrase: [hidden]
+Confirm passphrase:
+$ rage -d -p example.png.age >example.png
+Type passphrase: [hidden]
 ```
 
 ## Installation
