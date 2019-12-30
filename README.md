@@ -35,6 +35,9 @@ Optional arguments:
 
 ## Installation
 
+On Windows, Linux, and macOS, you can use the
+[pre-built binaries](https://github.com/str4d/rage/releases).
+
 The `rage` suite of tools are provided in the `age` Rust crate. If your system
 has Rust 1.37+ installed (either via `rustup` or a system package), you can
 build directly from source:
