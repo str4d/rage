@@ -102,10 +102,13 @@ jobs:
         with:
           command: deb
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/debian/*.deb
-          tag: ${{ github.ref }}
+          tag: ${{ steps.get_version.outputs.VERSION }}
           file_glob: true
