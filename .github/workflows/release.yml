@@ -15,6 +15,7 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
+            build_features: --features mount
             archive_name: rage.tar.gz
             asset_suffix: linux-amd64.tar.gz
           - name: windows
@@ -32,18 +33,22 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+
+      - name: Install rage-mount build dependencies
+        run: sudo apt install libpcsclite-dev
+        if: matrix.name == 'linux'
+
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked
+          args: --release --locked ${{ matrix.build_features }}
 
       - name: Create archive
         run: |
           mkdir rage
-          mv target/release/rage rage/
-          mv target/release/rage-keygen rage/
-          mv target/release/rage-mount rage/
+          mv target/release/rage* rage/
+          rm rage/*.d
           tar czf ${{ matrix.archive_name }} rage/
         if: matrix.name != 'windows'
 
@@ -52,7 +57,6 @@ jobs:
           mkdir rage
           mv target/release/rage.exe rage/
           mv target/release/rage-keygen.exe rage/
-          mv target/release/rage-mount.exe rage/
           7z.exe a ${{ matrix.archive_name }} rage/
         shell: bash
         if: matrix.name == 'windows'
@@ -80,17 +84,19 @@ jobs:
         with:
           command: install
           args: cargo-deb
+      - name: Install rage-mount build dependencies
+        run: sudo apt install libpcsclite-dev
 
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked
+          args: --release --locked --features mount
       - name: Generate manpages
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --example generate-docs
+          args: --example generate-docs --features mount
       - name: cargo deb
         uses: actions-rs/cargo@v1
         with:
