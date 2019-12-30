@@ -65,7 +65,7 @@ jobs:
           asset_name: rage-${{ github.ref }}-${{ matrix.asset_suffix }}
           tag: ${{ github.ref }}
 
-  build:
+  deb:
     name: Publish Debian package
     runs-on: ubuntu-latest
 
