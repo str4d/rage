@@ -35,7 +35,8 @@
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
 //! # }
-//! # fn main() { run_main().unwrap(); }
+//!
+//! # run_main().unwrap();
 //! ```
 //!
 //! ## Passphrase-based encryption
@@ -64,7 +65,7 @@
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
 //! # }
-//! # fn main() { run_main().unwrap(); }
+//! # run_main().unwrap();
 //! ```
 
 // Catch documentation errors caused by code changes.
