@@ -3,7 +3,10 @@ use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use zeroize::Zeroizing;
 
-use crate::util::LINE_ENDING;
+use crate::{
+    Format,
+    util::LINE_ENDING,
+};
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -79,13 +82,16 @@ pub(crate) enum ArmoredWriter<W: Write> {
 }
 
 impl<W: Write> ArmoredWriter<W> {
-    pub(crate) fn wrap_output(inner: W, enabled: bool) -> io::Result<Self> {
-        if enabled {
-            LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
-                encoder: EncodeWriter::new(STD, w),
-            })
-        } else {
-            Ok(ArmoredWriter::Disabled { inner })
+    pub(crate) fn wrap_output(inner: W, format: Format) -> io::Result<Self> {
+        match format {
+            Format::AsciiArmor => {
+                LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
+                    encoder: EncodeWriter::new(STD, w),
+                })
+            }
+            Format::Binary => {
+                Ok(ArmoredWriter::Disabled { inner })
+            }
         }
     }
 
@@ -262,6 +268,7 @@ mod tests {
     use std::io::{Read, Write};
 
     use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
+    use crate::Format;
 
     #[test]
     fn armored_round_trip() {
@@ -274,7 +281,7 @@ mod tests {
 
             let mut encoded = vec![];
             {
-                let mut out = ArmoredWriter::wrap_output(&mut encoded, true).unwrap();
+                let mut out = ArmoredWriter::wrap_output(&mut encoded, Format::AsciiArmor).unwrap();
                 out.write_all(&data).unwrap();
                 out.finish().unwrap();
             }

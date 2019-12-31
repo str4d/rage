@@ -25,7 +25,7 @@
 //!     let encryptor = age::Encryptor::Keys(vec![pubkey]);
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!
@@ -65,7 +65,7 @@
 //!     let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!
@@ -92,6 +92,14 @@
 // Catch documentation errors caused by code changes.
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
+
+/// Format of output
+pub enum Format {
+    /// age binary format
+    Binary,
+    /// ascii armor
+    AsciiArmor,
+}
 
 mod error;
 mod format;

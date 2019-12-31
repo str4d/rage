@@ -5,6 +5,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
 
 use crate::{
+    Format,
     error::Error,
     format::{scrypt, Header, RecipientLine},
     keys::{FileKey, Identity, RecipientKey},
@@ -47,8 +48,8 @@ impl Encryptor {
     /// You **MUST** call `finish()` when you are done writing, in order to finish the
     /// encryption process. Failing to call `finish()` will result in a truncated message
     /// that will fail to decrypt.
-    pub fn wrap_output<W: Write>(&self, output: W, armored: bool) -> io::Result<StreamWriter<W>> {
-        let mut output = ArmoredWriter::wrap_output(output, armored)?;
+    pub fn wrap_output<W: Write>(&self, output: W, format: Format) -> io::Result<StreamWriter<W>> {
+        let mut output = ArmoredWriter::wrap_output(output, format)?;
 
         let file_key = FileKey::generate();
 
@@ -185,6 +186,7 @@ mod tests {
 
     use super::{Decryptor, Encryptor};
     use crate::keys::{Identity, RecipientKey};
+    use crate::Format;
 
     #[test]
     fn x25519_round_trip() {
@@ -197,7 +199,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::Keys(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
+            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
@@ -246,7 +248,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::Keys(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
+            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
