@@ -5,7 +5,6 @@ use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
 
 use crate::{
-    Format,
     error::Error,
     format::{scrypt, Header, RecipientLine},
     keys::{FileKey, Identity, RecipientKey},
@@ -14,6 +13,7 @@ use crate::{
         hkdf,
         stream::{Stream, StreamReader, StreamWriter},
     },
+    Format,
 };
 
 const HEADER_KEY_LABEL: &[u8] = b"header";

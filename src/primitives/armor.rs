@@ -3,10 +3,7 @@ use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use zeroize::Zeroizing;
 
-use crate::{
-    Format,
-    util::LINE_ENDING,
-};
+use crate::{util::LINE_ENDING, Format};
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -84,14 +81,10 @@ pub(crate) enum ArmoredWriter<W: Write> {
 impl<W: Write> ArmoredWriter<W> {
     pub(crate) fn wrap_output(inner: W, format: Format) -> io::Result<Self> {
         match format {
-            Format::AsciiArmor => {
-                LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
-                    encoder: EncodeWriter::new(STD, w),
-                })
-            }
-            Format::Binary => {
-                Ok(ArmoredWriter::Disabled { inner })
-            }
+            Format::AsciiArmor => LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
+                encoder: EncodeWriter::new(STD, w),
+            }),
+            Format::Binary => Ok(ArmoredWriter::Disabled { inner }),
         }
     }
 

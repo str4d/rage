@@ -4,7 +4,7 @@
 //! config options, and UNIX-style composability.
 //!
 //! The age specification is available in a Google Doc here: [A simple file encryption tool & format](https://age-encryption.org/v1).
-//! 
+//!
 //! *Caution*: all crate versions prior to 1.0 are beta releases for **testing purposes only**.
 //!
 //! # Examples

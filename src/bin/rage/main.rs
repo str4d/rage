@@ -1,6 +1,6 @@
 use age::{
-    Format,
     cli_common::{file_io, get_config_dir, read_identities, read_passphrase},
+    Format,
 };
 use gumdrop::Options;
 use log::{error, warn};
