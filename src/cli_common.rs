@@ -31,7 +31,11 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
+pub fn read_identities<E, F>(filenames: Vec<String>, no_default: F) -> Result<Vec<Identity>, E>
+where
+    E: From<io::Error>,
+    F: FnOnce(&str) -> E,
+{
     let mut identities = vec![];
 
     if filenames.is_empty() {
@@ -42,14 +46,8 @@ pub fn read_identities(filenames: Vec<String>) -> io::Result<Vec<Identity>> {
             })
             .expect("an OS for which we know the default config directory");
         let f = File::open(&default_filename).map_err(|e| match e.kind() {
-            io::ErrorKind::NotFound => io::Error::new(
-                io::ErrorKind::NotFound,
-                format!(
-                    "no keys specified as arguments, and default file {} does not exist",
-                    default_filename.to_str().unwrap_or("")
-                ),
-            ),
-            _ => e,
+            io::ErrorKind::NotFound => no_default(default_filename.to_str().unwrap_or("")),
+            _ => e.into(),
         })?;
         let buf = BufReader::new(f);
         identities.extend(Identity::from_buffer(buf)?);
