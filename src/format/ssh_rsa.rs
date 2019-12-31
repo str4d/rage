@@ -77,6 +77,7 @@ impl RecipientLine {
 pub(super) mod read {
     use nom::{
         bytes::streaming::tag,
+        character::streaming::newline,
         combinator::{map, map_opt},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
@@ -128,43 +129,35 @@ pub(super) mod read {
         }
     }
 
-    fn wrapped_encoded_data<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
-        move |input: &[u8]| {
-            map_opt(
-                separated_nonempty_list(line_ending, take_b64_line(base64::STANDARD_NO_PAD)),
-                |chunks| {
-                    // Enforce that the only chunk allowed to be shorter than 64 characters
-                    // is the last chunk.
-                    if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
-                        || chunks.last().map(|s| s.len() > 64) == Some(true)
-                    {
-                        None
-                    } else {
-                        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                        base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
-                    }
-                },
-            )(input)
-        }
+    fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
+        map_opt(
+            separated_nonempty_list(newline, take_b64_line(base64::STANDARD_NO_PAD)),
+            |chunks| {
+                // Enforce that the only chunk allowed to be shorter than 64 characters
+                // is the last chunk.
+                if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
+                    || chunks.last().map(|s| s.len() > 64) == Some(true)
+                {
+                    None
+                } else {
+                    let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                    base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
+                }
+            },
+        )(input)
     }
 
-    pub(crate) fn recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(SSH_RSA_RECIPIENT_TAG),
-                map(
-                    separated_pair(ssh_tag, line_ending, wrapped_encoded_data(line_ending)),
-                    |(tag, encrypted_file_key)| RecipientLine {
-                        tag,
-                        encrypted_file_key,
-                    },
-                ),
-            )(input)
-        }
+    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+        preceded(
+            tag(SSH_RSA_RECIPIENT_TAG),
+            map(
+                separated_pair(ssh_tag, newline, wrapped_encoded_data),
+                |(tag, encrypted_file_key)| RecipientLine {
+                    tag,
+                    encrypted_file_key,
+                },
+            ),
+        )(input)
     }
 }
 
@@ -179,10 +172,7 @@ pub(super) mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    fn wrapped_encoded_data<'a, W: 'a + Write>(
-        data: &[u8],
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
         let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
 
         move |mut w: WriteContext<W>| {
@@ -192,7 +182,7 @@ pub(super) mod write {
                 let (l, r) = s.split_at(64);
                 w = string(l)(w)?;
                 if !r.is_empty() {
-                    w = string(line_ending)(w)?;
+                    w = string("\n")(w)?;
                 }
                 s = r;
             }
@@ -201,15 +191,12 @@ pub(super) mod write {
         }
     }
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_RSA_RECIPIENT_TAG),
             encoded_data(&r.tag),
-            string(line_ending),
-            wrapped_encoded_data(&r.encrypted_file_key, line_ending),
+            string("\n"),
+            wrapped_encoded_data(&r.encrypted_file_key),
         ))
     }
 }

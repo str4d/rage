@@ -115,6 +115,7 @@ impl RecipientLine {
 pub(super) mod read {
     use nom::{
         bytes::streaming::tag,
+        character::streaming::newline,
         combinator::map,
         sequence::{preceded, separated_pair},
         IResult,
@@ -127,28 +128,24 @@ pub(super) mod read {
         encoded_data(4, [0; 4])(input)
     }
 
-    pub(crate) fn recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(SSH_ED25519_RECIPIENT_TAG),
-                map(
-                    separated_pair(
-                        separated_pair(ssh_tag, tag(" "), x25519::read::epk),
-                        line_ending,
-                        encoded_data(32, [0; 32]),
-                    ),
-                    |((tag, epk), encrypted_file_key)| RecipientLine {
-                        tag,
-                        rest: x25519::RecipientLine {
-                            epk,
-                            encrypted_file_key,
-                        },
-                    },
+    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+        preceded(
+            tag(SSH_ED25519_RECIPIENT_TAG),
+            map(
+                separated_pair(
+                    separated_pair(ssh_tag, tag(" "), x25519::read::epk),
+                    newline,
+                    encoded_data(32, [0; 32]),
                 ),
-            )(input)
-        }
+                |((tag, epk), encrypted_file_key)| RecipientLine {
+                    tag,
+                    rest: x25519::RecipientLine {
+                        epk,
+                        encrypted_file_key,
+                    },
+                },
+            ),
+        )(input)
     }
 }
 
@@ -163,16 +160,13 @@ pub(super) mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_ED25519_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(" "),
             encoded_data(r.rest.epk.as_bytes()),
-            string(line_ending),
+            string("\n"),
             encoded_data(&r.rest.encrypted_file_key),
         ))
     }
