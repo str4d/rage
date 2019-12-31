@@ -59,18 +59,28 @@
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
-//! let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
-//! let mut encrypted = vec![];
-//! {
+//! // Encrypt the plaintext to a ciphertext using the passphrase...
+//! let encrypted = {
+//!     let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!
+//!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
+//!
+//!     encrypted
 //! };
 //!
-//! let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
-//! let mut decrypted = vec![];
-//! reader.read_to_end(&mut decrypted);
+//! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
+//! let decrypted = {
+//!     let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!
+//!     let mut decrypted = vec![];
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     reader.read_to_end(&mut decrypted);
+//!
+//!     decrypted
+//! };
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
