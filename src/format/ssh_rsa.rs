@@ -77,6 +77,7 @@ impl RecipientLine {
 pub(super) mod read {
     use nom::{
         bytes::streaming::tag,
+        character::streaming::newline,
         combinator::{map, map_opt},
         error::{make_error, ErrorKind},
         multi::separated_nonempty_list,
@@ -128,43 +129,35 @@ pub(super) mod read {
         }
     }
 
-    fn wrapped_encoded_data<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
-        move |input: &[u8]| {
-            map_opt(
-                separated_nonempty_list(line_ending, take_b64_line(base64::STANDARD_NO_PAD)),
-                |chunks| {
-                    // Enforce that the only chunk allowed to be shorter than 64 characters
-                    // is the last chunk.
-                    if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
-                        || chunks.last().map(|s| s.len() > 64) == Some(true)
-                    {
-                        None
-                    } else {
-                        let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                        base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
-                    }
-                },
-            )(input)
-        }
+    fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
+        map_opt(
+            separated_nonempty_list(newline, take_b64_line(base64::STANDARD_NO_PAD)),
+            |chunks| {
+                // Enforce that the only chunk allowed to be shorter than 64 characters
+                // is the last chunk.
+                if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
+                    || chunks.last().map(|s| s.len() > 64) == Some(true)
+                {
+                    None
+                } else {
+                    let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                    base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
+                }
+            },
+        )(input)
     }
 
-    pub(crate) fn recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(SSH_RSA_RECIPIENT_TAG),
-                map(
-                    separated_pair(ssh_tag, line_ending, wrapped_encoded_data(line_ending)),
-                    |(tag, encrypted_file_key)| RecipientLine {
-                        tag,
-                        encrypted_file_key,
-                    },
-                ),
-            )(input)
-        }
+    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+        preceded(
+            tag(SSH_RSA_RECIPIENT_TAG),
+            map(
+                separated_pair(ssh_tag, newline, wrapped_encoded_data),
+                |(tag, encrypted_file_key)| RecipientLine {
+                    tag,
+                    encrypted_file_key,
+                },
+            ),
+        )(input)
     }
 }
 

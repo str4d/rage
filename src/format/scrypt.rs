@@ -99,7 +99,7 @@ impl RecipientLine {
 pub(super) mod read {
     use nom::{
         bytes::streaming::tag,
-        character::streaming::digit1,
+        character::streaming::{digit1, newline},
         combinator::{map, map_res},
         sequence::{preceded, separated_pair},
         IResult,
@@ -120,26 +120,22 @@ pub(super) mod read {
         })(input)
     }
 
-    pub(crate) fn recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(SCRYPT_RECIPIENT_TAG),
-                map(
-                    separated_pair(
-                        separated_pair(salt, tag(" "), log_n),
-                        line_ending,
-                        encoded_data(32, [0; 32]),
-                    ),
-                    |((salt, log_n), encrypted_file_key)| RecipientLine {
-                        salt,
-                        log_n,
-                        encrypted_file_key,
-                    },
+    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+        preceded(
+            tag(SCRYPT_RECIPIENT_TAG),
+            map(
+                separated_pair(
+                    separated_pair(salt, tag(" "), log_n),
+                    newline,
+                    encoded_data(32, [0; 32]),
                 ),
-            )(input)
-        }
+                |((salt, log_n), encrypted_file_key)| RecipientLine {
+                    salt,
+                    log_n,
+                    encrypted_file_key,
+                },
+            ),
+        )(input)
     }
 }
 

@@ -78,7 +78,7 @@ impl Header {
     pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
         let mut data = vec![];
         loop {
-            match read::canonical_header(&data) {
+            match read::header(&data) {
                 Ok((_, header)) => break Ok(header),
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
@@ -111,6 +111,7 @@ mod read {
     use nom::{
         branch::alt,
         bytes::streaming::tag,
+        character::streaming::newline,
         combinator::map,
         multi::separated_nonempty_list,
         sequence::{pair, preceded, terminated},
@@ -120,60 +121,33 @@ mod read {
     use super::*;
     use crate::util::read::encoded_data;
 
-    fn recipient_line<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], RecipientLine> {
-        move |input: &[u8]| {
-            preceded(
-                tag(RECIPIENT_TAG),
-                alt((
-                    map(
-                        x25519::read::recipient_line(line_ending),
-                        RecipientLine::from,
-                    ),
-                    map(
-                        scrypt::read::recipient_line(line_ending),
-                        RecipientLine::from,
-                    ),
-                    #[cfg(feature = "unstable")]
-                    map(
-                        ssh_rsa::read::recipient_line(line_ending),
-                        RecipientLine::from,
-                    ),
-                    map(
-                        ssh_ed25519::read::recipient_line(line_ending),
-                        RecipientLine::from,
-                    ),
-                )),
-            )(input)
-        }
+    fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+        preceded(
+            tag(RECIPIENT_TAG),
+            alt((
+                map(x25519::read::recipient_line, RecipientLine::from),
+                map(scrypt::read::recipient_line, RecipientLine::from),
+                #[cfg(feature = "unstable")]
+                map(ssh_rsa::read::recipient_line, RecipientLine::from),
+                map(ssh_ed25519::read::recipient_line, RecipientLine::from),
+            )),
+        )(input)
     }
 
-    fn header<'a, N>(
-        line_ending: &'a impl Fn(&'a [u8]) -> IResult<&'a [u8], N>,
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Header> {
-        move |input: &[u8]| {
-            preceded(
-                pair(tag(V1_MAGIC), line_ending),
-                map(
-                    pair(
-                        terminated(
-                            separated_nonempty_list(line_ending, recipient_line(line_ending)),
-                            line_ending,
-                        ),
-                        preceded(
-                            pair(tag(MAC_TAG), tag(b" ")),
-                            terminated(encoded_data(32, [0; 32]), line_ending),
-                        ),
+    pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
+        preceded(
+            pair(tag(V1_MAGIC), newline),
+            map(
+                pair(
+                    terminated(separated_nonempty_list(newline, recipient_line), newline),
+                    preceded(
+                        pair(tag(MAC_TAG), tag(b" ")),
+                        terminated(encoded_data(32, [0; 32]), newline),
                     ),
-                    |(recipients, mac)| Header { recipients, mac },
                 ),
-            )(input)
-        }
-    }
-
-    pub(super) fn canonical_header(input: &[u8]) -> IResult<&[u8], Header> {
-        header(&nom::character::streaming::newline)(input)
+                |(recipients, mac)| Header { recipients, mac },
+            ),
+        )(input)
     }
 }
 
