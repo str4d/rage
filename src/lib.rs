@@ -19,18 +19,28 @@
 //!
 //! let plaintext = b"Hello world!";
 //!
-//! let encryptor = age::Encryptor::Keys(vec![pubkey]);
-//! let mut encrypted = vec![];
-//! {
+//! // Encrypt the plaintext to a ciphertext...
+//! let encrypted = {
+//!     let encryptor = age::Encryptor::Keys(vec![pubkey]);
+//!
+//!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
+//!
+//!     encrypted
 //! };
 //!
-//! let decryptor = age::Decryptor::Keys(vec![key.into()]);
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
-//! let mut decrypted = vec![];
-//! reader.read_to_end(&mut decrypted);
+//! // ... and decrypt the obtained ciphertext to the plaintext again.
+//! let decrypted = {
+//!     let decryptor = age::Decryptor::Keys(vec![key.into()]);
+//!
+//!     let mut decrypted = vec![];
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     reader.read_to_end(&mut decrypted);
+//!
+//!     decrypted
+//! };
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
