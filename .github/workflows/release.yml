@@ -17,15 +17,15 @@ jobs:
             os: ubuntu-latest
             build_flags: --features mount
             archive_name: rage.tar.gz
-            asset_suffix: linux-amd64.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
           - name: windows
             os: windows-latest
             archive_name: rage.zip
-            asset_suffix: windows-amd64.zip
+            asset_suffix: x86_64-windows.zip
           - name: macos
             os: macos-latest
             archive_name: rage.tar.gz
-            asset_suffix: darwin-amd64.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
 
     steps:
       - uses: actions/checkout@v1
