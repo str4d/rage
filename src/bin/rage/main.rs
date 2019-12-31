@@ -248,11 +248,9 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             Err(_) => return Ok(()),
         }
     } else {
-        if opts.identity.is_empty() {
-            return Err(error::DecryptError::MissingIdentities);
-        }
-
-        let identities = read_identities(opts.identity)?;
+        let identities = read_identities(opts.identity, |default_filename| {
+            error::DecryptError::MissingIdentities(default_filename.to_string())
+        })?;
 
         // Check for unsupported keys and alert the user
         for identity in &identities {

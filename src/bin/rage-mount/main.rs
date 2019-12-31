@@ -14,7 +14,7 @@ enum Error {
     Age(age::Error),
     Io(io::Error),
     MissingFilename,
-    MissingIdentities,
+    MissingIdentities(String),
     MissingMountpoint,
     MissingType,
     MixedIdentityAndPassphrase,
@@ -42,9 +42,11 @@ impl fmt::Debug for Error {
             Error::Age(e) => writeln!(f, "{}", e),
             Error::Io(e) => writeln!(f, "{}", e),
             Error::MissingFilename => writeln!(f, "Missing filename"),
-            Error::MissingIdentities => {
+            Error::MissingIdentities(default_filename) => {
                 writeln!(f, "Missing identities.")?;
-                writeln!(f, "Did you forget to specify -i/--identity?")
+                writeln!(f, "Did you forget to specify -i/--identity?")?;
+                writeln!(f, "You can also store default identities in this file:")?;
+                write!(f, "    {}", default_filename)
             }
             Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
             Error::MissingType => writeln!(f, "Missing -t/--types"),
@@ -135,11 +137,9 @@ fn main() -> Result<(), Error> {
             Err(_) => return Ok(()),
         }
     } else {
-        if opts.identity.is_empty() {
-            return Err(Error::MissingIdentities);
-        }
-
-        let identities = read_identities(opts.identity)?;
+        let identities = read_identities(opts.identity, |default_filename| {
+            Error::MissingIdentities(default_filename.to_string())
+        })?;
 
         // Check for unsupported keys and alert the user
         for identity in &identities {

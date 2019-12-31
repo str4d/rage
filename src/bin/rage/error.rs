@@ -46,7 +46,7 @@ pub(crate) enum DecryptError {
     Age(age::Error),
     ArmorFlag,
     Io(io::Error),
-    MissingIdentities,
+    MissingIdentities(String),
     MixedIdentityAndPassphrase,
     PassphraseWithoutFileArgument,
     RecipientFlag,
@@ -74,9 +74,11 @@ impl fmt::Display for DecryptError {
                 write!(f, "Note that armored files are detected automatically.")
             }
             DecryptError::Io(e) => write!(f, "{}", e),
-            DecryptError::MissingIdentities => {
+            DecryptError::MissingIdentities(default_filename) => {
                 writeln!(f, "Missing identities.")?;
-                write!(f, "Did you forget to specify -i/--identity?")
+                writeln!(f, "Did you forget to specify -i/--identity?")?;
+                writeln!(f, "You can also store default identities in this file:")?;
+                write!(f, "    {}", default_filename)
             }
             DecryptError::MixedIdentityAndPassphrase => {
                 write!(f, "-i/--identity can't be used with -p/--passphrase")
