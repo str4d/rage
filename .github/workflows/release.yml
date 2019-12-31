@@ -15,7 +15,7 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
-            build_features: --features mount
+            build_flags: --features mount
             archive_name: rage.tar.gz
             asset_suffix: linux-amd64.tar.gz
           - name: windows
@@ -42,7 +42,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked ${{ matrix.build_features }}
+          args: --release --locked ${{ matrix.build_flags }}
 
       - name: Create archive
         run: |
