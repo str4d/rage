@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        name: [linux, windows, macos]
+        name: [linux, armv7, arm64, windows, macos]
         include:
           - name: linux
             os: ubuntu-latest
@@ -21,10 +21,36 @@ jobs:
             build_flags: --features mount
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
+
+          - name: armv7
+            os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+            build_flags: --target armv7-unknown-linux-gnueabihf
+            archive_name: rage.tar.gz
+            asset_suffix: armv7-linux.tar.gz
+
+          - name: arm64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
+            build_flags: --target aarch64-unknown-linux-gnu
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-linux.tar.gz
+
           - name: windows
             os: windows-latest
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
+
           - name: macos
             os: macos-latest
             archive_name: rage.tar.gz
@@ -36,10 +62,19 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+        if: matrix.target != ''
 
       - name: Install linux build dependencies
         run: sudo apt install ${{ matrix.build_deps }}
         if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
 
       - name: cargo build
         uses: actions-rs/cargo@v1
@@ -50,7 +85,7 @@ jobs:
       - name: Create archive
         run: |
           mkdir rage
-          mv target/release/rage* rage/
+          mv target/${{ matrix.target }}/release/rage* rage/
           rm rage/*.d
           tar czf ${{ matrix.archive_name }} rage/
         if: matrix.name != 'windows'
