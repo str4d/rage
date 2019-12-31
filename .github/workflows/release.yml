@@ -15,6 +15,9 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
+            build_deps: >
+              libfuse-dev
+              libpcsclite-dev
             build_flags: --features mount
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
@@ -35,8 +38,8 @@ jobs:
           override: true
 
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev libpcsclite-dev
-        if: matrix.name == 'linux'
+        run: sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
 
       - name: cargo build
         uses: actions-rs/cargo@v1
