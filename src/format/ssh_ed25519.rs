@@ -160,16 +160,13 @@ pub(super) mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_ED25519_RECIPIENT_TAG),
             encoded_data(&r.tag),
             string(" "),
             encoded_data(r.rest.epk.as_bytes()),
-            string(line_ending),
+            string("\n"),
             encoded_data(&r.rest.encrypted_file_key),
         ))
     }

@@ -61,7 +61,7 @@ impl Header {
         };
 
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::canonical_header_minus_mac(&header), &mut mac)
+        cookie_factory::gen(write::header_minus_mac(&header), &mut mac)
             .expect("can serialize Header into HmacWriter");
         header.mac.copy_from_slice(mac.result().code().as_slice());
 
@@ -70,7 +70,7 @@ impl Header {
 
     pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Result<(), hmac::crypto_mac::MacError> {
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::canonical_header_minus_mac(self), &mut mac)
+        cookie_factory::gen(write::header_minus_mac(self), &mut mac)
             .expect("can serialize Header into HmacWriter");
         mac.verify(&self.mac)
     }
@@ -96,7 +96,7 @@ impl Header {
     }
 
     pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
-        cookie_factory::gen(write::binary_header(self), &mut output)
+        cookie_factory::gen(write::header(self), &mut output)
             .map(|_| ())
             .map_err(|e| {
                 io::Error::new(
@@ -163,59 +163,39 @@ mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    fn recipient_line<'a, W: 'a + Write>(
-        r: &'a RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    fn recipient_line<'a, W: 'a + Write>(r: &'a RecipientLine) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let out = slice(RECIPIENT_TAG)(w)?;
             match r {
-                RecipientLine::X25519(r) => x25519::write::recipient_line(r, line_ending)(out),
-                RecipientLine::Scrypt(r) => scrypt::write::recipient_line(r, line_ending)(out),
+                RecipientLine::X25519(r) => x25519::write::recipient_line(r)(out),
+                RecipientLine::Scrypt(r) => scrypt::write::recipient_line(r)(out),
                 #[cfg(feature = "unstable")]
-                RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r, line_ending)(out),
-                RecipientLine::SshEd25519(r) => {
-                    ssh_ed25519::write::recipient_line(r, line_ending)(out)
-                }
+                RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r)(out),
+                RecipientLine::SshEd25519(r) => ssh_ed25519::write::recipient_line(r)(out),
             }
         }
     }
 
-    fn header_minus_mac<'a, W: 'a + Write>(
-        h: &'a Header,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(super) fn header_minus_mac<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(V1_MAGIC),
-            string(line_ending),
+            string("\n"),
             separated_list(
-                string(line_ending),
-                h.recipients
-                    .iter()
-                    .map(move |r| recipient_line(r, line_ending)),
+                string("\n"),
+                h.recipients.iter().map(move |r| recipient_line(r)),
             ),
-            string(line_ending),
+            string("\n"),
             slice(MAC_TAG),
         ))
     }
 
-    fn header<'a, W: 'a + Write>(h: &'a Header, line_ending: &'a str) -> impl SerializeFn<W> + 'a {
+    pub(super) fn header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         tuple((
-            header_minus_mac(h, line_ending),
+            header_minus_mac(h),
             string(" "),
             encoded_data(&h.mac),
-            string(line_ending),
+            string("\n"),
         ))
-    }
-
-    pub(super) fn canonical_header_minus_mac<'a, W: 'a + Write>(
-        h: &'a Header,
-    ) -> impl SerializeFn<W> + 'a {
-        header_minus_mac(h, "\n")
-    }
-
-    pub(super) fn binary_header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
-        header(h, "\n")
     }
 }
 

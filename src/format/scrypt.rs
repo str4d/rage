@@ -150,14 +150,11 @@ pub(super) mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SCRYPT_RECIPIENT_TAG),
             encoded_data(&r.salt),
-            string(format!(" {}{}", r.log_n, line_ending)),
+            string(format!(" {}{}", r.log_n, "\n")),
             encoded_data(&r.encrypted_file_key),
         ))
     }

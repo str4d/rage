@@ -172,10 +172,7 @@ pub(super) mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    fn wrapped_encoded_data<'a, W: 'a + Write>(
-        data: &[u8],
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
         let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
 
         move |mut w: WriteContext<W>| {
@@ -185,7 +182,7 @@ pub(super) mod write {
                 let (l, r) = s.split_at(64);
                 w = string(l)(w)?;
                 if !r.is_empty() {
-                    w = string(line_ending)(w)?;
+                    w = string("\n")(w)?;
                 }
                 s = r;
             }
@@ -194,15 +191,12 @@ pub(super) mod write {
         }
     }
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &RecipientLine,
-        line_ending: &'a str,
-    ) -> impl SerializeFn<W> + 'a {
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(SSH_RSA_RECIPIENT_TAG),
             encoded_data(&r.tag),
-            string(line_ending),
-            wrapped_encoded_data(&r.encrypted_file_key, line_ending),
+            string("\n"),
+            wrapped_encoded_data(&r.encrypted_file_key),
         ))
     }
 }
