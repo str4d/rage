@@ -224,7 +224,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::Keys(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, false).unwrap();
+            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
