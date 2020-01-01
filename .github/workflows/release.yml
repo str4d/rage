@@ -99,12 +99,15 @@ jobs:
         shell: bash
         if: matrix.name == 'windows'
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload archive to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.archive_name }}
-          asset_name: rage-${{ github.ref }}-${{ matrix.asset_suffix }}
+          asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
           tag: ${{ github.ref }}
 
   deb:
@@ -183,13 +186,10 @@ jobs:
           command: deb
           args: --no-build --target ${{ matrix.target }}
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.target }}/debian/*.deb
-          tag: ${{ steps.get_version.outputs.VERSION }}
+          tag: ${{ github.ref }}
           file_glob: true
