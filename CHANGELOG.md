@@ -10,6 +10,9 @@ to 1.0.0 are beta releases.
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
   of a boolean flag.
+- Recipients are now parsed as filenames last instead of first. If a filename
+  happens to also be a valid recipient format, the file will be ignored. This
+  can be overridden by using an absolute file path.
 
 ### Fixed
 - Corrected encoding of example recipients in manpages.

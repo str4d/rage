@@ -91,10 +91,7 @@ fn read_recipients(
     while !arguments.is_empty() {
         let arg = arguments.pop().expect("arguments is not empty");
 
-        if let Ok(f) = File::open(&arg) {
-            let buf = BufReader::new(f);
-            recipients.extend(read_recipients_list(&arg, buf)?);
-        } else if let Ok(pk) = arg.parse() {
+        if let Ok(pk) = arg.parse() {
             recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]
@@ -147,6 +144,9 @@ fn read_recipients(
                     )))
                 }
             }
+        } else if let Ok(f) = File::open(&arg) {
+            let buf = BufReader::new(f);
+            recipients.extend(read_recipients_list(&arg, buf)?);
         } else {
             return Err(error::EncryptError::InvalidRecipient(arg));
         }
