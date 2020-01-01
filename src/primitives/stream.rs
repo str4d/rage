@@ -341,6 +341,7 @@ mod tests {
 
     use super::{Stream, CHUNK_SIZE};
     use crate::primitives::armor::ArmoredWriter;
+    use crate::Format;
 
     #[test]
     fn chunk_round_trip() {
@@ -411,7 +412,7 @@ mod tests {
         {
             let mut w = Stream::encrypt(
                 &key,
-                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
             );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
@@ -436,7 +437,7 @@ mod tests {
         {
             let mut w = Stream::encrypt(
                 &key,
-                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
             );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
@@ -461,7 +462,7 @@ mod tests {
         {
             let mut w = Stream::encrypt(
                 &key,
-                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
             );
             w.write_all(&data).unwrap();
             w.finish().unwrap();
@@ -486,7 +487,7 @@ mod tests {
         {
             let mut w = Stream::encrypt(
                 &key,
-                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
             );
             w.write_all(&data).unwrap();
             // Forget to call w.finish()!
@@ -512,7 +513,7 @@ mod tests {
         {
             let mut w = Stream::encrypt(
                 &key,
-                ArmoredWriter::wrap_output(&mut encrypted, false).unwrap(),
+                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
             );
             w.write_all(&data).unwrap();
             w.finish().unwrap();

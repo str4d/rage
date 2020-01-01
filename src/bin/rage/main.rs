@@ -1,4 +1,7 @@
-use age::cli_common::{file_io, get_config_dir, read_identities, read_passphrase};
+use age::{
+    cli_common::{file_io, get_config_dir, read_identities, read_passphrase},
+    Format,
+};
 use gumdrop::Options;
 use log::{error, warn};
 use std::collections::HashMap;
@@ -216,8 +219,14 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     };
 
     let mut input = file_io::InputReader::new(opts.input)?;
+
+    let format = match opts.armor {
+        true => Format::AsciiArmor,
+        false => Format::Binary,
+    };
+
     let mut output =
-        encryptor.wrap_output(file_io::OutputWriter::new(opts.output, true)?, opts.armor)?;
+        encryptor.wrap_output(file_io::OutputWriter::new(opts.output, true)?, format)?;
 
     io::copy(&mut input, &mut output)?;
     output.finish()?;

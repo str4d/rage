@@ -3,8 +3,9 @@
 //! age is a simple, secure, and modern encryption tool with small explicit keys, no
 //! config options, and UNIX-style composability.
 //!
-//! All crate versions prior to 1.0 are **beta releases** for testing purposes. The age
-//! specification is available [here](https://age-encryption.org/v1).
+//! The age specification is available in a Google Doc here: [A simple file encryption tool & format](https://age-encryption.org/v1).
+//!
+//! *Caution*: all crate versions prior to 1.0 are beta releases for **testing purposes only**.
 //!
 //! # Examples
 //!
@@ -19,23 +20,34 @@
 //!
 //! let plaintext = b"Hello world!";
 //!
-//! let encryptor = age::Encryptor::Keys(vec![pubkey]);
-//! let mut encrypted = vec![];
-//! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
+//! // Encrypt the plaintext to a ciphertext...
+//! let encrypted = {
+//!     let encryptor = age::Encryptor::Keys(vec![pubkey]);
+//!
+//!     let mut encrypted = vec![];
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
+//!
+//!     encrypted
 //! };
 //!
-//! let decryptor = age::Decryptor::Keys(vec![key.into()]);
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
-//! let mut decrypted = vec![];
-//! reader.read_to_end(&mut decrypted);
+//! // ... and decrypt the obtained ciphertext to the plaintext again.
+//! let decrypted = {
+//!     let decryptor = age::Decryptor::Keys(vec![key.into()]);
+//!
+//!     let mut decrypted = vec![];
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     reader.read_to_end(&mut decrypted);
+//!
+//!     decrypted
+//! };
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
 //! # }
-//! # fn main() { run_main().unwrap(); }
+//!
+//! # run_main().unwrap();
 //! ```
 //!
 //! ## Passphrase-based encryption
@@ -48,28 +60,46 @@
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
-//! let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
-//! let mut encrypted = vec![];
-//! {
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, false)?;
+//! // Encrypt the plaintext to a ciphertext using the passphrase...
+//! let encrypted = {
+//!     let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!
+//!     let mut encrypted = vec![];
+//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
+//!
+//!     encrypted
 //! };
 //!
-//! let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
-//! let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
-//! let mut decrypted = vec![];
-//! reader.read_to_end(&mut decrypted);
+//! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
+//! let decrypted = {
+//!     let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!
+//!     let mut decrypted = vec![];
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     reader.read_to_end(&mut decrypted);
+//!
+//!     decrypted
+//! };
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
 //! # }
-//! # fn main() { run_main().unwrap(); }
+//! # run_main().unwrap();
 //! ```
 
 // Catch documentation errors caused by code changes.
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
+
+/// Format of output
+pub enum Format {
+    /// age binary format
+    Binary,
+    /// ascii armor
+    AsciiArmor,
+}
 
 mod error;
 mod format;
