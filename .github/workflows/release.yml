@@ -108,8 +108,34 @@ jobs:
           tag: ${{ github.ref }}
 
   deb:
-    name: Publish Debian package
+    name: Debian ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name: [linux, armv7, arm64]
+        include:
+          - name: linux
+            target: x86_64-unknown-linux-gnu
+            build_deps: >
+              libfuse-dev
+              libpcsclite-dev
+            build_flags: --features mount
+
+          - name: armv7
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+
+          - name: arm64
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
 
     steps:
       - uses: actions/checkout@v1
@@ -117,28 +143,45 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
       - name: cargo install cargo-deb
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: cargo-deb
+
       - name: Install build dependencies
-        run: sudo apt install libfuse-dev libpcsclite-dev
+        run: sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
 
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked --features mount
+          args: --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
+
       - name: Generate manpages
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --example generate-docs --features mount
+          args: --example generate-docs
+
+      - name: Update Debian package config for cross-compile
+        run: sed -i '/\/rage-mount/d' Cargo.toml
+        if: matrix.name != 'linux'
+
       - name: cargo deb
         uses: actions-rs/cargo@v1
         with:
           command: deb
+          args: --no-build --target ${{ matrix.target }}
 
       - name: Get the version
         id: get_version
@@ -147,6 +190,6 @@ jobs:
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/debian/*.deb
+          file: target/${{ matrix.target }}/debian/*.deb
           tag: ${{ steps.get_version.outputs.VERSION }}
           file_glob: true
