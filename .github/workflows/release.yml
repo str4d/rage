@@ -11,21 +11,50 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        name: [linux, windows, macos]
+        name: [linux, armv7, arm64, windows, macos]
         include:
           - name: linux
             os: ubuntu-latest
-            build_features: --features mount
+            build_deps: >
+              libfuse-dev
+              libpcsclite-dev
+            build_flags: --features mount
             archive_name: rage.tar.gz
-            asset_suffix: linux-amd64.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - name: armv7
+            os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+            build_flags: --target armv7-unknown-linux-gnueabihf
+            archive_name: rage.tar.gz
+            asset_suffix: armv7-linux.tar.gz
+
+          - name: arm64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
+            build_flags: --target aarch64-unknown-linux-gnu
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-linux.tar.gz
+
           - name: windows
             os: windows-latest
             archive_name: rage.zip
-            asset_suffix: windows-amd64.zip
+            asset_suffix: x86_64-windows.zip
+
           - name: macos
             os: macos-latest
             archive_name: rage.tar.gz
-            asset_suffix: darwin-amd64.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
 
     steps:
       - uses: actions/checkout@v1
@@ -33,21 +62,30 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+        if: matrix.target != ''
 
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev libpcsclite-dev
-        if: matrix.name == 'linux'
+        run: sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
 
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked ${{ matrix.build_features }}
+          args: --release --locked ${{ matrix.build_flags }}
 
       - name: Create archive
         run: |
           mkdir rage
-          mv target/release/rage* rage/
+          mv target/${{ matrix.target }}/release/rage* rage/
           rm rage/*.d
           tar czf ${{ matrix.archive_name }} rage/
         if: matrix.name != 'windows'
@@ -61,17 +99,46 @@ jobs:
         shell: bash
         if: matrix.name == 'windows'
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload archive to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.archive_name }}
-          asset_name: rage-${{ github.ref }}-${{ matrix.asset_suffix }}
+          asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
           tag: ${{ github.ref }}
 
   deb:
-    name: Publish Debian package
+    name: Debian ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name: [linux, armv7, arm64]
+        include:
+          - name: linux
+            target: x86_64-unknown-linux-gnu
+            build_deps: >
+              libfuse-dev
+              libpcsclite-dev
+            build_flags: --features mount
+
+          - name: armv7
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+
+          - name: arm64
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
 
     steps:
       - uses: actions/checkout@v1
@@ -79,36 +146,50 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
       - name: cargo install cargo-deb
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: cargo-deb
+
       - name: Install build dependencies
-        run: sudo apt install libfuse-dev libpcsclite-dev
+        run: sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
 
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked --features mount
+          args: --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
+
       - name: Generate manpages
         uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --example generate-docs --features mount
+          args: --example generate-docs
+
+      - name: Update Debian package config for cross-compile
+        run: sed -i '/\/rage-mount/d' Cargo.toml
+        if: matrix.name != 'linux'
+
       - name: cargo deb
         uses: actions-rs/cargo@v1
         with:
           command: deb
+          args: --no-build --target ${{ matrix.target }}
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/debian/*.deb
-          tag: ${{ steps.get_version.outputs.VERSION }}
+          file: target/${{ matrix.target }}/debian/*.deb
+          tag: ${{ github.ref }}
           file_glob: true
