@@ -7,6 +7,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- The library crate can be compiled to WASM.
+
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
   of a boolean flag.
