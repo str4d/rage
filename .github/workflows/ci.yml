@@ -50,7 +50,7 @@ jobs:
           command: test
           args: --verbose
 
-  test:
+  build:
     name: Build target ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
