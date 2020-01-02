@@ -74,7 +74,7 @@ curve25519-dalek = "2"
 blowfish = { version = "0.4", features = ["bcrypt"] }
 byteorder = "1"
 crypto-mac = "0.7"
-pbkdf2 = "0.3"
+pbkdf2 = { version = "0.3", default-features = false }
 
 # - Encrypted keys
 aes-ctr = "0.3"
