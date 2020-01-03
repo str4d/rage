@@ -20,6 +20,21 @@ impl fmt::Display for DenyBinaryOutputError {
 
 impl std::error::Error for DenyBinaryOutputError {}
 
+#[derive(Debug)]
+struct DetectedBinaryOutputError;
+
+impl fmt::Display for DetectedBinaryOutputError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "detected unprintable data; refusing to output to the terminal."
+        )?;
+        write!(f, "Force with '-o -'.")
+    }
+}
+
+impl std::error::Error for DetectedBinaryOutputError {}
+
 /// Wrapper around either a file or standard input.
 pub enum InputReader {
     /// Wrapper around a file.
@@ -91,7 +106,7 @@ impl Write for StdoutWriter {
                 if std::str::from_utf8(data).is_err() {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        "not printing unprintable message to stdout",
+                        DetectedBinaryOutputError,
                     ));
                 }
             }
@@ -145,7 +160,7 @@ pub enum OutputWriter {
 
 impl OutputWriter {
     /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
-    pub fn new(output: Option<String>, format: OutputFormat) -> io::Result<Self> {
+    pub fn new(output: Option<String>, mut format: OutputFormat) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
             // Respect the Unix convention that "-" as an output filename
@@ -157,6 +172,10 @@ impl OutputWriter {
                         .create_new(true)
                         .open(filename)?,
                 ));
+            } else if let OutputFormat::Unknown = format {
+                // User explicitly requested stdout; force the format to binary so that we
+                // don't try to parse it as UTF-8 in StdoutWriter and perhaps reject it.
+                format = OutputFormat::Binary;
             }
         } else if is_tty {
             if let OutputFormat::Binary = format {
