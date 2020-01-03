@@ -220,9 +220,10 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
 
     let mut input = file_io::InputReader::new(opts.input)?;
 
-    let format = match opts.armor {
-        true => Format::AsciiArmor,
-        false => Format::Binary,
+    let format = if opts.armor {
+        Format::AsciiArmor
+    } else {
+        Format::Binary
     };
 
     let mut output =
