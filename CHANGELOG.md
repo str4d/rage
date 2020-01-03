@@ -20,6 +20,8 @@ to 1.0.0 are beta releases.
 ### Fixed
 - Corrected encoding of example recipients in manpages.
 - Re-enabled the default identities file (#41).
+- Fixed parser to reject encrypted OpenSSH keys if they contain invalid
+  `bcrypt_pbkdf` parameters.
 
 ## [0.1.1] - 2019-12-29
 ### Added

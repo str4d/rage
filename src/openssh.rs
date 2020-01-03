@@ -57,7 +57,6 @@ impl OpenSshKdf {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
                 let mut output = vec![0; out_len];
-                // TODO: Validate parameters at parsing time
                 bcrypt_pbkdf(passphrase.expose_secret(), &salt, *rounds, &mut output)
                     .expect("parameters are valid");
                 output
@@ -328,14 +327,21 @@ mod read_ssh {
                             CipherResult::Unsupported(String::from_utf8_lossy(s).into_owned())
                         }),
                     )),
-                    map(
+                    map_opt(
                         preceded(
                             string_tag("bcrypt"),
                             map_parser(string, tuple((string, be_u32))),
                         ),
-                        |(salt, rounds)| OpenSshKdf::Bcrypt {
-                            salt: salt.into(),
-                            rounds,
+                        |(salt, rounds)| {
+                            if salt.is_empty() || rounds == 0 {
+                                // Invalid parameters
+                                None
+                            } else {
+                                Some(OpenSshKdf::Bcrypt {
+                                    salt: salt.into(),
+                                    rounds,
+                                })
+                            }
                         },
                     ),
                 )),
