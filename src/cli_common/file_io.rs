@@ -111,32 +111,42 @@ impl Write for StdoutWriter {
                 }
             }
 
-            // Drop output if we've truncated already, or need to.
-            if self.truncated || self.count == SHORT_OUTPUT_LENGTH {
-                if !self.truncated {
-                    self.inner.write_all(TRUNCATED_TTY_MSG)?;
-                    self.truncated = true;
+            let to_write = if let OutputFormat::Binary = self.format {
+                // Only occurs if the user has explicitly forced stdout, so don't truncate.
+                data.len()
+            } else {
+                // Drop output if we've truncated already, or need to.
+                if self.truncated || self.count == SHORT_OUTPUT_LENGTH {
+                    if !self.truncated {
+                        self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.truncated = true;
+                    }
+
+                    return io::sink().write(data);
                 }
 
-                return io::sink().write(data);
-            }
-
-            let mut to_write = SHORT_OUTPUT_LENGTH - self.count;
-            if to_write > data.len() {
-                to_write = data.len();
-            }
+                let mut to_write = SHORT_OUTPUT_LENGTH - self.count;
+                if to_write > data.len() {
+                    to_write = data.len();
+                }
+                to_write
+            };
 
             let mut ret = self.inner.write(&data[..to_write])?;
             self.count += to_write;
 
-            // If we have reached the output limit with data to spare,
-            // truncate and drop the remainder.
-            if self.count == SHORT_OUTPUT_LENGTH && data.len() > to_write {
-                if !self.truncated {
-                    self.inner.write_all(TRUNCATED_TTY_MSG)?;
-                    self.truncated = true;
+            if let OutputFormat::Binary = self.format {
+                // Only occurs if the user has explicitly forced stdout, so don't truncate.
+            } else {
+                // If we have reached the output limit with data to spare,
+                // truncate and drop the remainder.
+                if self.count == SHORT_OUTPUT_LENGTH && data.len() > to_write {
+                    if !self.truncated {
+                        self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.truncated = true;
+                    }
+                    ret += io::sink().write(&data[to_write..])?;
                 }
-                ret += io::sink().write(&data[to_write..])?;
             }
 
             Ok(ret)
@@ -172,7 +182,7 @@ impl OutputWriter {
                         .create_new(true)
                         .open(filename)?,
                 ));
-            } else if let OutputFormat::Unknown = format {
+            } else {
                 // User explicitly requested stdout; force the format to binary so that we
                 // don't try to parse it as UTF-8 in StdoutWriter and perhaps reject it.
                 format = OutputFormat::Binary;
