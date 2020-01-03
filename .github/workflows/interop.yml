@@ -106,3 +106,7 @@ jobs:
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Pipes!
         run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -r "$AGE_PUBKEY" | ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
+      - name: Explicit stdout during encryption
+        run: ${{ matrix.alice }}/${{ matrix.alice }} -a -o - -r "$AGE_PUBKEY" test2.txt >test4.age
+      - name: Explicit stdin during decryption
+        run: cat test4.age | ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
