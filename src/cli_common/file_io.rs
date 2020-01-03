@@ -14,7 +14,7 @@ struct DenyBinaryOutputError;
 impl fmt::Display for DenyBinaryOutputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "refusing to output binary to the terminal.")?;
-        write!(f, "Did you mean to use -a/--armor?")
+        write!(f, "Did you mean to use -a/--armor? Force with '-o -'.")
     }
 }
 
@@ -66,15 +66,17 @@ pub enum OutputFormat {
 pub struct StdoutWriter {
     inner: io::Stdout,
     count: usize,
+    format: OutputFormat,
     is_tty: bool,
     truncated: bool,
 }
 
 impl StdoutWriter {
-    fn new(is_tty: bool) -> Self {
+    fn new(format: OutputFormat, is_tty: bool) -> Self {
         StdoutWriter {
             inner: io::stdout(),
             count: 0,
+            format,
             is_tty,
             truncated: false,
         }
@@ -84,12 +86,14 @@ impl StdoutWriter {
 impl Write for StdoutWriter {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if self.is_tty {
-            // Don't send unprintable output to TTY
-            if std::str::from_utf8(data).is_err() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "not printing unprintable message to stdout",
-                ));
+            if let OutputFormat::Unknown = self.format {
+                // Don't send unprintable output to TTY
+                if std::str::from_utf8(data).is_err() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "not printing unprintable message to stdout",
+                    ));
+                }
             }
 
             // Drop output if we've truncated already, or need to.
@@ -144,19 +148,24 @@ impl OutputWriter {
     pub fn new(output: Option<String>, format: OutputFormat) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
-            return Ok(OutputWriter::File(
-                OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(filename)?,
-            ));
+            // Respect the Unix convention that "-" as an output filename
+            // parameter is an explicit request to use standard output.
+            if filename != "-" {
+                return Ok(OutputWriter::File(
+                    OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(filename)?,
+                ));
+            }
         } else if is_tty {
             if let OutputFormat::Binary = format {
+                // If output == Some("-") then this error is skipped.
                 return Err(io::Error::new(io::ErrorKind::Other, DenyBinaryOutputError));
             }
         }
 
-        Ok(OutputWriter::Stdout(StdoutWriter::new(is_tty)))
+        Ok(OutputWriter::Stdout(StdoutWriter::new(format, is_tty)))
     }
 }
 
