@@ -17,7 +17,7 @@ fn main() {
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
-    let mut output = match file_io::OutputWriter::new(opts.output, false) {
+    let mut output = match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text) {
         Ok(output) => output,
         Err(e) => {
             error!("Failed to open output: {}", e);

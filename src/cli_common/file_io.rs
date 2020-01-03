@@ -1,11 +1,24 @@
 //! File I/O helpers for CLI binaries.
 
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
 const TRUNCATED_TTY_MSG: &[u8] =
     b"\n[truncated; use a pipe, a redirect, or --output to see full message]\n";
+
+#[derive(Debug)]
+struct DenyBinaryOutputError;
+
+impl fmt::Display for DenyBinaryOutputError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "refusing to output binary to the terminal.")?;
+        write!(f, "Did you mean to use -a/--armor?")
+    }
+}
+
+impl std::error::Error for DenyBinaryOutputError {}
 
 /// Wrapper around either a file or standard input.
 pub enum InputReader {
@@ -37,6 +50,16 @@ impl Read for InputReader {
             InputReader::Stdin(handle) => handle.read(buf),
         }
     }
+}
+
+/// The data format being written out.
+pub enum OutputFormat {
+    /// Binary data that should not be sent to a TTY by default.
+    Binary,
+    /// Text data that is acceptable to send to a TTY.
+    Text,
+    /// Unknown data format; try to avoid sending binary data to a TTY.
+    Unknown,
 }
 
 /// Writer that wraps standard output to handle TTYs nicely.
@@ -117,24 +140,23 @@ pub enum OutputWriter {
 }
 
 impl OutputWriter {
-    /// Writes output to the given filename, or standard output if `None`.
-    pub fn new(output: Option<String>, deny_tty: bool) -> io::Result<Self> {
+    /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
+    pub fn new(output: Option<String>, format: OutputFormat) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
-            Ok(OutputWriter::File(
+            return Ok(OutputWriter::File(
                 OpenOptions::new()
                     .write(true)
                     .create_new(true)
                     .open(filename)?,
-            ))
-        } else if is_tty && deny_tty {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                "not printing to stdout",
-            ))
-        } else {
-            Ok(OutputWriter::Stdout(StdoutWriter::new(is_tty)))
+            ));
+        } else if is_tty {
+            if let OutputFormat::Binary = format {
+                return Err(io::Error::new(io::ErrorKind::Other, DenyBinaryOutputError));
+            }
         }
+
+        Ok(OutputWriter::Stdout(StdoutWriter::new(is_tty)))
     }
 }
 
