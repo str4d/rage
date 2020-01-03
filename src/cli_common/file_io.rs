@@ -4,9 +4,11 @@ use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
+use crate::util::LINE_ENDING;
+
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
 const TRUNCATED_TTY_MSG: &[u8] =
-    b"\n[truncated; use a pipe, a redirect, or --output to see full message]\n";
+    b"[truncated; use a pipe, a redirect, or -o/--output to see full message]";
 
 #[derive(Debug)]
 struct DenyBinaryOutputError;
@@ -118,7 +120,9 @@ impl Write for StdoutWriter {
                 // Drop output if we've truncated already, or need to.
                 if self.truncated || self.count == SHORT_OUTPUT_LENGTH {
                     if !self.truncated {
+                        self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.truncated = true;
                     }
 
@@ -142,7 +146,9 @@ impl Write for StdoutWriter {
                 // truncate and drop the remainder.
                 if self.count == SHORT_OUTPUT_LENGTH && data.len() > to_write {
                     if !self.truncated {
+                        self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.truncated = true;
                     }
                     ret += io::sink().write(&data[to_write..])?;
