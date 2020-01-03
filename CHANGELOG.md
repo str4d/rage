@@ -16,6 +16,15 @@ to 1.0.0 are beta releases.
 - Recipients are now parsed as filenames last instead of first. If a filename
   happens to also be a valid recipient format, the file will be ignored. This
   can be overridden by using an absolute file path.
+- The filename `-` (hyphen) is now treated as an explicit request to read from
+  standard input or write to standard output when used as an input or output
+  filename.
+- `-o -` will override protections for terminals when standard output is not
+  being piped elsewhere: output will not be truncated, and binary data will be
+  printed directly to the terminal.
+- Armored encrypted output can now be printed to the terminal. Large files will
+  be truncated (to protect the terminal), corrupting the encryption. This can be
+  overriden with `-o -`.
 
 ### Fixed
 - Corrected encoding of example recipients in manpages.
