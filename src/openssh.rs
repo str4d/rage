@@ -1,6 +1,7 @@
 //! Parser for OpenSSH public and private key formats.
 
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
+use bcrypt_pbkdf::bcrypt_pbkdf;
 use nom::{
     branch::alt,
     bytes::streaming::tag,
@@ -22,8 +23,6 @@ use crate::{
 
 #[cfg(feature = "unstable")]
 use crate::keys::UnsupportedKey;
-
-mod bcrypt;
 
 #[cfg(feature = "unstable")]
 const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
@@ -57,7 +56,11 @@ impl OpenSshKdf {
     fn derive(&self, passphrase: SecretString, out_len: usize) -> Vec<u8> {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
-                bcrypt::bcrypt_pbkdf(passphrase.expose_secret(), &salt, *rounds, out_len)
+                let mut output = vec![0; out_len];
+                // TODO: Validate parameters at parsing time
+                bcrypt_pbkdf(passphrase.expose_secret(), &salt, *rounds, &mut output)
+                    .expect("parameters are valid");
+                output
             }
         }
     }

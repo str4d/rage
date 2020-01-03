@@ -70,14 +70,9 @@ rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = "2"
 
-# - bcrypt (required for encrypted keys)
-blowfish = { version = "0.4", features = ["bcrypt"] }
-byteorder = "1"
-crypto-mac = "0.7"
-pbkdf2 = { version = "0.3", default-features = false }
-
 # - Encrypted keys
 aes-ctr = "0.3"
+bcrypt-pbkdf = "0.1"
 
 # Parsing
 cookie-factory = "0.3"
