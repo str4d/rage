@@ -16,13 +16,17 @@ pub enum InputReader {
 }
 
 impl InputReader {
-    /// Reads input from the given filename, or standard input if `None`.
+    /// Reads input from the given filename, or standard input if `None` or `Some("-")`.
     pub fn new(input: Option<String>) -> io::Result<Self> {
-        Ok(if let Some(filename) = input {
-            InputReader::File(File::open(filename)?)
-        } else {
-            InputReader::Stdin(io::stdin())
-        })
+        if let Some(filename) = input {
+            // Respect the Unix convention that "-" as an input filename
+            // parameter is an explicit request to use standard input.
+            if filename != "-" {
+                return Ok(InputReader::File(File::open(filename)?));
+            }
+        }
+
+        Ok(InputReader::Stdin(io::stdin()))
     }
 }
 
