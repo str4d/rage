@@ -227,7 +227,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     };
 
     let mut output = encryptor.wrap_output(
-        file_io::OutputWriter::new(opts.output, output_format)?,
+        file_io::OutputWriter::new(opts.output, output_format, 0o666)?,
         format,
     )?;
 
@@ -278,7 +278,8 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     };
 
     let input = file_io::InputReader::new(opts.input)?;
-    let mut output = file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Unknown)?;
+    let mut output =
+        file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Unknown, 0o666)?;
 
     let mut input = decryptor.trial_decrypt(input, |prompt| read_passphrase(prompt, false).ok())?;
 

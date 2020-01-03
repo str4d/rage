@@ -4,6 +4,9 @@ use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
+
 use crate::util::LINE_ENDING;
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
@@ -176,18 +179,19 @@ pub enum OutputWriter {
 
 impl OutputWriter {
     /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
-    pub fn new(output: Option<String>, mut format: OutputFormat) -> io::Result<Self> {
+    pub fn new(output: Option<String>, mut format: OutputFormat, mode: u32) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
             // Respect the Unix convention that "-" as an output filename
             // parameter is an explicit request to use standard output.
             if filename != "-" {
-                return Ok(OutputWriter::File(
-                    OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(filename)?,
-                ));
+                let mut options = OpenOptions::new();
+                options.write(true).create_new(true);
+
+                #[cfg(unix)]
+                options.mode(mode);
+
+                return Ok(OutputWriter::File(options.open(filename)?));
             } else {
                 // User explicitly requested stdout; force the format to binary so that we
                 // don't try to parse it as UTF-8 in StdoutWriter and perhaps reject it.

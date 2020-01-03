@@ -31,6 +31,8 @@ to 1.0.0 are beta releases.
 - Re-enabled the default identities file (#41).
 - Fixed parser to reject encrypted OpenSSH keys if they contain invalid
   `bcrypt_pbkdf` parameters.
+- [Unix] `rage-keygen -o filename` now creates files with mode `600` (i.e. the
+  output file is no longer world-readable).
 
 ## [0.1.1] - 2019-12-29
 ### Added
