@@ -25,8 +25,8 @@ use crate::{
 use crate::keys::UnsupportedKey;
 
 #[cfg(feature = "unstable")]
-const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
-const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
+pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
+pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 
 /// OpenSSH-supported ciphers.
 #[derive(Clone, Copy, Debug)]

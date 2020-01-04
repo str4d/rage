@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 use crate::{
     error::Error,
     format::{ssh_ed25519, x25519, RecipientLine},
-    openssh::EncryptedOpenSshKey,
+    openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
 };
 
 #[cfg(feature = "unstable")]
@@ -385,8 +385,12 @@ impl fmt::Display for RecipientKey {
                 bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
             ),
             #[cfg(feature = "unstable")]
-            RecipientKey::SshRsa(_, _) => unimplemented!(),
-            RecipientKey::SshEd25519(_, _) => unimplemented!(),
+            RecipientKey::SshRsa(ssh_key, _) => {
+                write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(&ssh_key))
+            }
+            RecipientKey::SshEd25519(ssh_key, _) => {
+                write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(&ssh_key))
+            }
         }
     }
 }
@@ -552,6 +556,12 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
+    #[test]
+    fn ssh_rsa_encoding() {
+        let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
+        assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_RSA_PK);
+    }
+
     #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_round_trip() {
@@ -571,6 +581,12 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
             unwrapped.unwrap().unwrap().0.expose_secret(),
             file_key.0.expose_secret()
         );
+    }
+
+    #[test]
+    fn ssh_ed25519_encoding() {
+        let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();
+        assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_ED25519_PK);
     }
 
     #[test]
