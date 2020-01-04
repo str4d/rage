@@ -16,12 +16,23 @@ to 1.0.0 are beta releases.
 - Recipients are now parsed as filenames last instead of first. If a filename
   happens to also be a valid recipient format, the file will be ignored. This
   can be overridden by using an absolute file path.
+- The filename `-` (hyphen) is now treated as an explicit request to read from
+  standard input or write to standard output when used as an input or output
+  filename.
+- `-o -` will override protections for terminals when standard output is not
+  being piped elsewhere: output will not be truncated, and binary data will be
+  printed directly to the terminal.
+- Armored encrypted output can now be printed to the terminal. Large files will
+  be truncated (to protect the terminal), corrupting the encryption. This can be
+  overriden with `-o -`.
 
 ### Fixed
 - Corrected encoding of example recipients in manpages.
 - Re-enabled the default identities file (#41).
 - Fixed parser to reject encrypted OpenSSH keys if they contain invalid
   `bcrypt_pbkdf` parameters.
+- [Unix] `rage-keygen -o filename` now creates files with mode `600` (i.e. the
+  output file is no longer world-readable).
 
 ## [0.1.1] - 2019-12-29
 ### Added
