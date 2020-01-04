@@ -39,7 +39,7 @@ impl From<io::Error> for Error {
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DecryptError::Age(e) => match e {
+            Error::Age(e) => match e {
                 age::Error::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
                     write!(f, "To decrypt, retry with --max-work-factor {}", required)
