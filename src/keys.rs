@@ -376,19 +376,22 @@ impl std::str::FromStr for RecipientKey {
     }
 }
 
-impl RecipientKey {
-    /// Serializes this recipient key as a string.
-    pub fn to_str(&self) -> String {
+impl fmt::Display for RecipientKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RecipientKey::X25519(pk) => {
+            RecipientKey::X25519(pk) => write!(
+                f,
+                "{}",
                 bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
-            }
+            ),
             #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(_, _) => unimplemented!(),
             RecipientKey::SshEd25519(_, _) => unimplemented!(),
         }
     }
+}
 
+impl RecipientKey {
     pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientLine {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
@@ -534,7 +537,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     #[test]
     fn pubkey_encoding() {
         let pk: RecipientKey = TEST_PK.parse().unwrap();
-        assert_eq!(pk.to_str(), TEST_PK);
+        assert_eq!(pk.to_string(), TEST_PK);
     }
 
     #[test]
@@ -546,7 +549,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
             IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
-        assert_eq!(key.to_public().to_str(), TEST_PK);
+        assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
     #[cfg(feature = "unstable")]

@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
   user does not provide one.
 - `SecretKey::to_string -> secrecy::SecretString`, which zeroizes most internal
   state. (Zeroizing all internal state requires changes to the `bech32` crate.)
+- `RecipientKey` implements `Display`, and can be converted to a string using
+  `recipient.to_string()`.
 
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
@@ -32,6 +34,8 @@ to 1.0.0 are beta releases.
 
 ### Removed
 - `SecretKey::to_str` (replaced by `SecretKey::to_string`).
+- `RecipientKey::to_str` (replaced by `Display` implementation and
+  `recipient.to_string()`).
 
 ### Fixed
 - Corrected encoding of example recipients in manpages.
