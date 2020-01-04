@@ -200,6 +200,7 @@ impl Decryptor {
 
 #[cfg(test)]
 mod tests {
+    use secrecy::SecretString;
     use std::io::{BufReader, Read, Write};
 
     use super::{Decryptor, Encryptor};
@@ -223,6 +224,26 @@ mod tests {
         }
 
         let d = Decryptor::Keys(sk);
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
+        let mut decrypted = vec![];
+        r.read_to_end(&mut decrypted).unwrap();
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[test]
+    fn scrypt_round_trip() {
+        let test_msg = b"This is a test message. For testing.";
+
+        let mut encrypted = vec![];
+        let e = Encryptor::Passphrase(SecretString::new("passphrase".to_string()));
+        {
+            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            w.write_all(test_msg).unwrap();
+            w.finish().unwrap();
+        }
+
+        let d = Decryptor::with_passphrase(SecretString::new("passphrase".to_string()));
         let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
