@@ -1,5 +1,5 @@
 use age::{
-    cli_common::{file_io, get_config_dir, read_identities, read_passphrase},
+    cli_common::{file_io, get_config_dir, read_identities, read_secret},
     Format,
 };
 use gumdrop::Options;
@@ -200,7 +200,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::PassphraseWithoutFileArgument);
         }
 
-        match read_passphrase("Type passphrase", true) {
+        match read_secret("Type passphrase", Some("Confirm passphrase")) {
             Ok(passphrase) => age::Encryptor::Passphrase(passphrase),
             Err(_) => return Ok(()),
         }
@@ -255,7 +255,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             return Err(error::DecryptError::PassphraseWithoutFileArgument);
         }
 
-        match read_passphrase("Type passphrase", false) {
+        match read_secret("Type passphrase", None) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return Ok(()),
         }
@@ -281,7 +281,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     let mut output =
         file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Unknown, 0o666)?;
 
-    let mut input = decryptor.trial_decrypt(input, |prompt| read_passphrase(prompt, false).ok())?;
+    let mut input = decryptor.trial_decrypt(input, |prompt| read_secret(prompt, None).ok())?;
 
     io::copy(&mut input, &mut output)?;
 

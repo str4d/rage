@@ -60,12 +60,12 @@ where
     Ok(identities)
 }
 
-/// Reads a passphrase from stdin.
-pub fn read_passphrase(prompt: &str, confirm: bool) -> io::Result<SecretString> {
+/// Reads a secret from stdin.
+pub fn read_secret(prompt: &str, confirm: Option<&str>) -> io::Result<SecretString> {
     let mut input = PasswordInput::new();
     input.with_prompt(prompt);
-    if confirm {
-        input.with_confirmation("Confirm passphrase", "Passphrases mismatching");
+    if let Some(confirm_prompt) = confirm {
+        input.with_confirmation(confirm_prompt, "Inputs do not match");
     }
     input.interact().map(SecretString::new)
 }

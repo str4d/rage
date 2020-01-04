@@ -1,4 +1,4 @@
-use age::cli_common::{read_identities, read_passphrase};
+use age::cli_common::{read_identities, read_secret};
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use log::{error, info};
@@ -132,7 +132,7 @@ fn main() -> Result<(), Error> {
             return Err(Error::MixedIdentityAndPassphrase);
         }
 
-        match read_passphrase("Type passphrase", false) {
+        match read_secret("Type passphrase", None) {
             Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
             Err(_) => return Ok(()),
         }
@@ -157,8 +157,7 @@ fn main() -> Result<(), Error> {
     info!("Decrypting {}", opts.filename);
     let file = File::open(opts.filename)?;
 
-    let stream =
-        decryptor.trial_decrypt_seekable(file, |prompt| read_passphrase(prompt, false).ok())?;
+    let stream = decryptor.trial_decrypt_seekable(file, |prompt| read_secret(prompt, None).ok())?;
 
     match opts.types.as_str() {
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),
