@@ -15,6 +15,9 @@ to 1.0.0 are beta releases.
   state. (Zeroizing all internal state requires changes to the `bech32` crate.)
 - `RecipientKey` implements `Display`, and can be converted to a string using
   `recipient.to_string()`.
+- `Decryptor::with_passphrase` constructor.
+- `--max-work-factor WF` argument for rage and rage-mount, to enable overriding
+  the default maximum (which is around 16 seconds of work).
 
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
@@ -31,6 +34,8 @@ to 1.0.0 are beta releases.
 - Armored encrypted output can now be printed to the terminal. Large files will
   be truncated (to protect the terminal), corrupting the encryption. This can be
   overriden with `-o -`.
+- The `Decryptor::Passphrase` enum case has been altered to store an optional
+  maximum work factor.
 
 ### Removed
 - `SecretKey::to_str` (replaced by `SecretKey::to_string`).

@@ -10,8 +10,13 @@ pub enum Error {
     ArmoredWhenSeeking,
     /// The message failed to decrypt.
     DecryptionFailed,
-    /// The message used an excessive work parameter for passphrase encryption.
-    ExcessiveWork,
+    /// The message used an excessive work factor for passphrase encryption.
+    ExcessiveWork {
+        /// The work factor required to decrypt.
+        required: u8,
+        /// The target work factor for this device (around 1 second of work).
+        target: u8,
+    },
     /// The MAC in the message header was invalid.
     InvalidMac,
     /// An I/O error occurred during decryption.
@@ -31,7 +36,14 @@ impl fmt::Display for Error {
         match self {
             Error::ArmoredWhenSeeking => write!(f, "Armored messages not supported for seeking"),
             Error::DecryptionFailed => write!(f, "Decryption failed"),
-            Error::ExcessiveWork => write!(f, "Excessive work parameter for passphrase"),
+            Error::ExcessiveWork { required, target } => {
+                writeln!(f, "Excessive work parameter for passphrase.")?;
+                write!(
+                    f,
+                    "Decryption would take around {} seconds.",
+                    1 << (required - target)
+                )
+            }
             Error::InvalidMac => write!(f, "Header MAC is invalid"),
             Error::Io(e) => e.fmt(f),
             Error::KeyDecryptionFailed => write!(f, "Failed to decrypt an encrypted key"),

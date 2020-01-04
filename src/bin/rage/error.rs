@@ -68,7 +68,13 @@ impl From<io::Error> for DecryptError {
 impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DecryptError::Age(e) => writeln!(f, "{}", e),
+            DecryptError::Age(e) => match e {
+                age::Error::ExcessiveWork { required, .. } => {
+                    writeln!(f, "{}", e)?;
+                    write!(f, "To decrypt, retry with --max-work-factor {}", required)
+                }
+                _ => write!(f, "{}", e),
+            },
             DecryptError::ArmorFlag => {
                 writeln!(f, "-a/--armor can't be used with -d/--decrypt.")?;
                 write!(f, "Note that armored files are detected automatically.")

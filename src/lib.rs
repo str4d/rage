@@ -74,7 +74,7 @@
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
 //! let decrypted = {
-//!     let decryptor = age::Decryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!     let decryptor = age::Decryptor::with_passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut decrypted = vec![];
 //!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;

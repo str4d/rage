@@ -173,6 +173,13 @@ struct AgeOptions {
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
 
+    #[options(
+        help = "maximum work factor to allow for passphrase decryption",
+        meta = "WF",
+        no_short
+    )]
+    max_work_factor: Option<u8>,
+
     #[options(help = "create ASCII armored output (default is age binary format)")]
     armor: bool,
 
@@ -265,7 +272,10 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         }
 
         match read_secret("Type passphrase", None) {
-            Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
+            Ok(passphrase) => age::Decryptor::Passphrase {
+                passphrase,
+                max_work_factor: opts.max_work_factor,
+            },
             Err(_) => return Ok(()),
         }
     } else {

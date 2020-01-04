@@ -39,7 +39,13 @@ impl From<io::Error> for Error {
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Age(e) => writeln!(f, "{}", e),
+            DecryptError::Age(e) => match e {
+                age::Error::ExcessiveWork { required, .. } => {
+                    writeln!(f, "{}", e)?;
+                    write!(f, "To decrypt, retry with --max-work-factor {}", required)
+                }
+                _ => write!(f, "{}", e),
+            },
             Error::Io(e) => writeln!(f, "{}", e),
             Error::MissingFilename => writeln!(f, "Missing filename"),
             Error::MissingIdentities(default_filename) => {
@@ -89,6 +95,13 @@ struct AgeMountOptions {
     #[options(help = "use a passphrase instead of public keys")]
     passphrase: bool,
 
+    #[options(
+        help = "maximum work factor to allow for passphrase decryption",
+        meta = "WF",
+        no_short
+    )]
+    max_work_factor: Option<u8>,
+
     #[options(help = "identity to decrypt with (may be repeated)")]
     identity: Vec<String>,
 }
@@ -133,7 +146,10 @@ fn main() -> Result<(), Error> {
         }
 
         match read_secret("Type passphrase", None) {
-            Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
+            Ok(passphrase) => age::Decryptor::Passphrase {
+                passphrase,
+                max_work_factor: opts.max_work_factor,
+            },
             Err(_) => return Ok(()),
         }
     } else {

@@ -73,10 +73,24 @@ pub enum Decryptor {
     /// Trial decryption against a list of secret keys.
     Keys(Vec<Identity>),
     /// Decryption with a passphrase.
-    Passphrase(SecretString),
+    Passphrase {
+        /// The passphrase to decrypt with.
+        passphrase: SecretString,
+        /// The maximum accepted work factor. If `None`, the default maximum is adjusted
+        /// to around 16 seconds of work.
+        max_work_factor: Option<u8>,
+    },
 }
 
 impl Decryptor {
+    /// Creates a decryptor with a passphrase and the default max work factor.
+    pub fn with_passphrase(passphrase: SecretString) -> Self {
+        Decryptor::Passphrase {
+            passphrase,
+            max_work_factor: None,
+        }
+    }
+
     fn unwrap_file_key<P: Fn(&str) -> Option<SecretString> + Copy>(
         &self,
         line: &RecipientLine,
@@ -88,10 +102,14 @@ impl Decryptor {
                 .iter()
                 .find_map(|key| key.unwrap_file_key(line, request_passphrase))
                 .transpose(),
-            (Decryptor::Passphrase(passphrase), RecipientLine::Scrypt(s)) => {
-                s.unwrap_file_key(passphrase)
-            }
-            (Decryptor::Passphrase(_), _) => Err(Error::MessageRequiresKeys),
+            (
+                Decryptor::Passphrase {
+                    passphrase,
+                    max_work_factor,
+                },
+                RecipientLine::Scrypt(s),
+            ) => s.unwrap_file_key(passphrase, *max_work_factor),
+            (Decryptor::Passphrase { .. }, _) => Err(Error::MessageRequiresKeys),
         }
     }
 
@@ -182,6 +200,7 @@ impl Decryptor {
 
 #[cfg(test)]
 mod tests {
+    use secrecy::SecretString;
     use std::io::{BufReader, Read, Write};
 
     use super::{Decryptor, Encryptor};
@@ -205,6 +224,26 @@ mod tests {
         }
 
         let d = Decryptor::Keys(sk);
+        let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
+        let mut decrypted = vec![];
+        r.read_to_end(&mut decrypted).unwrap();
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[test]
+    fn scrypt_round_trip() {
+        let test_msg = b"This is a test message. For testing.";
+
+        let mut encrypted = vec![];
+        let e = Encryptor::Passphrase(SecretString::new("passphrase".to_string()));
+        {
+            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            w.write_all(test_msg).unwrap();
+            w.finish().unwrap();
+        }
+
+        let d = Decryptor::with_passphrase(SecretString::new("passphrase".to_string()));
         let mut r = d.trial_decrypt(&encrypted[..], |_| None).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
