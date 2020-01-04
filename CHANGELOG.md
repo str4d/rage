@@ -16,6 +16,8 @@ to 1.0.0 are beta releases.
 - `RecipientKey` implements `Display`, and can be converted to a string using
   `recipient.to_string()`.
 - `Decryptor::with_passphrase` constructor.
+- `--max-work-factor WF` argument for rage and rage-mount, to enable overriding
+  the default maximum (which is around 16 seconds of work).
 
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
