@@ -73,18 +73,28 @@ impl RecipientLine {
     pub(crate) fn unwrap_file_key(
         &self,
         passphrase: &SecretString,
+        max_work_factor: Option<u8>,
     ) -> Result<Option<FileKey>, Error> {
         // Place bounds on the work factor we will accept (roughly 16 seconds).
-        if self.log_n > (target_scrypt_work_factor() + 4) {
-            return Err(Error::ExcessiveWork);
+        let target = target_scrypt_work_factor();
+        if self.log_n > max_work_factor.unwrap_or_else(|| target + 4) {
+            return Err(Error::ExcessiveWork {
+                required: self.log_n,
+                target,
+            });
         }
 
         let mut inner_salt = vec![];
         inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
         inner_salt.extend_from_slice(&self.salt);
 
-        let enc_key = scrypt(&inner_salt, self.log_n, passphrase.expose_secret())
-            .map_err(|_| Error::ExcessiveWork)?;
+        let enc_key =
+            scrypt(&inner_salt, self.log_n, passphrase.expose_secret()).map_err(|_| {
+                Error::ExcessiveWork {
+                    required: self.log_n,
+                    target,
+                }
+            })?;
         aead_decrypt(&enc_key, &self.encrypted_file_key)
             .map(|pt| {
                 // It's ours!

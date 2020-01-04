@@ -133,7 +133,7 @@ fn main() -> Result<(), Error> {
         }
 
         match read_secret("Type passphrase", None) {
-            Ok(passphrase) => age::Decryptor::Passphrase(passphrase),
+            Ok(passphrase) => age::Decryptor::with_passphrase(passphrase),
             Err(_) => return Ok(()),
         }
     } else {
