@@ -34,7 +34,7 @@ fn main() {
             "# created: {}",
             chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )?;
-        writeln!(output, "# {}", sk.to_public().to_str())?;
+        writeln!(output, "# public key: {}", sk.to_public().to_str())?;
         writeln!(output, "{}", sk.to_str())
     })() {
         error!("Failed to write to output: {}", e);
