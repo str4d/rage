@@ -9,6 +9,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - The library crate can be compiled to WASM.
+- When encrypting to a passphrase, rage will generate a secure passphrase if the
+  user does not provide one.
 
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead

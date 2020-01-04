@@ -1,7 +1,11 @@
 //! Common helpers for CLI binaries.
 
 use dialoguer::PasswordInput;
-use secrecy::SecretString;
+use rand::{
+    distributions::{Distribution, Uniform},
+    rngs::OsRng,
+};
+use secrecy::{ExposeSecret, SecretString};
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
@@ -9,6 +13,8 @@ use std::path::PathBuf;
 use crate::keys::Identity;
 
 pub mod file_io;
+
+const BIP39_WORDLIST: &'static str = include_str!("../assets/bip39-english.txt");
 
 /// Returns the age config directory.
 ///
@@ -60,12 +66,53 @@ where
     Ok(identities)
 }
 
-/// Reads a secret from stdin.
+/// Reads a secret from stdin. If `confirm.is_some()` then an empty secret is allowed.
 pub fn read_secret(prompt: &str, confirm: Option<&str>) -> io::Result<SecretString> {
     let mut input = PasswordInput::new();
     input.with_prompt(prompt);
     if let Some(confirm_prompt) = confirm {
-        input.with_confirmation(confirm_prompt, "Inputs do not match");
+        input
+            .with_confirmation(confirm_prompt, "Inputs do not match")
+            .allow_empty_password(true);
     }
     input.interact().map(SecretString::new)
+}
+
+/// A passphrase.
+pub enum Passphrase {
+    /// Typed by the user.
+    Typed(SecretString),
+    /// Generated.
+    Generated(SecretString),
+}
+
+/// Reads a passphrase from stdin, or generates a secure one if none is provided.
+pub fn read_or_generate_passphrase() -> io::Result<Passphrase> {
+    let res = read_secret(
+        "Type passphrase (leave empty to autogenerate a secure one)",
+        Some("Confirm passphrase"),
+    )?;
+
+    if res.expose_secret().is_empty() {
+        // Generate a secure passphrase
+        let between = Uniform::from(0..2048);
+        let mut rng = OsRng;
+        let new_passphrase = (0..10)
+            .map(|_| {
+                BIP39_WORDLIST
+                    .lines()
+                    .nth(between.sample(&mut rng))
+                    .expect("index is in range")
+            })
+            .fold(String::new(), |acc, s| {
+                if acc.is_empty() {
+                    acc + s
+                } else {
+                    acc + "-" + s
+                }
+            });
+        Ok(Passphrase::Generated(SecretString::new(new_passphrase)))
+    } else {
+        Ok(Passphrase::Typed(res))
+    }
 }
