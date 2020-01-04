@@ -14,7 +14,7 @@ use crate::keys::Identity;
 
 pub mod file_io;
 
-const BIP39_WORDLIST: &'static str = include_str!("../assets/bip39-english.txt");
+const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
 /// Returns the age config directory.
 ///
