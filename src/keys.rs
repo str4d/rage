@@ -14,11 +14,11 @@ use zeroize::Zeroize;
 use crate::{
     error::Error,
     format::{ssh_ed25519, x25519, RecipientLine},
-    openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
+    openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX},
 };
 
 #[cfg(feature = "unstable")]
-use crate::format::ssh_rsa;
+use crate::{format::ssh_rsa, openssh::SSH_RSA_KEY_PREFIX};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -556,6 +556,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
+    #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_encoding() {
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
