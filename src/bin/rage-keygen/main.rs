@@ -1,6 +1,7 @@
 use age::cli_common::file_io;
 use gumdrop::Options;
 use log::error;
+use secrecy::ExposeSecret;
 use std::io::Write;
 
 #[derive(Debug, Options)]
@@ -35,7 +36,7 @@ fn main() {
             chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )?;
         writeln!(output, "# public key: {}", sk.to_public().to_str())?;
-        writeln!(output, "{}", sk.to_str())
+        writeln!(output, "{}", sk.to_string().expose_secret())
     })() {
         error!("Failed to write to output: {}", e);
     }

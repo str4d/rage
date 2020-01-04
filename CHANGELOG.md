@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 - The library crate can be compiled to WASM.
 - When encrypting to a passphrase, rage will generate a secure passphrase if the
   user does not provide one.
+- `SecretKey::to_string -> secrecy::SecretString`, which zeroizes most internal
+  state. (Zeroizing all internal state requires changes to the `bech32` crate.)
 
 ### Changed
 - `age::Encryptor::wrap_output` now takes an `age::Format` enum argument instead
@@ -27,6 +29,9 @@ to 1.0.0 are beta releases.
 - Armored encrypted output can now be printed to the terminal. Large files will
   be truncated (to protect the terminal), corrupting the encryption. This can be
   overriden with `-o -`.
+
+### Removed
+- `SecretKey::to_str` (replaced by `SecretKey::to_string`).
 
 ### Fixed
 - Corrected encoding of example recipients in manpages.

@@ -9,6 +9,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use x25519_dalek::{PublicKey, StaticSecret};
+use zeroize::Zeroize;
 
 use crate::{
     error::Error,
@@ -66,11 +67,23 @@ impl SecretKey {
     }
 
     /// Serializes this secret key as a string.
-    pub fn to_str(&self) -> String {
+    pub fn to_string(&self) -> SecretString {
         match self {
-            SecretKey::X25519(sk) => bech32::encode(SECRET_KEY_PREFIX, sk.to_bytes().to_base32())
-                .expect("HRP is valid")
-                .to_uppercase(),
+            SecretKey::X25519(sk) => {
+                let mut sk_bytes = sk.to_bytes();
+                let sk_base32 = sk_bytes.to_base32();
+                let mut encoded =
+                    bech32::encode(SECRET_KEY_PREFIX, sk_base32).expect("HRP is valid");
+                let ret = SecretString::new(encoded.to_uppercase());
+
+                // Clear intermediates
+                sk_bytes.zeroize();
+                // TODO: bech32::u5 doesn't implement Zeroize
+                // sk_base32.zeroize();
+                encoded.zeroize();
+
+                ret
+            }
             #[cfg(feature = "unstable")]
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
@@ -509,7 +522,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
             IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
-        assert_eq!(key.to_str(), TEST_SK);
+        assert_eq!(key.to_string().expose_secret(), TEST_SK);
     }
 
     #[test]
