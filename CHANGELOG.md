@@ -49,6 +49,8 @@ to 1.0.0 are beta releases.
   `bcrypt_pbkdf` parameters.
 - [Unix] `rage-keygen -o filename` now creates files with mode `600` (i.e. the
   output file is no longer world-readable).
+- Unknown recipient lines are now parsed and ignored during decryption, instead
+  of causing a hard failure.
 
 ## [0.1.1] - 2019-12-29
 ### Added
