@@ -62,7 +62,9 @@ dependencies = [
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "fuse_mt 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "gumdrop 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "generic-array 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "getrandom 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gumdrop 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hkdf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hmac 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -562,20 +564,18 @@ dependencies = [
 
 [[package]]
 name = "gumdrop"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.7.0"
 dependencies = [
- "gumdrop_derive 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gumdrop_derive 0.7.0",
 ]
 
 [[package]]
 name = "gumdrop_derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.7.0"
 dependencies = [
- "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "syn 0.15.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.11 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1650,8 +1650,6 @@ dependencies = [
 "checksum fuse_mt 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e63cd7846849c0edf7c8655b3e952848117b2670fa8054ea2fc123040577414b"
 "checksum generic-array 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c68f0274ae0e023facc3c97b2e00f076be70e254bc851d972503b328db79b2ec"
 "checksum getrandom 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "e7db7ca94ed4cd01190ceee0d8a8052f08a247aa1b469a7f68c6a3b71afcf407"
-"checksum gumdrop 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a57b4113bb9af093a1cd0b505a44a93103e32e258296d01fa2def3f37c2c7cc"
-"checksum gumdrop_derive 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "dae5488e2c090f7586e2027e4ea6fcf8c9d83e2ef64d623993a33a0fb811f1f7"
 "checksum heck 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "20564e78d53d2bb135c343b3f47714a56af2061f1c928fdb541dc7b9fdd94205"
 "checksum hermit-abi 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f629dc602392d3ec14bfc8a09b5e644d7ffd725102b48b81e59f90f2633621d7"
 "checksum hkdf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3fa08a006102488bd9cd5b8013aabe84955cf5ae22e304c2caf655b633aefae3"

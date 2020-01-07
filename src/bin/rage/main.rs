@@ -314,7 +314,10 @@ fn main() -> Result<(), error::Error> {
 
     if opts.decrypt {
         decrypt(opts).map_err(error::Error::from)
-    } else {
+    } else if opts.recipient.len() > 0 {
         encrypt(opts).map_err(error::Error::from)
+    } else {
+        AgeOptions::print_usage(opts);
+        Ok(())
     }
 }
