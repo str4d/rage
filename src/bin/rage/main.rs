@@ -308,7 +308,23 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 }
 
 fn main() -> Result<(), error::Error> {
+    use std::env::args;
+
     env_logger::builder().format_timestamp(None).init();
+
+    let args = args().collect::<Vec<_>>();
+
+    // If you are piping input with no other args, this will not allow
+    // it.
+    if console::user_attended() && args.len() == 1 {
+        // If gumdrop ever merges that PR, that can be used here
+        // instead.
+        println!("Usage: {} [OPTIONS]", args[0]);
+        println!();
+        println!("{}", AgeOptions::usage());
+
+        return Ok(());
+    }
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
