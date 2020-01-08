@@ -29,6 +29,8 @@ pub enum Error {
     MessageRequiresPassphrase,
     /// None of the provided keys could be used to decrypt the message.
     NoMatchingKeys,
+    /// An unknown age format, probably from a newer version.
+    UnknownFormat,
 }
 
 impl fmt::Display for Error {
@@ -52,6 +54,10 @@ impl fmt::Display for Error {
                 write!(f, "This message requires a passphrase to decrypt")
             }
             Error::NoMatchingKeys => write!(f, "No matching keys found"),
+            Error::UnknownFormat => {
+                writeln!(f, "Unknown age format.")?;
+                write!(f, "Have you tried upgrading to the latest version?")
+            }
         }
     }
 }
