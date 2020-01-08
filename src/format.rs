@@ -10,7 +10,8 @@ pub(crate) mod ssh_ed25519;
 pub(crate) mod ssh_rsa;
 pub(crate) mod x25519;
 
-const V1_MAGIC: &[u8] = b"age-encryption.org/v1";
+const AGE_MAGIC: &[u8] = b"age-encryption.org/";
+const V1_MAGIC: &[u8] = b"v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
@@ -136,7 +137,7 @@ mod read {
 
     pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
         preceded(
-            pair(tag(V1_MAGIC), newline),
+            pair(pair(tag(AGE_MAGIC), tag(V1_MAGIC)), newline),
             map(
                 pair(
                     terminated(separated_nonempty_list(newline, recipient_line), newline),
@@ -178,6 +179,7 @@ mod write {
 
     pub(super) fn header_minus_mac<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         tuple((
+            slice(AGE_MAGIC),
             slice(V1_MAGIC),
             string("\n"),
             separated_list(
