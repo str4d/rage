@@ -13,16 +13,18 @@ use crate::{
 const SSH_ED25519_RECIPIENT_TAG: &[u8] = b"ssh-ed25519 ";
 const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
 
-fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
+const TAG_LEN_BYTES: usize = 4;
+
+fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
     let tag_bytes = Sha256::digest(pubkey);
-    let mut tag = [0; 4];
-    tag.copy_from_slice(&tag_bytes[..4]);
+    let mut tag = [0; TAG_LEN_BYTES];
+    tag.copy_from_slice(&tag_bytes[..TAG_LEN_BYTES]);
     tag
 }
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
-    pub(crate) tag: [u8; 4],
+    pub(crate) tag: [u8; TAG_LEN_BYTES],
     pub(crate) rest: super::x25519::RecipientLine,
 }
 
@@ -51,7 +53,7 @@ impl RecipientLine {
             shared_secret.as_bytes(),
         );
         let encrypted_file_key = {
-            let mut key = [0; 32];
+            let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
             key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
@@ -124,8 +126,8 @@ pub(super) mod read {
     use super::*;
     use crate::{format::x25519, util::read::encoded_data};
 
-    fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
-        encoded_data(4, [0; 4])(input)
+    fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; TAG_LEN_BYTES]> {
+        encoded_data(TAG_LEN_BYTES, [0; TAG_LEN_BYTES])(input)
     }
 
     pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
@@ -135,7 +137,10 @@ pub(super) mod read {
                 separated_pair(
                     separated_pair(ssh_tag, tag(" "), x25519::read::epk),
                     newline,
-                    encoded_data(32, [0; 32]),
+                    encoded_data(
+                        x25519::ENCRYPTED_FILE_KEY_BYTES,
+                        [0; x25519::ENCRYPTED_FILE_KEY_BYTES],
+                    ),
                 ),
                 |((tag, epk), encrypted_file_key)| RecipientLine {
                     tag,

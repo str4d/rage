@@ -8,16 +8,18 @@ use crate::{error::Error, keys::FileKey};
 const SSH_RSA_RECIPIENT_TAG: &[u8] = b"ssh-rsa ";
 const SSH_RSA_OAEP_LABEL: &str = "age-encryption.org/v1/ssh-rsa";
 
-fn ssh_tag(pubkey: &[u8]) -> [u8; 4] {
+const TAG_LEN_BYTES: usize = 4;
+
+fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
     let tag_bytes = Sha256::digest(pubkey);
-    let mut tag = [0; 4];
-    tag.copy_from_slice(&tag_bytes[..4]);
+    let mut tag = [0; TAG_LEN_BYTES];
+    tag.copy_from_slice(&tag_bytes[..TAG_LEN_BYTES]);
     tag
 }
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
-    pub(crate) tag: [u8; 4],
+    pub(crate) tag: [u8; TAG_LEN_BYTES],
     pub(crate) encrypted_file_key: Vec<u8>,
 }
 
@@ -88,8 +90,8 @@ pub(super) mod read {
     use super::*;
     use crate::util::read::encoded_data;
 
-    fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; 4]> {
-        encoded_data(4, [0; 4])(input)
+    fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; TAG_LEN_BYTES]> {
+        encoded_data(TAG_LEN_BYTES, [0; TAG_LEN_BYTES])(input)
     }
 
     /// Returns the slice of input up to (but not including) the first CR or LF

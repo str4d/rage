@@ -11,10 +11,13 @@ use crate::{
 const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 
+pub(super) const EPK_LEN_BYTES: usize = 32;
+pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
+
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
     pub(crate) epk: PublicKey,
-    pub(crate) encrypted_file_key: [u8; 32],
+    pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
 
 impl RecipientLine {
@@ -30,7 +33,7 @@ impl RecipientLine {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = {
-            let mut key = [0; 32];
+            let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
             key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
@@ -75,14 +78,21 @@ pub(super) mod read {
     use crate::util::read::encoded_data;
 
     pub(crate) fn epk(input: &[u8]) -> IResult<&[u8], PublicKey> {
-        map(encoded_data(32, [0; 32]), PublicKey::from)(input)
+        map(
+            encoded_data(EPK_LEN_BYTES, [0; EPK_LEN_BYTES]),
+            PublicKey::from,
+        )(input)
     }
 
     pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
             tag(X25519_RECIPIENT_TAG),
             map(
-                separated_pair(epk, newline, encoded_data(32, [0; 32])),
+                separated_pair(
+                    epk,
+                    newline,
+                    encoded_data(ENCRYPTED_FILE_KEY_BYTES, [0; ENCRYPTED_FILE_KEY_BYTES]),
+                ),
                 |(epk, encrypted_file_key)| RecipientLine {
                     epk,
                     encrypted_file_key,

@@ -12,6 +12,9 @@ const SCRYPT_RECIPIENT_TAG: &[u8] = b"scrypt ";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
+const SALT_LEN: usize = 16;
+const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
+
 /// Pick an scrypt work factor that will take around 1 second on this device.
 ///
 /// Guaranteed to return a valid work factor (less than 64).
@@ -40,14 +43,14 @@ fn target_scrypt_work_factor() -> u8 {
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
-    pub(crate) salt: [u8; 16],
+    pub(crate) salt: [u8; SALT_LEN],
     pub(crate) log_n: u8,
-    pub(crate) encrypted_file_key: [u8; 32],
+    pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
 
 impl RecipientLine {
     pub(crate) fn wrap_file_key(file_key: &FileKey, passphrase: &SecretString) -> Self {
-        let mut salt = [0; 16];
+        let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
         let mut inner_salt = vec![];
@@ -58,7 +61,7 @@ impl RecipientLine {
 
         let enc_key = scrypt(&inner_salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = {
-            let mut key = [0; 32];
+            let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
             key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
@@ -118,8 +121,8 @@ pub(super) mod read {
     use super::*;
     use crate::util::read::encoded_data;
 
-    fn salt(input: &[u8]) -> IResult<&[u8], [u8; 16]> {
-        encoded_data(16, [0; 16])(input)
+    fn salt(input: &[u8]) -> IResult<&[u8], [u8; SALT_LEN]> {
+        encoded_data(SALT_LEN, [0; SALT_LEN])(input)
     }
 
     fn log_n(input: &[u8]) -> IResult<&[u8], u8> {
@@ -137,7 +140,7 @@ pub(super) mod read {
                 separated_pair(
                     separated_pair(salt, tag(" "), log_n),
                     newline,
-                    encoded_data(32, [0; 32]),
+                    encoded_data(ENCRYPTED_FILE_KEY_BYTES, [0; ENCRYPTED_FILE_KEY_BYTES]),
                 ),
                 |((salt, log_n), encrypted_file_key)| RecipientLine {
                     salt,
