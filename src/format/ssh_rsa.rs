@@ -165,31 +165,12 @@ pub(super) mod write {
     use cookie_factory::{
         combinator::{slice, string},
         sequence::tuple,
-        SerializeFn, WriteContext,
+        SerializeFn,
     };
     use std::io::Write;
 
     use super::*;
-    use crate::util::write::encoded_data;
-
-    fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
-        let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
-
-        move |mut w: WriteContext<W>| {
-            let mut s = encoded.as_str();
-
-            while s.len() > 64 {
-                let (l, r) = s.split_at(64);
-                w = string(l)(w)?;
-                if !r.is_empty() {
-                    w = string("\n")(w)?;
-                }
-                s = r;
-            }
-
-            string(s)(w)
-        }
-    }
+    use crate::util::write::{encoded_data, wrapped_encoded_data};
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((

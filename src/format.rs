@@ -4,6 +4,7 @@ use std::io::{self, Read, Write};
 
 use crate::primitives::HmacWriter;
 
+pub(crate) mod plugin;
 pub(crate) mod scrypt;
 pub(crate) mod ssh_ed25519;
 #[cfg(feature = "unstable")]
@@ -22,6 +23,7 @@ pub(crate) enum RecipientLine {
     #[cfg(feature = "unstable")]
     SshRsa(ssh_rsa::RecipientLine),
     SshEd25519(ssh_ed25519::RecipientLine),
+    Plugin(plugin::RecipientLine),
 }
 
 impl From<x25519::RecipientLine> for RecipientLine {
@@ -46,6 +48,12 @@ impl From<ssh_rsa::RecipientLine> for RecipientLine {
 impl From<ssh_ed25519::RecipientLine> for RecipientLine {
     fn from(line: ssh_ed25519::RecipientLine) -> Self {
         RecipientLine::SshEd25519(line)
+    }
+}
+
+impl From<plugin::RecipientLine> for RecipientLine {
+    fn from(line: plugin::RecipientLine) -> Self {
+        RecipientLine::Plugin(line)
     }
 }
 
@@ -122,7 +130,7 @@ pub(crate) enum Header {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{tag, take_while1},
+        bytes::streaming::tag,
         character::streaming::newline,
         combinator::map,
         multi::separated_nonempty_list,
@@ -131,17 +139,7 @@ mod read {
     };
 
     use super::*;
-    use crate::util::read::encoded_data;
-
-    /// From the age specification:
-    /// ```text
-    /// ... an arbitrary string is a sequence of ASCII characters with values 33 to 126.
-    /// ```
-    fn arbitrary_string(input: &[u8]) -> IResult<&[u8], &str> {
-        map(take_while1(|c| c >= 33 && c <= 126), |bytes| {
-            std::str::from_utf8(bytes).expect("ASCII is valid UTF-8")
-        })(input)
-    }
+    use crate::util::read::{arbitrary_string, encoded_data};
 
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
@@ -152,6 +150,7 @@ mod read {
                 #[cfg(feature = "unstable")]
                 map(ssh_rsa::read::recipient_line, RecipientLine::from),
                 map(ssh_ed25519::read::recipient_line, RecipientLine::from),
+                map(plugin::read::recipient_line, RecipientLine::from),
             )),
         )(input)
     }
@@ -210,6 +209,7 @@ mod write {
                 #[cfg(feature = "unstable")]
                 RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r)(out),
                 RecipientLine::SshEd25519(r) => ssh_ed25519::write::recipient_line(r)(out),
+                RecipientLine::Plugin(r) => plugin::write::recipient_line(r)(out),
             }
         }
     }
@@ -260,26 +260,6 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 N3pgrXkbIn/RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
 -> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
 ZV/AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
--> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
-51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
---- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
-";
-        let h = Header::read(test_header.as_bytes()).unwrap();
-        let mut data = vec![];
-        h.write(&mut data).unwrap();
-        assert_eq!(std::str::from_utf8(&data), Ok(test_header));
-    }
-
-    #[cfg(feature = "unstable")]
-    #[test]
-    fn parse_header_with_rsa() {
-        let test_header = "age-encryption.org/v1
--> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
-C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
--> X25519 ytazqsbmUnPwVWMVx0c1X9iUtGdY4yAB08UQTY2hNCI
-N3pgrXkbIn/RrVt0T0G3sQr1wGWuclqKxTSWHSqGdkc
--> scrypt bBjlhJVYZeE4aqUdmtRHfw 15
-ZV/AhotwSGqaPCU43cepl4WYUouAa17a3xpu4G2yi5k
 -> ssh-rsa mhir0Q
 xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
 mgmZq7tIm5ZyY89OmqZztOgG2tEB1TZvX3Q8oXESBuFjBBQkKaMLkaqh5GjcGRrZ
@@ -289,6 +269,9 @@ m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
 J9FSm+GFHiVWpr1MfYCo/w
 -> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
 51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
+-> some-other-recipient mhir0Q BjH7FA 37
+m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
+J9FSm+GFHiVWpr1MfYCo/w
 --- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
 ";
         let h = Header::read(test_header.as_bytes()).unwrap();
