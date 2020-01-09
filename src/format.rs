@@ -49,20 +49,20 @@ impl From<ssh_ed25519::RecipientLine> for RecipientLine {
     }
 }
 
-pub struct Header {
+pub struct HeaderV1 {
     pub(crate) recipients: Vec<RecipientLine>,
     pub(crate) mac: [u8; 32],
 }
 
-impl Header {
-    pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
-        let mut header = Header {
+impl HeaderV1 {
+    fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+        let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
         };
 
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_minus_mac(&header), &mut mac)
+        cookie_factory::gen(write::header_v1_minus_mac(&header), &mut mac)
             .expect("can serialize Header into HmacWriter");
         header.mac.copy_from_slice(mac.result().code().as_slice());
 
@@ -71,9 +71,15 @@ impl Header {
 
     pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Result<(), hmac::crypto_mac::MacError> {
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_minus_mac(self), &mut mac)
+        cookie_factory::gen(write::header_v1_minus_mac(self), &mut mac)
             .expect("can serialize Header into HmacWriter");
         mac.verify(&self.mac)
+    }
+}
+
+impl Header {
+    pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+        Header::V1(HeaderV1::new(recipients, mac_key))
     }
 
     pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
@@ -108,10 +114,15 @@ impl Header {
     }
 }
 
+pub(crate) enum Header {
+    V1(HeaderV1),
+    Unknown(String),
+}
+
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::tag,
+        bytes::streaming::{tag, take_while1},
         character::streaming::newline,
         combinator::map,
         multi::separated_nonempty_list,
@@ -121,6 +132,16 @@ mod read {
 
     use super::*;
     use crate::util::read::encoded_data;
+
+    /// From the age specification:
+    /// ```text
+    /// ... an arbitrary string is a sequence of ASCII characters with values 33 to 126.
+    /// ```
+    fn arbitrary_string(input: &[u8]) -> IResult<&[u8], &str> {
+        map(take_while1(|c| c >= 33 && c <= 126), |bytes| {
+            std::str::from_utf8(bytes).expect("ASCII is valid UTF-8")
+        })(input)
+    }
 
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
@@ -135,9 +156,9 @@ mod read {
         )(input)
     }
 
-    pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
+    fn header_v1(input: &[u8]) -> IResult<&[u8], HeaderV1> {
         preceded(
-            pair(pair(tag(AGE_MAGIC), tag(V1_MAGIC)), newline),
+            pair(tag(V1_MAGIC), newline),
             map(
                 pair(
                     terminated(separated_nonempty_list(newline, recipient_line), newline),
@@ -146,8 +167,24 @@ mod read {
                         terminated(encoded_data(32, [0; 32]), newline),
                     ),
                 ),
-                |(recipients, mac)| Header { recipients, mac },
+                |(recipients, mac)| HeaderV1 { recipients, mac },
             ),
+        )(input)
+    }
+
+    /// From the age specification:
+    /// ```text
+    /// The first line of the header is age-encryption.org/ followed by an arbitrary
+    /// version string. ... We describe version v1, other versions can change anything
+    /// after the first line.
+    /// ```
+    pub(super) fn header(input: &[u8]) -> IResult<&[u8], Header> {
+        preceded(
+            tag(AGE_MAGIC),
+            alt((
+                map(header_v1, Header::V1),
+                map(arbitrary_string, |s| Header::Unknown(s.to_string())),
+            )),
         )(input)
     }
 }
@@ -177,7 +214,9 @@ mod write {
         }
     }
 
-    pub(super) fn header_minus_mac<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    pub(super) fn header_v1_minus_mac<'a, W: 'a + Write>(
+        h: &'a HeaderV1,
+    ) -> impl SerializeFn<W> + 'a {
         tuple((
             slice(AGE_MAGIC),
             slice(V1_MAGIC),
@@ -191,13 +230,20 @@ mod write {
         ))
     }
 
-    pub(super) fn header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+    fn header_v1<'a, W: 'a + Write>(h: &'a HeaderV1) -> impl SerializeFn<W> + 'a {
         tuple((
-            header_minus_mac(h),
+            header_v1_minus_mac(h),
             string(" "),
             encoded_data(&h.mac),
             string("\n"),
         ))
+    }
+
+    pub(super) fn header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
+        move |w: WriteContext<W>| match h {
+            Header::V1(v1) => header_v1(v1)(w),
+            Header::Unknown(version) => panic!("Cannot write header for version {}", version),
+        }
     }
 }
 

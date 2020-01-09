@@ -126,33 +126,36 @@ impl Decryptor {
     ) -> Result<impl Read, Error> {
         let mut input = ArmoredReader::from_reader(input);
 
-        let header = Header::read(&mut input)?;
+        match Header::read(&mut input)? {
+            Header::V1(header) => {
+                let mut nonce = [0; 16];
+                input.read_exact(&mut nonce)?;
 
-        let mut nonce = [0; 16];
-        input.read_exact(&mut nonce)?;
+                header
+                    .recipients
+                    .iter()
+                    .find_map(|r| {
+                        self.unwrap_file_key(r, request_passphrase)
+                            .transpose()
+                            .map(|res| {
+                                res.and_then(|file_key| {
+                                    // Verify the MAC
+                                    header.verify_mac(hkdf(
+                                        &[],
+                                        HEADER_KEY_LABEL,
+                                        file_key.0.expose_secret(),
+                                    ))?;
 
-        header
-            .recipients
-            .iter()
-            .find_map(|r| {
-                self.unwrap_file_key(r, request_passphrase)
-                    .transpose()
-                    .map(|res| {
-                        res.and_then(|file_key| {
-                            // Verify the MAC
-                            header.verify_mac(hkdf(
-                                &[],
-                                HEADER_KEY_LABEL,
-                                file_key.0.expose_secret(),
-                            ))?;
-
-                            // Return the payload key
-                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
-                        })
+                                    // Return the payload key
+                                    Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
+                                })
+                            })
                     })
-            })
-            .unwrap_or(Err(Error::NoMatchingKeys))
-            .map(|payload_key| Stream::decrypt(&payload_key, input))
+                    .unwrap_or(Err(Error::NoMatchingKeys))
+                    .map(|payload_key| Stream::decrypt(&payload_key, input))
+            }
+            Header::Unknown(_) => Err(Error::UnknownFormat),
+        }
     }
 
     /// Attempts to decrypt a message from the given seekable reader.
@@ -166,35 +169,38 @@ impl Decryptor {
         mut input: R,
         request_passphrase: P,
     ) -> Result<StreamReader<R>, Error> {
-        let header = Header::read(&mut input)?;
+        match Header::read(&mut input)? {
+            Header::V1(header) => {
+                let mut nonce = [0; 16];
+                input.read_exact(&mut nonce)?;
 
-        let mut nonce = [0; 16];
-        input.read_exact(&mut nonce)?;
+                header
+                    .recipients
+                    .iter()
+                    .find_map(|r| {
+                        self.unwrap_file_key(r, request_passphrase)
+                            .transpose()
+                            .map(|res| {
+                                res.and_then(|file_key| {
+                                    // Verify the MAC
+                                    header.verify_mac(hkdf(
+                                        &[],
+                                        HEADER_KEY_LABEL,
+                                        file_key.0.expose_secret(),
+                                    ))?;
 
-        header
-            .recipients
-            .iter()
-            .find_map(|r| {
-                self.unwrap_file_key(r, request_passphrase)
-                    .transpose()
-                    .map(|res| {
-                        res.and_then(|file_key| {
-                            // Verify the MAC
-                            header.verify_mac(hkdf(
-                                &[],
-                                HEADER_KEY_LABEL,
-                                file_key.0.expose_secret(),
-                            ))?;
-
-                            // Return the payload key
-                            Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
-                        })
+                                    // Return the payload key
+                                    Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
+                                })
+                            })
                     })
-            })
-            .unwrap_or(Err(Error::NoMatchingKeys))
-            .and_then(|payload_key| {
-                Stream::decrypt_seekable(&payload_key, input).map_err(Error::from)
-            })
+                    .unwrap_or(Err(Error::NoMatchingKeys))
+                    .and_then(|payload_key| {
+                        Stream::decrypt_seekable(&payload_key, input).map_err(Error::from)
+                    })
+            }
+            Header::Unknown(_) => Err(Error::UnknownFormat),
+        }
     }
 }
 
