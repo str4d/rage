@@ -49,6 +49,11 @@ fn rage_page() {
                 .long("--output")
                 .help("The file path to write output to (defaults to stdout)"),
         )
+        .option(
+            Opt::new("WF")
+                .long("--max-work-factor")
+                .help("The maximum work factor to allow for passphrase decryption"),
+        )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
         .example(Example::new().text("Encryption to a public key").command(
             "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",

@@ -1,19 +1,21 @@
 # rage: Rust implementation of age
 
 age is a simple, secure and modern encryption tool with small explicit keys, no
-config options, and UNIX-style composability.
-
-- The spec is at https://age-encryption.org/v1.
-- The reference implementation is https://filippo.io/age.
+config options, and UNIX-style composability. The format specification is at
+[age-encryption.org/v1](https://age-encryption.org/v1).
 
 rage is a Rust implementation of the age tool. It is pronounced like the Japanese
 [らげ](https://translate.google.com/#view=home&op=translate&sl=ja&tl=en&text=%E3%82%89%E3%81%92)
 (with a hard g).
 
-To discuss the spec or other age related topics, please email the mailing list
-at age-dev@googlegroups.com. Subscribe at
-[groups.google.com/d/forum/age-dev](https://groups.google.com/d/forum/age-dev)
-or by emailing age-dev+subscribe@googlegroups.com.
+To discuss the spec or other age related topics, please email
+[the mailing list](https://groups.google.com/d/forum/age-dev) at
+age-dev@googlegroups.com. age was designed by
+[@Benjojo12](https://twitter.com/Benjojo12) and
+[@FiloSottile](https://twitter.com/FiloSottile).
+
+The reference interoperable Golang implementation is available at
+[filippo.io/age](https://filippo.io/age).
 
 ## Usage
 
@@ -27,6 +29,7 @@ Optional arguments:
   -h, --help                 print help message
   -d, --decrypt              decrypt the input (default is to encrypt)
   -p, --passphrase           use a passphrase instead of public keys
+  --max-work-factor WF       maximum work factor to allow for passphrase decryption
   -a, --armor                create ASCII armored output (default is age binary format)
   -r, --recipient RECIPIENT  recipient to encrypt to (may be repeated)
   -i, --identity IDENTITY    identity to decrypt with (may be repeated)
@@ -57,6 +60,25 @@ $ rage -d -p example.png.age >example.png
 Type passphrase: [hidden]
 ```
 
+### SSH keys
+
+As a convenience feature, rage also supports encrypting to `ssh-rsa` and
+`ssh-ed25519` SSH public keys, and decrypting with the respective private key
+file. (`ssh-agent` is not supported.)
+
+```
+$ cat ~/.ssh/id_ed25519.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIZDRcvS8PnhXr30WKSKmf7WKKi92ACUa5nW589WukJz str4d@internet.arpa
+$ rage -r "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIZDRcvS8PnhXr30WKSKmf7WKKi92ACUa5nW589WukJz" example.png > example.png.age
+$ rage -d -i ~/.ssh/id_ed25519 example.png.age > example.png
+```
+
+`ssh-rsa` support is currently behind the `unstable` feature flag.
+
+Note that SSH key support employs more complex cryptography, and embeds a public
+key tag in the encrypted file, making it possible to track files that are
+encrypted to a specific public key.
+
 ## Installation
 
 On Windows, Linux, and macOS, you can use the
@@ -76,6 +98,8 @@ your `Cargo.toml` (which disables the CLI tools):
 ```
 age = { version = "0.1", default-features = false }
 ```
+
+Help from new packagers is very welcome.
 
 ### Feature flags
 
