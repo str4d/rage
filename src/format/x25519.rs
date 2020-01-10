@@ -1,23 +1,42 @@
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
+use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
+use super::RecipientStanza;
 use crate::{
     error::Error,
     keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
+    util::read::base64_arg,
 };
 
-const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
+pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
+
+pub(super) const EPK_LEN_BYTES: usize = 32;
+pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
     pub(crate) epk: PublicKey,
-    pub(crate) encrypted_file_key: [u8; 32],
+    pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
 
 impl RecipientLine {
+    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+        if stanza.tag != X25519_RECIPIENT_TAG {
+            return None;
+        }
+
+        let epk = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?;
+
+        Some(RecipientLine {
+            epk: epk.into(),
+            encrypted_file_key: stanza.body[..].try_into().ok()?,
+        })
+    }
+
     pub(crate) fn wrap_file_key(file_key: &FileKey, pk: &PublicKey) -> Self {
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
@@ -30,7 +49,7 @@ impl RecipientLine {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = {
-            let mut key = [0; 32];
+            let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
             key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
             key
         };
@@ -62,42 +81,8 @@ impl RecipientLine {
     }
 }
 
-pub(super) mod read {
-    use nom::{
-        bytes::streaming::tag,
-        character::streaming::newline,
-        combinator::map,
-        sequence::{preceded, separated_pair},
-        IResult,
-    };
-
-    use super::*;
-    use crate::util::read::encoded_data;
-
-    pub(crate) fn epk(input: &[u8]) -> IResult<&[u8], PublicKey> {
-        map(encoded_data(32, [0; 32]), PublicKey::from)(input)
-    }
-
-    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(X25519_RECIPIENT_TAG),
-            map(
-                separated_pair(epk, newline, encoded_data(32, [0; 32])),
-                |(epk, encrypted_file_key)| RecipientLine {
-                    epk,
-                    encrypted_file_key,
-                },
-            ),
-        )(input)
-    }
-}
-
 pub(super) mod write {
-    use cookie_factory::{
-        combinator::{slice, string},
-        sequence::tuple,
-        SerializeFn,
-    };
+    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
     use std::io::Write;
 
     use super::*;
@@ -105,7 +90,8 @@ pub(super) mod write {
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
-            slice(X25519_RECIPIENT_TAG),
+            string(X25519_RECIPIENT_TAG),
+            string(" "),
             encoded_data(r.epk.as_bytes()),
             string("\n"),
             encoded_data(&r.encrypted_file_key),

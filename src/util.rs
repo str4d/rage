@@ -91,50 +91,31 @@ pub(crate) mod read {
         })(input)
     }
 
-    pub(crate) fn encoded_data<T: Copy + AsMut<[u8]>>(
-        count: usize,
-        template: T,
-    ) -> impl Fn(&[u8]) -> IResult<&[u8], T> {
-        use nom::bytes::streaming::take;
+    pub(crate) fn base64_arg<A: AsRef<[u8]>, B: AsMut<[u8]>>(arg: &A, mut buf: B) -> Option<B> {
+        if arg.as_ref().len() != ((4 * buf.as_mut().len()) + 2) / 3 {
+            return None;
+        }
 
-        // Unpadded encoded length
-        let encoded_count = ((4 * count) + 2) / 3;
-
-        move |input: &[u8]| {
-            // Cannot take the input directly, so we copy it here. We only call this with
-            // short slices, so this continues to avoid allocations.
-            let mut buf = template;
-
-            // take() returns the total number of bytes it needs, not the
-            // additional number of bytes like other APIs.
-            let (i, data) = take(encoded_count)(input).map_err(|e| match e {
-                nom::Err::Incomplete(nom::Needed::Size(n)) if n == encoded_count => {
-                    nom::Err::Incomplete(nom::Needed::Size(encoded_count - input.len()))
-                }
-                e => e,
-            })?;
-
-            match base64::decode_config_slice(data, base64::STANDARD_NO_PAD, buf.as_mut()) {
-                Ok(_) => Ok((i, buf)),
-                Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
-            }
+        match base64::decode_config_slice(arg, base64::STANDARD_NO_PAD, buf.as_mut()) {
+            Ok(_) => Some(buf),
+            Err(_) => None,
         }
     }
 
-    /// Returns the slice of input up to (but not including) the first CR or LF
+    /// Returns the slice of input up to (but not including) the first LF
     /// character, if that slice is entirely Base64 characters
     ///
     /// # Errors
     ///
     /// - Returns Failure on an empty slice.
-    /// - Returns Incomplete(1) if a CR or LF is not found.
+    /// - Returns Incomplete(1) if a LF is not found.
     fn take_b64_line(config: base64::Config) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
         move |input: &[u8]| {
             let mut end = 0;
             while end < input.len() {
                 let c = input[end];
 
-                if c == b'\r' || c == b'\n' {
+                if c == b'\n' {
                     break;
                 }
 
