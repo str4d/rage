@@ -3,9 +3,10 @@ use rsa::{RSAPrivateKey, RSAPublicKey};
 use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256};
 
-use crate::{error::Error, keys::FileKey};
+use super::RecipientStanza;
+use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
-const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
+pub(super) const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
 const SSH_RSA_OAEP_LABEL: &str = "age-encryption.org/v1/ssh-rsa";
 
 const TAG_LEN_BYTES: usize = 4;
@@ -24,6 +25,19 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
+    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+        if stanza.tag != SSH_RSA_RECIPIENT_TAG {
+            return None;
+        }
+
+        let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+
+        Some(RecipientLine {
+            tag,
+            encrypted_file_key: stanza.body,
+        })
+    }
+
     pub(crate) fn wrap_file_key(file_key: &FileKey, ssh_key: &[u8], pk: &RSAPublicKey) -> Self {
         let mut rng = OsRng;
         let mut h = Sha256::default();
@@ -73,28 +87,6 @@ impl RecipientLine {
                 FileKey(Secret::new(file_key))
             }),
         )
-    }
-}
-
-pub(super) mod read {
-    use nom::{combinator::map_opt, IResult};
-
-    use super::*;
-    use crate::{format::read::recipient_stanza, util::read::base64_arg};
-
-    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        map_opt(recipient_stanza, |stanza| {
-            if stanza.tag != SSH_RSA_RECIPIENT_TAG {
-                return None;
-            }
-
-            let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
-
-            Some(RecipientLine {
-                tag,
-                encrypted_file_key: stanza.body,
-            })
-        })(input)
     }
 }
 

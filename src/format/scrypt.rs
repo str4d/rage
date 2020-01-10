@@ -1,14 +1,17 @@
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
+use std::convert::TryInto;
 use std::time::{Duration, SystemTime};
 
+use super::RecipientStanza;
 use crate::{
     error::Error,
     keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, scrypt},
+    util::read::base64_arg,
 };
 
-const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
+pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
@@ -49,6 +52,21 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
+    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+        if stanza.tag != SCRYPT_RECIPIENT_TAG {
+            return None;
+        }
+
+        let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
+        let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
+
+        Some(RecipientLine {
+            salt,
+            log_n,
+            encrypted_file_key: stanza.body[..].try_into().ok()?,
+        })
+    }
+
     pub(crate) fn wrap_file_key(file_key: &FileKey, passphrase: &SecretString) -> Self {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
@@ -106,31 +124,6 @@ impl RecipientLine {
                 Some(FileKey(Secret::new(file_key)))
             })
             .map_err(Error::from)
-    }
-}
-
-pub(super) mod read {
-    use nom::{combinator::map_opt, IResult};
-    use std::convert::TryInto;
-
-    use super::*;
-    use crate::{format::read::recipient_stanza, util::read::base64_arg};
-
-    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        map_opt(recipient_stanza, |stanza| {
-            if stanza.tag != SCRYPT_RECIPIENT_TAG {
-                return None;
-            }
-
-            let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
-            let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
-
-            Some(RecipientLine {
-                salt,
-                log_n,
-                encrypted_file_key: stanza.body[..].try_into().ok()?,
-            })
-        })(input)
     }
 }
 

@@ -146,7 +146,7 @@ mod read {
         branch::alt,
         bytes::streaming::tag,
         character::streaming::newline,
-        combinator::map,
+        combinator::{map, map_opt},
         multi::separated_nonempty_list,
         sequence::{pair, preceded, separated_pair, terminated},
         IResult,
@@ -155,7 +155,7 @@ mod read {
     use super::*;
     use crate::util::read::{arbitrary_string, encoded_data, wrapped_encoded_data};
 
-    pub(super) fn recipient_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], RecipientStanza<'a>> {
+    fn recipient_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], RecipientStanza<'a>> {
         map(
             separated_pair(
                 separated_nonempty_list(tag(" "), arbitrary_string),
@@ -172,14 +172,24 @@ mod read {
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
             tag(RECIPIENT_TAG),
-            alt((
-                map(x25519::read::recipient_line, RecipientLine::from),
-                map(scrypt::read::recipient_line, RecipientLine::from),
+            map_opt(recipient_stanza, |stanza| match stanza.tag {
+                x25519::X25519_RECIPIENT_TAG => {
+                    x25519::RecipientLine::from_stanza(stanza).map(RecipientLine::X25519)
+                }
+                scrypt::SCRYPT_RECIPIENT_TAG => {
+                    scrypt::RecipientLine::from_stanza(stanza).map(RecipientLine::Scrypt)
+                }
                 #[cfg(feature = "unstable")]
-                map(ssh_rsa::read::recipient_line, RecipientLine::from),
-                map(ssh_ed25519::read::recipient_line, RecipientLine::from),
-                map(plugin::read::recipient_line, RecipientLine::from),
-            )),
+                ssh_rsa::SSH_RSA_RECIPIENT_TAG => {
+                    ssh_rsa::RecipientLine::from_stanza(stanza).map(RecipientLine::SshRsa)
+                }
+                ssh_ed25519::SSH_ED25519_RECIPIENT_TAG => {
+                    ssh_ed25519::RecipientLine::from_stanza(stanza).map(RecipientLine::SshEd25519)
+                }
+                _ => Some(RecipientLine::Plugin(plugin::RecipientLine::from_stanza(
+                    stanza,
+                ))),
+            }),
         )(input)
     }
 

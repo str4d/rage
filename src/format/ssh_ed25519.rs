@@ -2,16 +2,19 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256, Sha512};
+use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
+use super::RecipientStanza;
 use crate::{
     error::Error,
     format::x25519::ENCRYPTED_FILE_KEY_BYTES,
     keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
+    util::read::base64_arg,
 };
 
-const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
+pub(super) const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
 const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
 
 const TAG_LEN_BYTES: usize = 4;
@@ -30,6 +33,23 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
+    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+        if stanza.tag != SSH_ED25519_RECIPIENT_TAG {
+            return None;
+        }
+
+        let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+        let epk = base64_arg(stanza.args.get(1)?, [0; super::x25519::EPK_LEN_BYTES])?.into();
+
+        Some(RecipientLine {
+            tag,
+            rest: super::x25519::RecipientLine {
+                epk,
+                encrypted_file_key: stanza.body[..].try_into().ok()?,
+            },
+        })
+    }
+
     pub(crate) fn wrap_file_key(
         file_key: &FileKey,
         ssh_key: &[u8],
@@ -112,36 +132,6 @@ impl RecipientLine {
                     FileKey(Secret::new(file_key))
                 }),
         )
-    }
-}
-
-pub(super) mod read {
-    use nom::{combinator::map_opt, IResult};
-    use std::convert::TryInto;
-
-    use super::*;
-    use crate::{
-        format::{read::recipient_stanza, x25519},
-        util::read::base64_arg,
-    };
-
-    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        map_opt(recipient_stanza, |stanza| {
-            if stanza.tag != SSH_ED25519_RECIPIENT_TAG {
-                return None;
-            }
-
-            let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
-            let epk = base64_arg(stanza.args.get(1)?, [0; x25519::EPK_LEN_BYTES])?.into();
-
-            Some(RecipientLine {
-                tag,
-                rest: x25519::RecipientLine {
-                    epk,
-                    encrypted_file_key: stanza.body[..].try_into().ok()?,
-                },
-            })
-        })(input)
     }
 }
 

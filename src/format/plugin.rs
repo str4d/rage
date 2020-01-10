@@ -1,3 +1,5 @@
+use super::RecipientStanza;
+
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
     tag: String,
@@ -5,18 +7,13 @@ pub(crate) struct RecipientLine {
     body: Vec<u8>,
 }
 
-pub(super) mod read {
-    use nom::{combinator::map, IResult};
-
-    use super::*;
-    use crate::format::read::recipient_stanza;
-
-    pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        map(recipient_stanza, |stanza| RecipientLine {
+impl RecipientLine {
+    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Self {
+        RecipientLine {
             tag: stanza.tag.to_string(),
             args: stanza.args.into_iter().map(|s| s.to_string()).collect(),
             body: stanza.body,
-        })(input)
+        }
     }
 }
 
