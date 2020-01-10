@@ -8,7 +8,7 @@ use crate::{
     primitives::{aead_decrypt, aead_encrypt, scrypt},
 };
 
-const SCRYPT_RECIPIENT_TAG: &[u8] = b"scrypt ";
+const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
@@ -110,54 +110,32 @@ impl RecipientLine {
 }
 
 pub(super) mod read {
-    use nom::{
-        bytes::streaming::tag,
-        character::streaming::{digit1, newline},
-        combinator::{map, map_res},
-        sequence::{preceded, separated_pair},
-        IResult,
-    };
+    use nom::{combinator::map_opt, IResult};
+    use std::convert::TryInto;
 
     use super::*;
-    use crate::util::read::encoded_data;
-
-    fn salt(input: &[u8]) -> IResult<&[u8], [u8; SALT_LEN]> {
-        encoded_data(SALT_LEN, [0; SALT_LEN])(input)
-    }
-
-    fn log_n(input: &[u8]) -> IResult<&[u8], u8> {
-        map_res(digit1, |log_n_str| {
-            let log_n_str =
-                std::str::from_utf8(log_n_str).expect("digit1 only returns valid ASCII bytes");
-            u8::from_str_radix(log_n_str, 10)
-        })(input)
-    }
+    use crate::{format::read::recipient_stanza, util::read::base64_arg};
 
     pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(SCRYPT_RECIPIENT_TAG),
-            map(
-                separated_pair(
-                    separated_pair(salt, tag(" "), log_n),
-                    newline,
-                    encoded_data(ENCRYPTED_FILE_KEY_BYTES, [0; ENCRYPTED_FILE_KEY_BYTES]),
-                ),
-                |((salt, log_n), encrypted_file_key)| RecipientLine {
-                    salt,
-                    log_n,
-                    encrypted_file_key,
-                },
-            ),
-        )(input)
+        map_opt(recipient_stanza, |stanza| {
+            if stanza.tag != SCRYPT_RECIPIENT_TAG {
+                return None;
+            }
+
+            let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
+            let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
+
+            Some(RecipientLine {
+                salt,
+                log_n,
+                encrypted_file_key: stanza.body[..].try_into().ok()?,
+            })
+        })(input)
     }
 }
 
 pub(super) mod write {
-    use cookie_factory::{
-        combinator::{slice, string},
-        sequence::tuple,
-        SerializeFn,
-    };
+    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
     use std::io::Write;
 
     use super::*;
@@ -165,7 +143,8 @@ pub(super) mod write {
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
-            slice(SCRYPT_RECIPIENT_TAG),
+            string(SCRYPT_RECIPIENT_TAG),
+            string(" "),
             encoded_data(&r.salt),
             string(format!(" {}{}", r.log_n, "\n")),
             encoded_data(&r.encrypted_file_key),

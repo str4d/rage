@@ -8,7 +8,7 @@ use crate::{
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
-const X25519_RECIPIENT_TAG: &[u8] = b"X25519 ";
+const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 
 pub(super) const EPK_LEN_BYTES: usize = 32;
@@ -66,48 +66,30 @@ impl RecipientLine {
 }
 
 pub(super) mod read {
-    use nom::{
-        bytes::streaming::tag,
-        character::streaming::newline,
-        combinator::map,
-        sequence::{preceded, separated_pair},
-        IResult,
-    };
+    use nom::{combinator::map_opt, IResult};
+    use std::convert::TryInto;
 
     use super::*;
-    use crate::util::read::encoded_data;
-
-    pub(crate) fn epk(input: &[u8]) -> IResult<&[u8], PublicKey> {
-        map(
-            encoded_data(EPK_LEN_BYTES, [0; EPK_LEN_BYTES]),
-            PublicKey::from,
-        )(input)
-    }
+    use crate::{format::read::recipient_stanza, util::read::base64_arg};
 
     pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(X25519_RECIPIENT_TAG),
-            map(
-                separated_pair(
-                    epk,
-                    newline,
-                    encoded_data(ENCRYPTED_FILE_KEY_BYTES, [0; ENCRYPTED_FILE_KEY_BYTES]),
-                ),
-                |(epk, encrypted_file_key)| RecipientLine {
-                    epk,
-                    encrypted_file_key,
-                },
-            ),
-        )(input)
+        map_opt(recipient_stanza, |stanza| {
+            if stanza.tag != X25519_RECIPIENT_TAG {
+                return None;
+            }
+
+            let epk = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?;
+
+            Some(RecipientLine {
+                epk: epk.into(),
+                encrypted_file_key: stanza.body[..].try_into().ok()?,
+            })
+        })(input)
     }
 }
 
 pub(super) mod write {
-    use cookie_factory::{
-        combinator::{slice, string},
-        sequence::tuple,
-        SerializeFn,
-    };
+    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
     use std::io::Write;
 
     use super::*;
@@ -115,7 +97,8 @@ pub(super) mod write {
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
-            slice(X25519_RECIPIENT_TAG),
+            string(X25519_RECIPIENT_TAG),
+            string(" "),
             encoded_data(r.epk.as_bytes()),
             string("\n"),
             encoded_data(&r.encrypted_file_key),

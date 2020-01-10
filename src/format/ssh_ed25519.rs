@@ -6,11 +6,12 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
     error::Error,
+    format::x25519::ENCRYPTED_FILE_KEY_BYTES,
     keys::FileKey,
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 
-const SSH_ED25519_RECIPIENT_TAG: &[u8] = b"ssh-ed25519 ";
+const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
 const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
 
 const TAG_LEN_BYTES: usize = 4;
@@ -115,51 +116,37 @@ impl RecipientLine {
 }
 
 pub(super) mod read {
-    use nom::{
-        bytes::streaming::tag,
-        character::streaming::newline,
-        combinator::map,
-        sequence::{preceded, separated_pair},
-        IResult,
-    };
+    use nom::{combinator::map_opt, IResult};
+    use std::convert::TryInto;
 
     use super::*;
-    use crate::{format::x25519, util::read::encoded_data};
-
-    fn ssh_tag(input: &[u8]) -> IResult<&[u8], [u8; TAG_LEN_BYTES]> {
-        encoded_data(TAG_LEN_BYTES, [0; TAG_LEN_BYTES])(input)
-    }
+    use crate::{
+        format::{read::recipient_stanza, x25519},
+        util::read::base64_arg,
+    };
 
     pub(crate) fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
-        preceded(
-            tag(SSH_ED25519_RECIPIENT_TAG),
-            map(
-                separated_pair(
-                    separated_pair(ssh_tag, tag(" "), x25519::read::epk),
-                    newline,
-                    encoded_data(
-                        x25519::ENCRYPTED_FILE_KEY_BYTES,
-                        [0; x25519::ENCRYPTED_FILE_KEY_BYTES],
-                    ),
-                ),
-                |((tag, epk), encrypted_file_key)| RecipientLine {
-                    tag,
-                    rest: x25519::RecipientLine {
-                        epk,
-                        encrypted_file_key,
-                    },
+        map_opt(recipient_stanza, |stanza| {
+            if stanza.tag != SSH_ED25519_RECIPIENT_TAG {
+                return None;
+            }
+
+            let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+            let epk = base64_arg(stanza.args.get(1)?, [0; x25519::EPK_LEN_BYTES])?.into();
+
+            Some(RecipientLine {
+                tag,
+                rest: x25519::RecipientLine {
+                    epk,
+                    encrypted_file_key: stanza.body[..].try_into().ok()?,
                 },
-            ),
-        )(input)
+            })
+        })(input)
     }
 }
 
 pub(super) mod write {
-    use cookie_factory::{
-        combinator::{slice, string},
-        sequence::tuple,
-        SerializeFn,
-    };
+    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
     use std::io::Write;
 
     use super::*;
@@ -167,7 +154,8 @@ pub(super) mod write {
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
         tuple((
-            slice(SSH_ED25519_RECIPIENT_TAG),
+            string(SSH_ED25519_RECIPIENT_TAG),
+            string(" "),
             encoded_data(&r.tag),
             string(" "),
             encoded_data(r.rest.epk.as_bytes()),
