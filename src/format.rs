@@ -144,7 +144,7 @@ pub(crate) enum Header {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::tag,
+        bytes::streaming::{tag, take},
         character::streaming::newline,
         combinator::{map, map_opt},
         multi::separated_nonempty_list,
@@ -153,7 +153,7 @@ mod read {
     };
 
     use super::*;
-    use crate::util::read::{arbitrary_string, encoded_data, wrapped_encoded_data};
+    use crate::util::read::{arbitrary_string, base64_arg, wrapped_encoded_data};
 
     fn recipient_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], RecipientStanza<'a>> {
         map(
@@ -201,7 +201,10 @@ mod read {
                     terminated(separated_nonempty_list(newline, recipient_line), newline),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
-                        terminated(encoded_data(32, [0; 32]), newline),
+                        terminated(
+                            map_opt(take(43usize), |tag| base64_arg(&tag, [0; 32])),
+                            newline,
+                        ),
                     ),
                 ),
                 |(recipients, mac)| HeaderV1 { recipients, mac },

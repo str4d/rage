@@ -91,44 +91,14 @@ pub(crate) mod read {
         })(input)
     }
 
-    pub(crate) fn base64_arg<B: Copy + AsMut<[u8]>>(arg: &str, mut buf: B) -> Option<B> {
-        if arg.len() != ((4 * buf.as_mut().len()) + 2) / 3 {
+    pub(crate) fn base64_arg<A: AsRef<[u8]>, B: AsMut<[u8]>>(arg: &A, mut buf: B) -> Option<B> {
+        if arg.as_ref().len() != ((4 * buf.as_mut().len()) + 2) / 3 {
             return None;
         }
 
         match base64::decode_config_slice(arg, base64::STANDARD_NO_PAD, buf.as_mut()) {
             Ok(_) => Some(buf),
             Err(_) => None,
-        }
-    }
-
-    pub(crate) fn encoded_data<T: Copy + AsMut<[u8]>>(
-        count: usize,
-        template: T,
-    ) -> impl Fn(&[u8]) -> IResult<&[u8], T> {
-        use nom::bytes::streaming::take;
-
-        // Unpadded encoded length
-        let encoded_count = ((4 * count) + 2) / 3;
-
-        move |input: &[u8]| {
-            // Cannot take the input directly, so we copy it here. We only call this with
-            // short slices, so this continues to avoid allocations.
-            let mut buf = template;
-
-            // take() returns the total number of bytes it needs, not the
-            // additional number of bytes like other APIs.
-            let (i, data) = take(encoded_count)(input).map_err(|e| match e {
-                nom::Err::Incomplete(nom::Needed::Size(n)) if n == encoded_count => {
-                    nom::Err::Incomplete(nom::Needed::Size(encoded_count - input.len()))
-                }
-                e => e,
-            })?;
-
-            match base64::decode_config_slice(data, base64::STANDARD_NO_PAD, buf.as_mut()) {
-                Ok(_) => Ok((i, buf)),
-                Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
-            }
         }
     }
 
