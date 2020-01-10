@@ -102,20 +102,20 @@ pub(crate) mod read {
         }
     }
 
-    /// Returns the slice of input up to (but not including) the first CR or LF
+    /// Returns the slice of input up to (but not including) the first LF
     /// character, if that slice is entirely Base64 characters
     ///
     /// # Errors
     ///
     /// - Returns Failure on an empty slice.
-    /// - Returns Incomplete(1) if a CR or LF is not found.
+    /// - Returns Incomplete(1) if a LF is not found.
     fn take_b64_line(config: base64::Config) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
         move |input: &[u8]| {
             let mut end = 0;
             while end < input.len() {
                 let c = input[end];
 
-                if c == b'\r' || c == b'\n' {
+                if c == b'\n' {
                     break;
                 }
 
