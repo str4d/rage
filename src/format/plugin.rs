@@ -31,9 +31,7 @@ pub(super) mod write {
         tuple((
             separated_list(
                 string(" "),
-                iter::once(&r.tag)
-                    .chain(r.args.iter())
-                    .map(|arg| string(arg)),
+                iter::once(&r.tag).chain(r.args.iter()).map(string),
             ),
             string("\n"),
             wrapped_encoded_data(&r.body),
