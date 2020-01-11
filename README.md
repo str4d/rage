@@ -96,7 +96,7 @@ You can also use the `age` crate directly as a library, by adding this line to
 your `Cargo.toml` (which disables the CLI tools):
 
 ```
-age = { version = "0.1", default-features = false }
+age = { version = "0.2", default-features = false }
 ```
 
 Help from new packagers is very welcome.
