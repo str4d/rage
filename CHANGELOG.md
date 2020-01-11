@@ -6,7 +6,7 @@ and this project adheres to Rust's notion of
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). All versions prior
 to 1.0.0 are beta releases.
 
-## [Unreleased]
+## [0.2.0] - 2020-01-10
 ### Added
 - The library crate can be compiled to WASM.
 - When encrypting to a passphrase, rage will generate a secure passphrase if the
