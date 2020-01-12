@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, Secret, SecretString};
 use std::convert::TryInto;
 use std::time::{Duration, SystemTime};
 
-use super::RecipientStanza;
+use super::AgeStanza;
 use crate::{
     error::Error,
     keys::FileKey,
@@ -52,7 +52,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
         }

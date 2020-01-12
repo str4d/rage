@@ -3,7 +3,7 @@ use rsa::{RSAPrivateKey, RSAPublicKey};
 use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256};
 
-use super::RecipientStanza;
+use super::AgeStanza;
 use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
 pub(super) const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
@@ -25,7 +25,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SSH_RSA_RECIPIENT_TAG {
             return None;
         }

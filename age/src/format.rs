@@ -24,7 +24,7 @@ const MAC_TAG: &[u8] = b"---";
 /// body of canonical base64 from RFC 4648 without padding wrapped at exactly 64 columns.
 /// ```
 #[derive(Debug)]
-pub(crate) struct RecipientStanza<'a> {
+pub(crate) struct AgeStanza<'a> {
     tag: &'a str,
     args: Vec<&'a str>,
     body: Vec<u8>,
@@ -155,7 +155,7 @@ mod read {
     use super::*;
     use crate::util::read::{arbitrary_string, base64_arg, wrapped_encoded_data};
 
-    fn recipient_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], RecipientStanza<'a>> {
+    fn age_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
         map(
             separated_pair(
                 separated_nonempty_list(tag(" "), arbitrary_string),
@@ -164,7 +164,7 @@ mod read {
             ),
             |(mut args, body)| {
                 let tag = args.remove(0);
-                RecipientStanza { tag, args, body }
+                AgeStanza { tag, args, body }
             },
         )(input)
     }
@@ -172,7 +172,7 @@ mod read {
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(
             tag(RECIPIENT_TAG),
-            map_opt(recipient_stanza, |stanza| match stanza.tag {
+            map_opt(age_stanza, |stanza| match stanza.tag {
                 x25519::X25519_RECIPIENT_TAG => {
                     x25519::RecipientLine::from_stanza(stanza).map(RecipientLine::X25519)
                 }

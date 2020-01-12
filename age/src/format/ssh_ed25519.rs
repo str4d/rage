@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256, Sha512};
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
-use super::RecipientStanza;
+use super::AgeStanza;
 use crate::{
     error::Error,
     format::x25519::ENCRYPTED_FILE_KEY_BYTES,
@@ -33,7 +33,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SSH_ED25519_RECIPIENT_TAG {
             return None;
         }

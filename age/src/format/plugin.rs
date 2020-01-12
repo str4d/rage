@@ -1,4 +1,4 @@
-use super::RecipientStanza;
+use super::AgeStanza;
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
@@ -8,7 +8,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Self {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Self {
         RecipientLine {
             tag: stanza.tag.to_string(),
             args: stanza.args.into_iter().map(|s| s.to_string()).collect(),

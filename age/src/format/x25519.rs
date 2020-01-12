@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, Secret};
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
-use super::RecipientStanza;
+use super::AgeStanza;
 use crate::{
     error::Error,
     keys::FileKey,
@@ -24,7 +24,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
