@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -74,7 +74,7 @@ dependencies = [
 name = "age-fuzz"
 version = "0.0.0"
 dependencies = [
- "age 0.1.1",
+ "age 0.2.0",
  "libfuzzer-sys 0.1.0 (git+https://github.com/rust-fuzz/libfuzzer-sys.git)",
 ]
 
