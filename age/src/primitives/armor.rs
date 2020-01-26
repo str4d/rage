@@ -119,9 +119,11 @@ pub(crate) struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
     is_armored: Option<bool>,
     line_buf: Zeroizing<String>,
+    line_read: usize,
     byte_buf: Zeroizing<[u8; ARMORED_BYTES_PER_LINE]>,
     byte_start: usize,
     byte_end: usize,
+    found_short_line: bool,
     found_end: bool,
 }
 
@@ -131,9 +133,11 @@ impl<R: Read> ArmoredReader<R> {
             inner: BufReader::new(inner),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
+            line_read: 0,
             byte_buf: Zeroizing::new([0; ARMORED_BYTES_PER_LINE]),
             byte_start: ARMORED_BYTES_PER_LINE,
             byte_end: ARMORED_BYTES_PER_LINE,
+            found_short_line: false,
             found_end: false,
         }
     }
@@ -141,49 +145,50 @@ impl<R: Read> ArmoredReader<R> {
 
 impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        match self.is_armored {
-            None => {
-                // Detect armor
-                self.line_buf.clear();
-                self.inner.read_line(&mut self.line_buf)?;
+        loop {
+            match self.is_armored {
+                None => {
+                    // Detect armor
+                    self.line_buf.clear();
+                    self.inner.read_line(&mut self.line_buf)?;
 
-                let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
-                self.is_armored = Some(is_armored);
-
-                if !is_armored {
-                    // The line we read was likely a header line
-                    if buf.len() < self.line_buf.len() {
-                        let remaining = self.line_buf.split_off(buf.len());
-                        buf.copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf = Zeroizing::new(remaining);
-                        return Ok(buf.len());
+                    // The first line of armor is the armor marker followed by either
+                    // CRLF or LF.
+                    let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
+                    if is_armored {
+                        let remainder = &self.line_buf.as_bytes()[ARMORED_BEGIN_MARKER.len()..];
+                        if !(remainder == b"\r\n" || remainder == b"\n") {
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "invalid armor begin marker",
+                            ));
+                        }
+                    }
+                    self.is_armored = Some(is_armored);
+                }
+                Some(false) => {
+                    if self.line_buf.is_empty() {
+                        return self.inner.read(buf);
                     } else {
-                        let to_read = self.line_buf.len();
-                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf.clear();
-                        return Ok(to_read);
+                        // Return any leftover data from armor detection
+                        if self.line_read + buf.len() < self.line_buf.len() {
+                            buf.copy_from_slice(
+                                &self.line_buf.as_bytes()
+                                    [self.line_read..self.line_read + buf.len()],
+                            );
+                            self.line_read += buf.len();
+                            return Ok(buf.len());
+                        } else {
+                            let to_read = self.line_buf.len() - self.line_read;
+                            buf[..to_read]
+                                .copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
+                            self.line_buf.clear();
+                            return Ok(to_read);
+                        }
                     }
                 }
+                Some(true) => break,
             }
-            Some(false) => {
-                if self.line_buf.is_empty() {
-                    return self.inner.read(buf);
-                } else {
-                    // Return any leftover data from armor detection
-                    if buf.len() < self.line_buf.len() {
-                        let remaining = self.line_buf.split_off(buf.len());
-                        buf.copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf = Zeroizing::new(remaining);
-                        return Ok(buf.len());
-                    } else {
-                        let to_read = self.line_buf.len();
-                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf.clear();
-                        return Ok(to_read);
-                    }
-                }
-            }
-            Some(true) => (),
         }
         if self.found_end {
             return Ok(0);
@@ -227,10 +232,31 @@ impl<R: Read> Read for ArmoredReader<R> {
                 ));
             }
 
-            // If this line is the EOF marker, we are done!
+            // Enforce canonical armor format
             if line == ARMORED_END_MARKER {
+                // This line is the EOF marker; we are done!
                 self.found_end = true;
                 break;
+            } else {
+                match (self.found_short_line, line.len()) {
+                    (false, ARMORED_COLUMNS_PER_LINE) => (),
+                    (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
+                        // The format may contain a single short line at the end.
+                        self.found_short_line = true;
+                    }
+                    (true, ARMORED_COLUMNS_PER_LINE) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid armor (short line in middle of encoding)",
+                        ));
+                    }
+                    _ => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid armor (not wrapped at 64 characters)",
+                        ));
+                    }
+                }
             }
 
             // Decode the line
