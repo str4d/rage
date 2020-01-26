@@ -6,6 +6,10 @@ and this project adheres to Rust's notion of
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). All versions prior
 to 1.0.0 are beta releases.
 
+## [Unreleased]
+### Changed
+- The CLI tools have been moved into the `rage` crate.
+
 ## [0.2.0] - 2020-01-10
 ### Added
 - The library crate can be compiled to WASM.
@@ -54,7 +58,7 @@ to 1.0.0 are beta releases.
 
 ## [0.1.1] - 2019-12-29
 ### Added
-- Debian packaging support via `cargo deb`. See [docs/debian.md](docs/debian.md)
+- Debian packaging support via `cargo deb`. See [docs/debian.md](../docs/debian.md)
   for details.
 
 ### Changed
