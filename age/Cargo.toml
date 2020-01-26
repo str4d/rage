@@ -1,0 +1,83 @@
+[package]
+name = "age"
+description = "[BETA] A simple, secure, and modern encryption tool."
+version = "0.2.0"
+authors = ["Jack Grigg <thestr4d@gmail.com>"]
+repository = "https://github.com/str4d/rage"
+readme = "README.md"
+keywords = ["rage", "encryption"]
+categories = ["cryptography"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[badges]
+maintenance = { status = "experimental" }
+
+[dependencies]
+# Dependencies required by the age specification:
+# - Base64 from RFC 4648
+base64 = "0.10"
+
+# - ChaCha20-Poly1305 from RFC 7539
+chacha20poly1305 = "0.3"
+
+# - X25519 from RFC 7748
+x25519-dalek = "0.6"
+
+# - HKDF from RFC 5869 with SHA-256
+# - HMAC from RFC 2104 with SHA-256
+hkdf = "0.8"
+hmac = "0.7"
+sha2 = "0.8"
+
+# - scrypt from RFC 7914
+scrypt = { version = "0.2", default-features = false }
+
+# - CSPRNG
+rand = "0.7"
+
+# - Key encoding
+bech32 = "0.7"
+
+# OpenSSH-specific dependencies:
+# - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1 (behind unstable feature flag)
+num-traits = { version = "0.2", optional = true }
+rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", optional = true }
+
+# - Conversion of public keys from Ed25519 to X25519
+curve25519-dalek = "2"
+
+# - Encrypted keys
+aes-ctr = "0.3"
+bcrypt-pbkdf = "0.1"
+
+# Parsing
+cookie-factory = "0.3"
+nom = "5"
+
+# Armor writing
+radix64 = "0.6"
+
+# Secret management
+secrecy = "0.6"
+zeroize = "1"
+
+# Common CLI dependencies
+console = { version = "0.9", optional = true }
+dialoguer = { version = "0.4", optional = true }
+dirs = { version = "2", optional = true }
+
+[dev-dependencies]
+criterion = "0.3"
+criterion-cycles-per-byte = "0.1"
+quickcheck = "0.8"
+quickcheck_macros = "0.8"
+
+[features]
+default = []
+cli-common = ["console", "dialoguer", "dirs"]
+unstable = ["num-traits", "rsa"]
+
+[[bench]]
+name = "throughput"
+harness = false

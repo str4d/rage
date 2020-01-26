@@ -20,7 +20,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: -- --check --color always
+          args: --all -- --check --color always
 
   test:
     name: Test on ${{ matrix.os }}
@@ -43,12 +43,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --tests
+          args: --all --verbose --tests
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
+          args: --all --verbose
 
   build:
     name: Build target ${{ matrix.target }}
@@ -74,7 +74,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --lib --no-default-features --target ${{ matrix.target }}
+          args: --package age --verbose --no-default-features --target ${{ matrix.target }}
 
   codecov:
     name: Code coverage
@@ -95,7 +95,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: tarpaulin
-          args: --release --timeout 180 --out Xml
+          args: --all --release --timeout 180 --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.0.3
         with:
@@ -122,4 +122,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --document-private-items
+          args: --all --document-private-items

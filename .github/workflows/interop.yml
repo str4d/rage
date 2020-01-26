@@ -14,10 +14,8 @@ jobs:
           toolchain: 1.37.0
           override: true
       - name: cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --features unstable
+        run: cargo build --features unstable
+        working-directory: ./rage
       - uses: actions/upload-artifact@v1
         with:
           name: rage
