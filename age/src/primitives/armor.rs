@@ -145,51 +145,39 @@ impl<R: Read> ArmoredReader<R> {
 
 impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        match self.is_armored {
-            None => {
-                // Detect armor
-                self.line_buf.clear();
-                self.inner.read_line(&mut self.line_buf)?;
+        loop {
+            match self.is_armored {
+                None => {
+                    // Detect armor
+                    self.line_buf.clear();
+                    self.inner.read_line(&mut self.line_buf)?;
 
-                let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
-                self.is_armored = Some(is_armored);
-
-                if !is_armored {
-                    // The line we read was likely a header line
-                    if self.line_read + buf.len() < self.line_buf.len() {
-                        buf.copy_from_slice(
-                            &self.line_buf.as_bytes()[self.line_read..self.line_read + buf.len()],
-                        );
-                        self.line_read += buf.len();
-                        return Ok(buf.len());
+                    let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
+                    self.is_armored = Some(is_armored);
+                }
+                Some(false) => {
+                    if self.line_buf.is_empty() {
+                        return self.inner.read(buf);
                     } else {
-                        let to_read = self.line_buf.len() - self.line_read;
-                        buf[..to_read].copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
-                        self.line_buf.clear();
-                        return Ok(to_read);
+                        // Return any leftover data from armor detection
+                        if self.line_read + buf.len() < self.line_buf.len() {
+                            buf.copy_from_slice(
+                                &self.line_buf.as_bytes()
+                                    [self.line_read..self.line_read + buf.len()],
+                            );
+                            self.line_read += buf.len();
+                            return Ok(buf.len());
+                        } else {
+                            let to_read = self.line_buf.len() - self.line_read;
+                            buf[..to_read]
+                                .copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
+                            self.line_buf.clear();
+                            return Ok(to_read);
+                        }
                     }
                 }
+                Some(true) => break,
             }
-            Some(false) => {
-                if self.line_buf.is_empty() {
-                    return self.inner.read(buf);
-                } else {
-                    // Return any leftover data from armor detection
-                    if self.line_read + buf.len() < self.line_buf.len() {
-                        buf.copy_from_slice(
-                            &self.line_buf.as_bytes()[self.line_read..self.line_read + buf.len()],
-                        );
-                        self.line_read += buf.len();
-                        return Ok(buf.len());
-                    } else {
-                        let to_read = self.line_buf.len() - self.line_read;
-                        buf[..to_read].copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
-                        self.line_buf.clear();
-                        return Ok(to_read);
-                    }
-                }
-            }
-            Some(true) => (),
         }
         if self.found_end {
             return Ok(0);
