@@ -123,6 +123,7 @@ pub(crate) struct ArmoredReader<R: Read> {
     byte_buf: Zeroizing<[u8; ARMORED_BYTES_PER_LINE]>,
     byte_start: usize,
     byte_end: usize,
+    found_short_line: bool,
     found_end: bool,
 }
 
@@ -136,6 +137,7 @@ impl<R: Read> ArmoredReader<R> {
             byte_buf: Zeroizing::new([0; ARMORED_BYTES_PER_LINE]),
             byte_start: ARMORED_BYTES_PER_LINE,
             byte_end: ARMORED_BYTES_PER_LINE,
+            found_short_line: false,
             found_end: false,
         }
     }
@@ -231,10 +233,31 @@ impl<R: Read> Read for ArmoredReader<R> {
                 ));
             }
 
-            // If this line is the EOF marker, we are done!
+            // Enforce canonical armor format
             if line == ARMORED_END_MARKER {
+                // This line is the EOF marker; we are done!
                 self.found_end = true;
                 break;
+            } else {
+                match (self.found_short_line, line.len()) {
+                    (false, ARMORED_COLUMNS_PER_LINE) => (),
+                    (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
+                        // The format may contain a single short line at the end.
+                        self.found_short_line = true;
+                    }
+                    (true, ARMORED_COLUMNS_PER_LINE) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid armor (short line in middle of encoding)",
+                        ));
+                    }
+                    _ => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "invalid armor (not wrapped at 64 characters)",
+                        ));
+                    }
+                }
             }
 
             // Decode the line
