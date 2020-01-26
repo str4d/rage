@@ -10,5 +10,5 @@ cargo install cargo-deb
 
 ```
 cargo run --example generate-docs
-cargo deb
+cargo deb --package rage
 ```

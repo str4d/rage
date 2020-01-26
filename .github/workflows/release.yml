@@ -80,22 +80,23 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked ${{ matrix.build_flags }}
+          args: --all --release --locked ${{ matrix.build_flags }}
 
       - name: Create archive
         run: |
-          mkdir rage
-          mv target/${{ matrix.target }}/release/rage* rage/
-          rm rage/*.d
-          tar czf ${{ matrix.archive_name }} rage/
+          mkdir -p release/rage
+          mv target/${{ matrix.target }}/release/rage* release/rage/
+          rm release/rage/*.d
+          tar czf ${{ matrix.archive_name }} -C release/ rage/
         if: matrix.name != 'windows'
 
       - name: Create archive [Windows]
         run: |
-          mkdir rage
-          mv target/release/rage.exe rage/
-          mv target/release/rage-keygen.exe rage/
-          7z.exe a ${{ matrix.archive_name }} rage/
+          mkdir -p release/rage
+          mv target/release/rage.exe release/rage/
+          mv target/release/rage-keygen.exe release/rage/
+          cd release/
+          7z.exe a ../${{ matrix.archive_name }} rage/
         shell: bash
         if: matrix.name == 'windows'
 
@@ -165,10 +166,8 @@ jobs:
         if: matrix.cargo_config != ''
 
       - name: cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
+        run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
+        working-directory: ./rage
 
       - name: Generate manpages
         uses: actions-rs/cargo@v1
@@ -177,14 +176,14 @@ jobs:
           args: --example generate-docs
 
       - name: Update Debian package config for cross-compile
-        run: sed -i '/\/rage-mount/d' Cargo.toml
+        run: sed -i '/\/rage-mount/d' rage/Cargo.toml
         if: matrix.name != 'linux'
 
       - name: cargo deb
         uses: actions-rs/cargo@v1
         with:
           command: deb
-          args: --no-build --target ${{ matrix.target }}
+          args: --package rage --no-build --target ${{ matrix.target }}
 
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@v1-release
