@@ -119,6 +119,7 @@ pub(crate) struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
     is_armored: Option<bool>,
     line_buf: Zeroizing<String>,
+    line_read: usize,
     byte_buf: Zeroizing<[u8; ARMORED_BYTES_PER_LINE]>,
     byte_start: usize,
     byte_end: usize,
@@ -131,6 +132,7 @@ impl<R: Read> ArmoredReader<R> {
             inner: BufReader::new(inner),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
+            line_read: 0,
             byte_buf: Zeroizing::new([0; ARMORED_BYTES_PER_LINE]),
             byte_start: ARMORED_BYTES_PER_LINE,
             byte_end: ARMORED_BYTES_PER_LINE,
@@ -152,14 +154,15 @@ impl<R: Read> Read for ArmoredReader<R> {
 
                 if !is_armored {
                     // The line we read was likely a header line
-                    if buf.len() < self.line_buf.len() {
-                        let remaining = self.line_buf.split_off(buf.len());
-                        buf.copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf = Zeroizing::new(remaining);
+                    if self.line_read + buf.len() < self.line_buf.len() {
+                        buf.copy_from_slice(
+                            &self.line_buf.as_bytes()[self.line_read..self.line_read + buf.len()],
+                        );
+                        self.line_read += buf.len();
                         return Ok(buf.len());
                     } else {
-                        let to_read = self.line_buf.len();
-                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
+                        let to_read = self.line_buf.len() - self.line_read;
+                        buf[..to_read].copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
                         self.line_buf.clear();
                         return Ok(to_read);
                     }
@@ -170,14 +173,15 @@ impl<R: Read> Read for ArmoredReader<R> {
                     return self.inner.read(buf);
                 } else {
                     // Return any leftover data from armor detection
-                    if buf.len() < self.line_buf.len() {
-                        let remaining = self.line_buf.split_off(buf.len());
-                        buf.copy_from_slice(self.line_buf.as_bytes());
-                        self.line_buf = Zeroizing::new(remaining);
+                    if self.line_read + buf.len() < self.line_buf.len() {
+                        buf.copy_from_slice(
+                            &self.line_buf.as_bytes()[self.line_read..self.line_read + buf.len()],
+                        );
+                        self.line_read += buf.len();
                         return Ok(buf.len());
                     } else {
-                        let to_read = self.line_buf.len();
-                        buf[..to_read].copy_from_slice(self.line_buf.as_bytes());
+                        let to_read = self.line_buf.len() - self.line_read;
+                        buf[..to_read].copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
                         self.line_buf.clear();
                         return Ok(to_read);
                     }
