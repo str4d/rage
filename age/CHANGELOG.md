@@ -10,6 +10,10 @@ to 1.0.0 are beta releases.
 ### Changed
 - The CLI tools have been moved into the `rage` crate.
 
+### Fixed
+- Fixed several crashes in the armored format reader, found by fuzzing. The
+  reader also now correctly enforces a canonical armor marker and line lengths.
+
 ## [0.2.0] - 2020-01-10
 ### Added
 - The library crate can be compiled to WASM.
