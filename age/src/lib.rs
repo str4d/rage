@@ -116,3 +116,14 @@ pub use protocol::{Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;
+
+/// Helper for fuzzing the Header parser and serializer.
+#[cfg(fuzzing)]
+pub fn fuzz_header(data: &[u8]) {
+    if let Ok(header) = format::Header::read(data) {
+        let mut buf = Vec::with_capacity(data.len());
+        if let Ok(_) = header.write(&mut buf) {
+            assert_eq!(buf, data);
+        }
+    }
+}
