@@ -152,7 +152,18 @@ impl<R: Read> Read for ArmoredReader<R> {
                     self.line_buf.clear();
                     self.inner.read_line(&mut self.line_buf)?;
 
+                    // The first line of armor is the armor marker followed by either
+                    // CRLF or LF.
                     let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
+                    if is_armored {
+                        let remainder = &self.line_buf.as_bytes()[ARMORED_BEGIN_MARKER.len()..];
+                        if !(remainder == b"\r\n" || remainder == b"\n") {
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "invalid armor begin marker",
+                            ));
+                        }
+                    }
                     self.is_armored = Some(is_armored);
                 }
                 Some(false) => {
