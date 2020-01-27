@@ -1,5 +1,7 @@
 # Changelog
-All notable changes to this project will be documented in this file.
+All notable changes to the rage CLI tools themselves will be documented in this
+file. Changes to the [age crate](../age/CHANGELOG.md) also apply to the rage CLI
+tools, and are not duplicated here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Rust's notion of
