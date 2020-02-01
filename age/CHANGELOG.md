@@ -7,8 +7,20 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::Callbacks`, which encapsulates any requests that might be necessary
+  during the decryption process.
+- `age::cli_common::UiCallbacks`, which implements `Callbacks` with requests to
+  the user via `age::cli_common::read_secret`.
+- `age::Decryptor::with_identities(Vec<Identity>)`
+- `age::Decryptor::with_identities_and_callbacks(Vec<Identity>, Box<dyn Callbacks>)`
+
 ### Changed
 - The CLI tools have been moved into the `rage` crate.
+- The `age::Decryptor::Keys` enum case has been renamed to `Identities` and
+  altered to store a `Box<dyn Callbacks>` internally.
+- `age::Decryptor::trial_decrypt` and `age::Decryptor::trial_decrypt_seekable`
+  both no longer take a `request_passphrase` argument.
 
 ### Fixed
 - Fixed several crashes in the armored format reader, found by fuzzing. The

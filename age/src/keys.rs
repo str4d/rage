@@ -15,6 +15,7 @@ use crate::{
     error::Error,
     format::{ssh_ed25519, x25519, RecipientLine},
     openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX},
+    protocol::Callbacks,
 };
 
 #[cfg(feature = "unstable")]
@@ -131,15 +132,15 @@ pub enum EncryptedKey {
 }
 
 impl EncryptedKey {
-    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<SecretString>>(
+    pub(crate) fn unwrap_file_key(
         &self,
         line: &RecipientLine,
-        request_passphrase: P,
+        callbacks: &dyn Callbacks,
         filename: Option<&str>,
     ) -> Option<Result<FileKey, Error>> {
         match self {
             EncryptedKey::OpenSsh(enc) => {
-                let passphrase = request_passphrase(&format!(
+                let passphrase = callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
                     filename.unwrap_or_default()
                 ))?;
@@ -316,16 +317,14 @@ impl Identity {
         &self.key
     }
 
-    pub(crate) fn unwrap_file_key<P: Fn(&str) -> Option<SecretString>>(
+    pub(crate) fn unwrap_file_key(
         &self,
         line: &RecipientLine,
-        request_passphrase: P,
+        callbacks: &dyn Callbacks,
     ) -> Option<Result<FileKey, Error>> {
         match &self.key {
             IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
-            IdentityKey::Encrypted(key) => {
-                key.unwrap_file_key(line, request_passphrase, self.filename())
-            }
+            IdentityKey::Encrypted(key) => key.unwrap_file_key(line, callbacks, self.filename()),
             IdentityKey::Unsupported(_) => None,
         }
     }

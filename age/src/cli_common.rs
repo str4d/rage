@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 
-use crate::keys::Identity;
+use crate::{keys::Identity, protocol::Callbacks};
 
 pub mod file_io;
 
@@ -76,6 +76,15 @@ pub fn read_secret(prompt: &str, confirm: Option<&str>) -> io::Result<SecretStri
             .allow_empty_password(true);
     }
     input.interact().map(SecretString::new)
+}
+
+/// Implementation of age callbacks that makes requests to the user via the UI.
+pub struct UiCallbacks;
+
+impl Callbacks for UiCallbacks {
+    fn request_passphrase(&self, description: &str) -> Option<SecretString> {
+        read_secret(description, None).ok()
+    }
 }
 
 /// A passphrase.
