@@ -1,6 +1,7 @@
 //! Common helpers for CLI binaries.
 
 use dialoguer::PasswordInput;
+use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
@@ -66,16 +67,51 @@ where
     Ok(identities)
 }
 
-/// Reads a secret from stdin. If `confirm.is_some()` then an empty secret is allowed.
-pub fn read_secret(prompt: &str, confirm: Option<&str>) -> io::Result<SecretString> {
-    let mut input = PasswordInput::new();
-    input.with_prompt(prompt);
-    if let Some(confirm_prompt) = confirm {
+/// Requests a secret from the user.
+///
+/// If a `pinentry` binary is available on the system, it is used to request the secret.
+/// If not, we fall back to requesting directly in the CLI via stdin.
+///
+/// # Parameters
+///
+/// - `description` is the primary information provided to the user about the secret
+///   being requested. It is printed in all cases.
+/// - `prompt` is a short phrase such as "Passphrase" or "PIN". It is printed in front of
+///   the input field when `pinentry` is used.
+/// - `confirm` is an optional short phrase such as "Confirm passphrase". Setting it
+///   enables input confirmation.
+/// - If `confirm.is_some()` then an empty secret is allowed.
+pub fn read_secret(
+    description: &str,
+    prompt: &str,
+    confirm: Option<&str>,
+) -> pinentry::Result<SecretString> {
+    if let Some(mut input) = PassphraseInput::with_default_binary() {
+        // pinentry binary is available!
         input
-            .with_confirmation(confirm_prompt, "Inputs do not match")
-            .allow_empty_password(true);
+            .with_description(description)
+            .with_prompt(prompt)
+            .with_timeout(30);
+        if let Some(confirm_prompt) = confirm {
+            input.with_confirmation(confirm_prompt, "Inputs do not match");
+        } else {
+            input.required("Input is required");
+        }
+        input.interact()
+    } else {
+        // Fall back to CLI interface.
+        let mut input = PasswordInput::new();
+        input.with_prompt(description);
+        if let Some(confirm_prompt) = confirm {
+            input
+                .with_confirmation(confirm_prompt, "Inputs do not match")
+                .allow_empty_password(true);
+        }
+        input
+            .interact()
+            .map(SecretString::new)
+            .map_err(|e| e.into())
     }
-    input.interact().map(SecretString::new)
 }
 
 /// Implementation of age callbacks that makes requests to the user via the UI.
@@ -83,7 +119,7 @@ pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {
-        read_secret(description, None).ok()
+        read_secret(description, "Passphrase", None).ok()
     }
 }
 
@@ -96,9 +132,10 @@ pub enum Passphrase {
 }
 
 /// Reads a passphrase from stdin, or generates a secure one if none is provided.
-pub fn read_or_generate_passphrase() -> io::Result<Passphrase> {
+pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
     let res = read_secret(
         "Type passphrase (leave empty to autogenerate a secure one)",
+        "Passphrase",
         Some("Confirm passphrase"),
     )?;
 

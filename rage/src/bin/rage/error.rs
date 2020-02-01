@@ -8,6 +8,7 @@ pub(crate) enum EncryptError {
     MissingRecipients,
     MixedRecipientAndPassphrase,
     PassphraseWithoutFileArgument,
+    TimedOut(String),
     UnknownAlias(String),
 }
 
@@ -37,6 +38,7 @@ impl fmt::Display for EncryptError {
                 f,
                 "File to encrypt must be passed as an argument when using -p/--passphrase"
             ),
+            EncryptError::TimedOut(source) => write!(f, "Timed out waiting for {}", source),
             EncryptError::UnknownAlias(alias) => write!(f, "Unknown {}", alias),
         }
     }
@@ -50,6 +52,7 @@ pub(crate) enum DecryptError {
     MixedIdentityAndPassphrase,
     PassphraseWithoutFileArgument,
     RecipientFlag,
+    TimedOut(String),
     UnsupportedKey(String, age::keys::UnsupportedKey),
 }
 
@@ -100,6 +103,7 @@ impl fmt::Display for DecryptError {
                     "Did you mean to use -i/--identity to specify a private key?"
                 )
             }
+            DecryptError::TimedOut(source) => write!(f, "Timed out waiting for {}", source),
             DecryptError::UnsupportedKey(filename, k) => {
                 writeln!(f, "Unsupported key: {}", filename)?;
                 writeln!(f)?;

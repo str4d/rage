@@ -41,6 +41,7 @@ env_logger = "0.7"
 gumdrop = "0.6"
 log = "0.4"
 minreq = { version = "1.4", features = ["https"] }
+pinentry = "0.1"
 secrecy = "0.6"
 
 # rage-mount dependencies

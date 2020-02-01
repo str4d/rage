@@ -21,6 +21,12 @@ to 1.0.0 are beta releases.
   altered to store a `Box<dyn Callbacks>` internally.
 - `age::Decryptor::trial_decrypt` and `age::Decryptor::trial_decrypt_seekable`
   both no longer take a `request_passphrase` argument.
+- `age::cli_common::read_secret`:
+  - Takes an additional `prompt` parameter.
+  - Uses the system `pinentry` binary for requesting secrets if available.
+  - Returns `pinentry::Error` instead of `io::Error`.
+- `age::cli_common::read_or_generate_passphrase` now returns `pinentry::Error`
+  instead of `io::Error`.
 
 ### Fixed
 - Fixed several crashes in the armored format reader, found by fuzzing. The

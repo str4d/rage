@@ -218,7 +218,18 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
                 eprintln!("    {}", new_passphrase.expose_secret());
                 age::Encryptor::Passphrase(new_passphrase)
             }
-            Err(_) => return Ok(()),
+            Err(pinentry::Error::Cancelled) => return Ok(()),
+            Err(pinentry::Error::Timeout) => {
+                return Err(error::EncryptError::TimedOut("passphrase input".to_owned()))
+            }
+            Err(pinentry::Error::Gpg(e)) => {
+                // Pretend it is an I/O error
+                return Err(error::EncryptError::Io(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("{}", e),
+                )));
+            }
+            Err(pinentry::Error::Io(e)) => return Err(error::EncryptError::Io(e)),
         }
     } else {
         if opts.recipient.is_empty() {
@@ -271,12 +282,23 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             return Err(error::DecryptError::PassphraseWithoutFileArgument);
         }
 
-        match read_secret("Type passphrase", None) {
+        match read_secret("Type passphrase", "Passphrase", None) {
             Ok(passphrase) => age::Decryptor::Passphrase {
                 passphrase,
                 max_work_factor: opts.max_work_factor,
             },
-            Err(_) => return Ok(()),
+            Err(pinentry::Error::Cancelled) => return Ok(()),
+            Err(pinentry::Error::Timeout) => {
+                return Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
+            }
+            Err(pinentry::Error::Gpg(e)) => {
+                // Pretend it is an I/O error
+                return Err(error::DecryptError::Io(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("{}", e),
+                )));
+            }
+            Err(pinentry::Error::Io(e)) => return Err(error::DecryptError::Io(e)),
         }
     } else {
         let identities = read_identities(opts.identity, |default_filename| {
