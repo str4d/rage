@@ -71,8 +71,8 @@ pinentry = { version = "0.1", optional = true }
 [dev-dependencies]
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
-quickcheck = "0.8"
-quickcheck_macros = "0.8"
+quickcheck = "0.9"
+quickcheck_macros = "0.9"
 
 [features]
 default = []
