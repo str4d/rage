@@ -38,7 +38,7 @@ age = { version = "0.2.0", path = "../age", features = ["cli-common"] }
 chrono = "0.4"
 console = "0.9"
 env_logger = "0.7"
-gumdrop = "0.6"
+gumdrop = "0.7"
 log = "0.4"
 minreq = { version = "1.4", features = ["https"] }
 pinentry = "0.1"
