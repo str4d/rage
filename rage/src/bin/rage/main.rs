@@ -1,7 +1,7 @@
 use age::{
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
-        Passphrase,
+        Passphrase, UiCallbacks,
     },
     Format,
 };
@@ -293,14 +293,14 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
 
-        age::Decryptor::Keys(identities)
+        age::Decryptor::with_identities_and_callbacks(identities, Box::new(UiCallbacks))
     };
 
     let input = file_io::InputReader::new(opts.input)?;
     let mut output =
         file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Unknown, 0o666)?;
 
-    let mut input = decryptor.trial_decrypt(input, |prompt| read_secret(prompt, None).ok())?;
+    let mut input = decryptor.trial_decrypt(input)?;
 
     io::copy(&mut input, &mut output)?;
 

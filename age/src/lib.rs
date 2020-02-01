@@ -34,10 +34,10 @@
 //!
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
 //! let decrypted = {
-//!     let decryptor = age::Decryptor::Keys(vec![key.into()]);
+//!     let decryptor = age::Decryptor::with_identities(vec![key.into()]);
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -77,7 +77,7 @@
 //!     let decryptor = age::Decryptor::with_passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.trial_decrypt(&encrypted[..], |_| None)?;
+//!     let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -112,7 +112,7 @@ mod util;
 pub use error::Error;
 pub use keys::SecretKey;
 pub use primitives::stream::StreamReader;
-pub use protocol::{Decryptor, Encryptor};
+pub use protocol::{Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;

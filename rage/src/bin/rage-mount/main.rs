@@ -1,4 +1,4 @@
-use age::cli_common::{read_identities, read_secret};
+use age::cli_common::{read_identities, read_secret, UiCallbacks};
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use log::{error, info};
@@ -167,13 +167,13 @@ fn main() -> Result<(), Error> {
             }
         }
 
-        age::Decryptor::Keys(identities)
+        age::Decryptor::with_identities_and_callbacks(identities, Box::new(UiCallbacks))
     };
 
     info!("Decrypting {}", opts.filename);
     let file = File::open(opts.filename)?;
 
-    let stream = decryptor.trial_decrypt_seekable(file, |prompt| read_secret(prompt, None).ok())?;
+    let stream = decryptor.trial_decrypt_seekable(file)?;
 
     match opts.types.as_str() {
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),
