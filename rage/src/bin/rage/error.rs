@@ -5,6 +5,7 @@ pub(crate) enum EncryptError {
     IdentityFlag,
     InvalidRecipient(String),
     Io(io::Error),
+    Minreq(minreq::Error),
     MissingRecipients,
     MixedRecipientAndPassphrase,
     PassphraseWithoutFileArgument,
@@ -18,6 +19,12 @@ impl From<io::Error> for EncryptError {
     }
 }
 
+impl From<minreq::Error> for EncryptError {
+    fn from(e: minreq::Error) -> Self {
+        EncryptError::Minreq(e)
+    }
+}
+
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -27,6 +34,7 @@ impl fmt::Display for EncryptError {
             }
             EncryptError::InvalidRecipient(r) => write!(f, "Invalid recipient '{}'", r),
             EncryptError::Io(e) => write!(f, "{}", e),
+            EncryptError::Minreq(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
                 writeln!(f, "Missing recipients.")?;
                 write!(f, "Did you forget to specify -r/--recipient?")

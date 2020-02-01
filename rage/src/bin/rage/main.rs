@@ -133,7 +133,7 @@ fn read_recipients(
             match response.status_code {
                 200 => recipients.extend(read_recipients_list(
                     &arg,
-                    BufReader::new(response.body.as_bytes()),
+                    BufReader::new(response.as_bytes()),
                 )?),
                 404 => {
                     return Err(error::EncryptError::Io(io::Error::new(

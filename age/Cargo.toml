@@ -16,7 +16,7 @@ maintenance = { status = "experimental" }
 [dependencies]
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
-base64 = "0.10"
+base64 = "0.11"
 
 # - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = "0.3"
@@ -64,15 +64,15 @@ zeroize = "1"
 
 # Common CLI dependencies
 console = { version = "0.9", optional = true }
-dialoguer = { version = "0.4", optional = true }
+dialoguer = { version = "0.5", optional = true }
 dirs = { version = "2", optional = true }
 pinentry = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
-quickcheck = "0.8"
-quickcheck_macros = "0.8"
+quickcheck = "0.9"
+quickcheck_macros = "0.9"
 
 [features]
 default = []
