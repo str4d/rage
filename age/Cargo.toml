@@ -66,6 +66,7 @@ zeroize = "1"
 console = { version = "0.9", optional = true }
 dialoguer = { version = "0.4", optional = true }
 dirs = { version = "2", optional = true }
+pinentry = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -75,7 +76,7 @@ quickcheck_macros = "0.8"
 
 [features]
 default = []
-cli-common = ["console", "dialoguer", "dirs"]
+cli-common = ["console", "dialoguer", "dirs", "pinentry"]
 unstable = ["num-traits", "rsa"]
 
 [[bench]]

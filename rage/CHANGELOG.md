@@ -10,3 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 (relative to the CLI tools in `age 0.2.0`)
+
+### Changed
+- If a `pinentry` binary is available, it will be used preferentially to request
+  secrets such as passphrases. The previous CLI input will be used if `pinentry`
+  is not available.

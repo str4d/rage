@@ -145,7 +145,7 @@ fn main() -> Result<(), Error> {
             return Err(Error::MixedIdentityAndPassphrase);
         }
 
-        match read_secret("Type passphrase", None) {
+        match read_secret("Type passphrase", "Passphrase", None) {
             Ok(passphrase) => age::Decryptor::Passphrase {
                 passphrase,
                 max_work_factor: opts.max_work_factor,
