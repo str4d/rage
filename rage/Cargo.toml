@@ -40,7 +40,7 @@ console = "0.9"
 env_logger = "0.7"
 gumdrop = "0.7"
 log = "0.4"
-minreq = { version = "1.4", features = ["https"] }
+minreq = { version = "2", features = ["https"] }
 pinentry = "0.1"
 secrecy = "0.6"
 
