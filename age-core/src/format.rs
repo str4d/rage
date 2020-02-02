@@ -150,3 +150,37 @@ pub mod write {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{read, write};
+
+    #[test]
+    fn parse_age_stanza() {
+        let test_tag = "X25519";
+        let test_args = &["CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20"];
+        let test_body = base64::decode_config(
+            "C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig",
+            base64::STANDARD_NO_PAD,
+        )
+        .unwrap();
+
+        // We need two newlines here so that the streaming body parser can detect the
+        // end of the stanza.
+        let test_stanza = "X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
+
+";
+
+        let (_, stanza) = read::age_stanza(test_stanza.as_bytes()).unwrap();
+        assert_eq!(stanza.tag, test_tag);
+        assert_eq!(stanza.args, test_args);
+        assert_eq!(stanza.body, test_body);
+
+        let mut buf = vec![];
+        cookie_factory::gen_simple(write::age_stanza(test_tag, test_args, &test_body), &mut buf)
+            .unwrap();
+        // write::age_stanza does not append newlines.
+        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 2]);
+    }
+}
