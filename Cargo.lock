@@ -78,6 +78,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "age-core"
+version = "0.0.0"
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
