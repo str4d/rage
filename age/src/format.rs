@@ -16,20 +16,6 @@ const V1_MAGIC: &[u8] = b"v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
-/// From the age spec:
-/// ```text
-/// Each recipient stanza starts with a line beginning with -> and its type name, followed
-/// by zero or more SP-separated arguments. The type name and the arguments are arbitrary
-/// strings. Unknown recipient types are ignored. The rest of the recipient stanza is a
-/// body of canonical base64 from RFC 4648 without padding wrapped at exactly 64 columns.
-/// ```
-#[derive(Debug)]
-pub(crate) struct AgeStanza<'a> {
-    tag: &'a str,
-    args: Vec<&'a str>,
-    body: Vec<u8>,
-}
-
 #[derive(Debug)]
 pub(crate) enum RecipientLine {
     X25519(x25519::RecipientLine),
@@ -142,32 +128,19 @@ pub(crate) enum Header {
 }
 
 mod read {
+    use age_core::format::read::{age_stanza, arbitrary_string};
     use nom::{
         branch::alt,
         bytes::streaming::{tag, take},
         character::streaming::newline,
         combinator::{map, map_opt},
         multi::separated_nonempty_list,
-        sequence::{pair, preceded, separated_pair, terminated},
+        sequence::{pair, preceded, terminated},
         IResult,
     };
 
     use super::*;
-    use crate::util::read::{arbitrary_string, base64_arg, wrapped_encoded_data};
-
-    fn age_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
-        map(
-            separated_pair(
-                separated_nonempty_list(tag(" "), arbitrary_string),
-                newline,
-                wrapped_encoded_data,
-            ),
-            |(mut args, body)| {
-                let tag = args.remove(0);
-                AgeStanza { tag, args, body }
-            },
-        )(input)
-    }
+    use crate::util::read::base64_arg;
 
     fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
         preceded(

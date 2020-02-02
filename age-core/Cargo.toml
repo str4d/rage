@@ -9,3 +9,6 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
+base64 = "0.11"
+cookie-factory = "0.3"
+nom = "5"

@@ -1,4 +1,4 @@
-use super::AgeStanza;
+use age_core::format::AgeStanza;
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
@@ -18,23 +18,19 @@ impl RecipientLine {
 }
 
 pub(super) mod write {
-    use cookie_factory::{combinator::string, multi::separated_list, sequence::tuple, SerializeFn};
+    use age_core::format::write::age_stanza;
+    use cookie_factory::{SerializeFn, WriteContext};
     use std::io::Write;
-    use std::iter;
 
-    use super::*;
-    use crate::util::write::wrapped_encoded_data;
+    use super::RecipientLine;
 
     pub(crate) fn recipient_line<'a, W: 'a + Write>(
         r: &'a RecipientLine,
     ) -> impl SerializeFn<W> + 'a {
-        tuple((
-            separated_list(
-                string(" "),
-                iter::once(&r.tag).chain(r.args.iter()).map(string),
-            ),
-            string("\n"),
-            wrapped_encoded_data(&r.body),
-        ))
+        move |w: WriteContext<W>| {
+            let args: Vec<_> = r.args.iter().map(|s| s.as_str()).collect();
+            let writer = age_stanza(&r.tag, &args, &r.body);
+            writer(w)
+        }
     }
 }
