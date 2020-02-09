@@ -14,6 +14,8 @@ edition = "2018"
 maintenance = { status = "experimental" }
 
 [dependencies]
+age-core = { version = "0.0.0", path = "../age-core" }
+
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
 base64 = "0.11"

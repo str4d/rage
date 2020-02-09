@@ -1,9 +1,9 @@
+use age_core::format::AgeStanza;
 use rand::rngs::OsRng;
 use rsa::{RSAPrivateKey, RSAPublicKey};
 use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256};
 
-use super::RecipientStanza;
 use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
 pub(super) const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
@@ -25,7 +25,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SSH_RSA_RECIPIENT_TAG {
             return None;
         }
@@ -91,19 +91,20 @@ impl RecipientLine {
 }
 
 pub(super) mod write {
-    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
+    use age_core::format::write::age_stanza;
+    use cookie_factory::{SerializeFn, WriteContext};
     use std::io::Write;
 
     use super::*;
-    use crate::util::write::{encoded_data, wrapped_encoded_data};
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
-        tuple((
-            string(SSH_RSA_RECIPIENT_TAG),
-            string(" "),
-            encoded_data(&r.tag),
-            string("\n"),
-            wrapped_encoded_data(&r.encrypted_file_key),
-        ))
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(
+        r: &'a RecipientLine,
+    ) -> impl SerializeFn<W> + 'a {
+        move |w: WriteContext<W>| {
+            let encoded_tag = base64::encode_config(&r.tag, base64::STANDARD_NO_PAD);
+            let args = &[encoded_tag.as_str()];
+            let writer = age_stanza(SSH_RSA_RECIPIENT_TAG, args, &r.encrypted_file_key);
+            writer(w)
+        }
     }
 }

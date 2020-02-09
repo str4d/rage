@@ -1,9 +1,9 @@
+use age_core::format::AgeStanza;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
-use super::RecipientStanza;
 use crate::{
     error::Error,
     keys::FileKey,
@@ -24,7 +24,7 @@ pub(crate) struct RecipientLine {
 }
 
 impl RecipientLine {
-    pub(super) fn from_stanza(stanza: RecipientStanza<'_>) -> Option<Self> {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
@@ -82,20 +82,21 @@ impl RecipientLine {
 }
 
 pub(super) mod write {
-    use cookie_factory::{combinator::string, sequence::tuple, SerializeFn};
+    use age_core::format::write::age_stanza;
+    use cookie_factory::{SerializeFn, WriteContext};
     use std::io::Write;
 
-    use super::*;
-    use crate::util::write::encoded_data;
+    use super::{RecipientLine, X25519_RECIPIENT_TAG};
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(r: &RecipientLine) -> impl SerializeFn<W> + 'a {
-        tuple((
-            string(X25519_RECIPIENT_TAG),
-            string(" "),
-            encoded_data(r.epk.as_bytes()),
-            string("\n"),
-            encoded_data(&r.encrypted_file_key),
-        ))
+    pub(crate) fn recipient_line<'a, W: 'a + Write>(
+        r: &'a RecipientLine,
+    ) -> impl SerializeFn<W> + 'a {
+        move |w: WriteContext<W>| {
+            let encoded_epk = base64::encode_config(r.epk.as_bytes(), base64::STANDARD_NO_PAD);
+            let args = &[encoded_epk.as_str()];
+            let writer = age_stanza(X25519_RECIPIENT_TAG, args, &r.encrypted_file_key);
+            writer(w)
+        }
     }
 }
 
