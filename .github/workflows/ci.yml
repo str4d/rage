@@ -86,15 +86,9 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - name: Install cargo-tarpaulin
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-tarpaulin
       - name: Generate coverage report
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/tarpaulin@v0.1
         with:
-          command: tarpaulin
           args: --all --release --timeout 180 --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.0.3
