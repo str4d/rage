@@ -26,6 +26,12 @@ fn rage_page() {
         )
         .flag(
             Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
+        )
+        .flag(
+            Flag::new()
                 .short("-d")
                 .long("--decrypt")
                 .help("Decrypt the input (default is to encrypt)"),
@@ -142,6 +148,12 @@ fn rage_keygen_page() {
                 .long("--help")
                 .help("Display help text and exit"),
         )
+        .flag(
+            Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
+        )
         .option(
             Opt::new("output")
                 .short("-o")
@@ -172,6 +184,12 @@ fn rage_mount_page() {
                 .short("-h")
                 .long("--help")
                 .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
         )
         .flag(
             Flag::new()
