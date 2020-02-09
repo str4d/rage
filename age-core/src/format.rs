@@ -14,10 +14,9 @@ pub struct AgeStanza<'a> {
 
 pub mod read {
     use nom::{
-        bytes::streaming::tag,
+        bytes::streaming::{tag, take_while1},
         character::streaming::newline,
-        combinator::{map, map_opt},
-        error::{make_error, ErrorKind},
+        combinator::{map, map_opt, verify},
         multi::separated_nonempty_list,
         sequence::separated_pair,
         IResult,
@@ -30,8 +29,6 @@ pub mod read {
     /// ... an arbitrary string is a sequence of ASCII characters with values 33 to 126.
     /// ```
     pub fn arbitrary_string(input: &[u8]) -> IResult<&[u8], &str> {
-        use nom::bytes::streaming::take_while1;
-
         map(take_while1(|c| c >= 33 && c <= 126), |bytes| {
             std::str::from_utf8(bytes).expect("ASCII is valid UTF-8")
         })(input)
@@ -44,52 +41,25 @@ pub mod read {
     ///
     /// - Returns Failure on an empty slice.
     /// - Returns Incomplete(1) if a LF is not found.
-    fn take_b64_line(config: base64::Config) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
-        move |input: &[u8]| {
-            let mut end = 0;
-            while end < input.len() {
-                let c = input[end];
-
-                if c == b'\n' {
-                    break;
-                }
-
-                // Substitute the character in twice after AA, so that padding
-                // characters will also be detected as a valid if allowed.
-                if base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_err() {
-                    end = 0;
-                    break;
-                }
-
-                end += 1;
-            }
-
-            if !input.is_empty() && end == 0 {
-                Err(nom::Err::Error(make_error(input, ErrorKind::Eof)))
-            } else if end < input.len() {
-                Ok((&input[end..], &input[..end]))
-            } else {
-                Err(nom::Err::Incomplete(nom::Needed::Size(1)))
-            }
-        }
+    fn take_b64_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        verify(take_while1(|c| c != b'\n'), |bytes: &[u8]| {
+            base64::decode_config(bytes, base64::STANDARD_NO_PAD).is_ok()
+        })(input)
     }
 
     fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
-        map_opt(
-            separated_nonempty_list(newline, take_b64_line(base64::STANDARD_NO_PAD)),
-            |chunks| {
-                // Enforce that the only chunk allowed to be shorter than 64 characters
-                // is the last chunk.
-                if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
-                    || chunks.last().map(|s| s.len() > 64) == Some(true)
-                {
-                    None
-                } else {
-                    let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
-                    base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
-                }
-            },
-        )(input)
+        map_opt(separated_nonempty_list(newline, take_b64_line), |chunks| {
+            // Enforce that the only chunk allowed to be shorter than 64 characters
+            // is the last chunk.
+            if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
+                || chunks.last().map(|s| s.len() > 64) == Some(true)
+            {
+                None
+            } else {
+                let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
+            }
+        })(input)
     }
 
     /// Reads an age stanza.
