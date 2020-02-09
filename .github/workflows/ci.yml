@@ -22,6 +22,11 @@ jobs:
           command: fmt
           args: --all -- --check --color always
 
+      - name: Clippy check
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   test:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
