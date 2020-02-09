@@ -86,25 +86,64 @@ jobs:
         if: matrix.recipient == 'ssh-rsa' || matrix.recipient == 'ssh-ed25519'
         # age doesn't currently support files containing lists of recipients
         run: echo "::set-env name=AGE_PUBKEY::$(cat key.txt.pub)"
+      - name: Store key.txt in case we need it
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_key.txt
+          path: key.txt
 
       # Tests!
       - name: Encrypt to file
         run: echo "Test string" | ${{ matrix.alice }}/${{ matrix.alice }} -o test.age -r "$AGE_PUBKEY"
       - name: Decrypt from file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt test.age | grep -q "^Test string$"
+      - name: Store test.age
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test.age
+          path: test.age
+
       - name: Generate a file to encrypt
         run: echo "2 test 2 string" > test2.txt
       - name: Encrypt to ASCII-armored file
         run: ${{ matrix.alice }}/${{ matrix.alice }} -a -o test2.age -r "$AGE_PUBKEY" test2.txt
       - name: Decrypt from ASCII-armored file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
+      - name: Store test2.age
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
+          path: test2.age
+
       - name: Convert file to CRLF
         run: unix2dos test2.age
       - name: Decrypt from ASCII-armored CRLF file
         run: ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
+      - name: Store CRLF-ed test2.age
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
+          path: test2.age
+
       - name: Pipes!
-        run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -r "$AGE_PUBKEY" | ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
+        run: echo "Test string 3 - ASCII Drift" | ${{ matrix.alice }}/${{ matrix.alice }} -r "$AGE_PUBKEY" | tee --output-error=warn test3.age | ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
+      - name: Store test3.age
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test3.age
+          path: test3.age
+
       - name: Explicit stdout during encryption
         run: ${{ matrix.alice }}/${{ matrix.alice }} -a -o - -r "$AGE_PUBKEY" test2.txt >test4.age
       - name: Explicit stdin during decryption
         run: cat test4.age | ${{ matrix.bob }}/${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
+      - name: Store test4.age
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
+          path: test4.age
