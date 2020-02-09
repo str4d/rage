@@ -179,7 +179,7 @@ pub enum OutputWriter {
 
 impl OutputWriter {
     /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
-    pub fn new(output: Option<String>, mut format: OutputFormat, mode: u32) -> io::Result<Self> {
+    pub fn new(output: Option<String>, mut format: OutputFormat, _mode: u32) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
             // Respect the Unix convention that "-" as an output filename
@@ -189,7 +189,7 @@ impl OutputWriter {
                 options.write(true).create_new(true);
 
                 #[cfg(unix)]
-                options.mode(mode);
+                options.mode(_mode);
 
                 return Ok(OutputWriter::File(options.open(filename)?));
             } else {
