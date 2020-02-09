@@ -16,9 +16,9 @@ pub mod read {
     use nom::{
         bytes::streaming::{tag, take_while1},
         character::streaming::newline,
-        combinator::{map, map_opt, verify},
+        combinator::{map, map_opt, opt, verify},
         multi::separated_nonempty_list,
-        sequence::separated_pair,
+        sequence::{pair, preceded},
         IResult,
     };
 
@@ -65,14 +65,17 @@ pub mod read {
     /// Reads an age stanza.
     pub fn age_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
         map(
-            separated_pair(
+            pair(
                 separated_nonempty_list(tag(" "), arbitrary_string),
-                newline,
-                wrapped_encoded_data,
+                opt(preceded(newline, wrapped_encoded_data)),
             ),
             |(mut args, body)| {
                 let tag = args.remove(0);
-                AgeStanza { tag, args, body }
+                AgeStanza {
+                    tag,
+                    args,
+                    body: body.unwrap_or_default(),
+                }
             },
         )(input)
     }
@@ -80,7 +83,10 @@ pub mod read {
 
 pub mod write {
     use cookie_factory::{
-        combinator::string, multi::separated_list, sequence::tuple, SerializeFn, WriteContext,
+        combinator::{cond, string},
+        multi::separated_list,
+        sequence::pair,
+        SerializeFn, WriteContext,
     };
     use std::io::Write;
     use std::iter;
@@ -110,14 +116,16 @@ pub mod write {
         args: &'a [&'a str],
         body: &'a [u8],
     ) -> impl SerializeFn<W> + 'a {
-        tuple((
+        pair(
             separated_list(
                 string(" "),
                 iter::once(tag).chain(args.iter().copied()).map(string),
             ),
-            string("\n"),
-            wrapped_encoded_data(body),
-        ))
+            cond(
+                !body.is_empty(),
+                pair(string("\n"), wrapped_encoded_data(body)),
+            ),
+        )
     }
 }
 
@@ -149,6 +157,30 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 
         let mut buf = vec![];
         cookie_factory::gen_simple(write::age_stanza(test_tag, test_args, &test_body), &mut buf)
+            .unwrap();
+        // write::age_stanza does not append newlines.
+        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 2]);
+    }
+
+    #[test]
+    fn age_stanza_with_empty_body() {
+        let test_tag = "empty-body";
+        let test_args = &["some", "arguments"];
+        let test_body = &[];
+
+        // We need two newlines here so that the streaming body parser can detect the
+        // end of the stanza.
+        let test_stanza = "empty-body some arguments
+
+";
+
+        let (_, stanza) = read::age_stanza(test_stanza.as_bytes()).unwrap();
+        assert_eq!(stanza.tag, test_tag);
+        assert_eq!(stanza.args, test_args);
+        assert_eq!(stanza.body, test_body);
+
+        let mut buf = vec![];
+        cookie_factory::gen_simple(write::age_stanza(test_tag, test_args, test_body), &mut buf)
             .unwrap();
         // write::age_stanza does not append newlines.
         assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 2]);

@@ -283,6 +283,7 @@ m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
 J9FSm+GFHiVWpr1MfYCo/w
 -> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
 51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
+-> some-empty-body-recipient BjH7FA 37 mhir0Q
 -> some-other-recipient mhir0Q BjH7FA 37
 m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
 J9FSm+GFHiVWpr1MfYCo/w

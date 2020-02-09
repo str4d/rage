@@ -31,6 +31,7 @@ to 1.0.0 are beta releases.
 ### Fixed
 - Fixed several crashes in the armored format reader, found by fuzzing. The
   reader also now correctly enforces a canonical armor marker and line lengths.
+- Recipient stanzas with empty bodies are correctly parsed.
 
 ## [0.2.0] - 2020-01-10
 ### Added
