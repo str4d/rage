@@ -3,10 +3,11 @@
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
 use std::io::{self, Read, Seek, Write};
+use std::iter;
 
 use crate::{
     error::Error,
-    format::{scrypt, Header, RecipientLine},
+    format::{oil_the_joint, scrypt, Header, RecipientLine},
     keys::{FileKey, Identity, RecipientKey},
     primitives::{
         armor::{ArmoredReader, ArmoredWriter},
@@ -47,6 +48,8 @@ impl Encryptor {
             Encryptor::Keys(recipients) => recipients
                 .iter()
                 .map(|key| key.wrap_file_key(file_key))
+                // Keep the joint well oiled!
+                .chain(iter::once(oil_the_joint()))
                 .collect(),
             Encryptor::Passphrase(passphrase) => {
                 vec![scrypt::RecipientLine::wrap_file_key(file_key, passphrase).into()]

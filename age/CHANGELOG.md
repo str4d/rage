@@ -14,6 +14,8 @@ to 1.0.0 are beta releases.
   the user via `age::cli_common::read_secret`.
 - `age::Decryptor::with_identities(Vec<Identity>)`
 - `age::Decryptor::with_identities_and_callbacks(Vec<Identity>, Box<dyn Callbacks>)`
+- `age::Encryptor` will insert a random recipient stanza into the header, to
+  keep age's joint well oiled.
 
 ### Changed
 - The CLI tools have been moved into the `rage` crate.

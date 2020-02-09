@@ -2,9 +2,9 @@ use age_core::format::AgeStanza;
 
 #[derive(Debug)]
 pub(crate) struct RecipientLine {
-    tag: String,
-    args: Vec<String>,
-    body: Vec<u8>,
+    pub(crate) tag: String,
+    pub(crate) args: Vec<String>,
+    pub(crate) body: Vec<u8>,
 }
 
 impl RecipientLine {
