@@ -1,5 +1,7 @@
 # Changelog
-All notable changes to this project will be documented in this file.
+All notable changes to the age crate will be documented in this file. Changes
+to the [age-core crate](../age-core/CHANGELOG.md) also apply to the age crate,
+and are not duplicated here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Rust's notion of
@@ -29,6 +31,7 @@ to 1.0.0 are beta releases.
   - Returns `pinentry::Error` instead of `io::Error`.
 - `age::cli_common::read_or_generate_passphrase` now returns `pinentry::Error`
   instead of `io::Error`.
+- Core age parsers and serializers have been moved into the `age-core` crate.
 
 ### Fixed
 - Fixed several crashes in the armored format reader, found by fuzzing. The

@@ -43,7 +43,10 @@ pub mod read {
     /// - Returns Incomplete(1) if a LF is not found.
     fn take_b64_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
         verify(take_while1(|c| c != b'\n'), |bytes: &[u8]| {
-            base64::decode_config(bytes, base64::STANDARD_NO_PAD).is_ok()
+            // STANDARD_NO_PAD only differs from STANDARD during serialization; the base64
+            // crate always allows padding during parsing. We require canonical
+            // serialization, so we explicitly reject padding characters here.
+            base64::decode_config(bytes, base64::STANDARD_NO_PAD).is_ok() && !bytes.contains(&b'=')
         })(input)
     }
 
@@ -78,6 +81,17 @@ pub mod read {
                 }
             },
         )(input)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn base64_padding_rejected() {
+            assert!(take_b64_line(b"Tm8gcGFkZGluZyE\n").is_ok());
+            assert!(take_b64_line(b"Tm8gcGFkZGluZyE=\n").is_err());
+        }
     }
 }
 
