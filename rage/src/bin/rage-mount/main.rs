@@ -89,6 +89,9 @@ struct AgeMountOptions {
     #[options(help = "print help message")]
     help: bool,
 
+    #[options(help = "print version info and exit", short = "V")]
+    version: bool,
+
     #[options(help = "indicates the filesystem type (one of \"tar\", \"zip\")")]
     types: String,
 
@@ -144,6 +147,10 @@ fn main() -> Result<(), Error> {
 
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
+    if opts.version {
+        println!("rage-mount {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     if opts.filename.is_empty() {
         return Err(Error::MissingFilename);
     }
