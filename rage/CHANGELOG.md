@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.3.0] - 2020-02-09
 (relative to the CLI tools in `age 0.2.0`)
 
 ### Added
