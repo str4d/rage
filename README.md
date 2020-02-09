@@ -27,6 +27,7 @@ Positional arguments:
 
 Optional arguments:
   -h, --help                 print help message
+  -V, --version              print version info and exit
   -d, --decrypt              decrypt the input (default is to encrypt)
   -p, --passphrase           use a passphrase instead of public keys
   --max-work-factor WF       maximum work factor to allow for passphrase decryption

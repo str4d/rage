@@ -1,7 +1,18 @@
 use flate2::{write::GzEncoder, Compression};
 use man::prelude::*;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::prelude::*;
+
+const MANPAGES_DIR: &str = "./target/manpages";
+
+fn generate_manpage(page: String, name: &str) {
+    let file = File::create(format!("{}/{}.1.gz", MANPAGES_DIR, name))
+        .expect("Should be able to open file in target directory");
+    let mut encoder = GzEncoder::new(file, Compression::best());
+    encoder
+        .write_all(page.as_bytes())
+        .expect("Should be able to write to file in target directory");
+}
 
 fn rage_page() {
     let builder = Manual::new("rage")
@@ -12,6 +23,12 @@ fn rage_page() {
                 .short("-h")
                 .long("--help")
                 .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
         )
         .flag(
             Flag::new()
@@ -118,12 +135,7 @@ fn rage_page() {
         );
     let page = builder.render();
 
-    let file = File::create("./target/rage.1.gz")
-        .expect("Should be able to open file in target directory");
-    let mut encoder = GzEncoder::new(file, Compression::best());
-    encoder
-        .write_all(page.as_bytes())
-        .expect("Should be able to write to file in target directory");
+    generate_manpage(page, "rage");
 }
 
 fn rage_keygen_page() {
@@ -135,6 +147,12 @@ fn rage_keygen_page() {
                 .short("-h")
                 .long("--help")
                 .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
         )
         .option(
             Opt::new("output")
@@ -154,12 +172,7 @@ fn rage_keygen_page() {
         )
         .render();
 
-    let file = File::create("./target/rage-keygen.1.gz")
-        .expect("Should be able to open file in target directory");
-    let mut encoder = GzEncoder::new(file, Compression::best());
-    encoder
-        .write_all(page.as_bytes())
-        .expect("Should be able to write to file in target directory");
+    generate_manpage(page, "rage-keygen");
 }
 
 fn rage_mount_page() {
@@ -171,6 +184,12 @@ fn rage_mount_page() {
                 .short("-h")
                 .long("--help")
                 .help("Display help text and exit"),
+        )
+        .flag(
+            Flag::new()
+                .short("-V")
+                .long("--version")
+                .help("Display version and exit"),
         )
         .flag(
             Flag::new()
@@ -210,15 +229,13 @@ fn rage_mount_page() {
         )
         .render();
 
-    let file = File::create("./target/rage-mount.1.gz")
-        .expect("Should be able to open file in target directory");
-    let mut encoder = GzEncoder::new(file, Compression::best());
-    encoder
-        .write_all(page.as_bytes())
-        .expect("Should be able to write to file in target directory");
+    generate_manpage(page, "rage-mount");
 }
 
 fn main() {
+    // Create the target directory if it does not exist.
+    let _ = create_dir_all(MANPAGES_DIR);
+
     rage_page();
     rage_keygen_page();
     rage_mount_page();

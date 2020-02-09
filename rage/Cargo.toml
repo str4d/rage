@@ -1,7 +1,7 @@
 [package]
 name = "rage"
 description = "[BETA] A simple, secure, and modern encryption tool."
-version = "0.0.0"
+version = "0.3.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
 readme = "../README.md"
@@ -22,18 +22,18 @@ assets = [
     ["target/release/rage", "usr/bin/", "755"],
     ["target/release/rage-keygen", "usr/bin/", "755"],
     ["target/release/rage-mount", "usr/bin/", "755"],
-    ["../target/completions/rage.bash", "usr/share/bash-completion/completions/", "644"],
-    ["../target/completions/rage-keygen.bash", "usr/share/bash-completion/completions/", "644"],
-    ["../target/completions/rage-mount.bash", "usr/share/bash-completion/completions/", "644"],
+    ["../target/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
+    ["../target/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
+    ["../target/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
     ["../target/completions/rage.fish", "usr/share/fish/completions/", "644"],
     ["../target/completions/rage-keygen.fish", "usr/share/fish/completions/", "644"],
     ["../target/completions/rage-mount.fish", "usr/share/fish/completions/", "644"],
     ["../target/completions/rage.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["../target/completions/rage-keygen.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["../target/completions/rage-mount.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["../target/rage.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+    ["../target/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["../target/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["../target/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
     ["../README.md", "usr/share/doc/rage/README.md", "644"],
 ]
 features = ["mount"]
@@ -43,7 +43,7 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 # rage and rage-keygen dependencies
-age = { version = "0.2.0", path = "../age", features = ["cli-common"] }
+age = { version = "0.3.0", path = "../age", features = ["cli-common"] }
 chrono = "0.4"
 console = "0.9"
 env_logger = "0.7"
