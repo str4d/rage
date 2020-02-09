@@ -52,6 +52,8 @@ time = { version = "0.1", optional = true }
 zip = { version = "0.5", optional = true }
 
 [dev-dependencies]
+clap = { git = "https://github.com/clap-rs/clap" }
+clap_generate = { git = "https://github.com/clap-rs/clap" }
 flate2 = "1"
 man = "0.3"
 

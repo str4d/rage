@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
 
 ### Added
 - `-V / --version` flags to all binaries.
+- Completion files for Bash, Elvish, Fish, PowerShell, and Zsh can be generated
+  with `cargo run --example generate-completions`.
 
 ### Changed
 - If a `pinentry` binary is available, it will be used preferentially to request
