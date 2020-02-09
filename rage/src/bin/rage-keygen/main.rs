@@ -9,6 +9,9 @@ struct AgeOptions {
     #[options(help = "print help message")]
     help: bool,
 
+    #[options(help = "print version info and exit", short = "V")]
+    version: bool,
+
     #[options(help = "output to OUTPUT (default stdout)")]
     output: Option<String>,
 }
@@ -17,6 +20,11 @@ fn main() {
     env_logger::builder().format_timestamp(None).init();
 
     let opts = AgeOptions::parse_args_default_or_exit();
+
+    if opts.version {
+        println!("rage-keygen {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
 
     let mut output =
         match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600) {

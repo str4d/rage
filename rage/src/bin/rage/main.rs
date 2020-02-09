@@ -167,6 +167,9 @@ struct AgeOptions {
     #[options(help = "print help message")]
     help: bool,
 
+    #[options(help = "print version info and exit", short = "V")]
+    version: bool,
+
     #[options(help = "decrypt the input (default is to encrypt)")]
     decrypt: bool,
 
@@ -350,7 +353,10 @@ fn main() -> Result<(), error::Error> {
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
-    if opts.decrypt {
+    if opts.version {
+        println!("rage {}", env!("CARGO_PKG_VERSION"));
+        Ok(())
+    } else if opts.decrypt {
         decrypt(opts).map_err(error::Error::from)
     } else {
         encrypt(opts).map_err(error::Error::from)

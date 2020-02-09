@@ -169,6 +169,12 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
         working-directory: ./rage
 
+      - name: Generate completions
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --example generate-completions
+
       - name: Generate manpages
         uses: actions-rs/cargo@v1
         with:
