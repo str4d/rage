@@ -54,7 +54,7 @@ aes-ctr = "0.3"
 bcrypt-pbkdf = "0.1"
 
 # Parsing
-cookie-factory = "0.3"
+cookie-factory = "0.3.1"
 nom = "5"
 
 # Armor writing
