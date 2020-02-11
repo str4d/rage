@@ -41,10 +41,10 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "age-core 0.3.0",
+ "age-core 0.3.1",
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bcrypt-pbkdf 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -76,8 +76,8 @@ dependencies = [
 name = "age-fuzz"
 version = "0.0.0"
 dependencies = [
- "age 0.3.0",
- "age-core 0.3.0",
+ "age 0.3.1",
+ "age-core 0.3.1",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libfuzzer-sys 0.1.0 (git+https://github.com/rust-fuzz/libfuzzer-sys.git)",
 ]
