@@ -1,0 +1,10 @@
+[package]
+name = "age-plugin-yubikey"
+description = "[BETA] YubiKey plugin for age."
+version = "0.0.0"
+authors = ["Jack Grigg <thestr4d@gmail.com>"]
+repository = "https://github.com/str4d/rage"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]

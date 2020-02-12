@@ -3,5 +3,6 @@ members = [
     "age",
     "age-core",
     "age-plugin",
+    "age-plugin-yubikey",
     "rage",
 ]
