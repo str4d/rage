@@ -412,9 +412,10 @@ impl RecipientKey {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{take, take_until},
-        character::streaming::newline,
-        combinator::{map, map_opt, map_res},
+        bytes::streaming::{tag, take},
+        character::complete::{line_ending, not_line_ending},
+        combinator::{all_consuming, iterator, map, map_opt, map_parser, map_res, rest},
+        sequence::{terminated, tuple},
         IResult,
     };
 
@@ -432,29 +433,37 @@ mod read {
         )(input)
     }
 
-    fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<Identity>> {
-        let mut keys = vec![];
-        while !input.is_empty() {
-            // Skip comments
-            let i = if input.starts_with('#') {
-                take_until("\n")(input)?.0
-            } else {
-                input
-            };
-
+    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<Identity>> {
+        alt((
             // Skip empty lines
-            let i = if i.starts_with('\n') {
-                i
-            } else {
-                let (i, sk) = age_secret_key(i)?;
-                keys.push(sk);
-                i
-            };
+            map(all_consuming(tag("")), |_| None),
+            // Skip comments
+            map(all_consuming(tuple((tag("#"), rest))), |_| None),
+            // All other lines must be valid age secret keys.
+            map(all_consuming(age_secret_key), Some),
+        ))(input)
+    }
 
-            input = if i.is_empty() { i } else { newline(i)?.0 };
-        }
+    fn age_secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
+        // Parse all lines that have line endings.
+        let mut it = iterator(
+            input,
+            terminated(
+                map_parser(not_line_ending, age_secret_keys_line),
+                line_ending,
+            ),
+        );
+        let mut keys: Vec<_> = it.filter_map(|x| x).collect();
 
-        Ok((input, keys))
+        it.finish().and_then(|(i, _)| {
+            // Handle the last line, which does not have a line ending.
+            age_secret_keys_line(i).map(|(i, res)| {
+                if let Some(k) = res {
+                    keys.push(k);
+                }
+                (i, keys)
+            })
+        })
     }
 
     pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
