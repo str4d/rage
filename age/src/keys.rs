@@ -412,9 +412,10 @@ impl RecipientKey {
 mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{take, take_until},
-        character::streaming::newline,
-        combinator::{map, map_opt, map_res},
+        bytes::streaming::{tag, take},
+        character::complete::{line_ending, not_line_ending},
+        combinator::{all_consuming, iterator, map, map_opt, map_parser, map_res, rest},
+        sequence::{terminated, tuple},
         IResult,
     };
 
@@ -432,29 +433,37 @@ mod read {
         )(input)
     }
 
-    fn age_secret_keys(mut input: &str) -> IResult<&str, Vec<Identity>> {
-        let mut keys = vec![];
-        while !input.is_empty() {
-            // Skip comments
-            let i = if input.starts_with('#') {
-                take_until("\n")(input)?.0
-            } else {
-                input
-            };
-
+    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<Identity>> {
+        alt((
             // Skip empty lines
-            let i = if i.starts_with('\n') {
-                i
-            } else {
-                let (i, sk) = age_secret_key(i)?;
-                keys.push(sk);
-                i
-            };
+            map(all_consuming(tag("")), |_| None),
+            // Skip comments
+            map(all_consuming(tuple((tag("#"), rest))), |_| None),
+            // All other lines must be valid age secret keys.
+            map(all_consuming(age_secret_key), Some),
+        ))(input)
+    }
 
-            input = if i.is_empty() { i } else { newline(i)?.0 };
-        }
+    fn age_secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
+        // Parse all lines that have line endings.
+        let mut it = iterator(
+            input,
+            terminated(
+                map_parser(not_line_ending, age_secret_keys_line),
+                line_ending,
+            ),
+        );
+        let mut keys: Vec<_> = it.filter_map(|x| x).collect();
 
-        Ok((input, keys))
+        it.finish().and_then(|(i, _)| {
+            // Handle the last line, which does not have a line ending.
+            age_secret_keys_line(i).map(|(i, res)| {
+                if let Some(k) = res {
+                    keys.push(k);
+                }
+                (i, keys)
+            })
+        })
     }
 
     pub(super) fn secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
@@ -519,16 +528,62 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 -----END OPENSSH PRIVATE KEY-----";
     pub(crate) const TEST_SSH_ED25519_PK: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
 
-    #[test]
-    fn secret_key_encoding() {
-        let buf = BufReader::new(TEST_SK.as_bytes());
+    fn valid_secret_key_encoding(keydata: &str, num_keys: usize) {
+        let buf = BufReader::new(keydata.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
-        assert_eq!(keys.len(), 1);
+        assert_eq!(keys.len(), num_keys);
         let key = match keys[0].key() {
             IdentityKey::Unencrypted(key) => key,
             _ => panic!("key should be unencrypted"),
         };
         assert_eq!(key.to_string().expose_secret(), TEST_SK);
+    }
+
+    #[test]
+    fn secret_key_encoding() {
+        valid_secret_key_encoding(TEST_SK, 1);
+    }
+
+    #[test]
+    fn secret_key_lf() {
+        valid_secret_key_encoding(&format!("{}\n", TEST_SK), 1);
+    }
+
+    #[test]
+    fn two_secret_keys_lf() {
+        valid_secret_key_encoding(&format!("{}\n{}", TEST_SK, TEST_SK), 2);
+    }
+
+    #[test]
+    fn secret_key_with_comment_lf() {
+        valid_secret_key_encoding(&format!("# Foo bar baz\n{}", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("{}\n# Foo bar baz", TEST_SK), 1);
+    }
+
+    #[test]
+    fn secret_key_with_empty_line_lf() {
+        valid_secret_key_encoding(&format!("\n\n{}", TEST_SK), 1);
+    }
+
+    #[test]
+    fn secret_key_crlf() {
+        valid_secret_key_encoding(&format!("{}\r\n", TEST_SK), 1);
+    }
+
+    #[test]
+    fn two_secret_keys_crlf() {
+        valid_secret_key_encoding(&format!("{}\r\n{}", TEST_SK, TEST_SK), 2);
+    }
+
+    #[test]
+    fn secret_key_with_comment_crlf() {
+        valid_secret_key_encoding(&format!("# Foo bar baz\r\n{}", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("{}\r\n# Foo bar baz", TEST_SK), 1);
+    }
+
+    #[test]
+    fn secret_key_with_empty_line_crlf() {
+        valid_secret_key_encoding(&format!("\r\n\r\n{}", TEST_SK), 1);
     }
 
     #[test]

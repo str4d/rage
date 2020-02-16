@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- Key files with Windows line endings are now correctly parsed.
 
 ## [0.3.1] - 2020-02-11
 ### Fixed
