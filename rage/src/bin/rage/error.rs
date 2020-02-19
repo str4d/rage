@@ -153,7 +153,7 @@ impl fmt::Debug for Error {
         )?;
         write!(
             f,
-            "[ Tell us: https://github.com/str4d/rage/issues/new/choose          ]"
+            "[ Tell us: https://str4d.xyz/rage/report                            ]"
         )
     }
 }
