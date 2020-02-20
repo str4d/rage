@@ -82,6 +82,13 @@ encrypted to a specific public key.
 
 ## Installation
 
+On macOS or Linux, you can use Homebrew:
+
+```
+brew tap str4d.xyz/rage https://str4d.xyz/rage
+brew install rage
+```
+
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
 
