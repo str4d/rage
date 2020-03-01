@@ -1,4 +1,7 @@
-use age_core::format::AgeStanza;
+use age_core::{
+    format::AgeStanza,
+    primitives::{aead_decrypt, aead_encrypt, hkdf},
+};
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
@@ -7,11 +10,7 @@ use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
 use crate::{
-    error::Error,
-    format::x25519::ENCRYPTED_FILE_KEY_BYTES,
-    keys::FileKey,
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
-    util::read::base64_arg,
+    error::Error, format::x25519::ENCRYPTED_FILE_KEY_BYTES, keys::FileKey, util::read::base64_arg,
 };
 
 pub(super) const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";

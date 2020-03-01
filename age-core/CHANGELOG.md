@@ -7,6 +7,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age_core::primitives::{aead_decrypt, aead_encrypt, hkdf}`, to enable these
+  common primitives to be reused in plugins.
 
 ## [0.4.0] - 2020-03-25
 No changes; version bumped to keep it in sync with `age`.

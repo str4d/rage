@@ -39,7 +39,7 @@ impl Stream {
     /// achieved by deriving the key with [`HKDF`] from both a random file key and a
     /// random nonce.
     ///
-    /// [`HKDF`]: crate::primitives::hkdf
+    /// [`HKDF`]: age_core::primitives::hkdf
     pub(crate) fn encrypt<W: Write>(key: &[u8; 32], inner: ArmoredWriter<W>) -> StreamWriter<W> {
         StreamWriter {
             stream: Self::new(key),
@@ -54,7 +54,7 @@ impl Stream {
     /// achieved by deriving the key with [`HKDF`] from both a random file key and a
     /// random nonce.
     ///
-    /// [`HKDF`]: crate::primitives::hkdf
+    /// [`HKDF`]: age_core::primitives::hkdf
     pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: ArmoredReader<R>) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),

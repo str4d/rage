@@ -1,15 +1,13 @@
-use age_core::format::AgeStanza;
+use age_core::{
+    format::AgeStanza,
+    primitives::{aead_decrypt, aead_encrypt, hkdf},
+};
 use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
-use crate::{
-    error::Error,
-    keys::FileKey,
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
-    util::read::base64_arg,
-};
+use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
 pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
