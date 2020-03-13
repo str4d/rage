@@ -4,7 +4,7 @@
 
 use chacha20poly1305::{
     aead::{Aead, NewAead},
-    ChaCha20Poly1305,
+    ChaChaPoly1305,
 };
 use secrecy::{ExposeSecret, SecretVec};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -20,14 +20,14 @@ const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 /// Instantiated with ChaCha20-Poly1305 in 64KiB chunks, and a nonce structure of 11 bytes
 /// of big endian counter, and 1 byte of last block flag (0x00 / 0x01).
 pub struct Stream {
-    aead: ChaCha20Poly1305,
+    aead: ChaChaPoly1305<c2_chacha::Ietf>,
     nonce: [u8; 12],
 }
 
 impl Stream {
     fn new(key: &[u8; 32]) -> Self {
         Stream {
-            aead: ChaCha20Poly1305::new((*key).into()),
+            aead: ChaChaPoly1305::new((*key).into()),
             nonce: [0; 12],
         }
     }
