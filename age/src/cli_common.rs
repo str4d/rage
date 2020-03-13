@@ -1,15 +1,16 @@
 //! Common helpers for CLI binaries.
 
-use dialoguer::PasswordInput;
 use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
 };
+use rpassword::read_password_from_tty;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
+use subtle::ConstantTimeEq;
 
 use crate::{keys::Identity, protocol::Callbacks};
 
@@ -100,17 +101,28 @@ pub fn read_secret(
         input.interact()
     } else {
         // Fall back to CLI interface.
-        let mut input = PasswordInput::new();
-        input.with_prompt(description);
+        let passphrase =
+            read_password_from_tty(Some(&format!("{}: ", description))).map(SecretString::new)?;
         if let Some(confirm_prompt) = confirm {
-            input
-                .with_confirmation(confirm_prompt, "Inputs do not match")
-                .allow_empty_password(true);
+            let confirm_passphrase = read_password_from_tty(Some(&format!("{}: ", confirm_prompt)))
+                .map(SecretString::new)?;
+
+            if !bool::from(
+                passphrase
+                    .expose_secret()
+                    .as_bytes()
+                    .ct_eq(confirm_passphrase.expose_secret().as_bytes()),
+            ) {
+                return Err(pinentry::Error::Io(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Inputs do not match",
+                )));
+            }
+        } else if passphrase.expose_secret().is_empty() {
+            return Err(pinentry::Error::Cancelled);
         }
-        input
-            .interact()
-            .map(SecretString::new)
-            .map_err(|e| e.into())
+
+        Ok(passphrase)
     }
 }
 
