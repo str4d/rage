@@ -58,6 +58,7 @@ pub(crate) enum DecryptError {
     Io(io::Error),
     MissingIdentities(String),
     MixedIdentityAndPassphrase,
+    #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
     RecipientFlag,
     TimedOut(String),
@@ -100,9 +101,10 @@ impl fmt::Display for DecryptError {
             DecryptError::MixedIdentityAndPassphrase => {
                 write!(f, "-i/--identity can't be used with -p/--passphrase")
             }
+            #[cfg(not(unix))]
             DecryptError::PassphraseWithoutFileArgument => write!(
                 f,
-                "File to decrypt must be passed as an argument when using -p/--passphrase"
+                "File to decrypt must be passed as an argument when using -p/--passphrase on Windows"
             ),
             DecryptError::RecipientFlag => {
                 writeln!(f, "-r/--recipient can't be used with -d/--decrypt.")?;
