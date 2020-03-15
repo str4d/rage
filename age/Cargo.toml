@@ -22,7 +22,7 @@ base64 = "0.11"
 
 # - ChaCha20-Poly1305 from RFC 7539
 c2-chacha = "0.2"
-chacha20poly1305 = "0.4"
+chacha20poly1305 = { version = "0.4", default-features = false, features = ["alloc"] }
 
 # - X25519 from RFC 7748
 x25519-dalek = "0.6"

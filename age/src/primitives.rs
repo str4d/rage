@@ -2,7 +2,7 @@
 
 use chacha20poly1305::{
     aead::{self, Aead, NewAead},
-    ChaCha20Poly1305,
+    ChaChaPoly1305,
 };
 use hkdf::Hkdf;
 use hmac::{
@@ -22,7 +22,7 @@ pub(crate) mod stream;
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
 pub(crate) fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
-    let c = ChaCha20Poly1305::new((*key).into());
+    let c = ChaChaPoly1305::<c2_chacha::Ietf>::new((*key).into());
     c.encrypt(&[0; 12].into(), plaintext)
         .expect("we won't overflow the ChaCha20 block counter")
 }
@@ -33,7 +33,7 @@ pub(crate) fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
 pub(crate) fn aead_decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>, aead::Error> {
-    let c = ChaCha20Poly1305::new((*key).into());
+    let c = ChaChaPoly1305::<c2_chacha::Ietf>::new((*key).into());
     c.decrypt(&[0; 12].into(), ciphertext)
 }
 
