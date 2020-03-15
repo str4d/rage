@@ -237,9 +237,7 @@ impl Decryptor {
                         })
                     })
                     .unwrap_or(Err(Error::NoMatchingKeys))
-                    .and_then(|payload_key| {
-                        Stream::decrypt_seekable(&payload_key, input).map_err(Error::from)
-                    })
+                    .map(|payload_key| Stream::decrypt(&payload_key, input))
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
         }
