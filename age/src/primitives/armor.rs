@@ -359,9 +359,129 @@ impl<R: Read> Read for ArmoredReader<R> {
     }
 }
 
+impl<R: Read + Seek> Seek for ArmoredReader<R> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        loop {
+            match self.is_armored {
+                None => self.detect_armor()?,
+                Some(false) => {
+                    break if self.line_buf.is_empty() {
+                        // Map the data read onto the underlying stream.
+                        let start = self.start()?;
+                        let pos = match pos {
+                            SeekFrom::Start(offset) => SeekFrom::Start(start + offset),
+                            // Current and End positions don't need to be shifted.
+                            x => x,
+                        };
+                        self.inner.seek(pos)
+                    } else {
+                        // We are still inside the first line.
+                        match pos {
+                            SeekFrom::Start(offset) => self.line_read = offset as usize,
+                            SeekFrom::Current(offset) => {
+                                let res = (self.line_read as i64) + offset;
+                                if res >= 0 {
+                                    self.line_read = res as usize;
+                                } else {
+                                    return Err(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        "cannot seek before the start",
+                                    ));
+                                }
+                            }
+                            SeekFrom::End(offset) => {
+                                let res = (self.line_buf.len() as i64) + offset;
+                                if res >= 0 {
+                                    self.line_read = res as usize;
+                                } else {
+                                    return Err(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        "cannot seek before the start",
+                                    ));
+                                }
+                            }
+                        }
+                        Ok(self.line_read as u64)
+                    };
+                }
+                Some(true) => {
+                    // Convert the offset into the target position within the data inside
+                    // the armor.
+                    let start = self.start()?;
+                    let target_pos = match pos {
+                        SeekFrom::Start(offset) => offset,
+                        SeekFrom::Current(offset) => {
+                            let res = (self.data_read as i64) + offset;
+                            if res >= 0 as i64 {
+                                res as u64
+                            } else {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "cannot seek before the start",
+                                ));
+                            }
+                        }
+                        SeekFrom::End(offset) => {
+                            let data_len = match self.data_len {
+                                Some(n) => n,
+                                None => {
+                                    // Read from the source until we find the end.
+                                    let mut buf = [0; 4096];
+                                    while self.read(&mut buf)? > 0 {}
+                                    let data_len = self.data_read as u64;
+
+                                    // Cache the data length for future calls.
+                                    self.data_len = Some(data_len);
+
+                                    data_len
+                                }
+                            };
+
+                            let res = (data_len as i64) + offset;
+                            if res >= 0 {
+                                res as u64
+                            } else {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "cannot seek before the start",
+                                ));
+                            }
+                        }
+                    };
+
+                    // Jump back to the start of the armor data, and then read and drop
+                    // until we reach the target position. This is very inefficient, but
+                    // as armored files can have arbitrary line endings within the file,
+                    // we can't determine where the armor line containing the target
+                    // position begins within the reader.
+                    self.inner.seek(SeekFrom::Start(start))?;
+                    self.byte_start = ARMORED_BYTES_PER_LINE;
+                    self.byte_end = ARMORED_BYTES_PER_LINE;
+                    self.found_short_line = false;
+                    self.found_end = false;
+                    self.data_read = 0;
+
+                    let mut buf = [0; 4096];
+                    let mut to_read = target_pos as usize;
+                    while to_read > buf.len() {
+                        self.read_exact(&mut buf)?;
+                        to_read -= buf.len();
+                    }
+                    if to_read > 0 {
+                        self.read_exact(&mut buf[..to_read])?;
+                    }
+
+                    // All done!
+                    break Ok(target_pos);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Write};
+    use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
     use crate::Format;
@@ -390,5 +510,98 @@ mod tests {
 
             assert_eq!(buf, data);
         }
+    }
+
+    #[test]
+    fn binary_seeking() {
+        let mut data = vec![0; 100 * 100];
+        for (i, b) in data.iter_mut().enumerate() {
+            *b = i as u8;
+        }
+
+        let mut written = vec![];
+        {
+            let mut w = ArmoredWriter::wrap_output(&mut written, Format::Binary).unwrap();
+            w.write_all(&data).unwrap();
+            w.finish().unwrap();
+        };
+        assert_eq!(written, data);
+
+        let mut r = ArmoredReader::from_reader(Cursor::new(written));
+
+        // Read part-way into the first "line"
+        let mut buf = vec![0; 100];
+        r.read_exact(&mut buf[..5]).unwrap();
+        assert_eq!(&buf[..5], &data[..5]);
+
+        // Seek back to the beginning
+        r.seek(SeekFrom::Start(0)).unwrap();
+
+        // Read into the middle of the data
+        for i in 0..70 {
+            r.read_exact(&mut buf).unwrap();
+            assert_eq!(&buf[..], &data[100 * i..100 * (i + 1)]);
+        }
+
+        // Seek back into the first line
+        r.seek(SeekFrom::Start(5)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[5..105]);
+
+        // Seek forwards from the current position
+        r.seek(SeekFrom::Current(500)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[605..705]);
+
+        // Seek backwards from the end
+        r.seek(SeekFrom::End(-1337)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
+    }
+
+    #[test]
+    fn armored_seeking() {
+        let mut data = vec![0; 100 * 100];
+        for (i, b) in data.iter_mut().enumerate() {
+            *b = i as u8;
+        }
+
+        let mut armored = vec![];
+        {
+            let mut w = ArmoredWriter::wrap_output(&mut armored, Format::AsciiArmor).unwrap();
+            w.write_all(&data).unwrap();
+            w.finish().unwrap();
+        };
+
+        let mut r = ArmoredReader::from_reader(Cursor::new(armored));
+
+        // Read part-way into the first "line"
+        let mut buf = vec![0; 100];
+        r.read_exact(&mut buf[..5]).unwrap();
+        assert_eq!(&buf[..5], &data[..5]);
+
+        // Seek back to the beginning
+        r.seek(SeekFrom::Start(0)).unwrap();
+
+        // Read into the middle of the data
+        for i in 0..70 {
+            r.read_exact(&mut buf).unwrap();
+            assert_eq!(&buf[..], &data[100 * i..100 * (i + 1)]);
+        }
+
+        // Seek back into the first line
+        r.seek(SeekFrom::Start(5)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[5..105]);
+
+        // Seek forwards from the current position
+        r.seek(SeekFrom::Current(500)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[605..705]);
+
+        // Seek backwards from the end
+        r.seek(SeekFrom::End(-1337)).unwrap();
+        r.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
     }
 }
