@@ -141,31 +141,41 @@ impl<R: Read> ArmoredReader<R> {
             found_end: false,
         }
     }
+
+    fn detect_armor(&mut self) -> io::Result<()> {
+        if self.is_armored.is_some() {
+            panic!("ArmoredReader::detect_armor() called twice");
+        }
+
+        // Read the first line. This will throw an error if the data before the first 0x0A
+        // byte is not valid UTF-8, but both the age header and the armor marker satisfy
+        // this constraint.
+        self.line_buf.clear();
+        self.inner.read_line(&mut self.line_buf)?;
+
+        // The first line of armor is the armor marker followed by either
+        // CRLF or LF.
+        let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
+        if is_armored {
+            let remainder = &self.line_buf.as_bytes()[ARMORED_BEGIN_MARKER.len()..];
+            if !(remainder == b"\r\n" || remainder == b"\n") {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid armor begin marker",
+                ));
+            }
+        }
+
+        self.is_armored = Some(is_armored);
+        Ok(())
+    }
 }
 
 impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         loop {
             match self.is_armored {
-                None => {
-                    // Detect armor
-                    self.line_buf.clear();
-                    self.inner.read_line(&mut self.line_buf)?;
-
-                    // The first line of armor is the armor marker followed by either
-                    // CRLF or LF.
-                    let is_armored = self.line_buf.starts_with(ARMORED_BEGIN_MARKER);
-                    if is_armored {
-                        let remainder = &self.line_buf.as_bytes()[ARMORED_BEGIN_MARKER.len()..];
-                        if !(remainder == b"\r\n" || remainder == b"\n") {
-                            return Err(io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "invalid armor begin marker",
-                            ));
-                        }
-                    }
-                    self.is_armored = Some(is_armored);
-                }
+                None => self.detect_armor()?,
                 Some(false) => {
                     if self.line_buf.is_empty() {
                         return self.inner.read(buf);
