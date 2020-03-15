@@ -125,6 +125,8 @@ pub(crate) struct ArmoredReader<R: Read> {
     byte_end: usize,
     found_short_line: bool,
     found_end: bool,
+    data_len: Option<u64>,
+    data_read: usize,
 }
 
 impl<R: Read> ArmoredReader<R> {
@@ -139,6 +141,8 @@ impl<R: Read> ArmoredReader<R> {
             byte_end: ARMORED_BYTES_PER_LINE,
             found_short_line: false,
             found_end: false,
+            data_len: None,
+            data_read: 0,
         }
     }
 
@@ -178,7 +182,10 @@ impl<R: Read> Read for ArmoredReader<R> {
                 None => self.detect_armor()?,
                 Some(false) => {
                     if self.line_buf.is_empty() {
-                        return self.inner.read(buf);
+                        return self.inner.read(buf).map(|read| {
+                            self.data_read += read;
+                            read
+                        });
                     } else {
                         // Return any leftover data from armor detection
                         if self.line_read + buf.len() < self.line_buf.len() {
@@ -187,12 +194,14 @@ impl<R: Read> Read for ArmoredReader<R> {
                                     [self.line_read..self.line_read + buf.len()],
                             );
                             self.line_read += buf.len();
+                            self.data_read += buf.len();
                             return Ok(buf.len());
                         } else {
                             let to_read = self.line_buf.len() - self.line_read;
                             buf[..to_read]
                                 .copy_from_slice(&self.line_buf.as_bytes()[self.line_read..]);
                             self.line_buf.clear();
+                            self.data_read += to_read;
                             return Ok(to_read);
                         }
                     }
@@ -281,6 +290,7 @@ impl<R: Read> Read for ArmoredReader<R> {
             if buf.len() <= self.byte_end {
                 buf.copy_from_slice(&self.byte_buf[..buf.len()]);
                 self.byte_start = buf.len();
+                self.data_read += buf_len;
                 return Ok(buf_len);
             } else {
                 buf[..self.byte_end].copy_from_slice(&self.byte_buf[..self.byte_end]);
@@ -288,6 +298,7 @@ impl<R: Read> Read for ArmoredReader<R> {
             }
         }
 
+        self.data_read += buf_len - buf.len();
         Ok(buf_len - buf.len())
     }
 }
