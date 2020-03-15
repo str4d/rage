@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- [Unix] Files encrypted with a passphrase can now be decrypted with `rage` when
+  piped over stdin.
 
 ## [0.3.1] - 2020-02-11
 ### Fixed

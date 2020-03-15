@@ -281,8 +281,13 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             return Err(error::DecryptError::MixedIdentityAndPassphrase);
         }
 
-        if opts.input.is_none() {
-            return Err(error::DecryptError::PassphraseWithoutFileArgument);
+        // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have any
+        // conflict with stdin.
+        #[cfg(not(unix))]
+        {
+            if opts.input.is_none() {
+                return Err(error::DecryptError::PassphraseWithoutFileArgument);
+            }
         }
 
         match read_secret("Type passphrase", "Passphrase", None) {
