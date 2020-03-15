@@ -1,6 +1,6 @@
 use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
 
 use crate::{util::LINE_ENDING, Format};
@@ -115,8 +115,31 @@ impl<W: Write> Write for ArmoredWriter<W> {
     }
 }
 
+/// The position in the underlying reader corresponding to the start of the data inside
+/// the armor.
+///
+/// To impl Seek for ArmoredReader, we need to know the point in the reader corresponding
+/// to the first byte of the armored data. But we can't query the reader for its current
+/// position without having a specific constructor for `R: Read + Seek`, which makes the
+/// higher-level API more complex. Instead, we count the number of bytes that have been
+/// read from the reader:
+/// - If armor is enabled, we count starting from after the first line (which is the armor
+///   begin marker).
+/// - If armor is disabled, we count from the first byte we read.
+///
+/// Then when we first need to seek, inside `impl Seek` we can query the reader's current
+/// position and figure out where the start was.
+#[derive(Debug)]
+enum StartPos {
+    /// An offset that we can subtract from the current position.
+    Implicit(u64),
+    /// The precise start position.
+    Explicit(u64),
+}
+
 pub(crate) struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
+    start: StartPos,
     is_armored: Option<bool>,
     line_buf: Zeroizing<String>,
     line_read: usize,
@@ -133,6 +156,7 @@ impl<R: Read> ArmoredReader<R> {
     pub(crate) fn from_reader(inner: R) -> Self {
         ArmoredReader {
             inner: BufReader::new(inner),
+            start: StartPos::Implicit(0),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
             line_read: 0,
@@ -144,6 +168,16 @@ impl<R: Read> ArmoredReader<R> {
             data_len: None,
             data_read: 0,
         }
+    }
+
+    fn count_reader_bytes(&mut self, read: usize) -> usize {
+        // We only need to count if we haven't yet worked out the start position.
+        if let StartPos::Implicit(offset) = &mut self.start {
+            *offset += read as u64;
+        }
+
+        // Return the counted bytes for convenience.
+        read
     }
 
     fn detect_armor(&mut self) -> io::Result<()> {
@@ -168,10 +202,30 @@ impl<R: Read> ArmoredReader<R> {
                     "invalid armor begin marker",
                 ));
             }
+        } else {
+            // Not armored, so the first line is part of the data.
+            self.count_reader_bytes(self.line_buf.len());
         }
 
         self.is_armored = Some(is_armored);
         Ok(())
+    }
+}
+
+impl<R: Read + Seek> ArmoredReader<R> {
+    fn start(&mut self) -> io::Result<u64> {
+        match self.start {
+            StartPos::Implicit(offset) => {
+                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let start = current - offset;
+
+                // Cache the start for future calls.
+                self.start = StartPos::Explicit(start);
+
+                Ok(start)
+            }
+            StartPos::Explicit(start) => Ok(start),
+        }
     }
 }
 
@@ -184,7 +238,7 @@ impl<R: Read> Read for ArmoredReader<R> {
                     if self.line_buf.is_empty() {
                         return self.inner.read(buf).map(|read| {
                             self.data_read += read;
-                            read
+                            self.count_reader_bytes(read)
                         });
                     } else {
                         // Return any leftover data from armor detection
@@ -229,7 +283,9 @@ impl<R: Read> Read for ArmoredReader<R> {
         loop {
             // Read the next line
             self.line_buf.clear();
-            self.inner.read_line(&mut self.line_buf)?;
+            self.inner
+                .read_line(&mut self.line_buf)
+                .map(|read| self.count_reader_bytes(read))?;
 
             // Handle line endings
             let line = if self.line_buf.ends_with("\r\n") {
