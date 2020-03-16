@@ -9,7 +9,7 @@ use chacha20poly1305::{
 use secrecy::{ExposeSecret, SecretVec};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
-use super::armor::ArmoredWriter;
+use super::armor::{ArmoredReader, ArmoredWriter};
 
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
@@ -54,7 +54,7 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: crate::primitives::hkdf
-    pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: R) -> StreamReader<R> {
+    pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: ArmoredReader<R>) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),
             inner,
@@ -194,7 +194,7 @@ enum StartPos {
 /// Provides access to a decrypted age message.
 pub struct StreamReader<R: Read> {
     stream: Stream,
-    inner: R,
+    inner: ArmoredReader<R>,
     start: StartPos,
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
@@ -362,7 +362,7 @@ mod tests {
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
-    use crate::primitives::armor::ArmoredWriter;
+    use crate::primitives::armor::{ArmoredReader, ArmoredWriter};
     use crate::Format;
 
     #[test]
@@ -442,7 +442,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -467,7 +467,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -492,7 +492,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -516,7 +516,7 @@ mod tests {
         };
 
         let mut buf = vec![];
-        let mut r = Stream::decrypt(&key, &encrypted[..]);
+        let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
         assert_eq!(
             r.read_to_end(&mut buf).unwrap_err().kind(),
             io::ErrorKind::UnexpectedEof
@@ -541,7 +541,7 @@ mod tests {
             w.finish().unwrap();
         };
 
-        let mut r = Stream::decrypt(&key, Cursor::new(encrypted));
+        let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(Cursor::new(encrypted)));
 
         // Read through into the second chunk
         let mut buf = vec![0; 100];

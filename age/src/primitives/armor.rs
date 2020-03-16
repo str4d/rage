@@ -137,7 +137,7 @@ enum StartPos {
     Explicit(u64),
 }
 
-pub(crate) struct ArmoredReader<R: Read> {
+pub struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
     start: StartPos,
     is_armored: Option<bool>,

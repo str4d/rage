@@ -194,7 +194,7 @@ fn main() -> Result<(), Error> {
     info!("Decrypting {}", opts.filename);
     let file = File::open(opts.filename)?;
 
-    let stream = decryptor.trial_decrypt_seekable(file)?;
+    let stream = decryptor.trial_decrypt(file)?;
 
     match opts.types.as_str() {
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),

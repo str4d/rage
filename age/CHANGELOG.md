@@ -9,6 +9,14 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- `age::Decryptor::trial_decrypt` returns `StreamReader<R>` instead of
+  `impl Read`, enabling it to handle seekable readers.
+
+### Removed
+- `age::Decryptor::trial_decrypt_seekable` (replaced by
+  `age::Decryptor::trial_decrypt`).
+
 ### Fixed
 - Key files with Windows line endings are now correctly parsed.
 
