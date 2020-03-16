@@ -197,12 +197,6 @@ fn rage_mount_page() {
                 .long("--types")
                 .help("The type of the filesystem (one of \"tar\", \"zip\")"),
         )
-        .flag(
-            Flag::new()
-                .short("-p")
-                .long("--passphrase")
-                .help("Use a passphrase instead of public keys"),
-        )
         .option(
             Opt::new("identity")
                 .short("-i")
@@ -224,7 +218,7 @@ fn rage_mount_page() {
         .example(
             Example::new()
                 .text("Mounting an archive encrypted with a passphrase")
-                .command("rage-mount -t zip -p encrypted.zip.age ./tmp")
+                .command("rage-mount -t zip encrypted.zip.age ./tmp")
                 .output("Type passphrase:"),
         )
         .render();

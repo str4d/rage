@@ -12,6 +12,14 @@ to 1.0.0 are beta releases.
 ### Added
 - `rage-mount` can now mount ASCII-armored age files.
 
+### Changed
+- [`rage`] `-p/--passphrase` flag can no longer be used with `-d/--decrypt`
+  (passphrase-encrypted files are now detected automatically).
+
+### Removed
+- `-p/--passphrase` flag from `rage-mount` (passphrase-encrypted files are now
+  detected automatically).
+
 ### Fixed
 - [Unix] Files encrypted with a passphrase can now be decrypted with `rage` when
   piped over stdin.

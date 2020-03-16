@@ -17,7 +17,6 @@ enum Error {
     MissingIdentities(String),
     MissingMountpoint,
     MissingType,
-    MixedIdentityAndPassphrase,
     UnknownType(String),
     UnsupportedKey(String, age::keys::UnsupportedKey),
 }
@@ -56,9 +55,6 @@ impl fmt::Debug for Error {
             }
             Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
             Error::MissingType => writeln!(f, "Missing -t/--types"),
-            Error::MixedIdentityAndPassphrase => {
-                writeln!(f, "-i/--identity can't be used with -p/--passphrase")
-            }
             Error::UnknownType(t) => writeln!(f, "Unknown filesystem type \"{}\"", t),
             Error::UnsupportedKey(filename, k) => {
                 writeln!(f, "Unsupported key: {}", filename)?;
@@ -95,9 +91,6 @@ struct AgeMountOptions {
     #[options(help = "indicates the filesystem type (one of \"tar\", \"zip\")")]
     types: String,
 
-    #[options(help = "use a passphrase instead of public keys")]
-    passphrase: bool,
-
     #[options(
         help = "maximum work factor to allow for passphrase decryption",
         meta = "WF",
@@ -126,6 +119,22 @@ where
             error!("{}", e);
         }
     }
+}
+
+fn mount_stream(
+    stream: age::StreamReader<File>,
+    types: String,
+    mountpoint: String,
+) -> Result<(), Error> {
+    match types.as_str() {
+        "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), mountpoint),
+        "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), mountpoint),
+        _ => {
+            return Err(Error::UnknownType(types));
+        }
+    };
+
+    Ok(())
 }
 
 fn main() -> Result<(), Error> {
@@ -161,48 +170,41 @@ fn main() -> Result<(), Error> {
         return Err(Error::MissingType);
     }
 
-    let decryptor = if opts.passphrase {
-        if !opts.identity.is_empty() {
-            return Err(Error::MixedIdentityAndPassphrase);
-        }
-
-        match read_secret("Type passphrase", "Passphrase", None) {
-            Ok(passphrase) => age::Decryptor::Passphrase {
-                passphrase,
-                max_work_factor: opts.max_work_factor,
-            },
-            Err(_) => return Ok(()),
-        }
-    } else {
-        let identities = read_identities(opts.identity, |default_filename| {
-            Error::MissingIdentities(default_filename.to_string())
-        })?;
-
-        // Check for unsupported keys and alert the user
-        for identity in &identities {
-            if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
-                return Err(Error::UnsupportedKey(
-                    identity.filename().unwrap_or_default().to_string(),
-                    k.clone(),
-                ));
-            }
-        }
-
-        age::Decryptor::with_identities_and_callbacks(identities, Box::new(UiCallbacks))
-    };
-
     info!("Decrypting {}", opts.filename);
     let file = File::open(opts.filename)?;
 
-    let stream = decryptor.trial_decrypt(file)?;
+    let types = opts.types;
+    let mountpoint = opts.mountpoint;
 
-    match opts.types.as_str() {
-        "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), opts.mountpoint),
-        "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), opts.mountpoint),
-        _ => {
-            return Err(Error::UnknownType(opts.types));
+    match age::Decryptor::new(file)? {
+        age::Decryptor::Passphrase(decryptor) => {
+            match read_secret("Type passphrase", "Passphrase", None) {
+                Ok(passphrase) => decryptor
+                    .decrypt(&passphrase, opts.max_work_factor)
+                    .map_err(|e| e.into())
+                    .and_then(|stream| mount_stream(stream, types, mountpoint)),
+                Err(_) => Ok(()),
+            }
         }
-    };
+        age::Decryptor::Recipients(decryptor) => {
+            let identities = read_identities(opts.identity, |default_filename| {
+                Error::MissingIdentities(default_filename.to_string())
+            })?;
 
-    Ok(())
+            // Check for unsupported keys and alert the user
+            for identity in &identities {
+                if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
+                    return Err(Error::UnsupportedKey(
+                        identity.filename().unwrap_or_default().to_string(),
+                        k.clone(),
+                    ));
+                }
+            }
+
+            decryptor
+                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .map_err(|e| e.into())
+                .and_then(|stream| mount_stream(stream, types, mountpoint))
+        }
+    }
 }

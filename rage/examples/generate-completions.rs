@@ -80,7 +80,6 @@ fn rage_mount_completions() {
         .arg(Arg::with_name("filename"))
         .arg(Arg::with_name("mountpoint"))
         .arg(Arg::with_name("types").short('t').long("types"))
-        .arg(Arg::with_name("passphrase").short('p').long("passphrase"))
         .arg(
             Arg::with_name("max-work-factor")
                 .takes_value(true)
