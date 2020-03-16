@@ -7,7 +7,7 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, scrypt, Header, RecipientLine},
+    format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientLine},
     keys::{FileKey, Identity, RecipientKey},
     primitives::{
         armor::{ArmoredReader, ArmoredWriter},
@@ -19,6 +19,18 @@ use crate::{
 
 const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
+
+fn v1_payload_key(
+    header: &HeaderV1,
+    file_key: FileKey,
+    nonce: [u8; 16],
+) -> Result<[u8; 32], Error> {
+    // Verify the MAC
+    header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()))?;
+
+    // Return the payload key
+    Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
+}
 
 /// Callbacks that might be triggered during decryption.
 pub trait Callbacks {
@@ -183,17 +195,7 @@ impl Decryptor {
                     .iter()
                     .find_map(|r| {
                         self.unwrap_file_key(r).transpose().map(|res| {
-                            res.and_then(|file_key| {
-                                // Verify the MAC
-                                header.verify_mac(hkdf(
-                                    &[],
-                                    HEADER_KEY_LABEL,
-                                    file_key.0.expose_secret(),
-                                ))?;
-
-                                // Return the payload key
-                                Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
-                            })
+                            res.and_then(|file_key| v1_payload_key(&header, file_key, nonce))
                         })
                     })
                     .unwrap_or(Err(Error::NoMatchingKeys))
