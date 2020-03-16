@@ -45,7 +45,7 @@ maintenance = { status = "experimental" }
 # rage and rage-keygen dependencies
 age = { version = "0.3.1", path = "../age", features = ["cli-common"] }
 chrono = "0.4"
-console = "0.9"
+console = "0.10"
 env_logger = "0.7"
 gumdrop = "0.7"
 log = "0.4"
