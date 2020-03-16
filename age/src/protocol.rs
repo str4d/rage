@@ -2,7 +2,7 @@
 
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
-use std::io::{self, Read, Seek, Write};
+use std::io::{self, Read, Write};
 use std::iter;
 
 use crate::{
@@ -170,7 +170,7 @@ impl Decryptor {
     /// to be decrypted before it can be used to decrypt the message.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read>(&self, input: R) -> Result<impl Read, Error> {
+    pub fn trial_decrypt<R: Read>(&self, input: R) -> Result<StreamReader<R>, Error> {
         let mut input = ArmoredReader::from_reader(input);
 
         match Header::read(&mut input)? {
@@ -198,48 +198,6 @@ impl Decryptor {
                     })
                     .unwrap_or(Err(Error::NoMatchingKeys))
                     .map(|payload_key| Stream::decrypt(&payload_key, input))
-            }
-            Header::Unknown(_) => Err(Error::UnknownFormat),
-        }
-    }
-
-    /// Attempts to decrypt a message from the given seekable reader.
-    ///
-    /// `request_passphrase` is a closure that will be called when an underlying key needs
-    /// to be decrypted before it can be used to decrypt the message.
-    ///
-    /// If successful, returns a seekable reader that will provide the plaintext.
-    pub fn trial_decrypt_seekable<R: Read + Seek>(
-        &self,
-        mut input: R,
-    ) -> Result<StreamReader<R>, Error> {
-        match Header::read(&mut input)? {
-            Header::V1(header) => {
-                let mut nonce = [0; 16];
-                input.read_exact(&mut nonce)?;
-
-                header
-                    .recipients
-                    .iter()
-                    .find_map(|r| {
-                        self.unwrap_file_key(r).transpose().map(|res| {
-                            res.and_then(|file_key| {
-                                // Verify the MAC
-                                header.verify_mac(hkdf(
-                                    &[],
-                                    HEADER_KEY_LABEL,
-                                    file_key.0.expose_secret(),
-                                ))?;
-
-                                // Return the payload key
-                                Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
-                            })
-                        })
-                    })
-                    .unwrap_or(Err(Error::NoMatchingKeys))
-                    .and_then(|payload_key| {
-                        Stream::decrypt_seekable(&payload_key, input).map_err(Error::from)
-                    })
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
         }

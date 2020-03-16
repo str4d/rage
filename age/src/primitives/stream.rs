@@ -9,7 +9,7 @@ use chacha20poly1305::{
 use secrecy::{ExposeSecret, SecretVec};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
-use super::armor::ArmoredWriter;
+use super::armor::{ArmoredReader, ArmoredWriter};
 
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
@@ -54,35 +54,14 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: crate::primitives::hkdf
-    pub fn decrypt<R: Read>(key: &[u8; 32], inner: R) -> impl Read {
+    pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: ArmoredReader<R>) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),
             inner,
-            start: 0,
+            start: StartPos::Implicit(0),
             cur_plaintext_pos: 0,
             chunk: None,
         }
-    }
-
-    /// Wraps `STREAM` decryption under the given `key` around a seekable reader.
-    ///
-    /// `key` must **never** be repeated across multiple streams. In `age` this is
-    /// achieved by deriving the key with [`HKDF`] from both a random file key and a
-    /// random nonce.
-    ///
-    /// [`HKDF`]: crate::primitives::hkdf
-    pub fn decrypt_seekable<R: Read + Seek>(
-        key: &[u8; 32],
-        mut inner: R,
-    ) -> io::Result<StreamReader<R>> {
-        let start = inner.seek(SeekFrom::Current(0))?;
-        Ok(StreamReader {
-            stream: Self::new(key),
-            inner,
-            start,
-            cur_plaintext_pos: 0,
-            chunk: None,
-        })
     }
 
     fn set_counter(&mut self, val: u64) {
@@ -197,13 +176,54 @@ impl<W: Write> Write for StreamWriter<W> {
     }
 }
 
+/// The position in the underlying reader corresponding to the start of the stream.
+///
+/// To impl Seek for StreamReader, we need to know the point in the reader corresponding
+/// to the first byte of the stream. But we can't query the reader for its current
+/// position without having a specific constructor for `R: Read + Seek`, which makes the
+/// higher-level API more complex. Instead, we count the number of bytes that have been
+/// read from the reader until we first need to seek, and then inside `impl Seek` we can
+/// query the reader's current position and figure out where the start was.
+enum StartPos {
+    /// An offset that we can subtract from the current position.
+    Implicit(u64),
+    /// The precise start position.
+    Explicit(u64),
+}
+
 /// Provides access to a decrypted age message.
 pub struct StreamReader<R: Read> {
     stream: Stream,
-    inner: R,
-    start: u64,
+    inner: ArmoredReader<R>,
+    start: StartPos,
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
+}
+
+impl<R: Read> StreamReader<R> {
+    fn count_bytes(&mut self, read: usize) {
+        // We only need to count if we haven't yet worked out the start position.
+        if let StartPos::Implicit(offset) = &mut self.start {
+            *offset += read as u64;
+        }
+    }
+}
+
+impl<R: Read + Seek> StreamReader<R> {
+    fn start(&mut self) -> io::Result<u64> {
+        match self.start {
+            StartPos::Implicit(offset) => {
+                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let start = current - offset;
+
+                // Cache the start for future calls.
+                self.start = StartPos::Explicit(start);
+
+                Ok(start)
+            }
+            StartPos::Explicit(start) => Ok(start),
+        }
+    }
 }
 
 impl<R: Read> Read for StreamReader<R> {
@@ -221,6 +241,7 @@ impl<R: Read> Read for StreamReader<R> {
                     },
                 }
             }
+            self.count_bytes(end);
 
             if end == 0 {
                 if self.stream.nonce[11] == 0 {
@@ -269,6 +290,7 @@ impl<R: Read> Read for StreamReader<R> {
 impl<R: Read + Seek> Seek for StreamReader<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         // Convert the offset into the target position within the plaintext
+        let start = self.start()?;
         let target_pos = match pos {
             SeekFrom::Start(offset) => offset,
             SeekFrom::Current(offset) => {
@@ -289,7 +311,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
 
                 let num_chunks = (ct_end / ENCRYPTED_CHUNK_SIZE as u64) + 1;
                 let total_tag_size = num_chunks * TAG_SIZE as u64;
-                let pt_end = ct_end - self.start - total_tag_size;
+                let pt_end = ct_end - start - total_tag_size;
 
                 let res = (pt_end as i64) + offset;
                 if res >= 0 {
@@ -317,7 +339,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
 
             // Seek to the beginning of the target chunk
             self.inner.seek(SeekFrom::Start(
-                self.start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
+                start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
             ))?;
             self.stream.set_counter(target_chunk_index);
             self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
@@ -340,7 +362,7 @@ mod tests {
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
-    use crate::primitives::armor::ArmoredWriter;
+    use crate::primitives::armor::{ArmoredReader, ArmoredWriter};
     use crate::Format;
 
     #[test]
@@ -420,7 +442,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -445,7 +467,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -470,7 +492,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -494,7 +516,7 @@ mod tests {
         };
 
         let mut buf = vec![];
-        let mut r = Stream::decrypt(&key, &encrypted[..]);
+        let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(&encrypted[..]));
         assert_eq!(
             r.read_to_end(&mut buf).unwrap_err().kind(),
             io::ErrorKind::UnexpectedEof
@@ -519,7 +541,7 @@ mod tests {
             w.finish().unwrap();
         };
 
-        let mut r = Stream::decrypt_seekable(&key, Cursor::new(encrypted)).unwrap();
+        let mut r = Stream::decrypt(&key, ArmoredReader::from_reader(Cursor::new(encrypted)));
 
         // Read through into the second chunk
         let mut buf = vec![0; 100];

@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `rage-mount` can now mount ASCII-armored age files.
+
 ### Fixed
 - [Unix] Files encrypted with a passphrase can now be decrypted with `rage` when
   piped over stdin.
