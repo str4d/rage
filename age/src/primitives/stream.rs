@@ -1,6 +1,4 @@
-//! The [STREAM] construction for online authenticated encryption.
-//!
-//! [STREAM]: https://eprint.iacr.org/2015/189.pdf
+//! I/O helper structs for age file encryption and decryption.
 
 use chacha20poly1305::{
     aead::{Aead, NewAead},
@@ -17,9 +15,12 @@ const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
 /// `STREAM[key](plaintext)`
 ///
-/// Instantiated with ChaCha20-Poly1305 in 64KiB chunks, and a nonce structure of 11 bytes
-/// of big endian counter, and 1 byte of last block flag (0x00 / 0x01).
-pub struct Stream {
+/// The [STREAM] construction for online authenticated encryption, instantiated with
+/// ChaCha20-Poly1305 in 64KiB chunks, and a nonce structure of 11 bytes of big endian
+/// counter, and 1 byte of last block flag (0x00 / 0x01).
+///
+/// [STREAM]: https://eprint.iacr.org/2015/189.pdf
+pub(crate) struct Stream {
     aead: ChaChaPoly1305<c2_chacha::Ietf>,
     nonce: [u8; 12],
 }
@@ -135,6 +136,11 @@ pub struct StreamWriter<W: Write> {
 }
 
 impl<W: Write> StreamWriter<W> {
+    /// Writes the final chunk of the age file.
+    ///
+    /// You **MUST** call `finish` when you are done writing, in order to finish the
+    /// encryption process. Failing to call `finish` will result in a truncated file that
+    /// that will fail to decrypt.
     pub fn finish(mut self) -> io::Result<W> {
         let encrypted = self.stream.encrypt_chunk(&self.chunk, true)?;
         self.inner.write_all(&encrypted)?;

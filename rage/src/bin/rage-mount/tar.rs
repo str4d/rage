@@ -1,3 +1,4 @@
+use age::stream::StreamReader;
 use fuse_mt::*;
 use std::collections::HashMap;
 use std::fs::File;
@@ -103,7 +104,7 @@ fn add_to_dir_map(
 type OpenFile = (PathBuf, u64, u64);
 
 pub struct AgeTarFs {
-    inner: Mutex<age::StreamReader<File>>,
+    inner: Mutex<StreamReader<File>>,
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     file_map: HashMap<PathBuf, (FileAttr, u64)>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
@@ -111,7 +112,7 @@ pub struct AgeTarFs {
 }
 
 impl AgeTarFs {
-    pub fn open(stream: age::StreamReader<File>) -> io::Result<Self> {
+    pub fn open(stream: StreamReader<File>) -> io::Result<Self> {
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root

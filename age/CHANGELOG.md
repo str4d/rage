@@ -20,6 +20,9 @@ to 1.0.0 are beta releases.
 - `age::Decryptor` has been refactored to auto-detect the decryption type. As a
   result, both identity-based and passphrase-based decryption need to be
   handled.
+- `age::StreamReader` has been moved into the `age::stream` module, along with
+  `StreamWriter` which was previously public but has now been formally exposed
+  in the API for documentation purposes.
 
 ### Removed
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).

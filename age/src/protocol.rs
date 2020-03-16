@@ -76,9 +76,9 @@ impl Encryptor {
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
-    /// You **MUST** call `finish()` when you are done writing, in order to finish the
-    /// encryption process. Failing to call `finish()` will result in a truncated message
-    /// that will fail to decrypt.
+    /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
+    /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
+    /// result in a truncated file that will fail to decrypt.
     pub fn wrap_output<W: Write>(&self, output: W, format: Format) -> io::Result<StreamWriter<W>> {
         let mut output = ArmoredWriter::wrap_output(output, format)?;
 

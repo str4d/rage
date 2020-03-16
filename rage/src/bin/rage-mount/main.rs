@@ -1,4 +1,7 @@
-use age::cli_common::{read_identities, read_secret, UiCallbacks};
+use age::{
+    cli_common::{read_identities, read_secret, UiCallbacks},
+    stream::StreamReader,
+};
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use log::{error, info};
@@ -122,7 +125,7 @@ where
 }
 
 fn mount_stream(
-    stream: age::StreamReader<File>,
+    stream: StreamReader<File>,
     types: String,
     mountpoint: String,
 ) -> Result<(), Error> {

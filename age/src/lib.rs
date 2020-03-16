@@ -117,7 +117,7 @@ mod util;
 
 pub use error::Error;
 pub use keys::SecretKey;
-pub use primitives::stream::StreamReader;
+pub use primitives::stream;
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]

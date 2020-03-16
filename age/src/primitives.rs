@@ -14,7 +14,7 @@ use sha2::Sha256;
 use std::io::{self, Write};
 
 pub(crate) mod armor;
-pub(crate) mod stream;
+pub mod stream;
 
 /// `encrypt[key](plaintext)`
 ///

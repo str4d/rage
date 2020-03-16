@@ -1,3 +1,4 @@
+use age::stream::StreamReader;
 use fuse_mt::*;
 use std::collections::HashMap;
 use std::fs::File;
@@ -83,14 +84,14 @@ fn add_dir_to_map(
 }
 
 pub struct AgeZipFs {
-    inner: Mutex<ZipArchive<age::StreamReader<File>>>,
+    inner: Mutex<ZipArchive<StreamReader<File>>>,
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
     open_files: Mutex<(HashMap<u64, usize>, u64)>,
 }
 
 impl AgeZipFs {
-    pub fn open(stream: age::StreamReader<File>) -> io::Result<Self> {
+    pub fn open(stream: StreamReader<File>) -> io::Result<Self> {
         let mut archive =
             ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
