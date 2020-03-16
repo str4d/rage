@@ -17,6 +17,8 @@ pub enum Error {
         /// The target work factor for this device (around 1 second of work).
         target: u8,
     },
+    /// The age header was invalid.
+    InvalidHeader,
     /// The MAC in the message header was invalid.
     InvalidMac,
     /// An I/O error occurred during decryption.
@@ -46,6 +48,7 @@ impl fmt::Display for Error {
                     1 << (required - target)
                 )
             }
+            Error::InvalidHeader => write!(f, "Header is invalid"),
             Error::InvalidMac => write!(f, "Header MAC is invalid"),
             Error::Io(e) => e.fmt(f),
             Error::KeyDecryptionFailed => write!(f, "Failed to decrypt an encrypted key"),

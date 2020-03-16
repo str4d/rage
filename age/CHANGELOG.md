@@ -9,13 +9,22 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::Decryptor::new(R: Read)`, which parses an age file header and returns
+  a context-specific decryptor.
+- `age::decryptor` module containing the context-specific decryptors.
+  - Their decryption methods return the concrete type `StreamReader<R>`,
+    enabling them to handle seekable readers.
+
 ### Changed
-- `age::Decryptor::trial_decrypt` returns `StreamReader<R>` instead of
-  `impl Read`, enabling it to handle seekable readers.
+- `age::Decryptor` has been refactored to auto-detect the decryption type. As a
+  result, both identity-based and passphrase-based decryption need to be
+  handled.
 
 ### Removed
-- `age::Decryptor::trial_decrypt_seekable` (replaced by
-  `age::Decryptor::trial_decrypt`).
+- `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).
+- `age::Decryptor::trial_decrypt_seekable` (merged into the context-specific
+  decryptors).
 
 ### Fixed
 - Key files with Windows line endings are now correctly parsed.

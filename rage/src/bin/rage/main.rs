@@ -267,74 +267,85 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     Ok(())
 }
 
+fn write_output<R: io::Read>(
+    mut input: R,
+    output: Option<String>,
+) -> Result<(), error::DecryptError> {
+    let mut output = file_io::OutputWriter::new(output, file_io::OutputFormat::Unknown, 0o666)?;
+
+    io::copy(&mut input, &mut output)?;
+
+    Ok(())
+}
+
 fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     if opts.armor {
         return Err(error::DecryptError::ArmorFlag);
+    }
+    if opts.passphrase {
+        return Err(error::DecryptError::PassphraseFlag);
     }
 
     if !opts.recipient.is_empty() {
         return Err(error::DecryptError::RecipientFlag);
     }
 
-    let decryptor = if opts.passphrase {
-        if !opts.identity.is_empty() {
-            return Err(error::DecryptError::MixedIdentityAndPassphrase);
-        }
+    let output = opts.output;
 
-        // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have any
-        // conflict with stdin.
-        #[cfg(not(unix))]
-        {
-            if opts.input.is_none() {
-                return Err(error::DecryptError::PassphraseWithoutFileArgument);
+    #[cfg(not(unix))]
+    let has_file_argument = opts.input.is_some();
+
+    match age::Decryptor::new(file_io::InputReader::new(opts.input)?)? {
+        age::Decryptor::Passphrase(decryptor) => {
+            // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
+            // any conflict with stdin.
+            #[cfg(not(unix))]
+            {
+                if !has_file_argument {
+                    return Err(error::DecryptError::PassphraseWithoutFileArgument);
+                }
+            }
+
+            match read_secret("Type passphrase", "Passphrase", None) {
+                Ok(passphrase) => decryptor
+                    .decrypt(&passphrase, opts.max_work_factor)
+                    .map_err(|e| e.into())
+                    .and_then(|input| write_output(input, output)),
+                Err(pinentry::Error::Cancelled) => return Ok(()),
+                Err(pinentry::Error::Timeout) => {
+                    return Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
+                }
+                Err(pinentry::Error::Gpg(e)) => {
+                    // Pretend it is an I/O error
+                    return Err(error::DecryptError::Io(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("{}", e),
+                    )));
+                }
+                Err(pinentry::Error::Io(e)) => return Err(error::DecryptError::Io(e)),
             }
         }
+        age::Decryptor::Recipients(decryptor) => {
+            let identities = read_identities(opts.identity, |default_filename| {
+                error::DecryptError::MissingIdentities(default_filename.to_string())
+            })?;
 
-        match read_secret("Type passphrase", "Passphrase", None) {
-            Ok(passphrase) => age::Decryptor::Passphrase {
-                passphrase,
-                max_work_factor: opts.max_work_factor,
-            },
-            Err(pinentry::Error::Cancelled) => return Ok(()),
-            Err(pinentry::Error::Timeout) => {
-                return Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
+            // Check for unsupported keys and alert the user
+            for identity in &identities {
+                if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
+                    return Err(error::DecryptError::UnsupportedKey(
+                        identity.filename().unwrap_or_default().to_string(),
+                        k.clone(),
+                    ));
+                }
             }
-            Err(pinentry::Error::Gpg(e)) => {
-                // Pretend it is an I/O error
-                return Err(error::DecryptError::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("{}", e),
-                )));
-            }
-            Err(pinentry::Error::Io(e)) => return Err(error::DecryptError::Io(e)),
+
+            decryptor
+                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .map_err(|e| e.into())
+                .and_then(|input| write_output(input, output))
         }
-    } else {
-        let identities = read_identities(opts.identity, |default_filename| {
-            error::DecryptError::MissingIdentities(default_filename.to_string())
-        })?;
-
-        // Check for unsupported keys and alert the user
-        for identity in &identities {
-            if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
-                return Err(error::DecryptError::UnsupportedKey(
-                    identity.filename().unwrap_or_default().to_string(),
-                    k.clone(),
-                ));
-            }
-        }
-
-        age::Decryptor::with_identities_and_callbacks(identities, Box::new(UiCallbacks))
-    };
-
-    let input = file_io::InputReader::new(opts.input)?;
-    let mut output =
-        file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Unknown, 0o666)?;
-
-    let mut input = decryptor.trial_decrypt(input)?;
-
-    io::copy(&mut input, &mut output)?;
-
-    Ok(())
+    }
 }
 
 fn main() -> Result<(), error::Error> {

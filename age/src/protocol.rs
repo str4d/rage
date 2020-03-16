@@ -7,18 +7,32 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, scrypt, Header, RecipientLine},
-    keys::{FileKey, Identity, RecipientKey},
+    format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientLine},
+    keys::{FileKey, RecipientKey},
     primitives::{
         armor::{ArmoredReader, ArmoredWriter},
         hkdf,
-        stream::{Stream, StreamReader, StreamWriter},
+        stream::{Stream, StreamWriter},
     },
     Format,
 };
 
+pub mod decryptor;
+
 const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
+
+fn v1_payload_key(
+    header: &HeaderV1,
+    file_key: FileKey,
+    nonce: [u8; 16],
+) -> Result<[u8; 32], Error> {
+    // Verify the MAC
+    header.verify_mac(hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()))?;
+
+    // Return the payload key
+    Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
+}
 
 /// Callbacks that might be triggered during decryption.
 pub trait Callbacks {
@@ -85,119 +99,52 @@ impl Encryptor {
     }
 }
 
-/// Handles the various types of age decryption.
-pub enum Decryptor {
-    /// Trial decryption against a list of identities.
-    Identities {
-        /// The identities to use.
-        identities: Vec<Identity>,
-        /// A handler for any callbacks triggered by an `Identity`.
-        callbacks: Box<dyn Callbacks>,
-    },
+/// Decryptor for an age file.
+pub enum Decryptor<R: Read> {
+    /// Decryption with a list of identities.
+    Recipients(decryptor::RecipientsDecryptor<R>),
     /// Decryption with a passphrase.
-    Passphrase {
-        /// The passphrase to decrypt with.
-        passphrase: SecretString,
-        /// The maximum accepted work factor. If `None`, the default maximum is adjusted
-        /// to around 16 seconds of work.
-        max_work_factor: Option<u8>,
-    },
+    Passphrase(decryptor::PassphraseDecryptor<R>),
 }
 
-impl Decryptor {
-    /// Creates a decryptor with a list of identities.
-    ///
-    /// The decryptor will have no callbacks registered, so it will be unable to use
-    /// identities that require e.g. a passphrase to decrypt.
-    pub fn with_identities(identities: Vec<Identity>) -> Self {
-        Decryptor::Identities {
-            identities,
-            callbacks: Box::new(NoCallbacks),
-        }
+impl<R: Read> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
+    fn from(decryptor: decryptor::RecipientsDecryptor<R>) -> Self {
+        Decryptor::Recipients(decryptor)
     }
+}
 
-    /// Creates a decryptor with a list of identities and a callback handler.
-    ///
-    /// The decryptor will have no callbacks registered, so it will be unable to use
-    /// identities that require e.g. a passphrase to decrypt.
-    pub fn with_identities_and_callbacks(
-        identities: Vec<Identity>,
-        callbacks: Box<dyn Callbacks>,
-    ) -> Self {
-        Decryptor::Identities {
-            identities,
-            callbacks,
-        }
+impl<R: Read> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
+    fn from(decryptor: decryptor::PassphraseDecryptor<R>) -> Self {
+        Decryptor::Passphrase(decryptor)
     }
+}
 
-    /// Creates a decryptor with a passphrase and the default max work factor.
-    pub fn with_passphrase(passphrase: SecretString) -> Self {
-        Decryptor::Passphrase {
-            passphrase,
-            max_work_factor: None,
-        }
-    }
-
-    fn unwrap_file_key(&self, line: &RecipientLine) -> Result<Option<FileKey>, Error> {
-        match (self, line) {
-            (Decryptor::Identities { .. }, RecipientLine::Scrypt(_)) => {
-                Err(Error::MessageRequiresPassphrase)
-            }
-            (
-                Decryptor::Identities {
-                    identities,
-                    callbacks,
-                },
-                _,
-            ) => identities
-                .iter()
-                .find_map(|key| key.unwrap_file_key(line, callbacks.as_ref()))
-                .transpose(),
-            (
-                Decryptor::Passphrase {
-                    passphrase,
-                    max_work_factor,
-                },
-                RecipientLine::Scrypt(s),
-            ) => s.unwrap_file_key(passphrase, *max_work_factor),
-            (Decryptor::Passphrase { .. }, _) => Err(Error::MessageRequiresKeys),
-        }
-    }
-
-    /// Attempts to decrypt a message from the given reader.
+impl<R: Read> Decryptor<R> {
+    /// Attempts to create a decryptor for an age file.
     ///
-    /// `request_passphrase` is a closure that will be called when an underlying key needs
-    /// to be decrypted before it can be used to decrypt the message.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn trial_decrypt<R: Read>(&self, input: R) -> Result<StreamReader<R>, Error> {
+    /// Returns an error if the input does not contain a valid age file.
+    pub fn new(input: R) -> Result<Self, Error> {
         let mut input = ArmoredReader::from_reader(input);
+        let header = Header::read(&mut input)?;
 
-        match Header::read(&mut input)? {
-            Header::V1(header) => {
-                let mut nonce = [0; 16];
-                input.read_exact(&mut nonce)?;
+        match &header {
+            Header::V1(v1_header) => {
+                // Enforce structural requirements on the v1 header.
+                let any_scrypt = v1_header.recipients.iter().any(|r| {
+                    if let RecipientLine::Scrypt(_) = r {
+                        true
+                    } else {
+                        false
+                    }
+                });
 
-                header
-                    .recipients
-                    .iter()
-                    .find_map(|r| {
-                        self.unwrap_file_key(r).transpose().map(|res| {
-                            res.and_then(|file_key| {
-                                // Verify the MAC
-                                header.verify_mac(hkdf(
-                                    &[],
-                                    HEADER_KEY_LABEL,
-                                    file_key.0.expose_secret(),
-                                ))?;
-
-                                // Return the payload key
-                                Ok(hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret()))
-                            })
-                        })
-                    })
-                    .unwrap_or(Err(Error::NoMatchingKeys))
-                    .map(|payload_key| Stream::decrypt(&payload_key, input))
+                if any_scrypt && v1_header.recipients.len() == 1 {
+                    Ok(decryptor::PassphraseDecryptor::new(input, header).into())
+                } else if !any_scrypt {
+                    Ok(decryptor::RecipientsDecryptor::new(input, header).into())
+                } else {
+                    Err(Error::InvalidHeader)
+                }
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
         }
@@ -229,8 +176,11 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = Decryptor::with_identities(sk);
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let d = match Decryptor::new(&encrypted[..]) {
+            Ok(Decryptor::Recipients(d)) => d,
+            _ => panic!(),
+        };
+        let mut r = d.decrypt(&sk).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
@@ -249,8 +199,13 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = Decryptor::with_passphrase(SecretString::new("passphrase".to_string()));
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let d = match Decryptor::new(&encrypted[..]) {
+            Ok(Decryptor::Passphrase(d)) => d,
+            _ => panic!(),
+        };
+        let mut r = d
+            .decrypt(&SecretString::new("passphrase".to_string()), None)
+            .unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
@@ -274,8 +229,11 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = Decryptor::with_identities(sk);
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let d = match Decryptor::new(&encrypted[..]) {
+            Ok(Decryptor::Recipients(d)) => d,
+            _ => panic!(),
+        };
+        let mut r = d.decrypt(&sk).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
@@ -298,8 +256,11 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = Decryptor::with_identities(sk);
-        let mut r = d.trial_decrypt(&encrypted[..]).unwrap();
+        let d = match Decryptor::new(&encrypted[..]) {
+            Ok(Decryptor::Recipients(d)) => d,
+            _ => panic!(),
+        };
+        let mut r = d.decrypt(&sk).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 

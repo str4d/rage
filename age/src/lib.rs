@@ -34,10 +34,13 @@
 //!
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
 //! let decrypted = {
-//!     let decryptor = age::Decryptor::with_identities(vec![key.into()]);
+//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
+//!         age::Decryptor::Recipients(d) => d,
+//!         _ => unreachable!(),
+//!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
+//!     let mut reader = decryptor.decrypt(&[key.into()])?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -74,10 +77,13 @@
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
 //! let decrypted = {
-//!     let decryptor = age::Decryptor::with_passphrase(Secret::new(passphrase.to_owned()));
+//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
+//!         age::Decryptor::Passphrase(d) => d,
+//!         _ => unreachable!(),
+//!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.trial_decrypt(&encrypted[..])?;
+//!     let mut reader = decryptor.decrypt(&Secret::new(passphrase.to_owned()), None)?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -112,7 +118,7 @@ mod util;
 pub use error::Error;
 pub use keys::SecretKey;
 pub use primitives::stream::StreamReader;
-pub use protocol::{Callbacks, Decryptor, Encryptor};
+pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;
