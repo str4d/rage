@@ -213,7 +213,7 @@ fn rage_mount_page() {
         .example(
             Example::new()
                 .text("Mounting an archive with custom keys")
-                .command("rage-mount -t tar encrypted.tar.age ./tmp key.txt"),
+                .command("rage-mount -t tar -i key.txt encrypted.tar.age ./tmp"),
         )
         .example(
             Example::new()
