@@ -127,9 +127,12 @@ pub mod cli_common;
 #[cfg(fuzzing)]
 pub fn fuzz_header(data: &[u8]) {
     if let Ok(header) = format::Header::read(data) {
-        let mut buf = Vec::with_capacity(data.len());
-        if let Ok(_) = header.write(&mut buf) {
-            assert_eq!(buf, data);
+        if let format::Header::Unknown(_) = header {
+            // Unknown headers cause panics on write.
+        } else {
+            let mut buf = Vec::with_capacity(data.len());
+            header.write(&mut buf).expect("can write header");
+            assert_eq!(&buf[..], &data[..buf.len()]);
         }
     }
 }
