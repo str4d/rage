@@ -32,5 +32,5 @@ name = "header"
 path = "fuzz_targets/header.rs"
 
 [[bin]]
-name = "trial_decrypt"
-path = "fuzz_targets/trial_decrypt.rs"
+name = "decrypt"
+path = "fuzz_targets/decrypt.rs"
