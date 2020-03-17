@@ -27,6 +27,8 @@ to 1.0.0 are beta releases.
   in the API for documentation purposes.
 - `age::Encryptor` is now an opaque struct, and must be created via its new
   constructors.
+- `age::Encryptor::wrap_output` now consumes `self`, making it harder to
+  accidentally reuse a passphrase for multiple encrypted files.
 
 ### Removed
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).

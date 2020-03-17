@@ -57,7 +57,7 @@ enum EncryptorType {
 }
 
 impl EncryptorType {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Vec<RecipientLine> {
+    fn wrap_file_key(self, file_key: &FileKey) -> Vec<RecipientLine> {
         match self {
             EncryptorType::Keys(recipients) => recipients
                 .iter()
@@ -66,7 +66,7 @@ impl EncryptorType {
                 .chain(iter::once(oil_the_joint()))
                 .collect(),
             EncryptorType::Passphrase(passphrase) => {
-                vec![scrypt::RecipientLine::wrap_file_key(file_key, passphrase).into()]
+                vec![scrypt::RecipientLine::wrap_file_key(file_key, &passphrase).into()]
             }
         }
     }
@@ -101,7 +101,7 @@ impl Encryptor {
     /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
-    pub fn wrap_output<W: Write>(&self, output: W, format: Format) -> io::Result<StreamWriter<W>> {
+    pub fn wrap_output<W: Write>(self, output: W, format: Format) -> io::Result<StreamWriter<W>> {
         let mut output = ArmoredWriter::wrap_output(output, format)?;
 
         let file_key = FileKey::generate();
