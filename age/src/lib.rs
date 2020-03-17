@@ -22,7 +22,7 @@
 //!
 //! // Encrypt the plaintext to a ciphertext...
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::Keys(vec![pubkey]);
+//!     let encryptor = age::Encryptor::with_recipients(vec![pubkey]);
 //!
 //!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
@@ -65,7 +65,7 @@
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::Passphrase(Secret::new(passphrase.to_owned()));
+//!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;

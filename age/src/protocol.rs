@@ -49,26 +49,48 @@ impl Callbacks for NoCallbacks {
 }
 
 /// Handles the various types of age encryption.
-pub enum Encryptor {
+enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
     Keys(Vec<RecipientKey>),
     /// Encryption to a passphrase.
     Passphrase(SecretString),
 }
 
-impl Encryptor {
+impl EncryptorType {
     fn wrap_file_key(&self, file_key: &FileKey) -> Vec<RecipientLine> {
         match self {
-            Encryptor::Keys(recipients) => recipients
+            EncryptorType::Keys(recipients) => recipients
                 .iter()
                 .map(|key| key.wrap_file_key(file_key))
                 // Keep the joint well oiled!
                 .chain(iter::once(oil_the_joint()))
                 .collect(),
-            Encryptor::Passphrase(passphrase) => {
+            EncryptorType::Passphrase(passphrase) => {
                 vec![scrypt::RecipientLine::wrap_file_key(file_key, passphrase).into()]
             }
         }
+    }
+}
+
+/// Encryptor for creating an age file.
+pub struct Encryptor(EncryptorType);
+
+impl Encryptor {
+    /// Returns an `Encryptor` that will create an age file encrypted to a list of
+    /// recipients.
+    pub fn with_recipients(recipients: Vec<RecipientKey>) -> Self {
+        Encryptor(EncryptorType::Keys(recipients))
+    }
+
+    /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
+    ///
+    /// This API should only be used with a passphrase that was provided by (or generated
+    /// for) a human. For programmatic use cases, instead generate a [`SecretKey`] and
+    /// then use [`Encryptor::with_recipients`].
+    ///
+    /// [`SecretKey`]: crate::keys::SecretKey
+    pub fn with_user_passphrase(passphrase: SecretString) -> Self {
+        Encryptor(EncryptorType::Passphrase(passphrase))
     }
 
     /// Creates a wrapper around a writer that will encrypt its input, and optionally
@@ -85,7 +107,7 @@ impl Encryptor {
         let file_key = FileKey::generate();
 
         let header = Header::new(
-            self.wrap_file_key(&file_key),
+            self.0.wrap_file_key(&file_key),
             hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
         );
         header.write(&mut output)?;
@@ -169,7 +191,7 @@ mod tests {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::Keys(vec![pk]);
+        let e = Encryptor::with_recipients(vec![pk]);
         {
             let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
@@ -192,7 +214,7 @@ mod tests {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::Passphrase(SecretString::new("passphrase".to_string()));
+        let e = Encryptor::with_user_passphrase(SecretString::new("passphrase".to_string()));
         {
             let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
@@ -222,7 +244,7 @@ mod tests {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::Keys(vec![pk]);
+        let e = Encryptor::with_recipients(vec![pk]);
         {
             let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();
@@ -249,7 +271,7 @@ mod tests {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::Keys(vec![pk]);
+        let e = Encryptor::with_recipients(vec![pk]);
         {
             let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
             w.write_all(test_msg).unwrap();

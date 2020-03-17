@@ -15,6 +15,8 @@ to 1.0.0 are beta releases.
 - `age::decryptor` module containing the context-specific decryptors.
   - Their decryption methods return the concrete type `StreamReader<R>`,
     enabling them to handle seekable readers.
+- `age::Encryptor::with_recipients(Vec<RecipientKey>)`
+- `age::Encryptor::with_user_passphrase(SecretString)`
 
 ### Changed
 - `age::Decryptor` has been refactored to auto-detect the decryption type. As a
@@ -23,6 +25,8 @@ to 1.0.0 are beta releases.
 - `age::StreamReader` has been moved into the `age::stream` module, along with
   `StreamWriter` which was previously public but has now been formally exposed
   in the API for documentation purposes.
+- `age::Encryptor` is now an opaque struct, and must be created via its new
+  constructors.
 
 ### Removed
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).
