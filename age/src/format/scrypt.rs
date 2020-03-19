@@ -2,7 +2,7 @@ use age_core::format::AgeStanza;
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::convert::TryInto;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use crate::{
     error::Error,
@@ -25,9 +25,22 @@ fn target_scrypt_work_factor() -> u8 {
     // Time a work factor that should always be fast.
     let mut log_n = 10;
 
-    let start = SystemTime::now();
-    scrypt(&[], log_n, "").expect("log_n < 64");
-    let duration = SystemTime::now().duration_since(start);
+    let duration: Option<Duration> = {
+        // Platforms that have a functional SystemTime::now():
+        #[cfg(not(all(target_arch = "wasm32", not(target_os = "wasi"))))]
+        {
+            use std::time::SystemTime;
+            let start = SystemTime::now();
+            scrypt(&[], log_n, "").expect("log_n < 64");
+            SystemTime::now().duration_since(start).ok()
+        }
+
+        // Platforms where SystemTime::now() panics:
+        #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+        {
+            None
+        }
+    };
 
     duration
         .map(|mut d| {
