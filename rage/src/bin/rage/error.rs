@@ -2,6 +2,7 @@ use std::fmt;
 use std::io;
 
 pub(crate) enum EncryptError {
+    BrokenPipe { is_stdout: bool, source: io::Error },
     IdentityFlag,
     InvalidRecipient(String),
     Io(io::Error),
@@ -28,6 +29,17 @@ impl From<minreq::Error> for EncryptError {
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EncryptError::BrokenPipe { is_stdout, source } => {
+                if *is_stdout {
+                    writeln!(f, "Could not write to stdout: {}", source)?;
+                    write!(
+                        f,
+                        "Are you piping to a program that isn't reading from stdin?"
+                    )
+                } else {
+                    write!(f, "Could not write to file: {}", source)
+                }
+            }
             EncryptError::IdentityFlag => {
                 writeln!(f, "-i/--identity can't be used in encryption mode.")?;
                 write!(f, "Did you forget to specify -d/--decrypt?")

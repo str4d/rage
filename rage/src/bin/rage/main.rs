@@ -256,13 +256,26 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         (Format::Binary, file_io::OutputFormat::Binary)
     };
 
-    let mut output = encryptor.wrap_output(
-        file_io::OutputWriter::new(opts.output, output_format, 0o666)?,
-        format,
-    )?;
+    // Create an output to the user-requested location.
+    let output = file_io::OutputWriter::new(opts.output, output_format, 0o666)?;
+    let is_stdout = match output {
+        file_io::OutputWriter::File(..) => false,
+        file_io::OutputWriter::Stdout(..) => true,
+    };
 
-    io::copy(&mut input, &mut output)?;
-    output.finish()?;
+    let mut output = encryptor.wrap_output(output, format)?;
+
+    // Give more useful errors specifically when writing to the output.
+    let map_io_errors = |e: io::Error| match e.kind() {
+        io::ErrorKind::BrokenPipe => error::EncryptError::BrokenPipe {
+            is_stdout,
+            source: e,
+        },
+        _ => e.into(),
+    };
+
+    io::copy(&mut input, &mut output).map_err(map_io_errors)?;
+    output.finish().map_err(map_io_errors)?;
 
     Ok(())
 }
