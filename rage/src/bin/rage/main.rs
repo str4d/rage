@@ -324,18 +324,18 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                     .decrypt(&passphrase, opts.max_work_factor)
                     .map_err(|e| e.into())
                     .and_then(|input| write_output(input, output)),
-                Err(pinentry::Error::Cancelled) => return Ok(()),
+                Err(pinentry::Error::Cancelled) => Ok(()),
                 Err(pinentry::Error::Timeout) => {
-                    return Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
+                    Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
                 }
                 Err(pinentry::Error::Gpg(e)) => {
                     // Pretend it is an I/O error
-                    return Err(error::DecryptError::Io(io::Error::new(
+                    Err(error::DecryptError::Io(io::Error::new(
                         io::ErrorKind::Other,
                         format!("{}", e),
-                    )));
+                    )))
                 }
-                Err(pinentry::Error::Io(e)) => return Err(error::DecryptError::Io(e)),
+                Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e)),
             }
         }
         age::Decryptor::Recipients(decryptor) => {

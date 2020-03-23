@@ -30,6 +30,7 @@ pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 
 /// OpenSSH-supported ciphers.
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug)]
 enum OpenSshCipher {
     Aes256Cbc,
