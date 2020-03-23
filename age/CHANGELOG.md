@@ -17,6 +17,8 @@ to 1.0.0 are beta releases.
     enabling them to handle seekable readers.
 - `age::Encryptor::with_recipients(Vec<RecipientKey>)`
 - `age::Encryptor::with_user_passphrase(SecretString)`
+- Support for encrypted OpenSSH keys created with `ssh-keygen` prior to OpenSSH
+  7.6.
 
 ### Changed
 - `age::Decryptor` has been refactored to auto-detect the decryption type. As a

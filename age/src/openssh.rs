@@ -1,5 +1,6 @@
 //! Parser for OpenSSH public and private key formats.
 
+use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use nom::{
@@ -31,6 +32,7 @@ pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 /// OpenSSH-supported ciphers.
 #[derive(Clone, Copy, Debug)]
 enum OpenSshCipher {
+    Aes256Cbc,
     Aes128Ctr,
     Aes192Ctr,
     Aes256Ctr,
@@ -39,6 +41,7 @@ enum OpenSshCipher {
 impl OpenSshCipher {
     fn decrypt(self, kdf: &OpenSshKdf, p: SecretString, ct: &[u8]) -> Result<Vec<u8>, Error> {
         match self {
+            OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256>(kdf, p, ct, 32),
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
             OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
@@ -87,9 +90,27 @@ impl EncryptedOpenSshKey {
 
 mod decrypt {
     use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
+    use block_cipher_trait::BlockCipher;
+    use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
     use secrecy::SecretString;
 
     use super::OpenSshKdf;
+    use crate::error::Error;
+
+    pub(super) fn aes_cbc<C: BlockCipher>(
+        kdf: &OpenSshKdf,
+        passphrase: SecretString,
+        ciphertext: &[u8],
+        key_len: usize,
+    ) -> Result<Vec<u8>, Error> {
+        let kdf_output = kdf.derive(passphrase, key_len + 16);
+        let (key, iv) = kdf_output.split_at(key_len);
+
+        let cipher = Cbc::<C, NoPadding>::new_var(key, iv).expect("key and IV are correct length");
+        cipher
+            .decrypt_vec(&ciphertext)
+            .map_err(|_| Error::KeyDecryptionFailed)
+    }
 
     pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(
         kdf: &OpenSshKdf,
@@ -314,6 +335,9 @@ mod read_ssh {
             map(
                 tuple((
                     alt((
+                        map(string_tag("aes256-cbc"), |_| {
+                            CipherResult::Supported(OpenSshCipher::Aes256Cbc)
+                        }),
                         map(string_tag("aes128-ctr"), |_| {
                             CipherResult::Supported(OpenSshCipher::Aes128Ctr)
                         }),
