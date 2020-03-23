@@ -6,8 +6,6 @@ use std::io;
 /// The various errors that can be returned during the decryption process.
 #[derive(Debug)]
 pub enum Error {
-    /// Seeking was attempted on an ASCII-armored encrypted message, which is unsupported.
-    ArmoredWhenSeeking,
     /// The message failed to decrypt.
     DecryptionFailed,
     /// The message used an excessive work factor for passphrase encryption.
@@ -25,10 +23,6 @@ pub enum Error {
     Io(io::Error),
     /// Failed to decrypt an encrypted key.
     KeyDecryptionFailed,
-    /// The provided message requires keys to decrypt.
-    MessageRequiresKeys,
-    /// The provided message requires a passphrase to decrypt.
-    MessageRequiresPassphrase,
     /// None of the provided keys could be used to decrypt the message.
     NoMatchingKeys,
     /// An unknown age format, probably from a newer version.
@@ -38,7 +32,6 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ArmoredWhenSeeking => write!(f, "Armored messages not supported for seeking"),
             Error::DecryptionFailed => write!(f, "Decryption failed"),
             Error::ExcessiveWork { required, target } => {
                 writeln!(f, "Excessive work parameter for passphrase.")?;
@@ -52,10 +45,6 @@ impl fmt::Display for Error {
             Error::InvalidMac => write!(f, "Header MAC is invalid"),
             Error::Io(e) => e.fmt(f),
             Error::KeyDecryptionFailed => write!(f, "Failed to decrypt an encrypted key"),
-            Error::MessageRequiresKeys => write!(f, "This message requires keys to decrypt"),
-            Error::MessageRequiresPassphrase => {
-                write!(f, "This message requires a passphrase to decrypt")
-            }
             Error::NoMatchingKeys => write!(f, "No matching keys found"),
             Error::UnknownFormat => {
                 writeln!(f, "Unknown age format.")?;
