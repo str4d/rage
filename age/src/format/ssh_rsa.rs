@@ -49,7 +49,7 @@ impl RecipientLine {
             &mut h,
             Some(SSH_RSA_OAEP_LABEL.to_owned()),
         )
-        .expect("pubkey is valid and message is not too long");
+        .expect("pubkey is valid and file key is not too long");
 
         RecipientLine {
             tag: ssh_tag(&ssh_key),

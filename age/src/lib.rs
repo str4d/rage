@@ -1,4 +1,4 @@
-//! *Library for encrypting and decryping age messages*
+//! *Library for encrypting and decryping age files*
 //!
 //! age is a simple, secure, and modern encryption tool with small explicit keys, no
 //! config options, and UNIX-style composability.

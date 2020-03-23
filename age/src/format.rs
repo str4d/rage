@@ -1,4 +1,4 @@
-//! The age message format.
+//! The age file format.
 
 use rand::{
     distributions::{Distribution, Uniform},
