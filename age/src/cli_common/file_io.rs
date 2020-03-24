@@ -206,6 +206,14 @@ impl OutputWriter {
 
         Ok(OutputWriter::Stdout(StdoutWriter::new(format, is_tty)))
     }
+
+    /// Returns true if this output is to a terminal, and a user will likely see it.
+    pub fn is_terminal(&self) -> bool {
+        match self {
+            OutputWriter::File(..) => false,
+            OutputWriter::Stdout(w) => w.is_tty,
+        }
+    }
 }
 
 impl Write for OutputWriter {

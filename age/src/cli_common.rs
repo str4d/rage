@@ -39,10 +39,15 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities<E, F>(filenames: Vec<String>, no_default: F) -> Result<Vec<Identity>, E>
+pub fn read_identities<E, F, G>(
+    filenames: Vec<String>,
+    no_default: F,
+    file_not_found: G,
+) -> Result<Vec<Identity>, E>
 where
     E: From<io::Error>,
     F: FnOnce(&str) -> E,
+    G: Fn(String) -> E,
 {
     let mut identities = vec![];
 
@@ -61,7 +66,12 @@ where
         identities.extend(Identity::from_buffer(buf)?);
     } else {
         for filename in filenames {
-            identities.extend(Identity::from_file(filename)?);
+            identities.extend(Identity::from_file(filename.clone()).map_err(
+                |e| match e.kind() {
+                    io::ErrorKind::NotFound => file_not_found(filename),
+                    _ => e.into(),
+                },
+            )?);
         }
     }
 

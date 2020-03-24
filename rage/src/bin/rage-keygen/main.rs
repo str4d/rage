@@ -6,13 +6,13 @@ use std::io::Write;
 
 #[derive(Debug, Options)]
 struct AgeOptions {
-    #[options(help = "print help message")]
+    #[options(help = "Print this help message and exit.")]
     help: bool,
 
-    #[options(help = "print version info and exit", short = "V")]
+    #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
 
-    #[options(help = "output to OUTPUT (default stdout)")]
+    #[options(help = "Write the result to the file at path OUTPUT. Defaults to standard output.")]
     output: Option<String>,
 }
 
@@ -36,14 +36,19 @@ fn main() {
         };
 
     let sk = age::keys::SecretKey::generate();
+    let pk = sk.to_public();
 
     if let Err(e) = (|| {
+        if !output.is_terminal() {
+            eprintln!("Public key: {}", pk);
+        }
+
         writeln!(
             output,
             "# created: {}",
             chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )?;
-        writeln!(output, "# public key: {}", sk.to_public())?;
+        writeln!(output, "# public key: {}", pk)?;
         writeln!(output, "{}", sk.to_string().expose_secret())
     })() {
         error!("Failed to write to output: {}", e);

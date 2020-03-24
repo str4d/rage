@@ -19,6 +19,7 @@ to 1.0.0 are beta releases.
 - `age::Encryptor::with_user_passphrase(SecretString)`
 - Support for encrypted OpenSSH keys created with `ssh-keygen` prior to OpenSSH
   7.6.
+- `age::cli_common::file_io::OutputWriter::is_terminal`
 
 ### Changed
 - `age::Decryptor` has been refactored to auto-detect the decryption type. As a
@@ -31,6 +32,8 @@ to 1.0.0 are beta releases.
   constructors.
 - `age::Encryptor::wrap_output` now consumes `self`, making it harder to
   accidentally reuse a passphrase for multiple encrypted files.
+- `age::cli_common::read_identities` now takes an additional `file_not_found`
+  parameter for customising the error when an identity filename is not found.
 
 ### Removed
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).

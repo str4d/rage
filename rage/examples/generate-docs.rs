@@ -22,62 +22,62 @@ fn rage_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .flag(
             Flag::new()
                 .short("-d")
                 .long("--decrypt")
-                .help("Decrypt the input (default is to encrypt)"),
+                .help("Decrypt the input. By default, the input is encrypted."),
         )
         .flag(
             Flag::new()
                 .short("-p")
                 .long("--passphrase")
-                .help("Use a passphrase instead of public keys"),
+                .help("Encrypt with a passphrase instead of recipients."),
         )
         .flag(
             Flag::new()
                 .short("-a")
                 .long("--armor")
-                .help("Create ASCII armored output (default is age binary format)"),
+                .help("Encrypt to a PEM encoded format."),
         )
         .option(
-            Opt::new("recipient")
+            Opt::new("RECIPIENT")
                 .short("-r")
                 .long("--recipient")
-                .help("A recipient to encrypt to (can be repeated)"),
+                .help("Encrypt to the specified RECIPIENT. May be repeated."),
         )
         .option(
-            Opt::new("identity")
+            Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
-                .help("An identity to decrypt with (can be repeated)"),
+                .help("Use the private key file at IDENTITY. May be repeated."),
         )
         .option(
-            Opt::new("output")
+            Opt::new("OUTPUT")
                 .short("-o")
                 .long("--output")
-                .help("The file path to write output to (defaults to stdout)"),
+                .help("Write the result to the file at path OUTPUT. Defaults to standard output."),
         )
         .option(
             Opt::new("WF")
                 .long("--max-work-factor")
-                .help("The maximum work factor to allow for passphrase decryption"),
+                .help("The maximum work factor to allow for passphrase decryption."),
         )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
-        .example(Example::new().text("Encryption to a public key").command(
+        .example(Example::new().text("Encryption to a recipient").command(
             "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",
         ))
         .example(
             Example::new()
-                .text("Encryption to multiple public keys (with default output to stdout)")
+                .text("Encryption to multiple recipients (with default output to stdout)")
                 .command(
                     "echo \"_o/\" | rage -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
                      -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum > hello.age",
@@ -85,7 +85,7 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Encryption with a password (interactive only, use public keys for batch!)")
+                .text("Encryption with a password (interactive only, use recipients for batch!)")
                 .command("rage -p -o hello.txt.age hello.txt")
                 .output("Type passphrase:"),
         )
@@ -104,21 +104,21 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Decryption with keys at ~/.config/age/keys.txt")
+                .text("Decryption with identities at ~/.config/age/keys.txt")
                 .command("rage --decrypt hello.age")
                 .output("_o/"),
         )
         .example(
             Example::new()
-                .text("Decryption with custom keys")
+                .text("Decryption with custom identities")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
         );
     #[cfg(feature = "unstable")]
     let builder = builder
         .option(
-            Opt::new("aliases")
+            Opt::new("ALIASES")
                 .long("--aliases")
-                .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
+                .help("Load the aliases list from ALIASES. Defaults to ~/.config/age/aliases.txt"),
         )
         .example(
             Example::new()
@@ -146,19 +146,18 @@ fn rage_keygen_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .option(
-            Opt::new("output")
-                .short("-o")
-                .long("--output")
-                .help("The file path to write the key pair to (defaults to stdout)"),
+            Opt::new("OUTPUT").short("-o").long("--output").help(
+                "Write the key pair to the file at path OUTPUT. Defaults to standard output.",
+            ),
         )
         .example(
             Example::new()
@@ -168,7 +167,10 @@ fn rage_keygen_page() {
         .example(
             Example::new()
                 .text("Generate a new key pair and save it to a file")
-                .command("rage-keygen -o key.txt"),
+                .command("rage-keygen -o key.txt")
+                .output(
+                    "Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+                ),
         )
         .render();
 
@@ -183,25 +185,25 @@ fn rage_mount_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .flag(
             Flag::new()
                 .short("-t")
                 .long("--types")
-                .help("The type of the filesystem (one of \"tar\", \"zip\")"),
+                .help("The type of the filesystem (one of \"tar\", \"zip\")."),
         )
         .option(
-            Opt::new("identity")
+            Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
-                .help("An identity to decrypt with (can be repeated)"),
+                .help("Use the private key file at IDENTITY. May be repeated."),
         )
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
