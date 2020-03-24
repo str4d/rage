@@ -79,29 +79,29 @@ impl fmt::Debug for Error {
 
 #[derive(Debug, Options)]
 struct AgeMountOptions {
-    #[options(free, help = "The encrypted filesystem to mount")]
+    #[options(free, help = "The encrypted filesystem to mount.")]
     filename: String,
 
-    #[options(free, help = "The directory to mount the filesystem at")]
+    #[options(free, help = "The directory to mount the filesystem at.")]
     mountpoint: String,
 
-    #[options(help = "print help message")]
+    #[options(help = "Print this help message and exit.")]
     help: bool,
 
-    #[options(help = "print version info and exit", short = "V")]
+    #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
 
-    #[options(help = "indicates the filesystem type (one of \"tar\", \"zip\")")]
+    #[options(help = "Indicates the filesystem type (one of \"tar\", \"zip\").")]
     types: String,
 
     #[options(
-        help = "maximum work factor to allow for passphrase decryption",
+        help = "Maximum work factor to allow for passphrase decryption.",
         meta = "WF",
         no_short
     )]
     max_work_factor: Option<u8>,
 
-    #[options(help = "identity to decrypt with (may be repeated)")]
+    #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 }
 

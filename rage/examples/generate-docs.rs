@@ -146,19 +146,18 @@ fn rage_keygen_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .option(
-            Opt::new("output")
-                .short("-o")
-                .long("--output")
-                .help("The file path to write the key pair to (defaults to stdout)"),
+            Opt::new("OUTPUT").short("-o").long("--output").help(
+                "Write the key pair to the file at path OUTPUT. Defaults to standard output.",
+            ),
         )
         .example(
             Example::new()
@@ -186,25 +185,25 @@ fn rage_mount_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .flag(
             Flag::new()
                 .short("-t")
                 .long("--types")
-                .help("The type of the filesystem (one of \"tar\", \"zip\")"),
+                .help("The type of the filesystem (one of \"tar\", \"zip\")."),
         )
         .option(
-            Opt::new("identity")
+            Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
-                .help("An identity to decrypt with (can be repeated)"),
+                .help("Use the private key file at IDENTITY. May be repeated."),
         )
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
