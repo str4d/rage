@@ -72,12 +72,12 @@ fn rage_page() {
                 .help("The maximum work factor to allow for passphrase decryption."),
         )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
-        .example(Example::new().text("Encryption to a public key").command(
+        .example(Example::new().text("Encryption to a recipient").command(
             "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",
         ))
         .example(
             Example::new()
-                .text("Encryption to multiple public keys (with default output to stdout)")
+                .text("Encryption to multiple recipients (with default output to stdout)")
                 .command(
                     "echo \"_o/\" | rage -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
                      -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum > hello.age",
@@ -85,7 +85,7 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Encryption with a password (interactive only, use public keys for batch!)")
+                .text("Encryption with a password (interactive only, use recipients for batch!)")
                 .command("rage -p -o hello.txt.age hello.txt")
                 .output("Type passphrase:"),
         )
@@ -104,13 +104,13 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Decryption with keys at ~/.config/age/keys.txt")
+                .text("Decryption with identities at ~/.config/age/keys.txt")
                 .command("rage --decrypt hello.age")
                 .output("_o/"),
         )
         .example(
             Example::new()
-                .text("Decryption with custom keys")
+                .text("Decryption with custom identities")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
         );
     #[cfg(feature = "unstable")]
