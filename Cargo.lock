@@ -56,11 +56,11 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "aes 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "age-core 0.3.1",
+ "age-core 0.4.0",
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bcrypt-pbkdf 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1116,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "rage"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
- "age 0.3.1",
+ "age 0.4.0",
  "chrono 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 3.0.0-beta.1 (git+https://github.com/clap-rs/clap?rev=bc738e12c223666ac84fe29c74c21b4e276c5e59)",
  "clap_generate 3.0.0-beta.1 (git+https://github.com/clap-rs/clap?rev=bc738e12c223666ac84fe29c74c21b4e276c5e59)",

@@ -8,6 +8,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.4.0] - 2020-03-25
+No changes; version bumped to keep it in sync with `age`.
+
 ## [0.3.1] - 2020-02-11
 ### Fixed
 - Bumped dependencies to `cookie-factory ^0.3.1` to fix nightly builds.

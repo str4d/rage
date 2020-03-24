@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.4.0] - 2020-03-25
 ### Added
 - `rage-mount` can now mount ASCII-armored age files.
 

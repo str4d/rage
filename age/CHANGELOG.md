@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.4.0] - 2020-03-25
 ### Added
 - `age::Decryptor::new(R: Read)`, which parses an age file header and returns
   a context-specific decryptor.
