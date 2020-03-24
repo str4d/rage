@@ -36,14 +36,19 @@ fn main() {
         };
 
     let sk = age::keys::SecretKey::generate();
+    let pk = sk.to_public();
 
     if let Err(e) = (|| {
+        if !output.is_terminal() {
+            eprintln!("Public key: {}", pk);
+        }
+
         writeln!(
             output,
             "# created: {}",
             chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )?;
-        writeln!(output, "# public key: {}", sk.to_public())?;
+        writeln!(output, "# public key: {}", pk)?;
         writeln!(output, "{}", sk.to_string().expose_secret())
     })() {
         error!("Failed to write to output: {}", e);

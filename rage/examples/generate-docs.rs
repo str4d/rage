@@ -168,7 +168,10 @@ fn rage_keygen_page() {
         .example(
             Example::new()
                 .text("Generate a new key pair and save it to a file")
-                .command("rage-keygen -o key.txt"),
+                .command("rage-keygen -o key.txt")
+                .output(
+                    "Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+                ),
         )
         .render();
 

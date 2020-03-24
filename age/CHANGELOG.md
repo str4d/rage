@@ -19,6 +19,7 @@ to 1.0.0 are beta releases.
 - `age::Encryptor::with_user_passphrase(SecretString)`
 - Support for encrypted OpenSSH keys created with `ssh-keygen` prior to OpenSSH
   7.6.
+- `age::cli_common::file_io::OutputWriter::is_terminal`
 
 ### Changed
 - `age::Decryptor` has been refactored to auto-detect the decryption type. As a
