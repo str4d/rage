@@ -15,6 +15,7 @@ mod zip;
 
 enum Error {
     Age(age::Error),
+    IdentityNotFound(String),
     Io(io::Error),
     MissingFilename,
     MissingIdentities(String),
@@ -48,6 +49,7 @@ impl fmt::Debug for Error {
                 }
                 _ => write!(f, "{}", e),
             },
+            Error::IdentityNotFound(filename) => write!(f, "Identity file not found: {}", filename),
             Error::Io(e) => writeln!(f, "{}", e),
             Error::MissingFilename => writeln!(f, "Missing filename"),
             Error::MissingIdentities(default_filename) => {
@@ -190,9 +192,11 @@ fn main() -> Result<(), Error> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(opts.identity, |default_filename| {
-                Error::MissingIdentities(default_filename.to_string())
-            })?;
+            let identities = read_identities(
+                opts.identity,
+                |default_filename| Error::MissingIdentities(default_filename.to_string()),
+                |filename| Error::IdentityNotFound(filename),
+            )?;
 
             // Check for unsupported keys and alert the user
             for identity in &identities {
