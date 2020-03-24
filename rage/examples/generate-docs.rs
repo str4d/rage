@@ -22,54 +22,54 @@ fn rage_page() {
             Flag::new()
                 .short("-h")
                 .long("--help")
-                .help("Display help text and exit"),
+                .help("Display help text and exit."),
         )
         .flag(
             Flag::new()
                 .short("-V")
                 .long("--version")
-                .help("Display version and exit"),
+                .help("Display version info and exit."),
         )
         .flag(
             Flag::new()
                 .short("-d")
                 .long("--decrypt")
-                .help("Decrypt the input (default is to encrypt)"),
+                .help("Decrypt the input. By default, the input is encrypted."),
         )
         .flag(
             Flag::new()
                 .short("-p")
                 .long("--passphrase")
-                .help("Use a passphrase instead of public keys"),
+                .help("Encrypt with a passphrase instead of recipients."),
         )
         .flag(
             Flag::new()
                 .short("-a")
                 .long("--armor")
-                .help("Create ASCII armored output (default is age binary format)"),
+                .help("Encrypt to a PEM encoded format."),
         )
         .option(
-            Opt::new("recipient")
+            Opt::new("RECIPIENT")
                 .short("-r")
                 .long("--recipient")
-                .help("A recipient to encrypt to (can be repeated)"),
+                .help("Encrypt to the specified RECIPIENT. May be repeated."),
         )
         .option(
-            Opt::new("identity")
+            Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
-                .help("An identity to decrypt with (can be repeated)"),
+                .help("Use the private key file at IDENTITY. May be repeated."),
         )
         .option(
-            Opt::new("output")
+            Opt::new("OUTPUT")
                 .short("-o")
                 .long("--output")
-                .help("The file path to write output to (defaults to stdout)"),
+                .help("Write the result to the file at path OUTPUT. Defaults to standard output."),
         )
         .option(
             Opt::new("WF")
                 .long("--max-work-factor")
-                .help("The maximum work factor to allow for passphrase decryption"),
+                .help("The maximum work factor to allow for passphrase decryption."),
         )
         .arg(Arg::new("[INPUT_FILE (defaults to stdin)]"))
         .example(Example::new().text("Encryption to a public key").command(
@@ -116,9 +116,9 @@ fn rage_page() {
     #[cfg(feature = "unstable")]
     let builder = builder
         .option(
-            Opt::new("aliases")
+            Opt::new("ALIASES")
                 .long("--aliases")
-                .help("The list of aliases to load (defaults to ~/.config/age/aliases.txt)"),
+                .help("Load the aliases list from ALIASES. Defaults to ~/.config/age/aliases.txt"),
         )
         .example(
             Example::new()
