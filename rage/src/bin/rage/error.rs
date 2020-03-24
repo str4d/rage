@@ -67,6 +67,7 @@ impl fmt::Display for EncryptError {
 pub(crate) enum DecryptError {
     Age(age::Error),
     ArmorFlag,
+    IdentityNotFound(String),
     Io(io::Error),
     MissingIdentities(String),
     PassphraseFlag,
@@ -102,6 +103,9 @@ impl fmt::Display for DecryptError {
             DecryptError::ArmorFlag => {
                 writeln!(f, "-a/--armor can't be used with -d/--decrypt.")?;
                 write!(f, "Note that armored files are detected automatically.")
+            }
+            DecryptError::IdentityNotFound(filename) => {
+                write!(f, "Identity file not found: {}", filename)
             }
             DecryptError::Io(e) => write!(f, "{}", e),
             DecryptError::MissingIdentities(default_filename) => {

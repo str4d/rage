@@ -32,6 +32,8 @@ to 1.0.0 are beta releases.
   constructors.
 - `age::Encryptor::wrap_output` now consumes `self`, making it harder to
   accidentally reuse a passphrase for multiple encrypted files.
+- `age::cli_common::read_identities` now takes an additional `file_not_found`
+  parameter for customising the error when an identity filename is not found.
 
 ### Removed
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).
