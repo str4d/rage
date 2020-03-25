@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.4.0] - 2020-03-25
 ### Added
 - `age::Decryptor::new(R: Read)`, which parses an age file header and returns
   a context-specific decryptor.
@@ -39,6 +41,9 @@ to 1.0.0 are beta releases.
 - `age::Decryptor::trial_decrypt` (replaced by context-specific decryptors).
 - `age::Decryptor::trial_decrypt_seekable` (merged into the context-specific
   decryptors).
+- `age::Error::ArmoredWhenSeeking`
+- `age::Error::MessageRequiresKeys`
+- `age::Error::MessageRequiresPassphrase`
 
 ### Fixed
 - Key files with Windows line endings are now correctly parsed.

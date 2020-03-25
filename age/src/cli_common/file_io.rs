@@ -11,7 +11,7 @@ use crate::util::LINE_ENDING;
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
 const TRUNCATED_TTY_MSG: &[u8] =
-    b"[truncated; use a pipe, a redirect, or -o/--output to see full message]";
+    b"[truncated; use a pipe, a redirect, or -o/--output to decrypt the entire file]";
 
 #[derive(Debug)]
 struct DenyBinaryOutputError;

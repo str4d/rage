@@ -49,7 +49,7 @@ impl FileKey {
     }
 }
 
-/// A secret key for decrypting an age message.
+/// A secret key for decrypting an age file.
 pub enum SecretKey {
     /// An X25519 secret key.
     X25519(StaticSecret),
@@ -330,7 +330,7 @@ impl Identity {
     }
 }
 
-/// A key that can be used to encrypt an age message to a recipient.
+/// A key that can be used to encrypt a file to a recipient.
 #[derive(Clone, Debug)]
 pub enum RecipientKey {
     /// An X25519 recipient key.

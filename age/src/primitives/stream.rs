@@ -128,7 +128,7 @@ impl Stream {
     }
 }
 
-/// Writes an encrypted age message.
+/// Writes an encrypted age file.
 pub struct StreamWriter<W: Write> {
     stream: Stream,
     inner: ArmoredWriter<W>,
@@ -197,7 +197,7 @@ enum StartPos {
     Explicit(u64),
 }
 
-/// Provides access to a decrypted age message.
+/// Provides access to a decrypted age file.
 pub struct StreamReader<R: Read> {
     stream: Stream,
     inner: ArmoredReader<R>,
@@ -254,14 +254,14 @@ impl<R: Read> Read for StreamReader<R> {
                     // Stream has ended before seeing the last chunk.
                     return Err(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
-                        "message is truncated",
+                        "age file is truncated",
                     ));
                 } else {
                     return Ok(0);
                 }
             }
 
-            // This check works for all cases except when the message is an integer
+            // This check works for all cases except when the age file is an integer
             // multiple of the chunk size. In that case, we try decrypting twice on a
             // decryption failure.
             let last = end < ENCRYPTED_CHUNK_SIZE;
@@ -507,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn stream_fails_to_decrypt_truncated_message() {
+    fn stream_fails_to_decrypt_truncated_file() {
         let key = [7; 32];
         let data = vec![42; 2 * CHUNK_SIZE];
 
