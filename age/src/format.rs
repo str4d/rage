@@ -236,7 +236,9 @@ mod read {
             tag(AGE_MAGIC),
             alt((
                 map(header_v1, Header::V1),
-                map(arbitrary_string, |s| Header::Unknown(s.to_string())),
+                map(terminated(arbitrary_string, newline), |s| {
+                    Header::Unknown(s.to_string())
+                }),
             )),
         )(input)
     }
