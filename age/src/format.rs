@@ -298,7 +298,7 @@ mod write {
     pub(super) fn header<'a, W: 'a + Write>(h: &'a Header) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| match h {
             Header::V1(v1) => header_v1(v1)(w),
-            Header::Unknown(version) => panic!("Cannot write header for version {}", version),
+            Header::Unknown(version) => tuple((slice(AGE_MAGIC), slice(version), string("\n")))(w),
         }
     }
 }
