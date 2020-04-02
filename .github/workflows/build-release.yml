@@ -1,13 +1,10 @@
-name: Publish release binaries
+name: Build binaries and publish release
 
-on:
-  push:
-    tags:
-      - 'v*'
+on: push
 
 jobs:
   build:
-    name: Publish for ${{ matrix.name }}
+    name: Build for ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -62,12 +59,17 @@ jobs:
         with:
           toolchain: 1.37.0
           override: true
+      
+      - name: Test version
+        run: echo ${{steps.get_version.outputs.VERSION}}
+        shell: bash
+
       - name: Add target
         run: rustup target add ${{ matrix.target }}
         if: matrix.target != ''
 
       - name: Install linux build dependencies
-        run: sudo apt install ${{ matrix.build_deps }}
+        run: sudo apt update && sudo apt install ${{ matrix.build_deps }}
         if: matrix.build_deps != ''
 
       - name: Set up .cargo/config
@@ -82,13 +84,18 @@ jobs:
           command: build
           args: --all --release --locked ${{ matrix.build_flags }}
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        shell: bash
+
       - name: Create archive
         run: |
           mkdir -p release/rage
           mv target/${{ matrix.target }}/release/rage* release/rage/
           rm release/rage/*.d
           tar czf ${{ matrix.archive_name }} -C release/ rage/
-        if: matrix.name != 'windows'
+        if: (matrix.name != 'windows' && startsWith(steps.get_version.outputs.VERSION ,'v'))
 
       - name: Create archive [Windows]
         run: |
@@ -98,11 +105,8 @@ jobs:
           cd release/
           7z.exe a ../${{ matrix.archive_name }} rage/
         shell: bash
-        if: matrix.name == 'windows'
+        if: (matrix.name == 'windows' && startsWith(steps.get_version.outputs.VERSION ,'v'))
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Upload archive to release
         uses: svenstaro/upload-release-action@v1-release
         with:
@@ -110,91 +114,6 @@ jobs:
           file: ${{ matrix.archive_name }}
           asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
           tag: ${{ github.ref }}
+        if: (startsWith(steps.get_version.outputs.VERSION ,'v'))
 
-  deb:
-    name: Debian ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        name: [linux, armv7, arm64]
-        include:
-          - name: linux
-            target: x86_64-unknown-linux-gnu
-            build_deps: >
-              libfuse-dev
-              libpcsclite-dev
-            build_flags: --features mount
-
-          - name: armv7
-            target: armv7-unknown-linux-gnueabihf
-            build_deps: >
-              gcc-arm-linux-gnueabihf
-            cargo_config: |
-              [target.armv7-unknown-linux-gnueabihf]
-              linker = "arm-linux-gnueabihf-gcc"
-
-          - name: arm64
-            target: aarch64-unknown-linux-gnu
-            build_deps: >
-              gcc-aarch64-linux-gnu
-            cargo_config: |
-              [target.aarch64-unknown-linux-gnu]
-              linker = "aarch64-linux-gnu-gcc"
-
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.37.0
-          override: true
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
-      - name: cargo install cargo-deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-deb
-
-      - name: Install build dependencies
-        run: sudo apt install ${{ matrix.build_deps }}
-        if: matrix.build_deps != ''
-
-      - name: Set up .cargo/config
-        run: |
-          mkdir .cargo
-          echo '${{ matrix.cargo_config }}' >.cargo/config
-        if: matrix.cargo_config != ''
-
-      - name: cargo build
-        run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
-        working-directory: ./rage
-
-      - name: Generate completions
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --example generate-completions
-
-      - name: Generate manpages
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --example generate-docs
-
-      - name: Update Debian package config for cross-compile
-        run: sed -i '/\/rage-mount/d' rage/Cargo.toml
-        if: matrix.name != 'linux'
-
-      - name: cargo deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: deb
-          args: --package rage --no-build --target ${{ matrix.target }}
-
-      - name: Upload Debian package to release
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/debian/*.deb
-          tag: ${{ github.ref }}
-          file_glob: true
+  
