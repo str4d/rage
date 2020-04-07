@@ -344,7 +344,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                 |default_filename| {
                     error::DecryptError::MissingIdentities(default_filename.to_string())
                 },
-                |filename| error::DecryptError::IdentityNotFound(filename),
+                error::DecryptError::IdentityNotFound,
             )?;
 
             // Check for unsupported keys and alert the user
