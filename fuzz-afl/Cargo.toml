@@ -1,0 +1,14 @@
+[package]
+name = "age-fuzz-afl"
+version = "0.0.0"
+authors = ["Jack Grigg <thestr4d@gmail.com>"]
+publish = false
+edition = "2018"
+
+[dependencies]
+afl = "0.7"
+age = { path = "../age" }
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
