@@ -98,8 +98,12 @@ name = "age-core"
 version = "0.4.0"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "c2-chacha 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chacha20poly1305 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hkdf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

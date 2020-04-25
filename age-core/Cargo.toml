@@ -12,6 +12,18 @@ edition = "2018"
 maintenance = { status = "experimental" }
 
 [dependencies]
+# Dependencies required by the age specification:
+# - Base64 from RFC 4648
 base64 = "0.11"
+
+# - ChaCha20-Poly1305 from RFC 7539
+c2-chacha = "0.2"
+chacha20poly1305 = { version = "0.4", default-features = false, features = ["alloc"] }
+
+# - HKDF from RFC 5869 with SHA-256
+hkdf = "0.8"
+sha2 = "0.8"
+
+# Parsing
 cookie-factory = "0.3.1"
 nom = "5"
