@@ -6,7 +6,7 @@ publish = false
 edition = "2018"
 
 [dependencies]
-afl = "0.7"
+afl = "0.8"
 age = { path = "../age" }
 
 # Prevent this from interfering with workspaces
