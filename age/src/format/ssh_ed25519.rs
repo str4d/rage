@@ -26,12 +26,12 @@ fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
 }
 
 #[derive(Debug)]
-pub(crate) struct RecipientLine {
+pub(crate) struct RecipientStanza {
     pub(crate) tag: [u8; TAG_LEN_BYTES],
-    pub(crate) rest: super::x25519::RecipientLine,
+    pub(crate) rest: super::x25519::RecipientStanza,
 }
 
-impl RecipientLine {
+impl RecipientStanza {
     pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SSH_ED25519_RECIPIENT_TAG {
             return None;
@@ -40,9 +40,9 @@ impl RecipientLine {
         let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
         let epk = base64_arg(stanza.args.get(1)?, [0; super::x25519::EPK_LEN_BYTES])?.into();
 
-        Some(RecipientLine {
+        Some(RecipientStanza {
             tag,
-            rest: super::x25519::RecipientLine {
+            rest: super::x25519::RecipientStanza {
                 epk,
                 encrypted_file_key: stanza.body[..].try_into().ok()?,
             },
@@ -78,9 +78,9 @@ impl RecipientLine {
             key
         };
 
-        RecipientLine {
+        RecipientStanza {
             tag: ssh_tag(&ssh_key),
-            rest: super::x25519::RecipientLine {
+            rest: super::x25519::RecipientStanza {
                 epk,
                 encrypted_file_key,
             },
@@ -141,8 +141,8 @@ pub(super) mod write {
 
     use super::*;
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &'a RecipientLine,
+    pub(crate) fn recipient_stanza<'a, W: 'a + Write>(
+        r: &'a RecipientStanza,
     ) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let encoded_tag = base64::encode_config(&r.tag, base64::STANDARD_NO_PAD);

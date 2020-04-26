@@ -6,7 +6,7 @@ use std::io::Read;
 use super::{v1_payload_key, Callbacks, NoCallbacks};
 use crate::{
     error::Error,
-    format::{Header, RecipientLine},
+    format::{Header, RecipientStanza},
     keys::{FileKey, Identity},
     primitives::{
         armor::ArmoredReader,
@@ -24,7 +24,7 @@ struct BaseDecryptor<R: Read> {
 impl<R: Read> BaseDecryptor<R> {
     fn obtain_payload_key<F>(&mut self, filter: F) -> Result<[u8; 32], Error>
     where
-        F: FnMut(&RecipientLine) -> Option<Result<FileKey, Error>>,
+        F: FnMut(&RecipientStanza) -> Option<Result<FileKey, Error>>,
     {
         match &self.header {
             Header::V1(header) => {
@@ -100,7 +100,7 @@ impl<R: Read> PassphraseDecryptor<R> {
     ) -> Result<StreamReader<R>, Error> {
         self.0
             .obtain_payload_key(|r| {
-                if let RecipientLine::Scrypt(s) = r {
+                if let RecipientStanza::Scrypt(s) = r {
                     s.unwrap_file_key(passphrase, max_work_factor).transpose()
                 } else {
                     None
