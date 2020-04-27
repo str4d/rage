@@ -5,6 +5,7 @@ use chacha20poly1305::{
     ChaChaPoly1305,
 };
 use secrecy::{ExposeSecret, SecretVec};
+use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use super::armor::{ArmoredReader, ArmoredWriter};
@@ -12,6 +13,47 @@ use super::armor::{ArmoredReader, ArmoredWriter};
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
+
+/// The nonce used in age's STREAM encryption.
+///
+/// Structured as an 11 bytes of big endian counter, and 1 byte of last block flag
+/// (`0x00 / 0x01`). We store this in the lower 12 bytes of a `u128`.
+#[derive(Clone, Copy, Default)]
+struct Nonce(u128);
+
+impl Nonce {
+    /// Unsets last-chunk flag.
+    fn set_counter(&mut self, val: u64) {
+        self.0 = u128::from(val) << 8;
+    }
+
+    fn increment_counter(&mut self) {
+        // Increment the 11-byte counter
+        self.0 += 1 << 8;
+        if self.0 >> (8 * 12) != 0 {
+            panic!("We overflowed the nonce!");
+        }
+    }
+
+    fn is_last(&self) -> bool {
+        self.0 & 1 != 0
+    }
+
+    fn set_last(&mut self, last: bool) -> Result<(), ()> {
+        if !self.is_last() {
+            self.0 |= if last { 1 } else { 0 };
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn to_bytes(&self) -> [u8; 12] {
+        self.0.to_be_bytes()[4..]
+            .try_into()
+            .expect("slice is correct length")
+    }
+}
 
 /// `STREAM[key](plaintext)`
 ///
@@ -22,14 +64,14 @@ const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 /// [STREAM]: https://eprint.iacr.org/2015/189.pdf
 pub(crate) struct Stream {
     aead: ChaChaPoly1305<c2_chacha::Ietf>,
-    nonce: [u8; 12],
+    nonce: Nonce,
 }
 
 impl Stream {
     fn new(key: &[u8; 32]) -> Self {
         Stream {
             aead: ChaChaPoly1305::new((*key).into()),
-            nonce: [0; 12],
+            nonce: Nonce::default(),
         }
     }
 
@@ -65,43 +107,18 @@ impl Stream {
         }
     }
 
-    fn set_counter(&mut self, val: u64) {
-        // Overwrite the counter with the new value
-        self.nonce[0..3].copy_from_slice(&[0, 0, 0]);
-        self.nonce[3..11].copy_from_slice(&val.to_be_bytes());
-
-        // Unset last-chunk flag
-        self.nonce[11] = 0;
-    }
-
-    fn increment_counter(&mut self) {
-        // Increment the 11-byte big-endian counter
-        for i in (0..11).rev() {
-            self.nonce[i] = self.nonce[i].wrapping_add(1);
-            if self.nonce[i] != 0 {
-                break;
-            } else if i == 0 {
-                panic!("We overflowed the nonce!");
-            }
-        }
-    }
-
     fn encrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<Vec<u8>> {
         assert!(chunk.len() <= CHUNK_SIZE);
 
-        if self.nonce[11] != 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::WriteZero,
-                "last chunk has been processed",
-            ));
-        }
-        self.nonce[11] = if last { 1 } else { 0 };
+        self.nonce.set_last(last).map_err(|_| {
+            io::Error::new(io::ErrorKind::WriteZero, "last chunk has been processed")
+        })?;
 
         let encrypted = self
             .aead
-            .encrypt(&self.nonce.into(), chunk)
+            .encrypt(&self.nonce.to_bytes().into(), chunk)
             .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size");
-        self.increment_counter();
+        self.nonce.increment_counter();
 
         Ok(encrypted)
     }
@@ -109,22 +126,25 @@ impl Stream {
     fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
         assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
 
-        if self.nonce[11] != 0 {
-            return Err(io::Error::new(
+        self.nonce.set_last(last).map_err(|_| {
+            io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "last chunk has been processed",
-            ));
-        }
-        self.nonce[11] = if last { 1 } else { 0 };
+            )
+        })?;
 
         let decrypted = self
             .aead
-            .decrypt(&self.nonce.into(), chunk)
+            .decrypt(&self.nonce.to_bytes().into(), chunk)
             .map(SecretVec::new)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
-        self.increment_counter();
+        self.nonce.increment_counter();
 
         Ok(decrypted)
+    }
+
+    fn is_complete(&self) -> bool {
+        self.nonce.is_last()
     }
 }
 
@@ -250,7 +270,7 @@ impl<R: Read> Read for StreamReader<R> {
             self.count_bytes(end);
 
             if end == 0 {
-                if self.stream.nonce[11] == 0 {
+                if !self.stream.is_complete() {
                     // Stream has ended before seeing the last chunk.
                     return Err(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
@@ -347,7 +367,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
             self.inner.seek(SeekFrom::Start(
                 start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
             ))?;
-            self.stream.set_counter(target_chunk_index);
+            self.stream.nonce.set_counter(target_chunk_index);
             self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
 
             // Read and drop bytes from the chunk to reach the target position.
