@@ -8,7 +8,7 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientLine},
+    format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientStanza},
     keys::{FileKey, RecipientKey},
     primitives::{
         armor::{ArmoredReader, ArmoredWriter},
@@ -57,7 +57,7 @@ enum EncryptorType {
 }
 
 impl EncryptorType {
-    fn wrap_file_key(self, file_key: &FileKey) -> Vec<RecipientLine> {
+    fn wrap_file_key(self, file_key: &FileKey) -> Vec<RecipientStanza> {
         match self {
             EncryptorType::Keys(recipients) => recipients
                 .iter()
@@ -66,7 +66,7 @@ impl EncryptorType {
                 .chain(iter::once(oil_the_joint()))
                 .collect(),
             EncryptorType::Passphrase(passphrase) => {
-                vec![scrypt::RecipientLine::wrap_file_key(file_key, &passphrase).into()]
+                vec![scrypt::RecipientStanza::wrap_file_key(file_key, &passphrase).into()]
             }
         }
     }
@@ -153,7 +153,7 @@ impl<R: Read> Decryptor<R> {
             Header::V1(v1_header) => {
                 // Enforce structural requirements on the v1 header.
                 let any_scrypt = v1_header.recipients.iter().any(|r| {
-                    if let RecipientLine::Scrypt(_) = r {
+                    if let RecipientStanza::Scrypt(_) = r {
                         true
                     } else {
                         false

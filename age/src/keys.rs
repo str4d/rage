@@ -13,7 +13,7 @@ use zeroize::Zeroize;
 
 use crate::{
     error::Error,
-    format::{ssh_ed25519, x25519, RecipientLine},
+    format::{ssh_ed25519, x25519, RecipientStanza},
     openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX},
     protocol::Callbacks,
 };
@@ -104,20 +104,23 @@ impl SecretKey {
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
-    /// - `None` if the [`RecipientLine`] does not match this key.
-    pub(crate) fn unwrap_file_key(&self, line: &RecipientLine) -> Option<Result<FileKey, Error>> {
-        match (self, line) {
-            (SecretKey::X25519(sk), RecipientLine::X25519(r)) => {
-                // A failure to decrypt is non-fatal (we try to decrypt the recipient line
-                // with other X25519 keys), because we cannot tell which key matches a
-                // particular line.
+    /// - `None` if the [`RecipientStanza`] does not match this key.
+    pub(crate) fn unwrap_file_key(
+        &self,
+        stanza: &RecipientStanza,
+    ) -> Option<Result<FileKey, Error>> {
+        match (self, stanza) {
+            (SecretKey::X25519(sk), RecipientStanza::X25519(r)) => {
+                // A failure to decrypt is non-fatal (we try to decrypt the recipient
+                // stanza with other X25519 keys), because we cannot tell which key
+                // matches a particular stanza.
                 r.unwrap_file_key(sk).ok().map(Ok)
             }
             #[cfg(feature = "unstable")]
-            (SecretKey::SshRsa(ssh_key, sk), RecipientLine::SshRsa(r)) => {
+            (SecretKey::SshRsa(ssh_key, sk), RecipientStanza::SshRsa(r)) => {
                 r.unwrap_file_key(ssh_key, sk)
             }
-            (SecretKey::SshEd25519(ssh_key, privkey), RecipientLine::SshEd25519(r)) => {
+            (SecretKey::SshEd25519(ssh_key, privkey), RecipientStanza::SshEd25519(r)) => {
                 r.unwrap_file_key(ssh_key, privkey.expose_secret())
             }
             _ => None,
@@ -134,7 +137,7 @@ pub enum EncryptedKey {
 impl EncryptedKey {
     pub(crate) fn unwrap_file_key(
         &self,
-        line: &RecipientLine,
+        stanza: &RecipientStanza,
         callbacks: &dyn Callbacks,
         filename: Option<&str>,
     ) -> Option<Result<FileKey, Error>> {
@@ -148,7 +151,7 @@ impl EncryptedKey {
                     Ok(d) => d,
                     Err(e) => return Some(Err(e)),
                 };
-                decrypted.unwrap_file_key(line)
+                decrypted.unwrap_file_key(stanza)
             }
         }
     }
@@ -319,12 +322,12 @@ impl Identity {
 
     pub(crate) fn unwrap_file_key(
         &self,
-        line: &RecipientLine,
+        stanza: &RecipientStanza,
         callbacks: &dyn Callbacks,
     ) -> Option<Result<FileKey, Error>> {
         match &self.key {
-            IdentityKey::Unencrypted(key) => key.unwrap_file_key(line),
-            IdentityKey::Encrypted(key) => key.unwrap_file_key(line, callbacks, self.filename()),
+            IdentityKey::Unencrypted(key) => key.unwrap_file_key(stanza),
+            IdentityKey::Encrypted(key) => key.unwrap_file_key(stanza, callbacks, self.filename()),
             IdentityKey::Unsupported(_) => None,
         }
     }
@@ -395,15 +398,15 @@ impl fmt::Display for RecipientKey {
 }
 
 impl RecipientKey {
-    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientLine {
+    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
-            RecipientKey::X25519(pk) => x25519::RecipientLine::wrap_file_key(file_key, pk).into(),
+            RecipientKey::X25519(pk) => x25519::RecipientStanza::wrap_file_key(file_key, pk).into(),
             #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(ssh_key, pk) => {
-                ssh_rsa::RecipientLine::wrap_file_key(file_key, ssh_key, pk).into()
+                ssh_rsa::RecipientStanza::wrap_file_key(file_key, ssh_key, pk).into()
             }
             RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
-                ssh_ed25519::RecipientLine::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
+                ssh_ed25519::RecipientStanza::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
             }
         }
     }

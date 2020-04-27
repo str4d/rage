@@ -56,13 +56,13 @@ fn target_scrypt_work_factor() -> u8 {
 }
 
 #[derive(Debug)]
-pub(crate) struct RecipientLine {
+pub(crate) struct RecipientStanza {
     pub(crate) salt: [u8; SALT_LEN],
     pub(crate) log_n: u8,
     pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
 
-impl RecipientLine {
+impl RecipientStanza {
     pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
@@ -71,7 +71,7 @@ impl RecipientLine {
         let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
         let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
 
-        Some(RecipientLine {
+        Some(RecipientStanza {
             salt,
             log_n,
             encrypted_file_key: stanza.body[..].try_into().ok()?,
@@ -95,7 +95,7 @@ impl RecipientLine {
             key
         };
 
-        RecipientLine {
+        RecipientStanza {
             salt,
             log_n,
             encrypted_file_key,
@@ -145,8 +145,8 @@ pub(super) mod write {
 
     use super::*;
 
-    pub(crate) fn recipient_line<'a, W: 'a + Write>(
-        r: &'a RecipientLine,
+    pub(crate) fn recipient_stanza<'a, W: 'a + Write>(
+        r: &'a RecipientStanza,
     ) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let encoded_salt = base64::encode_config(&r.salt, base64::STANDARD_NO_PAD);

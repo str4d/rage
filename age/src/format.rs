@@ -21,48 +21,48 @@ const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
 #[derive(Debug)]
-pub(crate) enum RecipientLine {
-    X25519(x25519::RecipientLine),
-    Scrypt(scrypt::RecipientLine),
+pub(crate) enum RecipientStanza {
+    X25519(x25519::RecipientStanza),
+    Scrypt(scrypt::RecipientStanza),
     #[cfg(feature = "unstable")]
-    SshRsa(ssh_rsa::RecipientLine),
-    SshEd25519(ssh_ed25519::RecipientLine),
-    Plugin(plugin::RecipientLine),
+    SshRsa(ssh_rsa::RecipientStanza),
+    SshEd25519(ssh_ed25519::RecipientStanza),
+    Plugin(plugin::RecipientStanza),
 }
 
-impl From<x25519::RecipientLine> for RecipientLine {
-    fn from(line: x25519::RecipientLine) -> Self {
-        RecipientLine::X25519(line)
+impl From<x25519::RecipientStanza> for RecipientStanza {
+    fn from(stanza: x25519::RecipientStanza) -> Self {
+        RecipientStanza::X25519(stanza)
     }
 }
 
-impl From<scrypt::RecipientLine> for RecipientLine {
-    fn from(line: scrypt::RecipientLine) -> Self {
-        RecipientLine::Scrypt(line)
+impl From<scrypt::RecipientStanza> for RecipientStanza {
+    fn from(stanza: scrypt::RecipientStanza) -> Self {
+        RecipientStanza::Scrypt(stanza)
     }
 }
 
 #[cfg(feature = "unstable")]
-impl From<ssh_rsa::RecipientLine> for RecipientLine {
-    fn from(line: ssh_rsa::RecipientLine) -> Self {
-        RecipientLine::SshRsa(line)
+impl From<ssh_rsa::RecipientStanza> for RecipientStanza {
+    fn from(stanza: ssh_rsa::RecipientStanza) -> Self {
+        RecipientStanza::SshRsa(stanza)
     }
 }
 
-impl From<ssh_ed25519::RecipientLine> for RecipientLine {
-    fn from(line: ssh_ed25519::RecipientLine) -> Self {
-        RecipientLine::SshEd25519(line)
+impl From<ssh_ed25519::RecipientStanza> for RecipientStanza {
+    fn from(stanza: ssh_ed25519::RecipientStanza) -> Self {
+        RecipientStanza::SshEd25519(stanza)
     }
 }
 
-impl From<plugin::RecipientLine> for RecipientLine {
-    fn from(line: plugin::RecipientLine) -> Self {
-        RecipientLine::Plugin(line)
+impl From<plugin::RecipientStanza> for RecipientStanza {
+    fn from(stanza: plugin::RecipientStanza) -> Self {
+        RecipientStanza::Plugin(stanza)
     }
 }
 
 /// Creates a random recipient stanza that exercises the joint in the age v1 format.
-pub(crate) fn oil_the_joint() -> RecipientLine {
+pub(crate) fn oil_the_joint() -> RecipientStanza {
     // Generate arbitrary strings between 1 and 9 characters long.
     fn gen_arbitrary_string<R: RngCore>(rng: &mut R) -> String {
         let length = Uniform::from(1..9).sample(rng);
@@ -94,16 +94,16 @@ pub(crate) fn oil_the_joint() -> RecipientLine {
     let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
     rng.fill_bytes(&mut body);
 
-    plugin::RecipientLine { tag, args, body }.into()
+    plugin::RecipientStanza { tag, args, body }.into()
 }
 
 pub struct HeaderV1 {
-    pub(crate) recipients: Vec<RecipientLine>,
+    pub(crate) recipients: Vec<RecipientStanza>,
     pub(crate) mac: [u8; 32],
 }
 
 impl HeaderV1 {
-    fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+    fn new(recipients: Vec<RecipientStanza>, mac_key: [u8; 32]) -> Self {
         let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
@@ -126,7 +126,7 @@ impl HeaderV1 {
 }
 
 impl Header {
-    pub(crate) fn new(recipients: Vec<RecipientLine>, mac_key: [u8; 32]) -> Self {
+    pub(crate) fn new(recipients: Vec<RecipientStanza>, mac_key: [u8; 32]) -> Self {
         Header::V1(HeaderV1::new(recipients, mac_key))
     }
 
@@ -182,26 +182,27 @@ mod read {
     use super::*;
     use crate::util::read::base64_arg;
 
-    fn recipient_line(input: &[u8]) -> IResult<&[u8], RecipientLine> {
+    fn recipient_stanza(input: &[u8]) -> IResult<&[u8], RecipientStanza> {
         preceded(
             tag(RECIPIENT_TAG),
             map_opt(age_stanza, |stanza| match stanza.tag {
                 x25519::X25519_RECIPIENT_TAG => {
-                    x25519::RecipientLine::from_stanza(stanza).map(RecipientLine::X25519)
+                    x25519::RecipientStanza::from_stanza(stanza).map(RecipientStanza::X25519)
                 }
                 scrypt::SCRYPT_RECIPIENT_TAG => {
-                    scrypt::RecipientLine::from_stanza(stanza).map(RecipientLine::Scrypt)
+                    scrypt::RecipientStanza::from_stanza(stanza).map(RecipientStanza::Scrypt)
                 }
                 #[cfg(feature = "unstable")]
                 ssh_rsa::SSH_RSA_RECIPIENT_TAG => {
-                    ssh_rsa::RecipientLine::from_stanza(stanza).map(RecipientLine::SshRsa)
+                    ssh_rsa::RecipientStanza::from_stanza(stanza).map(RecipientStanza::SshRsa)
                 }
                 ssh_ed25519::SSH_ED25519_RECIPIENT_TAG => {
-                    ssh_ed25519::RecipientLine::from_stanza(stanza).map(RecipientLine::SshEd25519)
+                    ssh_ed25519::RecipientStanza::from_stanza(stanza)
+                        .map(RecipientStanza::SshEd25519)
                 }
-                _ => Some(RecipientLine::Plugin(plugin::RecipientLine::from_stanza(
-                    stanza,
-                ))),
+                _ => Some(RecipientStanza::Plugin(
+                    plugin::RecipientStanza::from_stanza(stanza),
+                )),
             }),
         )(input)
     }
@@ -211,7 +212,7 @@ mod read {
             pair(tag(V1_MAGIC), newline),
             map(
                 pair(
-                    terminated(separated_nonempty_list(newline, recipient_line), newline),
+                    terminated(separated_nonempty_list(newline, recipient_stanza), newline),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
@@ -256,16 +257,16 @@ mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    fn recipient_line<'a, W: 'a + Write>(r: &'a RecipientLine) -> impl SerializeFn<W> + 'a {
+    fn recipient_stanza<'a, W: 'a + Write>(r: &'a RecipientStanza) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let out = slice(RECIPIENT_TAG)(w)?;
             match r {
-                RecipientLine::X25519(r) => x25519::write::recipient_line(r)(out),
-                RecipientLine::Scrypt(r) => scrypt::write::recipient_line(r)(out),
+                RecipientStanza::X25519(r) => x25519::write::recipient_stanza(r)(out),
+                RecipientStanza::Scrypt(r) => scrypt::write::recipient_stanza(r)(out),
                 #[cfg(feature = "unstable")]
-                RecipientLine::SshRsa(r) => ssh_rsa::write::recipient_line(r)(out),
-                RecipientLine::SshEd25519(r) => ssh_ed25519::write::recipient_line(r)(out),
-                RecipientLine::Plugin(r) => plugin::write::recipient_line(r)(out),
+                RecipientStanza::SshRsa(r) => ssh_rsa::write::recipient_stanza(r)(out),
+                RecipientStanza::SshEd25519(r) => ssh_ed25519::write::recipient_stanza(r)(out),
+                RecipientStanza::Plugin(r) => plugin::write::recipient_stanza(r)(out),
             }
         }
     }
@@ -279,7 +280,7 @@ mod write {
             string("\n"),
             separated_list(
                 string("\n"),
-                h.recipients.iter().map(move |r| recipient_line(r)),
+                h.recipients.iter().map(move |r| recipient_stanza(r)),
             ),
             string("\n"),
             slice(MAC_TAG),
