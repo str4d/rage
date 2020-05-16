@@ -235,23 +235,6 @@ impl<R: Read> StreamReader<R> {
     }
 }
 
-impl<R: Read + Seek> StreamReader<R> {
-    fn start(&mut self) -> io::Result<u64> {
-        match self.start {
-            StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
-                let start = current - offset;
-
-                // Cache the start for future calls.
-                self.start = StartPos::Explicit(start);
-
-                Ok(start)
-            }
-            StartPos::Explicit(start) => Ok(start),
-        }
-    }
-}
-
 impl<R: Read> Read for StreamReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.chunk.is_none() {
@@ -310,6 +293,23 @@ impl<R: Read> Read for StreamReader<R> {
         }
 
         Ok(to_read)
+    }
+}
+
+impl<R: Read + Seek> StreamReader<R> {
+    fn start(&mut self) -> io::Result<u64> {
+        match self.start {
+            StartPos::Implicit(offset) => {
+                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let start = current - offset;
+
+                // Cache the start for future calls.
+                self.start = StartPos::Explicit(start);
+
+                Ok(start)
+            }
+            StartPos::Explicit(start) => Ok(start),
+        }
     }
 }
 

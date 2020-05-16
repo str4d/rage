@@ -325,23 +325,6 @@ impl<R: Read> ArmoredReader<R> {
     }
 }
 
-impl<R: Read + Seek> ArmoredReader<R> {
-    fn start(&mut self) -> io::Result<u64> {
-        match self.start {
-            StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
-                let start = current - offset;
-
-                // Cache the start for future calls.
-                self.start = StartPos::Explicit(start);
-
-                Ok(start)
-            }
-            StartPos::Explicit(start) => Ok(start),
-        }
-    }
-}
-
 impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         loop {
@@ -394,6 +377,23 @@ impl<R: Read> Read for ArmoredReader<R> {
         }
 
         Ok(buf_len - buf.len())
+    }
+}
+
+impl<R: Read + Seek> ArmoredReader<R> {
+    fn start(&mut self) -> io::Result<u64> {
+        match self.start {
+            StartPos::Implicit(offset) => {
+                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let start = current - offset;
+
+                // Cache the start for future calls.
+                self.start = StartPos::Explicit(start);
+
+                Ok(start)
+            }
+            StartPos::Explicit(start) => Ok(start),
+        }
     }
 }
 
