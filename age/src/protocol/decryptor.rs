@@ -1,7 +1,7 @@
 //! Decryptors for age.
 
 use secrecy::SecretString;
-use std::io::Read;
+use std::io::BufRead;
 
 use super::{v1_payload_key, Callbacks, NoCallbacks};
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-struct BaseDecryptor<R: Read> {
+struct BaseDecryptor<R> {
     /// The age file.
     input: ArmoredReader<R>,
     /// The age file's header.
@@ -23,7 +23,7 @@ struct BaseDecryptor<R: Read> {
     nonce: [u8; 16],
 }
 
-impl<R: Read> BaseDecryptor<R> {
+impl<R> BaseDecryptor<R> {
     fn obtain_payload_key<F>(&mut self, filter: F) -> Result<[u8; 32], Error>
     where
         F: FnMut(&RecipientStanza) -> Option<Result<FileKey, Error>>,
@@ -41,9 +41,9 @@ impl<R: Read> BaseDecryptor<R> {
 }
 
 /// Decryptor for an age file encrypted to a list of recipients.
-pub struct RecipientsDecryptor<R: Read>(BaseDecryptor<R>);
+pub struct RecipientsDecryptor<R>(BaseDecryptor<R>);
 
-impl<R: Read> RecipientsDecryptor<R> {
+impl<R: BufRead> RecipientsDecryptor<R> {
     pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
         RecipientsDecryptor(BaseDecryptor {
             input,
@@ -81,9 +81,9 @@ impl<R: Read> RecipientsDecryptor<R> {
 }
 
 /// Decryptor for an age file encrypted with a passphrase.
-pub struct PassphraseDecryptor<R: Read>(BaseDecryptor<R>);
+pub struct PassphraseDecryptor<R>(BaseDecryptor<R>);
 
-impl<R: Read> PassphraseDecryptor<R> {
+impl<R: BufRead> PassphraseDecryptor<R> {
     pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
         PassphraseDecryptor(BaseDecryptor {
             input,

@@ -6,7 +6,7 @@ use chacha20poly1305::{
 };
 use secrecy::{ExposeSecret, SecretVec};
 use std::convert::TryInto;
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
 use super::armor::{ArmoredReader, ArmoredWriter};
 
@@ -218,7 +218,7 @@ enum StartPos {
 }
 
 /// Provides access to a decrypted age file.
-pub struct StreamReader<R: Read> {
+pub struct StreamReader<R> {
     stream: Stream,
     inner: ArmoredReader<R>,
     start: StartPos,
@@ -226,7 +226,7 @@ pub struct StreamReader<R: Read> {
     chunk: Option<SecretVec<u8>>,
 }
 
-impl<R: Read> StreamReader<R> {
+impl<R> StreamReader<R> {
     fn count_bytes(&mut self, read: usize) {
         // We only need to count if we haven't yet worked out the start position.
         if let StartPos::Implicit(offset) = &mut self.start {
@@ -235,7 +235,7 @@ impl<R: Read> StreamReader<R> {
     }
 }
 
-impl<R: Read> Read for StreamReader<R> {
+impl<R: BufRead> Read for StreamReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.chunk.is_none() {
             let mut chunk = vec![0; ENCRYPTED_CHUNK_SIZE];
@@ -296,7 +296,7 @@ impl<R: Read> Read for StreamReader<R> {
     }
 }
 
-impl<R: Read + Seek> StreamReader<R> {
+impl<R: BufRead + Seek> StreamReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
             StartPos::Implicit(offset) => {
@@ -313,7 +313,7 @@ impl<R: Read + Seek> StreamReader<R> {
     }
 }
 
-impl<R: Read + Seek> Seek for StreamReader<R> {
+impl<R: BufRead + Seek> Seek for StreamReader<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         // Convert the offset into the target position within the plaintext
         let start = self.start()?;

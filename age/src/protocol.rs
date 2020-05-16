@@ -3,7 +3,7 @@
 use age_core::primitives::hkdf;
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
-use std::io::{self, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::iter;
 
 use crate::{
@@ -122,26 +122,26 @@ impl Encryptor {
 }
 
 /// Decryptor for an age file.
-pub enum Decryptor<R: Read> {
+pub enum Decryptor<R> {
     /// Decryption with a list of identities.
     Recipients(decryptor::RecipientsDecryptor<R>),
     /// Decryption with a passphrase.
     Passphrase(decryptor::PassphraseDecryptor<R>),
 }
 
-impl<R: Read> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
+impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
     fn from(decryptor: decryptor::RecipientsDecryptor<R>) -> Self {
         Decryptor::Recipients(decryptor)
     }
 }
 
-impl<R: Read> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
+impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
     fn from(decryptor: decryptor::PassphraseDecryptor<R>) -> Self {
         Decryptor::Passphrase(decryptor)
     }
 }
 
-impl<R: Read> Decryptor<R> {
+impl<R: Read> Decryptor<BufReader<R>> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
