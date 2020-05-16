@@ -1,11 +1,21 @@
 //! I/O helper structs for the age ASCII armor format.
 
+use pin_project::pin_project;
 use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
 
 use crate::util::LINE_ENDING;
+
+#[cfg(feature = "async")]
+use futures::{
+    io::{AsyncBufRead, AsyncRead, BufReader as AsyncBufReader, Error},
+    ready,
+    task::{Context, Poll},
+};
+#[cfg(feature = "async")]
+use std::pin::Pin;
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -161,7 +171,9 @@ enum StartPos {
 }
 
 /// Reader that will parse the age ASCII armor format if detected.
+#[pin_project]
 pub struct ArmoredReader<R> {
+    #[pin]
     inner: R,
     start: StartPos,
     is_armored: Option<bool>,
@@ -179,6 +191,14 @@ impl<R: Read> ArmoredReader<BufReader<R>> {
     /// Wraps a reader that may contain an armored age file.
     pub fn new(reader: R) -> Self {
         ArmoredReader::with_buffered(BufReader::new(reader))
+    }
+}
+
+#[cfg(feature = "async")]
+impl<R: AsyncRead + Unpin> ArmoredReader<AsyncBufReader<R>> {
+    /// Wraps a reader that may contain an armored age file.
+    pub fn from_async_reader(inner: R) -> Self {
+        ArmoredReader::with_buffered(AsyncBufReader::new(inner))
     }
 }
 
@@ -409,6 +429,90 @@ impl<R: BufRead> Read for ArmoredReader<R> {
     }
 }
 
+#[cfg(feature = "async")]
+impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<Result<usize, Error>> {
+        loop {
+            match self.is_armored {
+                None => {
+                    let mut this = self.as_mut().project();
+                    let available = loop {
+                        let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
+                        if buf.len() >= MIN_ARMOR_LEN {
+                            break buf;
+                        }
+                    };
+                    this.byte_buf[..MIN_ARMOR_LEN].copy_from_slice(&available[..MIN_ARMOR_LEN]);
+                    this.inner.as_mut().consume(MIN_ARMOR_LEN);
+                    self.detect_armor()?
+                }
+                Some(false) => {
+                    // Return any leftover data from armor detection.
+                    return if let Some(read) = self.read_cached_data(buf) {
+                        Poll::Ready(Ok(read))
+                    } else {
+                        self.as_mut().project().inner.poll_read(cx, buf).map(|res| {
+                            res.map(|read| {
+                                self.data_read += read;
+                                self.count_reader_bytes(read)
+                            })
+                        })
+                    };
+                }
+                Some(true) if self.found_end => return Poll::Ready(Ok(0)),
+                Some(true) => {
+                    // Output any remaining bytes from the previous line
+                    if let Some(read) = self.read_cached_data(buf) {
+                        return Poll::Ready(Ok(read));
+                    }
+
+                    // Read the next line
+                    {
+                        let mut this = self.as_mut().project();
+                        let available = loop {
+                            let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
+                            if buf.contains(&b'\n') {
+                                break buf;
+                            }
+                        };
+                        let pos = available
+                            .iter()
+                            .position(|c| *c == b'\n')
+                            .expect("contains LF byte")
+                            + 1;
+
+                        this.line_buf
+                            .push_str(std::str::from_utf8(&available[..pos]).map_err(|_| {
+                                io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "stream did not contain valid UTF-8",
+                                )
+                            })?);
+
+                        this.inner.as_mut().consume(pos);
+                        self.count_reader_bytes(pos);
+                    }
+
+                    // Parse the line into bytes.
+                    let read = if self.parse_armor_line()? {
+                        // This was the last line!
+                        0
+                    } else {
+                        // Output as much as we can of this line.
+                        self.read_cached_data(buf).unwrap_or(0)
+                    };
+
+                    return Poll::Ready(Ok(read));
+                }
+            }
+        }
+    }
+}
+
 impl<R: Read + Seek> ArmoredReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
@@ -556,6 +660,11 @@ mod tests {
 
     use super::{ArmoredReader, ArmoredWriter, Format, ARMORED_BYTES_PER_LINE};
 
+    #[cfg(feature = "async")]
+    use futures::{io::AsyncRead, pin_mut, task::Poll};
+    #[cfg(feature = "async")]
+    use futures_test::task::noop_context;
+
     #[test]
     fn armored_round_trip() {
         const MAX_LEN: usize = ARMORED_BYTES_PER_LINE * 50;
@@ -576,6 +685,45 @@ mod tests {
             {
                 let mut input = ArmoredReader::new(&encoded[..]);
                 input.read_to_end(&mut buf).unwrap();
+            }
+
+            assert_eq!(buf, data);
+        }
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn armored_async_round_trip() {
+        const MAX_LEN: usize = ARMORED_BYTES_PER_LINE * 50;
+
+        let mut data = Vec::with_capacity(MAX_LEN);
+
+        for i in 0..MAX_LEN {
+            data.push(i as u8);
+
+            let mut encoded = vec![];
+            {
+                let mut out = ArmoredWriter::wrap_output(&mut encoded, Format::AsciiArmor).unwrap();
+                out.write_all(&data).unwrap();
+                out.finish().unwrap();
+            }
+
+            let mut buf = vec![];
+            {
+                let input = ArmoredReader::from_async_reader(&encoded[..]);
+                pin_mut!(input);
+
+                let mut cx = noop_context();
+
+                let mut tmp = [0; 4096];
+                loop {
+                    match input.as_mut().poll_read(&mut cx, &mut tmp) {
+                        Poll::Ready(Ok(0)) => break,
+                        Poll::Ready(Ok(read)) => buf.extend_from_slice(&tmp[..read]),
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Pending => panic!("Unexpected Pending"),
+                    }
+                }
             }
 
             assert_eq!(buf, data);
