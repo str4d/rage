@@ -4,9 +4,19 @@ use chacha20poly1305::{
     aead::{Aead, NewAead},
     ChaChaPoly1305,
 };
+use pin_project::pin_project;
 use secrecy::{ExposeSecret, SecretVec};
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
+
+#[cfg(feature = "async")]
+use futures::{
+    io::{AsyncRead, Error},
+    ready,
+    task::{Context, Poll},
+};
+#[cfg(feature = "async")]
+use std::pin::Pin;
 
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
@@ -96,6 +106,26 @@ impl Stream {
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
     pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: R) -> StreamReader<R> {
+        StreamReader {
+            stream: Self::new(key),
+            inner,
+            encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
+            encrypted_pos: 0,
+            start: StartPos::Implicit(0),
+            cur_plaintext_pos: 0,
+            chunk: None,
+        }
+    }
+
+    /// Wraps `STREAM` decryption under the given `key` around a reader.
+    ///
+    /// `key` must **never** be repeated across multiple streams. In `age` this is
+    /// achieved by deriving the key with [`HKDF`] from both a random file key and a
+    /// random nonce.
+    ///
+    /// [`HKDF`]: age_core::primitives::hkdf
+    #[cfg(feature = "async")]
+    pub(crate) fn decrypt_async<R: AsyncRead>(key: &[u8; 32], inner: R) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),
             inner,
@@ -218,8 +248,10 @@ enum StartPos {
 }
 
 /// Provides access to a decrypted age file.
+#[pin_project]
 pub struct StreamReader<R> {
     stream: Stream,
+    #[pin]
     inner: R,
     encrypted_chunk: Vec<u8>,
     encrypted_pos: usize,
@@ -312,6 +344,35 @@ impl<R: Read> Read for StreamReader<R> {
         }
 
         Ok(self.read_from_chunk(buf))
+    }
+}
+
+#[cfg(feature = "async")]
+impl<R: AsyncRead + Unpin> AsyncRead for StreamReader<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<Result<usize, Error>> {
+        if self.chunk.is_none() {
+            while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
+                let this = self.as_mut().project();
+                match ready!(this
+                    .inner
+                    .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..]))
+                {
+                    Ok(0) => break,
+                    Ok(n) => self.encrypted_pos += n,
+                    Err(e) => match e.kind() {
+                        io::ErrorKind::Interrupted => (),
+                        _ => return Poll::Ready(Err(e)),
+                    },
+                }
+            }
+            self.decrypt_chunk()?;
+        }
+
+        Poll::Ready(Ok(self.read_from_chunk(buf)))
     }
 }
 
