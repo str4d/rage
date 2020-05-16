@@ -11,7 +11,7 @@ use crate::util::LINE_ENDING;
 
 #[cfg(feature = "async")]
 use futures::{
-    io::{AsyncBufRead, AsyncRead, AsyncWrite, BufReader as AsyncBufReader, Error},
+    io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, BufReader as AsyncBufReader, Error},
     ready,
     task::{Context, Poll},
 };
@@ -1162,6 +1162,180 @@ impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
 
                     // All done!
                     break Ok(target_pos);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+impl<R: AsyncBufRead + AsyncSeek + Unpin> AsyncSeek for ArmoredReader<R> {
+    fn poll_seek(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        pos: SeekFrom,
+    ) -> Poll<Result<u64, Error>> {
+        loop {
+            match self.is_armored {
+                None => {
+                    let mut this = self.as_mut().project();
+                    let available = loop {
+                        let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
+                        if buf.len() >= MIN_ARMOR_LEN {
+                            break buf;
+                        }
+                    };
+                    this.byte_buf[..MIN_ARMOR_LEN].copy_from_slice(&available[..MIN_ARMOR_LEN]);
+                    this.inner.as_mut().consume(MIN_ARMOR_LEN);
+                    self.detect_armor()?
+                }
+                Some(false) => {
+                    break if self.byte_start >= self.byte_end {
+                        // Map the data read onto the underlying stream.
+                        let start = {
+                            match self.start {
+                                StartPos::Implicit(offset) => {
+                                    let current = ready!(self
+                                        .as_mut()
+                                        .project()
+                                        .inner
+                                        .poll_seek(cx, SeekFrom::Current(0)))?;
+                                    let start = current - offset;
+
+                                    // Cache the start for future calls.
+                                    self.start = StartPos::Explicit(start);
+
+                                    start
+                                }
+                                StartPos::Explicit(start) => start,
+                            }
+                        };
+                        let pos = match pos {
+                            SeekFrom::Start(offset) => SeekFrom::Start(start + offset),
+                            // Current and End positions don't need to be shifted.
+                            x => x,
+                        };
+                        self.project().inner.poll_seek(cx, pos)
+                    } else {
+                        // We are still inside the first line.
+                        match pos {
+                            SeekFrom::Start(offset) => self.byte_start = offset as usize,
+                            SeekFrom::Current(offset) => {
+                                let res = (self.byte_start as i64) + offset;
+                                if res >= 0 {
+                                    self.byte_start = res as usize;
+                                } else {
+                                    return Poll::Ready(Err(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        "cannot seek before the start",
+                                    )));
+                                }
+                            }
+                            SeekFrom::End(offset) => {
+                                let res = (self.line_buf.len() as i64) + offset;
+                                if res >= 0 {
+                                    self.byte_start = res as usize;
+                                } else {
+                                    return Poll::Ready(Err(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        "cannot seek before the start",
+                                    )));
+                                }
+                            }
+                        }
+                        Poll::Ready(Ok(self.byte_start as u64))
+                    };
+                }
+                Some(true) => {
+                    // Convert the offset into the target position within the data inside
+                    // the armor.
+                    let start = {
+                        match self.start {
+                            StartPos::Implicit(offset) => {
+                                let current = ready!(self
+                                    .as_mut()
+                                    .project()
+                                    .inner
+                                    .poll_seek(cx, SeekFrom::Current(0)))?;
+                                let start = current - offset;
+
+                                // Cache the start for future calls.
+                                self.start = StartPos::Explicit(start);
+
+                                start
+                            }
+                            StartPos::Explicit(start) => start,
+                        }
+                    };
+                    let target_pos = match pos {
+                        SeekFrom::Start(offset) => offset,
+                        SeekFrom::Current(offset) => {
+                            let res = (self.data_read as i64) + offset;
+                            if res >= 0 as i64 {
+                                res as u64
+                            } else {
+                                return Poll::Ready(Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "cannot seek before the start",
+                                )));
+                            }
+                        }
+                        SeekFrom::End(offset) => {
+                            let data_len = match self.data_len {
+                                Some(n) => n,
+                                None => {
+                                    // Read from the source until we find the end.
+                                    let mut buf = [0; 4096];
+                                    while ready!(self.as_mut().poll_read(cx, &mut buf))? > 0 {}
+                                    let data_len = self.data_read as u64;
+
+                                    // Cache the data length for future calls.
+                                    self.data_len = Some(data_len);
+
+                                    data_len
+                                }
+                            };
+
+                            let res = (data_len as i64) + offset;
+                            if res >= 0 {
+                                res as u64
+                            } else {
+                                return Poll::Ready(Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "cannot seek before the start",
+                                )));
+                            }
+                        }
+                    };
+
+                    // Jump back to the start of the armor data, and then read and drop
+                    // until we reach the target position. This is very inefficient, but
+                    // as armored files can have arbitrary line endings within the file,
+                    // we can't determine where the armor line containing the target
+                    // position begins within the reader.
+                    ready!(self
+                        .as_mut()
+                        .project()
+                        .inner
+                        .poll_seek(cx, SeekFrom::Start(start)))?;
+                    self.line_buf.clear();
+                    self.byte_start = ARMORED_BYTES_PER_LINE;
+                    self.byte_end = ARMORED_BYTES_PER_LINE;
+                    self.found_short_line = false;
+                    self.found_end = false;
+                    self.data_read = 0;
+
+                    let mut buf = [0; 4096];
+                    let mut to_read = target_pos as usize;
+                    while to_read > buf.len() {
+                        to_read -= ready!(self.as_mut().poll_read(cx, &mut buf))?;
+                    }
+                    while to_read > 0 {
+                        to_read -= ready!(self.as_mut().poll_read(cx, &mut buf[..to_read]))?;
+                    }
+
+                    // All done!
+                    break Poll::Ready(Ok(target_pos));
                 }
             }
         }
