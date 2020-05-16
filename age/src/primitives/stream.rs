@@ -99,6 +99,8 @@ impl Stream {
         StreamReader {
             stream: Self::new(key),
             inner,
+            encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
+            encrypted_pos: 0,
             start: StartPos::Implicit(0),
             cur_plaintext_pos: 0,
             chunk: None,
@@ -216,65 +218,61 @@ enum StartPos {
 }
 
 /// Provides access to a decrypted age file.
-pub struct StreamReader<R: Read> {
+pub struct StreamReader<R> {
     stream: Stream,
     inner: R,
+    encrypted_chunk: Vec<u8>,
+    encrypted_pos: usize,
     start: StartPos,
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
 }
 
-impl<R: Read> StreamReader<R> {
+impl<R> StreamReader<R> {
     fn count_bytes(&mut self, read: usize) {
         // We only need to count if we haven't yet worked out the start position.
         if let StartPos::Implicit(offset) = &mut self.start {
             *offset += read as u64;
         }
     }
-}
 
-impl<R: Read> Read for StreamReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.chunk.is_none() {
-            let mut chunk = vec![0; ENCRYPTED_CHUNK_SIZE];
-            let mut end = 0;
-            while end < ENCRYPTED_CHUNK_SIZE {
-                match self.inner.read(&mut chunk[end..]) {
-                    Ok(0) => break,
-                    Ok(n) => end += n,
-                    Err(e) => match e.kind() {
-                        io::ErrorKind::Interrupted => (),
-                        _ => return Err(e),
-                    },
-                }
+    fn decrypt_chunk(&mut self) -> io::Result<()> {
+        self.count_bytes(self.encrypted_pos);
+        let chunk = &self.encrypted_chunk[..self.encrypted_pos];
+
+        if chunk.is_empty() {
+            if !self.stream.is_complete() {
+                // Stream has ended before seeing the last chunk.
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "age file is truncated",
+                ));
             }
-            self.count_bytes(end);
-
-            if end == 0 {
-                if !self.stream.is_complete() {
-                    // Stream has ended before seeing the last chunk.
-                    return Err(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "age file is truncated",
-                    ));
-                } else {
-                    return Ok(0);
-                }
-            }
-
+        } else {
             // This check works for all cases except when the age file is an integer
             // multiple of the chunk size. In that case, we try decrypting twice on a
             // decryption failure.
-            let last = end < ENCRYPTED_CHUNK_SIZE;
+            let last = chunk.len() < ENCRYPTED_CHUNK_SIZE;
 
-            self.chunk = match (self.stream.decrypt_chunk(&chunk[..end], last), last) {
+            self.chunk = match (self.stream.decrypt_chunk(chunk, last), last) {
                 (Ok(chunk), _) => Some(chunk),
-                (Err(_), false) => Some(self.stream.decrypt_chunk(&chunk[..end], true)?),
+                (Err(_), false) => Some(self.stream.decrypt_chunk(chunk, true)?),
                 (Err(e), true) => return Err(e),
             };
         }
 
-        let chunk = self.chunk.as_ref().expect("we have decrypted a chunk");
+        // We've finished with this encrypted chunk.
+        self.encrypted_pos = 0;
+
+        Ok(())
+    }
+
+    fn read_from_chunk(&mut self, buf: &mut [u8]) -> usize {
+        if self.chunk.is_none() {
+            return 0;
+        }
+
+        let chunk = self.chunk.as_ref().unwrap();
         let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
 
         let mut to_read = chunk.expose_secret().len() - cur_chunk_offset;
@@ -290,7 +288,30 @@ impl<R: Read> Read for StreamReader<R> {
             self.chunk = None;
         }
 
-        Ok(to_read)
+        to_read
+    }
+}
+
+impl<R: Read> Read for StreamReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.chunk.is_none() {
+            while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
+                match self
+                    .inner
+                    .read(&mut self.encrypted_chunk[self.encrypted_pos..])
+                {
+                    Ok(0) => break,
+                    Ok(n) => self.encrypted_pos += n,
+                    Err(e) => match e.kind() {
+                        io::ErrorKind::Interrupted => (),
+                        _ => return Err(e),
+                    },
+                }
+            }
+            self.decrypt_chunk()?;
+        }
+
+        Ok(self.read_from_chunk(buf))
     }
 }
 
