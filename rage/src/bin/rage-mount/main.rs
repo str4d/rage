@@ -128,7 +128,7 @@ where
 }
 
 fn mount_stream(
-    stream: StreamReader<ArmoredReader<File>>,
+    stream: StreamReader<ArmoredReader<io::BufReader<File>>>,
     types: String,
     mountpoint: String,
 ) -> Result<(), Error> {

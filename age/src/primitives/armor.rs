@@ -161,8 +161,8 @@ enum StartPos {
 }
 
 /// Reader that will parse the age ASCII armor format if detected.
-pub struct ArmoredReader<R: Read> {
-    inner: BufReader<R>,
+pub struct ArmoredReader<R> {
+    inner: R,
     start: StartPos,
     is_armored: Option<bool>,
     line_buf: Zeroizing<String>,
@@ -175,11 +175,17 @@ pub struct ArmoredReader<R: Read> {
     data_read: usize,
 }
 
-impl<R: Read> ArmoredReader<R> {
+impl<R: Read> ArmoredReader<BufReader<R>> {
     /// Wraps a reader that may contain an armored age file.
     pub fn new(reader: R) -> Self {
+        ArmoredReader::with_buffered(BufReader::new(reader))
+    }
+}
+
+impl<R> ArmoredReader<R> {
+    fn with_buffered(inner: R) -> Self {
         ArmoredReader {
-            inner: BufReader::new(reader),
+            inner,
             start: StartPos::Implicit(0),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
@@ -348,7 +354,7 @@ impl<R: Read> ArmoredReader<R> {
     }
 }
 
-impl<R: Read> Read for ArmoredReader<R> {
+impl<R: BufRead> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         loop {
             match self.is_armored {
@@ -420,7 +426,7 @@ impl<R: Read + Seek> ArmoredReader<R> {
     }
 }
 
-impl<R: Read + Seek> Seek for ArmoredReader<R> {
+impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         loop {
             match self.is_armored {
