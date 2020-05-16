@@ -10,6 +10,8 @@ const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
 const ARMORED_BEGIN_MARKER: &str = "-----BEGIN AGE ENCRYPTED FILE-----";
 const ARMORED_END_MARKER: &str = "-----END AGE ENCRYPTED FILE-----";
 
+const MIN_ARMOR_LEN: usize = 36; // ARMORED_BEGIN_MARKER.len() + 2
+
 pub(crate) struct LineEndingWriter<W: Write> {
     inner: W,
     total_written: usize,
@@ -178,48 +180,59 @@ impl<R: Read> ArmoredReader<R> {
         read
     }
 
+    /// Detects whether this is an armored age file.
+    ///
+    /// We only use ArmoredReader to read age files, so we can rely on the following
+    /// properties:
+    ///
+    /// - The first line of an armored age file is 35-36 bytes, depending on whether CRLF
+    ///   or LF is used.
+    /// - A non-armored age file with a v1 header will be a minimum of 70 bytes (22-byte
+    ///   version line, 48-byte MAC line).
+    /// - A non-armored age file with an unknown header version will be a minimum of 21
+    ///   bytes (for a one-character version). However, assuming that age continues to
+    ///   target at least the 128-bit security level, any future header version must
+    ///   contain at least 16 more bytes, for a total minimum of 37 bytes.
+    ///
+    /// We therefore read exactly 36 bytes from the underlying reader, and parse it within
+    /// the internal buffer to determine whether this is an armored age file.
     fn detect_armor(&mut self) -> io::Result<()> {
         if self.is_armored.is_some() {
             panic!("ArmoredReader::detect_armor() called twice");
         }
 
-        // Try to read the armored begin marker.
-        let mut marker_read = 0;
-        while marker_read < ARMORED_BEGIN_MARKER.len()
-            && self.byte_buf[..marker_read] == ARMORED_BEGIN_MARKER.as_bytes()[..marker_read]
-        {
-            marker_read += self
-                .inner
-                .read(&mut self.byte_buf[marker_read..ARMORED_BEGIN_MARKER.len()])?;
-        }
+        const MARKER_LEN: usize = MIN_ARMOR_LEN - 2;
 
         // The first line of armor is the armor marker followed by either
         // CRLF or LF.
-        let is_armored = self.byte_buf[..marker_read] == ARMORED_BEGIN_MARKER.as_bytes()[..];
+        let is_armored = &self.byte_buf[..MARKER_LEN] == ARMORED_BEGIN_MARKER.as_bytes();
         if is_armored {
-            let mut byte = [0; 1];
-            self.inner.read_exact(&mut byte)?;
-            if match &byte {
-                b"\n" => false,
-                b"\r" => {
-                    self.inner.read_exact(&mut byte)?;
-                    match &byte {
-                        b"\n" => false,
-                        _ => true,
-                    }
+            match (
+                &self.byte_buf[MARKER_LEN..MARKER_LEN + 1],
+                &self.byte_buf[MARKER_LEN..MIN_ARMOR_LEN],
+            ) {
+                (b"\n", _) => {
+                    // We read one extra byte. If this is a valid armored file, that byte
+                    // is valid UTF-8, so we can move it into the line buffer.
+                    self.line_buf.push_str(
+                        std::str::from_utf8(&self.byte_buf[MARKER_LEN + 1..MIN_ARMOR_LEN])
+                            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
+                    );
+                    self.count_reader_bytes(1);
                 }
-                _ => true,
-            } {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "invalid armor begin marker",
-                ));
+                (_, b"\r\n") => (),
+                (_, _) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid armor begin marker",
+                    ))
+                }
             }
         } else {
             // Not armored, so the first line is part of the data.
             self.byte_start = 0;
-            self.byte_end = marker_read;
-            self.count_reader_bytes(marker_read);
+            self.byte_end = MIN_ARMOR_LEN;
+            self.count_reader_bytes(MIN_ARMOR_LEN);
         }
 
         self.is_armored = Some(is_armored);
@@ -333,7 +346,10 @@ impl<R: Read> Read for ArmoredReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         loop {
             match self.is_armored {
-                None => self.detect_armor()?,
+                None => {
+                    self.inner.read_exact(&mut self.byte_buf[..MIN_ARMOR_LEN])?;
+                    self.detect_armor()?
+                }
                 Some(false) => {
                     // Return any leftover data from armor detection
                     return if let Some(read) = self.read_cached_data(buf) {
@@ -385,7 +401,10 @@ impl<R: Read + Seek> Seek for ArmoredReader<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         loop {
             match self.is_armored {
-                None => self.detect_armor()?,
+                None => {
+                    self.inner.read_exact(&mut self.byte_buf[..MIN_ARMOR_LEN])?;
+                    self.detect_armor()?
+                }
                 Some(false) => {
                     break if self.byte_start >= self.byte_end {
                         // Map the data read onto the underlying stream.
