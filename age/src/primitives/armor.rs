@@ -225,6 +225,91 @@ impl<R: Read> ArmoredReader<R> {
         self.is_armored = Some(is_armored);
         Ok(())
     }
+
+    /// Reads cached data into the given buffer.
+    ///
+    /// Returns the number of bytes read into the buffer, or None if there was no cached
+    /// data.
+    fn read_cached_data(&mut self, buf: &mut [u8]) -> Option<usize> {
+        if self.byte_start >= self.byte_end {
+            None
+        } else if self.byte_start + buf.len() <= self.byte_end {
+            buf.copy_from_slice(&self.byte_buf[self.byte_start..self.byte_start + buf.len()]);
+            self.byte_start += buf.len();
+            self.data_read += buf.len();
+            Some(buf.len())
+        } else {
+            let to_read = self.byte_end - self.byte_start;
+            buf[..to_read].copy_from_slice(&self.byte_buf[self.byte_start..self.byte_end]);
+            self.byte_start += to_read;
+            self.data_read += to_read;
+            Some(to_read)
+        }
+    }
+
+    /// Validates `self.line_buf` and parses it into `self.byte_buf`.
+    ///
+    /// Returns `true` if this was the last line.
+    fn parse_armor_line(&mut self) -> io::Result<bool> {
+        // Handle line endings
+        let line = if self.line_buf.ends_with("\r\n") {
+            // trim_end_matches will trim the pattern repeatedly, but because
+            // BufRead::read_line splits on line endings, this will never occur.
+            self.line_buf.trim_end_matches("\r\n")
+        } else if self.line_buf.ends_with('\n') {
+            self.line_buf.trim_end_matches('\n')
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "missing line ending",
+            ));
+        };
+        if line.contains('\r') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "line contains CR",
+            ));
+        }
+
+        // Enforce canonical armor format
+        if line == ARMORED_END_MARKER {
+            // This line is the EOF marker; we are done!
+            self.found_end = true;
+            return Ok(true);
+        } else {
+            match (self.found_short_line, line.len()) {
+                (false, ARMORED_COLUMNS_PER_LINE) => (),
+                (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
+                    // The format may contain a single short line at the end.
+                    self.found_short_line = true;
+                }
+                (true, ARMORED_COLUMNS_PER_LINE) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid armor (short line in middle of encoding)",
+                    ));
+                }
+                _ => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid armor (not wrapped at 64 characters)",
+                    ));
+                }
+            }
+        }
+
+        // Decode the line
+        self.byte_start = 0;
+        self.byte_end =
+            base64::decode_config_slice(line.as_bytes(), base64::STANDARD, self.byte_buf.as_mut())
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        // Finished with this buffered line!
+        self.line_buf.clear();
+
+        // We haven't found the end yet
+        Ok(false)
+    }
 }
 
 impl<R: Read + Seek> ArmoredReader<R> {
@@ -250,29 +335,15 @@ impl<R: Read> Read for ArmoredReader<R> {
             match self.is_armored {
                 None => self.detect_armor()?,
                 Some(false) => {
-                    if self.byte_start >= self.byte_end {
-                        return self.inner.read(buf).map(|read| {
+                    // Return any leftover data from armor detection
+                    return if let Some(read) = self.read_cached_data(buf) {
+                        Ok(read)
+                    } else {
+                        self.inner.read(buf).map(|read| {
                             self.data_read += read;
                             self.count_reader_bytes(read)
-                        });
-                    } else {
-                        // Return any leftover data from armor detection
-                        if self.byte_start + buf.len() <= self.byte_end {
-                            buf.copy_from_slice(
-                                &self.byte_buf[self.byte_start..self.byte_start + buf.len()],
-                            );
-                            self.byte_start += buf.len();
-                            self.data_read += buf.len();
-                            return Ok(buf.len());
-                        } else {
-                            let to_read = self.byte_end - self.byte_start;
-                            buf[..to_read]
-                                .copy_from_slice(&self.byte_buf[self.byte_start..self.byte_end]);
-                            self.byte_start += to_read;
-                            self.data_read += to_read;
-                            return Ok(to_read);
-                        }
-                    }
+                        })
+                    };
                 }
                 Some(true) => break,
             }
@@ -284,91 +355,28 @@ impl<R: Read> Read for ArmoredReader<R> {
         let buf_len = buf.len();
 
         // Output any remaining bytes from the previous line
-        if self.byte_start + buf_len <= self.byte_end {
-            buf.copy_from_slice(&self.byte_buf[self.byte_start..self.byte_start + buf_len]);
-            self.byte_start += buf_len;
-            return Ok(buf_len);
-        } else {
-            let to_read = self.byte_end - self.byte_start;
-            buf[..to_read].copy_from_slice(&self.byte_buf[self.byte_start..self.byte_end]);
-            buf = &mut buf[to_read..];
+        if let Some(read) = self.read_cached_data(buf) {
+            buf = &mut buf[read..];
         }
 
-        loop {
+        while buf.len() > 0 {
             // Read the next line
-            self.line_buf.clear();
             self.inner
                 .read_line(&mut self.line_buf)
                 .map(|read| self.count_reader_bytes(read))?;
 
-            // Handle line endings
-            let line = if self.line_buf.ends_with("\r\n") {
-                // trim_end_matches will trim the pattern repeatedly, but because
-                // BufRead::read_line splits on line endings, this will never occur.
-                self.line_buf.trim_end_matches("\r\n")
-            } else if self.line_buf.ends_with('\n') {
-                self.line_buf.trim_end_matches('\n')
-            } else {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "missing line ending",
-                ));
-            };
-            if line.contains('\r') {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "line contains CR",
-                ));
-            }
-
-            // Enforce canonical armor format
-            if line == ARMORED_END_MARKER {
-                // This line is the EOF marker; we are done!
-                self.found_end = true;
+            // Parse the line into bytes
+            if self.parse_armor_line()? {
+                // This was the last line!
                 break;
-            } else {
-                match (self.found_short_line, line.len()) {
-                    (false, ARMORED_COLUMNS_PER_LINE) => (),
-                    (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
-                        // The format may contain a single short line at the end.
-                        self.found_short_line = true;
-                    }
-                    (true, ARMORED_COLUMNS_PER_LINE) => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "invalid armor (short line in middle of encoding)",
-                        ));
-                    }
-                    _ => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "invalid armor (not wrapped at 64 characters)",
-                        ));
-                    }
-                }
             }
-
-            // Decode the line
-            self.byte_end = base64::decode_config_slice(
-                line.as_bytes(),
-                base64::STANDARD,
-                self.byte_buf.as_mut(),
-            )
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
             // Output as much as we can of this line
-            if buf.len() <= self.byte_end {
-                buf.copy_from_slice(&self.byte_buf[..buf.len()]);
-                self.byte_start = buf.len();
-                self.data_read += buf_len;
-                return Ok(buf_len);
-            } else {
-                buf[..self.byte_end].copy_from_slice(&self.byte_buf[..self.byte_end]);
-                buf = &mut buf[self.byte_end..];
+            if let Some(read) = self.read_cached_data(buf) {
+                buf = &mut buf[read..];
             }
         }
 
-        self.data_read += buf_len - buf.len();
         Ok(buf_len - buf.len())
     }
 }
@@ -469,6 +477,7 @@ impl<R: Read + Seek> Seek for ArmoredReader<R> {
                     // we can't determine where the armor line containing the target
                     // position begins within the reader.
                     self.inner.seek(SeekFrom::Start(start))?;
+                    self.line_buf.clear();
                     self.byte_start = ARMORED_BYTES_PER_LINE;
                     self.byte_end = ARMORED_BYTES_PER_LINE;
                     self.found_short_line = false;
