@@ -208,7 +208,7 @@ impl<R: Read> ArmoredReader<R> {
         let is_armored = &self.byte_buf[..MARKER_LEN] == ARMORED_BEGIN_MARKER.as_bytes();
         if is_armored {
             match (
-                &self.byte_buf[MARKER_LEN..MARKER_LEN + 1],
+                &self.byte_buf[MARKER_LEN..=MARKER_LEN],
                 &self.byte_buf[MARKER_LEN..MIN_ARMOR_LEN],
             ) {
                 (b"\n", _) => {
@@ -358,7 +358,7 @@ impl<R: Read> Read for ArmoredReader<R> {
             buf = &mut buf[read..];
         }
 
-        while buf.len() > 0 {
+        while !buf.is_empty() {
             // Read the next line
             self.inner
                 .read_line(&mut self.line_buf)
