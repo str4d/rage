@@ -151,6 +151,9 @@ impl<R: Read> Decryptor<R> {
 
         match &header {
             Header::V1(v1_header) => {
+                let mut nonce = [0; 16];
+                input.read_exact(&mut nonce)?;
+
                 // Enforce structural requirements on the v1 header.
                 let any_scrypt = v1_header.recipients.iter().any(|r| {
                     if let RecipientStanza::Scrypt(_) = r {
@@ -161,9 +164,9 @@ impl<R: Read> Decryptor<R> {
                 });
 
                 if any_scrypt && v1_header.recipients.len() == 1 {
-                    Ok(decryptor::PassphraseDecryptor::new(input, header).into())
+                    Ok(decryptor::PassphraseDecryptor::new(input, header, nonce).into())
                 } else if !any_scrypt {
-                    Ok(decryptor::RecipientsDecryptor::new(input, header).into())
+                    Ok(decryptor::RecipientsDecryptor::new(input, header, nonce).into())
                 } else {
                     Err(Error::InvalidHeader)
                 }

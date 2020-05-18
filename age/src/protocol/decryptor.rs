@@ -19,6 +19,8 @@ struct BaseDecryptor<R: Read> {
     input: ArmoredReader<R>,
     /// The age file's header.
     header: Header,
+    /// The age file's AEAD nonce
+    nonce: [u8; 16],
 }
 
 impl<R: Read> BaseDecryptor<R> {
@@ -27,17 +29,12 @@ impl<R: Read> BaseDecryptor<R> {
         F: FnMut(&RecipientStanza) -> Option<Result<FileKey, Error>>,
     {
         match &self.header {
-            Header::V1(header) => {
-                let mut nonce = [0; 16];
-                self.input.read_exact(&mut nonce)?;
-
-                header
-                    .recipients
-                    .iter()
-                    .find_map(filter)
-                    .unwrap_or(Err(Error::NoMatchingKeys))
-                    .and_then(|file_key| v1_payload_key(header, file_key, nonce))
-            }
+            Header::V1(header) => header
+                .recipients
+                .iter()
+                .find_map(filter)
+                .unwrap_or(Err(Error::NoMatchingKeys))
+                .and_then(|file_key| v1_payload_key(header, file_key, self.nonce)),
             Header::Unknown(_) => unreachable!(),
         }
     }
@@ -47,8 +44,12 @@ impl<R: Read> BaseDecryptor<R> {
 pub struct RecipientsDecryptor<R: Read>(BaseDecryptor<R>);
 
 impl<R: Read> RecipientsDecryptor<R> {
-    pub(super) fn new(input: ArmoredReader<R>, header: Header) -> Self {
-        RecipientsDecryptor(BaseDecryptor { input, header })
+    pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
+        RecipientsDecryptor(BaseDecryptor {
+            input,
+            header,
+            nonce,
+        })
     }
 
     /// Attempts to decrypt the age file.
@@ -83,8 +84,12 @@ impl<R: Read> RecipientsDecryptor<R> {
 pub struct PassphraseDecryptor<R: Read>(BaseDecryptor<R>);
 
 impl<R: Read> PassphraseDecryptor<R> {
-    pub(super) fn new(input: ArmoredReader<R>, header: Header) -> Self {
-        PassphraseDecryptor(BaseDecryptor { input, header })
+    pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
+        PassphraseDecryptor(BaseDecryptor {
+            input,
+            header,
+            nonce,
+        })
     }
 
     /// Attempts to decrypt the age file.
