@@ -1,6 +1,6 @@
 name: Interoperability tests
 
-on: push
+on: [push, repository_dispatch]
 
 jobs:
   build-rage:
@@ -57,6 +57,14 @@ jobs:
       fail-fast: false
 
     steps:
+      - name: Create FiloSottile/age status
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.AGE_STATUS_ACCESS_TOKEN }} \
+          --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Testing ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]", "context": "interoperability/${{ matrix.alice }}-${{ matrix.bob }}-${{ matrix.recipient }}"}'
+
       # Download the binaries to test
       - uses: actions/download-artifact@v1
         with:
@@ -147,3 +155,11 @@ jobs:
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
           path: test4.age
+
+      - name: Update FiloSottile/age status with result
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.AGE_STATUS_ACCESS_TOKEN }} \
+          --data '{"state": "${{ job.status }}", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Test passed!", "context": "interoperability/${{ matrix.alice }}-${{ matrix.bob }}-${{ matrix.recipient }}"}'
