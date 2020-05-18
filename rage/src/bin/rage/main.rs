@@ -275,7 +275,10 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     };
 
     io::copy(&mut input, &mut output).map_err(map_io_errors)?;
-    output.finish().map_err(map_io_errors)?;
+    output
+        .finish()
+        .and_then(|armor| armor.finish())
+        .map_err(map_io_errors)?;
 
     Ok(())
 }
