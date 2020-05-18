@@ -1,10 +1,9 @@
 use age::{
-    armor::{ArmoredReader, ArmoredWriter},
+    armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase, UiCallbacks,
     },
-    Format,
 };
 use gumdrop::{Options, ParsingStyle};
 use log::{error, warn};

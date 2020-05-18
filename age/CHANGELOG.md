@@ -22,6 +22,7 @@ to 1.0.0 are beta releases.
 - `age::Decryptor` now only decrypts the non-malleable binary age format. Use
   `age::Decryptor::new(age::armor::ArmoredReader::new(input))` to handle age
   files that are potentially armored.
+- `age::Format` has been moved to `age::armor::Format`.
 
 ## [0.4.0] - 2020-03-25
 ### Added

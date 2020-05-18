@@ -5,7 +5,7 @@ use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
 
-use crate::{util::LINE_ENDING, Format};
+use crate::util::LINE_ENDING;
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -13,6 +13,14 @@ const ARMORED_BEGIN_MARKER: &str = "-----BEGIN AGE ENCRYPTED FILE-----";
 const ARMORED_END_MARKER: &str = "-----END AGE ENCRYPTED FILE-----";
 
 const MIN_ARMOR_LEN: usize = 36; // ARMORED_BEGIN_MARKER.len() + 2
+
+/// Specifies the format that [`ArmoredWriter`] should apply to its output.
+pub enum Format {
+    /// age binary format.
+    Binary,
+    /// ASCII armored format.
+    AsciiArmor,
+}
 
 pub(crate) struct LineEndingWriter<W: Write> {
     inner: W,
@@ -540,8 +548,7 @@ impl<R: Read + Seek> Seek for ArmoredReader<R> {
 mod tests {
     use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
-    use crate::Format;
+    use super::{ArmoredReader, ArmoredWriter, Format, ARMORED_BYTES_PER_LINE};
 
     #[test]
     fn armored_round_trip() {

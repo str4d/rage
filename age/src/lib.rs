@@ -99,14 +99,6 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
-/// Format of output
-pub enum Format {
-    /// age binary format
-    Binary,
-    /// ascii armor
-    AsciiArmor,
-}
-
 mod error;
 mod format;
 pub mod keys;
