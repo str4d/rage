@@ -11,7 +11,7 @@ use crate::{
     format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientStanza},
     keys::{FileKey, RecipientKey},
     primitives::{
-        armor::{ArmoredReader, ArmoredWriter},
+        armor::ArmoredWriter,
         stream::{Stream, StreamWriter},
     },
     Format,
@@ -145,8 +145,7 @@ impl<R: Read> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
-    pub fn new(input: R) -> Result<Self, Error> {
-        let mut input = ArmoredReader::from_reader(input);
+    pub fn new(mut input: R) -> Result<Self, Error> {
         let header = Header::read(&mut input)?;
 
         match &header {

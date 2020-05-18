@@ -1,3 +1,5 @@
+//! I/O helper structs for the age ASCII armor format.
+
 use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
@@ -139,6 +141,7 @@ enum StartPos {
     Explicit(u64),
 }
 
+/// Reader that will parse the age ASCII armor format if detected.
 pub struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
     start: StartPos,
@@ -154,9 +157,10 @@ pub struct ArmoredReader<R: Read> {
 }
 
 impl<R: Read> ArmoredReader<R> {
-    pub(crate) fn from_reader(inner: R) -> Self {
+    /// Wraps a reader that may contain an armored age file.
+    pub fn new(reader: R) -> Self {
         ArmoredReader {
-            inner: BufReader::new(inner),
+            inner: BufReader::new(reader),
             start: StartPos::Implicit(0),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
@@ -546,7 +550,7 @@ mod tests {
 
             let mut buf = vec![];
             {
-                let mut input = ArmoredReader::from_reader(&encoded[..]);
+                let mut input = ArmoredReader::new(&encoded[..]);
                 input.read_to_end(&mut buf).unwrap();
             }
 
@@ -569,7 +573,7 @@ mod tests {
         };
         assert_eq!(written, data);
 
-        let mut r = ArmoredReader::from_reader(Cursor::new(written));
+        let mut r = ArmoredReader::new(Cursor::new(written));
 
         // Read part-way into the first "line"
         let mut buf = vec![0; 100];
@@ -615,7 +619,7 @@ mod tests {
             w.finish().unwrap();
         };
 
-        let mut r = ArmoredReader::from_reader(Cursor::new(armored));
+        let mut r = ArmoredReader::new(Cursor::new(armored));
 
         // Read part-way into the first "line"
         let mut buf = vec![0; 100];

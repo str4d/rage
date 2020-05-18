@@ -1,4 +1,5 @@
 use age::{
+    armor::ArmoredReader,
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase, UiCallbacks,
@@ -308,7 +309,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     #[cfg(not(unix))]
     let has_file_argument = opts.input.is_some();
 
-    match age::Decryptor::new(file_io::InputReader::new(opts.input)?)? {
+    match age::Decryptor::new(ArmoredReader::new(file_io::InputReader::new(opts.input)?))? {
         age::Decryptor::Passphrase(decryptor) => {
             // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
             // any conflict with stdin.

@@ -9,6 +9,14 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::armor::ArmoredReader`, which can be wrapped around an input to handle
+  a potentially-armored age file.
+
+### Changed
+- `age::Decryptor` now only decrypts the non-malleable binary age format. Use
+  `age::Decryptor::new(age::armor::ArmoredReader::new(input))` to handle age
+  files that are potentially armored.
 
 ## [0.4.0] - 2020-03-25
 ### Added
