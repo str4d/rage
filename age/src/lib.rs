@@ -25,7 +25,7 @@
 //!     let encryptor = age::Encryptor::with_recipients(vec![pubkey]);
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!
@@ -68,7 +68,7 @@
 //!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!

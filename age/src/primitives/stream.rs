@@ -8,8 +8,6 @@ use secrecy::{ExposeSecret, SecretVec};
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 
-use super::armor::ArmoredWriter;
-
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
@@ -82,7 +80,7 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
-    pub(crate) fn encrypt<W: Write>(key: &[u8; 32], inner: ArmoredWriter<W>) -> StreamWriter<W> {
+    pub(crate) fn encrypt<W: Write>(key: &[u8; 32], inner: W) -> StreamWriter<W> {
         StreamWriter {
             stream: Self::new(key),
             inner,
@@ -151,7 +149,7 @@ impl Stream {
 /// Writes an encrypted age file.
 pub struct StreamWriter<W: Write> {
     stream: Stream,
-    inner: ArmoredWriter<W>,
+    inner: W,
     chunk: Vec<u8>,
 }
 
@@ -164,7 +162,7 @@ impl<W: Write> StreamWriter<W> {
     pub fn finish(mut self) -> io::Result<W> {
         let encrypted = self.stream.encrypt_chunk(&self.chunk, true)?;
         self.inner.write_all(&encrypted)?;
-        self.inner.finish()
+        Ok(self.inner)
     }
 }
 
@@ -388,8 +386,6 @@ mod tests {
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{Stream, CHUNK_SIZE};
-    use crate::primitives::armor::ArmoredWriter;
-    use crate::Format;
 
     #[test]
     fn chunk_round_trip() {
@@ -458,10 +454,7 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(
-                &key,
-                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
-            );
+            let mut w = Stream::encrypt(&key, &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -483,10 +476,7 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(
-                &key,
-                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
-            );
+            let mut w = Stream::encrypt(&key, &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -508,10 +498,7 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(
-                &key,
-                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
-            );
+            let mut w = Stream::encrypt(&key, &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
@@ -533,10 +520,7 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(
-                &key,
-                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
-            );
+            let mut w = Stream::encrypt(&key, &mut encrypted);
             w.write_all(&data).unwrap();
             // Forget to call w.finish()!
         };
@@ -559,10 +543,7 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(
-                &key,
-                ArmoredWriter::wrap_output(&mut encrypted, Format::Binary).unwrap(),
-            );
+            let mut w = Stream::encrypt(&key, &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };

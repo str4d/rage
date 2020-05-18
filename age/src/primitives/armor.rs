@@ -72,7 +72,7 @@ impl<W: Write> Write for LineEndingWriter<W> {
     }
 }
 
-pub(crate) enum ArmoredWriter<W: Write> {
+enum ArmorIs<W: Write> {
     Enabled {
         encoder: EncodeWriter<Std, LineEndingWriter<W>>,
     },
@@ -82,39 +82,50 @@ pub(crate) enum ArmoredWriter<W: Write> {
     },
 }
 
+/// Writer that optionally applies the age ASCII armor format.
+pub struct ArmoredWriter<W: Write>(ArmorIs<W>);
+
 impl<W: Write> ArmoredWriter<W> {
-    pub(crate) fn wrap_output(inner: W, format: Format) -> io::Result<Self> {
+    /// Wraps the given output in an `ArmoredWriter` that will apply the given [`Format`].
+    pub fn wrap_output(output: W, format: Format) -> io::Result<Self> {
         match format {
-            Format::AsciiArmor => LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
-                encoder: EncodeWriter::new(STD, w),
+            Format::AsciiArmor => LineEndingWriter::new(output).map(|w| {
+                ArmoredWriter(ArmorIs::Enabled {
+                    encoder: EncodeWriter::new(STD, w),
+                })
             }),
-            Format::Binary => Ok(ArmoredWriter::Disabled { inner }),
+            Format::Binary => Ok(ArmoredWriter(ArmorIs::Disabled { inner: output })),
         }
     }
 
-    pub(crate) fn finish(self) -> io::Result<W> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder
+    /// Writes the end marker of the age file, if armoring was enabled.
+    ///
+    /// You **MUST** call `finish` when you are done writing, in order to finish the
+    /// armoring process. Failing to call `finish` will result in a truncated file that
+    /// that will fail to decrypt.
+    pub fn finish(self) -> io::Result<W> {
+        match self.0 {
+            ArmorIs::Enabled { encoder } => encoder
                 .finish()
                 .map_err(|e| io::Error::from(e.error().kind()))
                 .and_then(|line_ending| line_ending.finish()),
-            ArmoredWriter::Disabled { inner } => Ok(inner),
+            ArmorIs::Disabled { inner } => Ok(inner),
         }
     }
 }
 
 impl<W: Write> Write for ArmoredWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder.write(buf),
-            ArmoredWriter::Disabled { inner } => inner.write(buf),
+        match &mut self.0 {
+            ArmorIs::Enabled { encoder } => encoder.write(buf),
+            ArmorIs::Disabled { inner } => inner.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder.flush(),
-            ArmoredWriter::Disabled { inner } => inner.flush(),
+        match &mut self.0 {
+            ArmorIs::Enabled { encoder } => encoder.flush(),
+            ArmorIs::Disabled { inner } => inner.flush(),
         }
     }
 }

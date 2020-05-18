@@ -1,5 +1,5 @@
 use age::{
-    armor::ArmoredReader,
+    armor::{ArmoredReader, ArmoredWriter},
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase, UiCallbacks,
@@ -264,7 +264,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         file_io::OutputWriter::Stdout(..) => true,
     };
 
-    let mut output = encryptor.wrap_output(output, format)?;
+    let mut output = encryptor.wrap_output(ArmoredWriter::wrap_output(output, format)?)?;
 
     // Give more useful errors specifically when writing to the output.
     let map_io_errors = |e: io::Error| match e.kind() {
