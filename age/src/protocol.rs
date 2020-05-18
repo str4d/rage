@@ -10,11 +10,7 @@ use crate::{
     error::Error,
     format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientStanza},
     keys::{FileKey, RecipientKey},
-    primitives::{
-        armor::{ArmoredReader, ArmoredWriter},
-        stream::{Stream, StreamWriter},
-    },
-    Format,
+    primitives::stream::{Stream, StreamWriter},
 };
 
 pub mod decryptor;
@@ -93,17 +89,14 @@ impl Encryptor {
         Encryptor(EncryptorType::Passphrase(passphrase))
     }
 
-    /// Creates a wrapper around a writer that will encrypt its input, and optionally
-    /// ASCII armor the output.
+    /// Creates a wrapper around a writer that will encrypt its input.
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
     /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
-    pub fn wrap_output<W: Write>(self, output: W, format: Format) -> io::Result<StreamWriter<W>> {
-        let mut output = ArmoredWriter::wrap_output(output, format)?;
-
+    pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
         let file_key = FileKey::generate();
 
         let header = Header::new(
@@ -145,8 +138,7 @@ impl<R: Read> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
-    pub fn new(input: R) -> Result<Self, Error> {
-        let mut input = ArmoredReader::from_reader(input);
+    pub fn new(mut input: R) -> Result<Self, Error> {
         let header = Header::read(&mut input)?;
 
         match &header {
@@ -183,7 +175,6 @@ mod tests {
 
     use super::{Decryptor, Encryptor};
     use crate::keys::{Identity, RecipientKey};
-    use crate::Format;
 
     #[test]
     fn x25519_round_trip() {
@@ -196,7 +187,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::with_recipients(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
@@ -219,7 +210,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::with_user_passphrase(SecretString::new("passphrase".to_string()));
         {
-            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
@@ -249,7 +240,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::with_recipients(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
@@ -276,7 +267,7 @@ mod tests {
         let mut encrypted = vec![];
         let e = Encryptor::with_recipients(vec![pk]);
         {
-            let mut w = e.wrap_output(&mut encrypted, Format::Binary).unwrap();
+            let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }

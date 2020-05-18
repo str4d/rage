@@ -1,9 +1,11 @@
+//! I/O helper structs for the age ASCII armor format.
+
 use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
 
-use crate::{util::LINE_ENDING, Format};
+use crate::util::LINE_ENDING;
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -11,6 +13,14 @@ const ARMORED_BEGIN_MARKER: &str = "-----BEGIN AGE ENCRYPTED FILE-----";
 const ARMORED_END_MARKER: &str = "-----END AGE ENCRYPTED FILE-----";
 
 const MIN_ARMOR_LEN: usize = 36; // ARMORED_BEGIN_MARKER.len() + 2
+
+/// Specifies the format that [`ArmoredWriter`] should apply to its output.
+pub enum Format {
+    /// age binary format.
+    Binary,
+    /// ASCII armored format.
+    AsciiArmor,
+}
 
 pub(crate) struct LineEndingWriter<W: Write> {
     inner: W,
@@ -70,7 +80,7 @@ impl<W: Write> Write for LineEndingWriter<W> {
     }
 }
 
-pub(crate) enum ArmoredWriter<W: Write> {
+enum ArmorIs<W: Write> {
     Enabled {
         encoder: EncodeWriter<Std, LineEndingWriter<W>>,
     },
@@ -80,39 +90,50 @@ pub(crate) enum ArmoredWriter<W: Write> {
     },
 }
 
+/// Writer that optionally applies the age ASCII armor format.
+pub struct ArmoredWriter<W: Write>(ArmorIs<W>);
+
 impl<W: Write> ArmoredWriter<W> {
-    pub(crate) fn wrap_output(inner: W, format: Format) -> io::Result<Self> {
+    /// Wraps the given output in an `ArmoredWriter` that will apply the given [`Format`].
+    pub fn wrap_output(output: W, format: Format) -> io::Result<Self> {
         match format {
-            Format::AsciiArmor => LineEndingWriter::new(inner).map(|w| ArmoredWriter::Enabled {
-                encoder: EncodeWriter::new(STD, w),
+            Format::AsciiArmor => LineEndingWriter::new(output).map(|w| {
+                ArmoredWriter(ArmorIs::Enabled {
+                    encoder: EncodeWriter::new(STD, w),
+                })
             }),
-            Format::Binary => Ok(ArmoredWriter::Disabled { inner }),
+            Format::Binary => Ok(ArmoredWriter(ArmorIs::Disabled { inner: output })),
         }
     }
 
-    pub(crate) fn finish(self) -> io::Result<W> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder
+    /// Writes the end marker of the age file, if armoring was enabled.
+    ///
+    /// You **MUST** call `finish` when you are done writing, in order to finish the
+    /// armoring process. Failing to call `finish` will result in a truncated file that
+    /// that will fail to decrypt.
+    pub fn finish(self) -> io::Result<W> {
+        match self.0 {
+            ArmorIs::Enabled { encoder } => encoder
                 .finish()
                 .map_err(|e| io::Error::from(e.error().kind()))
                 .and_then(|line_ending| line_ending.finish()),
-            ArmoredWriter::Disabled { inner } => Ok(inner),
+            ArmorIs::Disabled { inner } => Ok(inner),
         }
     }
 }
 
 impl<W: Write> Write for ArmoredWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder.write(buf),
-            ArmoredWriter::Disabled { inner } => inner.write(buf),
+        match &mut self.0 {
+            ArmorIs::Enabled { encoder } => encoder.write(buf),
+            ArmorIs::Disabled { inner } => inner.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        match self {
-            ArmoredWriter::Enabled { encoder } => encoder.flush(),
-            ArmoredWriter::Disabled { inner } => inner.flush(),
+        match &mut self.0 {
+            ArmorIs::Enabled { encoder } => encoder.flush(),
+            ArmorIs::Disabled { inner } => inner.flush(),
         }
     }
 }
@@ -139,6 +160,7 @@ enum StartPos {
     Explicit(u64),
 }
 
+/// Reader that will parse the age ASCII armor format if detected.
 pub struct ArmoredReader<R: Read> {
     inner: BufReader<R>,
     start: StartPos,
@@ -154,9 +176,10 @@ pub struct ArmoredReader<R: Read> {
 }
 
 impl<R: Read> ArmoredReader<R> {
-    pub(crate) fn from_reader(inner: R) -> Self {
+    /// Wraps a reader that may contain an armored age file.
+    pub fn new(reader: R) -> Self {
         ArmoredReader {
-            inner: BufReader::new(inner),
+            inner: BufReader::new(reader),
             start: StartPos::Implicit(0),
             is_armored: None,
             line_buf: Zeroizing::new(String::with_capacity(ARMORED_COLUMNS_PER_LINE + 2)),
@@ -525,8 +548,7 @@ impl<R: Read + Seek> Seek for ArmoredReader<R> {
 mod tests {
     use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{ArmoredReader, ArmoredWriter, ARMORED_BYTES_PER_LINE};
-    use crate::Format;
+    use super::{ArmoredReader, ArmoredWriter, Format, ARMORED_BYTES_PER_LINE};
 
     #[test]
     fn armored_round_trip() {
@@ -546,7 +568,7 @@ mod tests {
 
             let mut buf = vec![];
             {
-                let mut input = ArmoredReader::from_reader(&encoded[..]);
+                let mut input = ArmoredReader::new(&encoded[..]);
                 input.read_to_end(&mut buf).unwrap();
             }
 
@@ -569,7 +591,7 @@ mod tests {
         };
         assert_eq!(written, data);
 
-        let mut r = ArmoredReader::from_reader(Cursor::new(written));
+        let mut r = ArmoredReader::new(Cursor::new(written));
 
         // Read part-way into the first "line"
         let mut buf = vec![0; 100];
@@ -615,7 +637,7 @@ mod tests {
             w.finish().unwrap();
         };
 
-        let mut r = ArmoredReader::from_reader(Cursor::new(armored));
+        let mut r = ArmoredReader::new(Cursor::new(armored));
 
         // Read part-way into the first "line"
         let mut buf = vec![0; 100];

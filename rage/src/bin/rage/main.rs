@@ -1,9 +1,9 @@
 use age::{
+    armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase, UiCallbacks,
     },
-    Format,
 };
 use gumdrop::{Options, ParsingStyle};
 use log::{error, warn};
@@ -263,7 +263,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         file_io::OutputWriter::Stdout(..) => true,
     };
 
-    let mut output = encryptor.wrap_output(output, format)?;
+    let mut output = encryptor.wrap_output(ArmoredWriter::wrap_output(output, format)?)?;
 
     // Give more useful errors specifically when writing to the output.
     let map_io_errors = |e: io::Error| match e.kind() {
@@ -275,7 +275,10 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     };
 
     io::copy(&mut input, &mut output).map_err(map_io_errors)?;
-    output.finish().map_err(map_io_errors)?;
+    output
+        .finish()
+        .and_then(|armor| armor.finish())
+        .map_err(map_io_errors)?;
 
     Ok(())
 }
@@ -308,7 +311,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     #[cfg(not(unix))]
     let has_file_argument = opts.input.is_some();
 
-    match age::Decryptor::new(file_io::InputReader::new(opts.input)?)? {
+    match age::Decryptor::new(ArmoredReader::new(file_io::InputReader::new(opts.input)?))? {
         age::Decryptor::Passphrase(decryptor) => {
             // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
             // any conflict with stdin.

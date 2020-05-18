@@ -1,4 +1,5 @@
 use age::{
+    armor::ArmoredReader,
     cli_common::{read_identities, read_secret, UiCallbacks},
     stream::StreamReader,
 };
@@ -127,7 +128,7 @@ where
 }
 
 fn mount_stream(
-    stream: StreamReader<File>,
+    stream: StreamReader<ArmoredReader<File>>,
     types: String,
     mountpoint: String,
 ) -> Result<(), Error> {
@@ -181,7 +182,7 @@ fn main() -> Result<(), Error> {
     let types = opts.types;
     let mountpoint = opts.mountpoint;
 
-    match age::Decryptor::new(file)? {
+    match age::Decryptor::new(ArmoredReader::new(file))? {
         age::Decryptor::Passphrase(decryptor) => {
             match read_secret("Type passphrase", "Passphrase", None) {
                 Ok(passphrase) => decryptor

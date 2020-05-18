@@ -25,7 +25,7 @@
 //!     let encryptor = age::Encryptor::with_recipients(vec![pubkey]);
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!
@@ -68,7 +68,7 @@
 //!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
 //!
 //!     let mut encrypted = vec![];
-//!     let mut writer = encryptor.wrap_output(&mut encrypted, age::Format::Binary)?;
+//!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
 //!     writer.write_all(plaintext)?;
 //!     writer.finish()?;
 //!
@@ -99,14 +99,6 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
-/// Format of output
-pub enum Format {
-    /// age binary format
-    Binary,
-    /// ascii armor
-    AsciiArmor,
-}
-
 mod error;
 mod format;
 pub mod keys;
@@ -117,7 +109,7 @@ mod util;
 
 pub use error::Error;
 pub use keys::SecretKey;
-pub use primitives::stream;
+pub use primitives::{armor, stream};
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]

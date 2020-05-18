@@ -8,15 +8,12 @@ use crate::{
     error::Error,
     format::{Header, RecipientStanza},
     keys::{FileKey, Identity},
-    primitives::{
-        armor::ArmoredReader,
-        stream::{Stream, StreamReader},
-    },
+    primitives::stream::{Stream, StreamReader},
 };
 
 struct BaseDecryptor<R: Read> {
     /// The age file.
-    input: ArmoredReader<R>,
+    input: R,
     /// The age file's header.
     header: Header,
     /// The age file's AEAD nonce
@@ -44,7 +41,7 @@ impl<R: Read> BaseDecryptor<R> {
 pub struct RecipientsDecryptor<R: Read>(BaseDecryptor<R>);
 
 impl<R: Read> RecipientsDecryptor<R> {
-    pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
+    pub(super) fn new(input: R, header: Header, nonce: [u8; 16]) -> Self {
         RecipientsDecryptor(BaseDecryptor {
             input,
             header,
@@ -84,7 +81,7 @@ impl<R: Read> RecipientsDecryptor<R> {
 pub struct PassphraseDecryptor<R: Read>(BaseDecryptor<R>);
 
 impl<R: Read> PassphraseDecryptor<R> {
-    pub(super) fn new(input: ArmoredReader<R>, header: Header, nonce: [u8; 16]) -> Self {
+    pub(super) fn new(input: R, header: Header, nonce: [u8; 16]) -> Self {
         PassphraseDecryptor(BaseDecryptor {
             input,
             header,
