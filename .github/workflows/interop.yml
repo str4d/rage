@@ -55,11 +55,19 @@ jobs:
         with:
           go-version: 1.13
         id: go
+
+      - name: Use specified FiloSottile/age commit
+        if: github.event.action == 'age-interop-request'
+        run: echo ::set-env name=AGE_REF::${{ github.event.client_payload.sha }}
+      - name: Use FiloSottile/age current master
+        if: github.event.action != 'age-interop-request'
+        run: echo ::set-env name=AGE_REF::refs/heads/master
+
       - name: Check out FiloSottile/age
         uses: actions/checkout@v1
         with:
           repository: FiloSottile/age
-          ref: refs/heads/master
+          ref: ${{ env.AGE_REF }}
       - name: go build
         run: |
           cd $GITHUB_WORKSPACE/../age
