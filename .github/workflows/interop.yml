@@ -62,7 +62,7 @@ jobs:
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
-          -u ${{ secrets.AGE_STATUS_ACCESS_TOKEN }} \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Testing ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]", "context": "interoperability/${{ matrix.alice }}-${{ matrix.bob }}-${{ matrix.recipient }}"}'
 
       # Download the binaries to test
@@ -161,5 +161,5 @@ jobs:
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
-          -u ${{ secrets.AGE_STATUS_ACCESS_TOKEN }} \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
           --data '{"state": "${{ job.status }}", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Test passed!", "context": "interoperability/${{ matrix.alice }}-${{ matrix.bob }}-${{ matrix.recipient }}"}'
