@@ -8,6 +8,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create FiloSottile/age status
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
+          --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Building", "context": "Interoperability tests / Build rage"}'
+
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
@@ -21,11 +29,27 @@ jobs:
           name: rage
           path: target/debug/rage
 
+      - name: Update FiloSottile/age status with result
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
+          --data '{"state": "${{ job.status }}", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Finished", "context": "Interoperability tests / Build rage"}'
+
   build-age:
     name: Build age
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create FiloSottile/age status
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
+          --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Building", "context": "Interoperability tests / Build age"}'
+
       - name: Set up Go 1.13
         uses: actions/setup-go@v1
         with:
@@ -44,6 +68,14 @@ jobs:
         with:
           name: age
           path: ../age/age
+
+      - name: Update FiloSottile/age status with result
+        if: github.event.action == 'age-interop-request'
+        run: |
+          curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
+          --data '{"state": "${{ job.status }}", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "Finished", "context": "Interoperability tests / Build age"}'
 
   test:
     name: ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]
