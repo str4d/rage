@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Asynchronous APIs for decryption:
+  - `age::Decryptor::new_async()`
+  - `age::decryptor::RecipientsDecryptor::decrypt_async()`
+  - `age::decryptor::RecipientsDecryptor::decrypt_async_with_callbacks()`
+  - `age::decryptor::PassphraseDecryptor::decrypt_async()`
 - `age::armor::ArmoredReader`, which can be wrapped around an input to handle
   a potentially-armored age file.
 - `age::armor::ArmoredWriter`, which can be wrapped around an output to
@@ -17,11 +22,11 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - `age::Encryptor::wrap_output` now only generates the non-malleable binary age
-  format. Use `encryptor.wrap_output(age::armor::ArmoredWriter(output, format))`
+  format. Use `encryptor.wrap_output(ArmoredWriter::wrap_output(output, format))`
   to optionally generate armored age files.
 - `age::Decryptor` now only decrypts the non-malleable binary age format. Use
-  `age::Decryptor::new(age::armor::ArmoredReader::new(input))` to handle age
-  files that are potentially armored.
+  `Decryptor::new(ArmoredReader::new(input))` to handle age files that are
+  potentially armored.
 - `age::Format` has been moved to `age::armor::Format`.
 
 ## [0.4.0] - 2020-03-25

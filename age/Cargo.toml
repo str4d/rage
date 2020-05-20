@@ -69,6 +69,10 @@ secrecy = "0.6"
 subtle = "2"
 zeroize = "1"
 
+# Async I/O
+futures = { version = "0.3", optional = true }
+pin-project = "0.4"
+
 # Common CLI dependencies
 console = { version = "0.10", optional = true }
 dirs = { version = "2", optional = true }
@@ -78,11 +82,13 @@ rpassword = { version = "4", optional = true }
 [dev-dependencies]
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
+futures-test = "0.3"
 quickcheck = "0.9"
 quickcheck_macros = "0.9"
 
 [features]
 default = []
+async = ["futures"]
 cli-common = ["console", "dirs", "pinentry", "rpassword"]
 unstable = ["num-traits", "rsa"]
 
