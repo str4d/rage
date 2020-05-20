@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Asynchronous APIs for decryption:
+  - `age::Decryptor::new_async()`
+  - `age::decryptor::RecipientsDecryptor::decrypt_async()`
+  - `age::decryptor::RecipientsDecryptor::decrypt_async_with_callbacks()`
+  - `age::decryptor::PassphraseDecryptor::decrypt_async()`
 - `age::armor::ArmoredReader`, which can be wrapped around an input to handle
   a potentially-armored age file.
 - `age::armor::ArmoredWriter`, which can be wrapped around an output to
