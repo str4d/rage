@@ -11,10 +11,12 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 
 #[cfg(feature = "async")]
 use futures::{
-    io::{AsyncRead, Error},
+    io::{AsyncRead, AsyncWrite, Error},
     ready,
     task::{Context, Poll},
 };
+#[cfg(feature = "async")]
+use pin_project::project;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 
@@ -63,6 +65,11 @@ impl Nonce {
     }
 }
 
+struct EncryptedChunk {
+    bytes: Vec<u8>,
+    offset: usize,
+}
+
 /// `STREAM[key](plaintext)`
 ///
 /// The [STREAM] construction for online authenticated encryption, instantiated with
@@ -95,6 +102,24 @@ impl Stream {
             stream: Self::new(key),
             inner,
             chunk: Vec::with_capacity(CHUNK_SIZE),
+            encrypted_chunk: None,
+        }
+    }
+
+    /// Wraps `STREAM` encryption under the given `key` around a writer.
+    ///
+    /// `key` must **never** be repeated across multiple streams. In `age` this is
+    /// achieved by deriving the key with [`HKDF`] from both a random file key and a
+    /// random nonce.
+    ///
+    /// [`HKDF`]: age_core::primitives::hkdf
+    #[cfg(feature = "async")]
+    pub(crate) fn encrypt_async<W: AsyncWrite>(key: &[u8; 32], inner: W) -> StreamWriter<W> {
+        StreamWriter {
+            stream: Self::new(key),
+            inner,
+            chunk: Vec::with_capacity(CHUNK_SIZE),
+            encrypted_chunk: None,
         }
     }
 
@@ -179,10 +204,13 @@ impl Stream {
 }
 
 /// Writes an encrypted age file.
-pub struct StreamWriter<W: Write> {
+#[pin_project]
+pub struct StreamWriter<W> {
     stream: Stream,
+    #[pin]
     inner: W,
     chunk: Vec<u8>,
+    encrypted_chunk: Option<EncryptedChunk>,
 }
 
 impl<W: Write> StreamWriter<W> {
@@ -229,6 +257,93 @@ impl<W: Write> Write for StreamWriter<W> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+}
+
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> StreamWriter<W> {
+    #[project]
+    fn poll_flush_chunk(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        #[project]
+        let StreamWriter {
+            mut inner,
+            encrypted_chunk,
+            ..
+        } = self.project();
+
+        if let Some(chunk) = encrypted_chunk {
+            loop {
+                chunk.offset +=
+                    ready!(inner.as_mut().poll_write(cx, &chunk.bytes[chunk.offset..]))?;
+                if chunk.offset == chunk.bytes.len() {
+                    break;
+                }
+            }
+        }
+        *encrypted_chunk = None;
+
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        mut buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        ready!(self.as_mut().poll_flush_chunk(cx))?;
+
+        let mut to_write = CHUNK_SIZE - self.chunk.len();
+        if to_write > buf.len() {
+            to_write = buf.len()
+        }
+
+        self.as_mut()
+            .project()
+            .chunk
+            .extend_from_slice(&buf[..to_write]);
+        buf = &buf[to_write..];
+
+        // At this point, either buf is empty, or we have a full chunk.
+        assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
+
+        // Only encrypt the chunk if we have more data to write, as the last
+        // chunk must be written in poll_close().
+        if !buf.is_empty() {
+            let this = self.as_mut().project();
+            *this.encrypted_chunk = Some(EncryptedChunk {
+                bytes: this.stream.encrypt_chunk(&this.chunk, false)?,
+                offset: 0,
+            });
+            this.chunk.clear();
+        }
+
+        Poll::Ready(Ok(to_write))
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        ready!(self.as_mut().poll_flush_chunk(cx))?;
+        self.project().inner.poll_flush(cx)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        // Flush any remaining encrypted chunk bytes.
+        ready!(self.as_mut().poll_flush_chunk(cx))?;
+
+        if !self.stream.is_complete() {
+            // Finish the stream.
+            let this = self.as_mut().project();
+            *this.encrypted_chunk = Some(EncryptedChunk {
+                bytes: this.stream.encrypt_chunk(&this.chunk, true)?,
+                offset: 0,
+            });
+        }
+
+        // Flush the final chunk (if we didn't in the first call).
+        ready!(self.as_mut().poll_flush_chunk(cx))?;
+        self.project().inner.poll_close(cx)
     }
 }
 
@@ -469,6 +584,15 @@ mod tests {
 
     use super::{Stream, CHUNK_SIZE};
 
+    #[cfg(feature = "async")]
+    use futures::{
+        io::{AsyncRead, AsyncWrite},
+        pin_mut,
+        task::Poll,
+    };
+    #[cfg(feature = "async")]
+    use futures_test::task::noop_context;
+
     #[test]
     fn chunk_round_trip() {
         let key = [7; 32];
@@ -562,6 +686,74 @@ mod tests {
     #[test]
     fn stream_round_trip_long() {
         stream_round_trip(&vec![42; 100 * 1024]);
+    }
+
+    #[cfg(feature = "async")]
+    fn stream_async_round_trip(data: &[u8]) {
+        let key = [7; 32];
+
+        let mut encrypted = vec![];
+        {
+            let w = Stream::encrypt_async(&key, &mut encrypted);
+            pin_mut!(w);
+
+            let mut cx = noop_context();
+
+            let mut tmp = data;
+            loop {
+                match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                    Poll::Ready(Ok(0)) => break,
+                    Poll::Ready(Ok(written)) => tmp = &tmp[written..],
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+            loop {
+                match w.as_mut().poll_close(&mut cx) {
+                    Poll::Ready(Ok(())) => break,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        };
+
+        let decrypted = {
+            let mut buf = vec![];
+            let r = Stream::decrypt_async(&key, &encrypted[..]);
+            pin_mut!(r);
+
+            let mut cx = noop_context();
+
+            let mut tmp = [0; 4096];
+            loop {
+                match r.as_mut().poll_read(&mut cx, &mut tmp) {
+                    Poll::Ready(Ok(0)) => break buf,
+                    Poll::Ready(Ok(read)) => buf.extend_from_slice(&tmp[..read]),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        };
+
+        assert_eq!(decrypted, data);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_round_trip_short() {
+        stream_async_round_trip(&vec![42; 1024]);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_round_trip_chunk() {
+        stream_async_round_trip(&vec![42; CHUNK_SIZE]);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_round_trip_long() {
+        stream_async_round_trip(&vec![42; 100 * 1024]);
     }
 
     #[test]
