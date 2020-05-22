@@ -529,10 +529,8 @@ mod tests {
         assert_eq!(decrypted.expose_secret(), &data);
     }
 
-    #[test]
-    fn stream_round_trip_short() {
+    fn stream_round_trip(data: &[u8]) {
         let key = [7; 32];
-        let data = vec![42; 1024];
 
         let mut encrypted = vec![];
         {
@@ -549,50 +547,21 @@ mod tests {
         };
 
         assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn stream_round_trip_short() {
+        stream_round_trip(&vec![42; 1024]);
     }
 
     #[test]
     fn stream_round_trip_chunk() {
-        let key = [7; 32];
-        let data = vec![42; CHUNK_SIZE];
-
-        let mut encrypted = vec![];
-        {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
-            w.write_all(&data).unwrap();
-            w.finish().unwrap();
-        };
-
-        let decrypted = {
-            let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
-            r.read_to_end(&mut buf).unwrap();
-            buf
-        };
-
-        assert_eq!(decrypted, data);
+        stream_round_trip(&vec![42; CHUNK_SIZE]);
     }
 
     #[test]
     fn stream_round_trip_long() {
-        let key = [7; 32];
-        let data = vec![42; 100 * 1024];
-
-        let mut encrypted = vec![];
-        {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
-            w.write_all(&data).unwrap();
-            w.finish().unwrap();
-        };
-
-        let decrypted = {
-            let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
-            r.read_to_end(&mut buf).unwrap();
-            buf
-        };
-
-        assert_eq!(decrypted, data);
+        stream_round_trip(&vec![42; 100 * 1024]);
     }
 
     #[test]
