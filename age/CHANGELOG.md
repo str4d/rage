@@ -10,7 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
-- Asynchronous APIs for decryption:
+- Asynchronous APIs for encryption and decryption:
+  - `age::Encryptor::wrap_async_output()`
   - `age::Decryptor::new_async()`
   - `age::decryptor::RecipientsDecryptor::decrypt_async()`
   - `age::decryptor::RecipientsDecryptor::decrypt_async_with_callbacks()`

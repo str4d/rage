@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[cfg(feature = "async")]
-use futures::io::{AsyncRead, AsyncReadExt};
+use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub mod decryptor;
 
@@ -114,6 +114,34 @@ impl Encryptor {
 
         let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
         Ok(Stream::encrypt(&payload_key, output))
+    }
+
+    /// Creates a wrapper around a writer that will encrypt its input.
+    ///
+    /// Returns errors from the underlying writer while writing the header.
+    ///
+    /// You **MUST** call [`StreamWriter::poll_close`] when you are done writing, in order
+    /// to finish the encryption process. Failing to call [`StreamWriter::poll_close`]
+    /// will result in a truncated file that will fail to decrypt.
+    #[cfg(feature = "async")]
+    pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
+        self,
+        mut output: W,
+    ) -> io::Result<StreamWriter<W>> {
+        let file_key = FileKey::generate();
+
+        let header = Header::new(
+            self.0.wrap_file_key(&file_key),
+            hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
+        );
+        header.write_async(&mut output).await?;
+
+        let mut nonce = [0; 16];
+        OsRng.fill_bytes(&mut nonce);
+        output.write_all(&nonce).await?;
+
+        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
+        Ok(Stream::encrypt_async(&payload_key, output))
     }
 }
 

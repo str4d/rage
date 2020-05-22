@@ -9,7 +9,7 @@ use std::io::{self, Read, Write};
 use crate::primitives::HmacWriter;
 
 #[cfg(feature = "async")]
-use futures::io::{AsyncRead, AsyncReadExt};
+use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub(crate) mod plugin;
 pub(crate) mod scrypt;
@@ -183,6 +183,21 @@ impl Header {
                     format!("failed to write header: {}", e),
                 )
             })
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn write_async<W: AsyncWrite + Unpin>(&self, mut output: W) -> io::Result<()> {
+        let mut buf = vec![];
+        cookie_factory::gen(write::header(self), &mut buf)
+            .map(|_| ())
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("failed to write header: {}", e),
+                )
+            })?;
+
+        output.write_all(&buf).await
     }
 }
 
