@@ -1,4 +1,4 @@
-use age::{Encryptor, Format, SecretKey};
+use age::{Encryptor, SecretKey};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use criterion_cycles_per_byte::CyclesPerByte;
 use std::io::{self, Write};
@@ -16,7 +16,7 @@ fn bench(c: &mut Criterion<CyclesPerByte>) {
 
         group.bench_function(BenchmarkId::new("encrypt", size), |b| {
             let mut output = Encryptor::with_recipients(recipients.clone())
-                .wrap_output(io::sink(), Format::Binary)
+                .wrap_output(io::sink())
                 .unwrap();
 
             b.iter(|| output.write_all(&buf))
