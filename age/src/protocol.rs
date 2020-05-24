@@ -242,16 +242,11 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::keys::{Identity, RecipientKey};
 
-    #[test]
-    fn x25519_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
-        let sk = Identity::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
-
+    fn recipient_round_trip(recipients: Vec<RecipientKey>, identities: &[Identity]) {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(vec![pk]);
+        let e = Encryptor::with_recipients(recipients);
         {
             let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
@@ -262,11 +257,19 @@ mod tests {
             Ok(Decryptor::Recipients(d)) => d,
             _ => panic!(),
         };
-        let mut r = d.decrypt(&sk).unwrap();
+        let mut r = d.decrypt(identities).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
 
         assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[test]
+    fn x25519_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
+        let sk = Identity::from_buffer(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
+        recipient_round_trip(vec![pk], &sk);
     }
 
     #[test]
@@ -300,26 +303,7 @@ mod tests {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
-
-        let test_msg = b"This is a test message. For testing.";
-
-        let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(vec![pk]);
-        {
-            let mut w = e.wrap_output(&mut encrypted).unwrap();
-            w.write_all(test_msg).unwrap();
-            w.finish().unwrap();
-        }
-
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
-        let mut r = d.decrypt(&sk).unwrap();
-        let mut decrypted = vec![];
-        r.read_to_end(&mut decrypted).unwrap();
-
-        assert_eq!(&decrypted[..], &test_msg[..]);
+        recipient_round_trip(vec![pk], &sk);
     }
 
     #[test]
@@ -327,25 +311,6 @@ mod tests {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
-
-        let test_msg = b"This is a test message. For testing.";
-
-        let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(vec![pk]);
-        {
-            let mut w = e.wrap_output(&mut encrypted).unwrap();
-            w.write_all(test_msg).unwrap();
-            w.finish().unwrap();
-        }
-
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
-        let mut r = d.decrypt(&sk).unwrap();
-        let mut decrypted = vec![];
-        r.read_to_end(&mut decrypted).unwrap();
-
-        assert_eq!(&decrypted[..], &test_msg[..]);
+        recipient_round_trip(vec![pk], &sk);
     }
 }
