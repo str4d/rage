@@ -65,6 +65,7 @@ impl Nonce {
     }
 }
 
+#[cfg(feature = "async")]
 struct EncryptedChunk {
     bytes: Vec<u8>,
     offset: usize,
@@ -102,6 +103,7 @@ impl Stream {
             stream: Self::new(key),
             inner,
             chunk: Vec::with_capacity(CHUNK_SIZE),
+            #[cfg(feature = "async")]
             encrypted_chunk: None,
         }
     }
@@ -210,6 +212,7 @@ pub struct StreamWriter<W> {
     #[pin]
     inner: W,
     chunk: Vec<u8>,
+    #[cfg(feature = "async")]
     encrypted_chunk: Option<EncryptedChunk>,
 }
 
