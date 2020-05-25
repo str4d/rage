@@ -242,6 +242,16 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::keys::{Identity, RecipientKey};
 
+    #[cfg(feature = "async")]
+    use futures::{
+        io::{AsyncRead, AsyncWrite},
+        pin_mut,
+        task::Poll,
+        Future,
+    };
+    #[cfg(feature = "async")]
+    use futures_test::task::noop_context;
+
     fn recipient_round_trip(recipients: Vec<RecipientKey>, identities: &[Identity]) {
         let test_msg = b"This is a test message. For testing.";
 
@@ -264,12 +274,96 @@ mod tests {
         assert_eq!(&decrypted[..], &test_msg[..]);
     }
 
+    #[cfg(feature = "async")]
+    fn recipient_async_round_trip(recipients: Vec<RecipientKey>, identities: &[Identity]) {
+        let test_msg = b"This is a test message. For testing.";
+        let mut cx = noop_context();
+
+        let mut encrypted = vec![];
+        let e = Encryptor::with_recipients(recipients);
+        {
+            let w = {
+                let f = e.wrap_async_output(&mut encrypted);
+                pin_mut!(f);
+
+                loop {
+                    match f.as_mut().poll(&mut cx) {
+                        Poll::Ready(Ok(w)) => break w,
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Pending => panic!("Unexpected Pending"),
+                    }
+                }
+            };
+            pin_mut!(w);
+
+            let mut tmp = &test_msg[..];
+            loop {
+                match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                    Poll::Ready(Ok(0)) => break,
+                    Poll::Ready(Ok(written)) => tmp = &tmp[written..],
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+            loop {
+                match w.as_mut().poll_close(&mut cx) {
+                    Poll::Ready(Ok(())) => break,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        }
+
+        let d = match {
+            let f = Decryptor::new_async(&encrypted[..]);
+            pin_mut!(f);
+
+            loop {
+                match f.as_mut().poll(&mut cx) {
+                    Poll::Ready(Ok(w)) => break w,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        } {
+            Decryptor::Recipients(d) => d,
+            _ => panic!(),
+        };
+
+        let decrypted = {
+            let mut buf = vec![];
+            let r = d.decrypt_async(identities).unwrap();
+            pin_mut!(r);
+
+            let mut tmp = [0; 4096];
+            loop {
+                match r.as_mut().poll_read(&mut cx, &mut tmp) {
+                    Poll::Ready(Ok(0)) => break buf,
+                    Poll::Ready(Ok(read)) => buf.extend_from_slice(&tmp[..read]),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        };
+
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
     #[test]
     fn x25519_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(vec![pk], &sk);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn x25519_async_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
+        let sk = Identity::from_buffer(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
+        recipient_async_round_trip(vec![pk], &sk);
     }
 
     #[test]
@@ -306,11 +400,29 @@ mod tests {
         recipient_round_trip(vec![pk], &sk);
     }
 
+    #[cfg(all(feature = "async", feature = "unstable"))]
+    #[test]
+    fn ssh_rsa_async_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
+        let sk = Identity::from_buffer(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
+        recipient_async_round_trip(vec![pk], &sk);
+    }
+
     #[test]
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
         recipient_round_trip(vec![pk], &sk);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn ssh_ed25519_async_round_trip() {
+        let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
+        let sk = Identity::from_buffer(buf).unwrap();
+        let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
+        recipient_async_round_trip(vec![pk], &sk);
     }
 }
