@@ -49,12 +49,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --verbose --tests
+          args: --all --verbose --exclude rage --all-features --tests
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --verbose
+          args: --all --verbose --exclude rage --all-features
 
   build:
     name: Build target ${{ matrix.target }}
@@ -93,10 +93,12 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Install linux build dependencies
+        run: sudo apt install libfuse-dev libpcsclite-dev
       - name: Generate coverage report
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --all --release --timeout 180 --out Xml
+          args: --all --release --all-features --timeout 180 --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.0.3
         with:
