@@ -49,12 +49,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --verbose --tests
+          args: --all --verbose --all-features --tests
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --verbose
+          args: --all --verbose --all-features
 
   build:
     name: Build target ${{ matrix.target }}
