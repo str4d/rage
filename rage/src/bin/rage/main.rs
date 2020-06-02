@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{

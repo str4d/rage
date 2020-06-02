@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use age::{
     armor::ArmoredReader,
     cli_common::{read_identities, read_secret, UiCallbacks},

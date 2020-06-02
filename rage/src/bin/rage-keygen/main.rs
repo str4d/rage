@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use age::cli_common::file_io;
 use gumdrop::Options;
 use log::error;
