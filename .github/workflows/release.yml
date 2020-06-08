@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.37.0
+          toolchain: 1.39.0
           override: true
       - name: Add target
         run: rustup target add ${{ matrix.target }}
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.37.0
+          toolchain: 1.39.0
           override: true
       - name: Add target
         run: rustup target add ${{ matrix.target }}
