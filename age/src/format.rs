@@ -115,7 +115,9 @@ impl HeaderV1 {
         let mut mac = HmacWriter::new(mac_key);
         cookie_factory::gen(write::header_v1_minus_mac(&header), &mut mac)
             .expect("can serialize Header into HmacWriter");
-        header.mac.copy_from_slice(mac.result().code().as_slice());
+        header
+            .mac
+            .copy_from_slice(mac.finalize().into_bytes().as_slice());
 
         header
     }

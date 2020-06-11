@@ -29,12 +29,12 @@ x25519-dalek = "0.6"
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
-hkdf = "0.8"
-hmac = "0.7"
-sha2 = "0.8"
+hkdf = "0.9.0-alpha.0"
+hmac = "0.8"
+sha2 = "0.9"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.2", default-features = false }
+scrypt = { version = "0.3", default-features = false }
 
 # - CSPRNG
 rand = "0.7"
@@ -45,7 +45,7 @@ bech32 = "0.7"
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1 (behind unstable feature flag)
 num-traits = { version = "0.2", optional = true }
-rsa = { version = "0.2", git = "https://github.com/str4d/RSA", branch = "oaep", optional = true }
+rsa = { version = "0.3", optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = "2"
@@ -53,7 +53,7 @@ curve25519-dalek = "2"
 # - Encrypted keys
 aes = "0.3"
 aes-ctr = "0.3"
-bcrypt-pbkdf = "0.1"
+bcrypt-pbkdf = "0.2"
 block-cipher-trait = "0.6"
 block-modes = "0.3"
 

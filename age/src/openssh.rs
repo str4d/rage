@@ -556,7 +556,7 @@ mod read_ssh {
 mod write_ssh {
     use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
     use num_traits::identities::Zero;
-    use rsa::{BigUint, PublicKey};
+    use rsa::{BigUint, PublicKeyParts};
     use std::io::Write;
 
     use super::SSH_RSA_KEY_PREFIX;
