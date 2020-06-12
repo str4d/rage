@@ -51,11 +51,11 @@ rsa = { version = "0.3", optional = true }
 curve25519-dalek = "2"
 
 # - Encrypted keys
-aes = "0.3"
-aes-ctr = "0.3"
+aes = "0.4"
+aes-ctr = "0.4"
 bcrypt-pbkdf = "0.2"
-block-cipher-trait = "0.6"
-block-modes = "0.3"
+block-cipher = "0.7"
+block-modes = "0.4"
 
 # Parsing
 cookie-factory = "0.3.1"

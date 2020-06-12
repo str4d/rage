@@ -91,14 +91,14 @@ impl EncryptedOpenSshKey {
 
 mod decrypt {
     use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
-    use block_cipher_trait::BlockCipher;
+    use block_cipher::{BlockCipher, NewBlockCipher};
     use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
     use secrecy::SecretString;
 
     use super::OpenSshKdf;
     use crate::error::Error;
 
-    pub(super) fn aes_cbc<C: BlockCipher>(
+    pub(super) fn aes_cbc<C: BlockCipher + NewBlockCipher>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
