@@ -61,7 +61,7 @@ dependencies = [
  "aes 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "aes-ctr 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "age-core 0.4.0",
- "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base64 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bcrypt-pbkdf 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "block-cipher 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -100,7 +100,7 @@ dependencies = [
 name = "age-core"
 version = "0.4.0"
 dependencies = [
- "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base64 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "c2-chacha 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "chacha20poly1305 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
