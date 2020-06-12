@@ -43,9 +43,9 @@ rand = "0.7"
 bech32 = "0.7"
 
 # OpenSSH-specific dependencies:
-# - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1 (behind unstable feature flag)
-num-traits = { version = "0.2", optional = true }
-rsa = { version = "0.3", optional = true }
+# - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
+num-traits = "0.2"
+rsa = "0.3"
 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = "2"
@@ -90,7 +90,7 @@ quickcheck_macros = "0.9"
 default = []
 async = ["futures"]
 cli-common = ["console", "dirs", "pinentry", "rpassword"]
-unstable = ["num-traits", "rsa"]
+unstable = []
 
 [[bench]]
 name = "throughput"

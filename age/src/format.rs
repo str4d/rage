@@ -14,7 +14,6 @@ use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 pub(crate) mod plugin;
 pub(crate) mod scrypt;
 pub(crate) mod ssh_ed25519;
-#[cfg(feature = "unstable")]
 pub(crate) mod ssh_rsa;
 pub(crate) mod x25519;
 
@@ -27,7 +26,6 @@ const MAC_TAG: &[u8] = b"---";
 pub(crate) enum RecipientStanza {
     X25519(x25519::RecipientStanza),
     Scrypt(scrypt::RecipientStanza),
-    #[cfg(feature = "unstable")]
     SshRsa(ssh_rsa::RecipientStanza),
     SshEd25519(ssh_ed25519::RecipientStanza),
     Plugin(plugin::RecipientStanza),
@@ -45,7 +43,6 @@ impl From<scrypt::RecipientStanza> for RecipientStanza {
     }
 }
 
-#[cfg(feature = "unstable")]
 impl From<ssh_rsa::RecipientStanza> for RecipientStanza {
     fn from(stanza: ssh_rsa::RecipientStanza) -> Self {
         RecipientStanza::SshRsa(stanza)
@@ -233,7 +230,6 @@ mod read {
                 scrypt::SCRYPT_RECIPIENT_TAG => {
                     scrypt::RecipientStanza::from_stanza(stanza).map(RecipientStanza::Scrypt)
                 }
-                #[cfg(feature = "unstable")]
                 ssh_rsa::SSH_RSA_RECIPIENT_TAG => {
                     ssh_rsa::RecipientStanza::from_stanza(stanza).map(RecipientStanza::SshRsa)
                 }
@@ -304,7 +300,6 @@ mod write {
             match r {
                 RecipientStanza::X25519(r) => x25519::write::recipient_stanza(r)(out),
                 RecipientStanza::Scrypt(r) => scrypt::write::recipient_stanza(r)(out),
-                #[cfg(feature = "unstable")]
                 RecipientStanza::SshRsa(r) => ssh_rsa::write::recipient_stanza(r)(out),
                 RecipientStanza::SshEd25519(r) => ssh_ed25519::write::recipient_stanza(r)(out),
                 RecipientStanza::Plugin(r) => plugin::write::recipient_stanza(r)(out),

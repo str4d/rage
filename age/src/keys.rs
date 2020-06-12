@@ -13,13 +13,10 @@ use zeroize::Zeroize;
 
 use crate::{
     error::Error,
-    format::{ssh_ed25519, x25519, RecipientStanza},
-    openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX},
+    format::{ssh_ed25519, ssh_rsa, x25519, RecipientStanza},
+    openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
     protocol::Callbacks,
 };
-
-#[cfg(feature = "unstable")]
-use crate::{format::ssh_rsa, openssh::SSH_RSA_KEY_PREFIX};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -54,7 +51,6 @@ pub enum SecretKey {
     /// An X25519 secret key.
     X25519(StaticSecret),
     /// An ssh-rsa private key.
-    #[cfg(feature = "unstable")]
     SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, Secret<[u8; 64]>),
@@ -85,7 +81,6 @@ impl SecretKey {
 
                 ret
             }
-            #[cfg(feature = "unstable")]
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -95,7 +90,6 @@ impl SecretKey {
     pub fn to_public(&self) -> RecipientKey {
         match self {
             SecretKey::X25519(sk) => RecipientKey::X25519(sk.into()),
-            #[cfg(feature = "unstable")]
             SecretKey::SshRsa(_, _) => unimplemented!(),
             SecretKey::SshEd25519(_, _) => unimplemented!(),
         }
@@ -116,7 +110,6 @@ impl SecretKey {
                 // matches a particular stanza.
                 r.unwrap_file_key(sk).ok().map(Ok)
             }
-            #[cfg(feature = "unstable")]
             (SecretKey::SshRsa(ssh_key, sk), RecipientStanza::SshRsa(r)) => {
                 r.unwrap_file_key(ssh_key, sk)
             }
@@ -339,7 +332,6 @@ pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519(PublicKey),
     /// An ssh-rsa public key.
-    #[cfg(feature = "unstable")]
     SshRsa(Vec<u8>, rsa::RSAPublicKey),
     /// An ssh-ed25519 public key.
     SshEd25519(Vec<u8>, EdwardsPoint),
@@ -386,7 +378,6 @@ impl fmt::Display for RecipientKey {
                 "{}",
                 bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
             ),
-            #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(ssh_key, _) => {
                 write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(&ssh_key))
             }
@@ -401,7 +392,6 @@ impl RecipientKey {
     pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientStanza::wrap_file_key(file_key, pk).into(),
-            #[cfg(feature = "unstable")]
             RecipientKey::SshRsa(ssh_key, pk) => {
                 ssh_rsa::RecipientStanza::wrap_file_key(file_key, ssh_key, pk).into()
             }
@@ -491,7 +481,6 @@ pub(crate) mod tests {
     pub(crate) const TEST_PK: &str =
         "age1t7rxyev2z3rw82stdlrrepyc39nvn86l5078zqkf5uasdy86jp6svpy7pa";
 
-    #[cfg(feature = "unstable")]
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEAxO5yF0xjbmkQTfbaCP8DQC7kHnPJr5bdIie6Nzmg9lL6Chye
 0vK5iJ+BYkA1Hnf1WnNzoVIm3otZPkwZptertkY95JYFmTiA4IvHeL1yiOTd2AYc
@@ -519,7 +508,6 @@ tai/AoGAC0CiIJAzmmXscXNS/stLrL9bb3Yb+VZi9zN7Cb/w7B0IJ35N5UOFmKWA
 QIGpMU4gh6p52S1eLttpIf2+39rEDzo8pY6BVmEp3fKN3jWmGS4mJQ31tWefupC+
 fGNu+wyKxPnSU3svsuvrOdwwDKvfqCNyYK878qKAAaBqbGT1NJ8=
 -----END RSA PRIVATE KEY-----";
-    #[cfg(feature = "unstable")]
     pub(crate) const TEST_SSH_RSA_PK: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE7nIXTGNuaRBN9toI/wNALuQec8mvlt0iJ7o3OaD2UvoKHJ7S8rmIn4FiQDUed/Vac3OhUibei1k+TBmm16u2Rj3klgWZOIDgi8d4vXKI5N3YBhxr3jsQ+kz1c+iZ4z/tTtz306+4K46XViVMWwyyg9j82Jn41mOAy9vdeDIfQ5fLeaGqn5KwlT61GNkZ+ozWK/ZNlQIlNCcoXxhJULIs9XrtczWyVBAea1nlDo0WHODePxoJjmsNHrpQXn5mf9O83xs10qfTUjnRUt48jRmedFy4tcra3QGmSTQ3KZne+wXXSb0cIpXLGvZjQSPHgG1hc4r3uBpiSzvesGLv79XL alice@rust";
 
     pub(crate) const TEST_SSH_ED25519_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
@@ -613,14 +601,12 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
-    #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_encoding() {
         let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
         assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_RSA_PK);
     }
 
-    #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
