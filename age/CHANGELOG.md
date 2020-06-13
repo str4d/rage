@@ -30,6 +30,7 @@ to 1.0.0 are beta releases.
   `Decryptor::new(ArmoredReader::new(input))` to handle age files that are
   potentially armored.
 - `age::Format` has been moved to `age::armor::Format`.
+- OpenSSH `ssh-rsa` keys are now supported without the `unstable` feature flag.
 
 ## [0.4.0] - 2020-03-25
 ### Added

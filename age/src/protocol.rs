@@ -391,7 +391,6 @@ mod tests {
         assert_eq!(&decrypted[..], &test_msg[..]);
     }
 
-    #[cfg(feature = "unstable")]
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
@@ -400,7 +399,7 @@ mod tests {
         recipient_round_trip(vec![pk], &sk);
     }
 
-    #[cfg(all(feature = "async", feature = "unstable"))]
+    #[cfg(feature = "async")]
     #[test]
     fn ssh_rsa_async_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());

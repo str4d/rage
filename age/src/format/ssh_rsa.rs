@@ -1,6 +1,6 @@
 use age_core::format::AgeStanza;
 use rand::rngs::OsRng;
-use rsa::{RSAPrivateKey, RSAPublicKey};
+use rsa::{padding::PaddingScheme, PublicKey, RSAPrivateKey, RSAPublicKey};
 use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256};
 
@@ -40,16 +40,14 @@ impl RecipientStanza {
 
     pub(crate) fn wrap_file_key(file_key: &FileKey, ssh_key: &[u8], pk: &RSAPublicKey) -> Self {
         let mut rng = OsRng;
-        let mut h = Sha256::default();
 
-        let encrypted_file_key = rsa::oaep::encrypt(
-            &mut rng,
-            &pk,
-            file_key.0.expose_secret(),
-            &mut h,
-            Some(SSH_RSA_OAEP_LABEL.to_owned()),
-        )
-        .expect("pubkey is valid and file key is not too long");
+        let encrypted_file_key = pk
+            .encrypt(
+                &mut rng,
+                PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                file_key.0.expose_secret(),
+            )
+            .expect("pubkey is valid and file key is not too long");
 
         RecipientStanza {
             tag: ssh_tag(&ssh_key),
@@ -67,17 +65,14 @@ impl RecipientStanza {
         }
 
         let mut rng = OsRng;
-        let mut h = Sha256::default();
 
         // A failure to decrypt is fatal, because we assume that we won't
         // encounter 32-bit collisions on the key tag embedded in the header.
         Some(
-            rsa::oaep::decrypt(
-                Some(&mut rng),
-                &sk,
+            sk.decrypt_blinded(
+                &mut rng,
+                PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                 &self.encrypted_file_key,
-                &mut h,
-                Some(SSH_RSA_OAEP_LABEL.to_owned()),
             )
             .map_err(Error::from)
             .map(|pt| {

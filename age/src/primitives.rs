@@ -1,8 +1,8 @@
 //! Primitive cryptographic operations used by `age`.
 
 use hmac::{
-    crypto_mac::{generic_array::typenum::U32, MacError, MacResult},
-    Hmac, Mac,
+    crypto_mac::{MacError, Output},
+    Hmac, Mac, NewMac,
 };
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, ScryptParams};
 use sha2::Sha256;
@@ -29,8 +29,8 @@ impl HmacWriter {
     }
 
     /// Checks if `mac` is correct for the processed input.
-    pub(crate) fn result(self) -> MacResult<U32> {
-        self.inner.result()
+    pub(crate) fn finalize(self) -> Output<Hmac<Sha256>> {
+        self.inner.finalize()
     }
 
     /// Checks if `mac` is correct for the processed input.
@@ -41,7 +41,7 @@ impl HmacWriter {
 
 impl Write for HmacWriter {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        self.inner.input(data);
+        self.inner.update(data);
         Ok(data.len())
     }
 
