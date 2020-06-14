@@ -3,7 +3,7 @@
 use secrecy::SecretString;
 use std::io::Read;
 
-use super::{Callbacks, NoCallbacks};
+use super::{Callbacks, NoCallbacks, Nonce};
 use crate::{
     error::Error,
     format::{Header, RecipientStanza},
@@ -20,7 +20,7 @@ struct BaseDecryptor<R> {
     /// The age file's header.
     header: Header,
     /// The age file's AEAD nonce
-    nonce: [u8; 16],
+    nonce: Nonce,
 }
 
 impl<R> BaseDecryptor<R> {
@@ -44,7 +44,7 @@ impl<R> BaseDecryptor<R> {
 pub struct RecipientsDecryptor<R>(BaseDecryptor<R>);
 
 impl<R> RecipientsDecryptor<R> {
-    pub(super) fn new(input: R, header: Header, nonce: [u8; 16]) -> Self {
+    pub(super) fn new(input: R, header: Header, nonce: Nonce) -> Self {
         RecipientsDecryptor(BaseDecryptor {
             input,
             header,
@@ -118,7 +118,7 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
 pub struct PassphraseDecryptor<R>(BaseDecryptor<R>);
 
 impl<R> PassphraseDecryptor<R> {
-    pub(super) fn new(input: R, header: Header, nonce: [u8; 16]) -> Self {
+    pub(super) fn new(input: R, header: Header, nonce: Nonce) -> Self {
         PassphraseDecryptor(BaseDecryptor {
             input,
             header,

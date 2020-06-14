@@ -17,6 +17,35 @@ use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub mod decryptor;
 
+pub(crate) struct Nonce([u8; 16]);
+
+impl AsRef<[u8]> for Nonce {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Nonce {
+    fn random() -> Self {
+        let mut nonce = [0; 16];
+        OsRng.fill_bytes(&mut nonce);
+        Nonce(nonce)
+    }
+
+    fn read<R: Read>(input: &mut R) -> io::Result<Self> {
+        let mut nonce = [0; 16];
+        input.read_exact(&mut nonce)?;
+        Ok(Nonce(nonce))
+    }
+
+    #[cfg(feature = "async")]
+    async fn read_async<R: AsyncRead + Unpin>(input: &mut R) -> io::Result<Self> {
+        let mut nonce = [0; 16];
+        input.read_exact(&mut nonce).await?;
+        Ok(Nonce(nonce))
+    }
+}
+
 /// Callbacks that might be triggered during decryption.
 pub trait Callbacks {
     /// Requests a passphrase to decrypt a key.
@@ -61,7 +90,7 @@ impl Encryptor {
     }
 
     /// Creates the header for this age file.
-    fn prepare_header(self) -> (Header, [u8; 16], PayloadKey) {
+    fn prepare_header(self) -> (Header, Nonce, PayloadKey) {
         let file_key = FileKey::generate();
 
         let recipients = match self.0 {
@@ -77,10 +106,7 @@ impl Encryptor {
         };
 
         let header = HeaderV1::new(recipients, file_key.mac_key());
-
-        let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
-
+        let nonce = Nonce::random();
         let payload_key = file_key
             .v1_payload_key(&header, &nonce)
             .expect("MAC is correct");
@@ -98,7 +124,7 @@ impl Encryptor {
     pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
         let (header, nonce, payload_key) = self.prepare_header();
         header.write(&mut output)?;
-        output.write_all(&nonce)?;
+        output.write_all(nonce.as_ref())?;
         Ok(Stream::encrypt(payload_key, output))
     }
 
@@ -116,7 +142,7 @@ impl Encryptor {
     ) -> io::Result<StreamWriter<W>> {
         let (header, nonce, payload_key) = self.prepare_header();
         header.write_async(&mut output).await?;
-        output.write_all(&nonce).await?;
+        output.write_all(nonce.as_ref()).await?;
         Ok(Stream::encrypt_async(payload_key, output))
     }
 }
@@ -142,7 +168,7 @@ impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
 }
 
 impl<R> Decryptor<R> {
-    fn from_v1_header(input: R, header: HeaderV1, nonce: [u8; 16]) -> Result<Self, Error> {
+    fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, Error> {
         // Enforce structural requirements on the v1 header.
         let any_scrypt = header.recipients.iter().any(|r| {
             if let RecipientStanza::Scrypt(_) = r {
@@ -171,8 +197,7 @@ impl<R: Read> Decryptor<R> {
 
         match header {
             Header::V1(v1_header) => {
-                let mut nonce = [0; 16];
-                input.read_exact(&mut nonce)?;
+                let nonce = Nonce::read(&mut input)?;
                 Decryptor::from_v1_header(input, v1_header, nonce)
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
@@ -190,8 +215,7 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
 
         match header {
             Header::V1(v1_header) => {
-                let mut nonce = [0; 16];
-                input.read_exact(&mut nonce).await?;
+                let nonce = Nonce::read_async(&mut input).await?;
                 Decryptor::from_v1_header(input, v1_header, nonce)
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),

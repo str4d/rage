@@ -17,7 +17,7 @@ use crate::{
     format::{ssh_ed25519, ssh_rsa, x25519, HeaderV1, RecipientStanza},
     openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
     primitives::{stream::PayloadKey, HmacKey},
-    protocol::Callbacks,
+    protocol::{Callbacks, Nonce},
 };
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
@@ -61,14 +61,14 @@ impl FileKey {
     pub(crate) fn v1_payload_key(
         &self,
         header: &HeaderV1,
-        nonce: &[u8; 16],
+        nonce: &Nonce,
     ) -> Result<PayloadKey, Error> {
         // Verify the MAC
         header.verify_mac(self.mac_key())?;
 
         // Return the payload key
         Ok(PayloadKey(
-            hkdf(nonce, PAYLOAD_KEY_LABEL, self.0.expose_secret()).into(),
+            hkdf(nonce.as_ref(), PAYLOAD_KEY_LABEL, self.0.expose_secret()).into(),
         ))
     }
 }
