@@ -1,13 +1,14 @@
 //! I/O helper structs for age file encryption and decryption.
 
 use chacha20poly1305::{
-    aead::{Aead, NewAead},
+    aead::{generic_array::GenericArray, Aead, NewAead},
     ChaChaPoly1305,
 };
 use pin_project::pin_project;
 use secrecy::{ExposeSecret, SecretVec};
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
+use zeroize::Zeroize;
 
 #[cfg(feature = "async")]
 use futures::{
@@ -23,6 +24,16 @@ use std::pin::Pin;
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
+
+pub(crate) struct PayloadKey(
+    pub(crate) GenericArray<u8, <ChaChaPoly1305<c2_chacha::Ietf> as NewAead>::KeySize>,
+);
+
+impl Drop for PayloadKey {
+    fn drop(&mut self) {
+        self.0.as_mut_slice().zeroize();
+    }
+}
 
 /// The nonce used in age's STREAM encryption.
 ///
@@ -84,9 +95,9 @@ pub(crate) struct Stream {
 }
 
 impl Stream {
-    fn new(key: &[u8; 32]) -> Self {
+    fn new(key: PayloadKey) -> Self {
         Stream {
-            aead: ChaChaPoly1305::new((*key).into()),
+            aead: ChaChaPoly1305::new(key.0),
             nonce: Nonce::default(),
         }
     }
@@ -98,7 +109,7 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
-    pub(crate) fn encrypt<W: Write>(key: &[u8; 32], inner: W) -> StreamWriter<W> {
+    pub(crate) fn encrypt<W: Write>(key: PayloadKey, inner: W) -> StreamWriter<W> {
         StreamWriter {
             stream: Self::new(key),
             inner,
@@ -116,7 +127,7 @@ impl Stream {
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
     #[cfg(feature = "async")]
-    pub(crate) fn encrypt_async<W: AsyncWrite>(key: &[u8; 32], inner: W) -> StreamWriter<W> {
+    pub(crate) fn encrypt_async<W: AsyncWrite>(key: PayloadKey, inner: W) -> StreamWriter<W> {
         StreamWriter {
             stream: Self::new(key),
             inner,
@@ -132,7 +143,7 @@ impl Stream {
     /// random nonce.
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
-    pub(crate) fn decrypt<R: Read>(key: &[u8; 32], inner: R) -> StreamReader<R> {
+    pub(crate) fn decrypt<R: Read>(key: PayloadKey, inner: R) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),
             inner,
@@ -152,7 +163,7 @@ impl Stream {
     ///
     /// [`HKDF`]: age_core::primitives::hkdf
     #[cfg(feature = "async")]
-    pub(crate) fn decrypt_async<R: AsyncRead>(key: &[u8; 32], inner: R) -> StreamReader<R> {
+    pub(crate) fn decrypt_async<R: AsyncRead>(key: PayloadKey, inner: R) -> StreamReader<R> {
         StreamReader {
             stream: Self::new(key),
             inner,
@@ -585,7 +596,7 @@ mod tests {
     use secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{Stream, CHUNK_SIZE};
+    use super::{PayloadKey, Stream, CHUNK_SIZE};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -598,16 +609,15 @@ mod tests {
 
     #[test]
     fn chunk_round_trip() {
-        let key = [7; 32];
         let data = vec![42; CHUNK_SIZE];
 
         let encrypted = {
-            let mut s = Stream::new(&key);
+            let mut s = Stream::new(PayloadKey([7; 32].into()));
             s.encrypt_chunk(&data, false).unwrap()
         };
 
         let decrypted = {
-            let mut s = Stream::new(&key);
+            let mut s = Stream::new(PayloadKey([7; 32].into()));
             s.decrypt_chunk(&encrypted, false).unwrap()
         };
 
@@ -616,11 +626,10 @@ mod tests {
 
     #[test]
     fn last_chunk_round_trip() {
-        let key = [7; 32];
         let data = vec![42; CHUNK_SIZE];
 
         let encrypted = {
-            let mut s = Stream::new(&key);
+            let mut s = Stream::new(PayloadKey([7; 32].into()));
             let res = s.encrypt_chunk(&data, true).unwrap();
 
             // Further calls return an error
@@ -637,7 +646,7 @@ mod tests {
         };
 
         let decrypted = {
-            let mut s = Stream::new(&key);
+            let mut s = Stream::new(PayloadKey([7; 32].into()));
             let res = s.decrypt_chunk(&encrypted, true).unwrap();
 
             // Further calls return an error
@@ -657,18 +666,16 @@ mod tests {
     }
 
     fn stream_round_trip(data: &[u8]) {
-        let key = [7; 32];
-
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
 
         let decrypted = {
             let mut buf = vec![];
-            let mut r = Stream::decrypt(&key, &encrypted[..]);
+            let mut r = Stream::decrypt(PayloadKey([7; 32].into()), &encrypted[..]);
             r.read_to_end(&mut buf).unwrap();
             buf
         };
@@ -693,11 +700,9 @@ mod tests {
 
     #[cfg(feature = "async")]
     fn stream_async_round_trip(data: &[u8]) {
-        let key = [7; 32];
-
         let mut encrypted = vec![];
         {
-            let w = Stream::encrypt_async(&key, &mut encrypted);
+            let w = Stream::encrypt_async(PayloadKey([7; 32].into()), &mut encrypted);
             pin_mut!(w);
 
             let mut cx = noop_context();
@@ -722,7 +727,7 @@ mod tests {
 
         let decrypted = {
             let mut buf = vec![];
-            let r = Stream::decrypt_async(&key, &encrypted[..]);
+            let r = Stream::decrypt_async(PayloadKey([7; 32].into()), &encrypted[..]);
             pin_mut!(r);
 
             let mut cx = noop_context();
@@ -761,18 +766,17 @@ mod tests {
 
     #[test]
     fn stream_fails_to_decrypt_truncated_file() {
-        let key = [7; 32];
         let data = vec![42; 2 * CHUNK_SIZE];
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
             w.write_all(&data).unwrap();
             // Forget to call w.finish()!
         };
 
         let mut buf = vec![];
-        let mut r = Stream::decrypt(&key, &encrypted[..]);
+        let mut r = Stream::decrypt(PayloadKey([7; 32].into()), &encrypted[..]);
         assert_eq!(
             r.read_to_end(&mut buf).unwrap_err().kind(),
             io::ErrorKind::UnexpectedEof
@@ -781,7 +785,6 @@ mod tests {
 
     #[test]
     fn stream_seeking() {
-        let key = [7; 32];
         let mut data = vec![0; 100 * 1024];
         for (i, b) in data.iter_mut().enumerate() {
             *b = i as u8;
@@ -789,12 +792,12 @@ mod tests {
 
         let mut encrypted = vec![];
         {
-            let mut w = Stream::encrypt(&key, &mut encrypted);
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
             w.write_all(&data).unwrap();
             w.finish().unwrap();
         };
 
-        let mut r = Stream::decrypt(&key, Cursor::new(encrypted));
+        let mut r = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(encrypted));
 
         // Read through into the second chunk
         let mut buf = vec![0; 100];
