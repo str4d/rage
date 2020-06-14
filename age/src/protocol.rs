@@ -165,6 +165,27 @@ impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
     }
 }
 
+impl<R> Decryptor<R> {
+    fn from_v1_header(input: R, header: HeaderV1, nonce: [u8; 16]) -> Result<Self, Error> {
+        // Enforce structural requirements on the v1 header.
+        let any_scrypt = header.recipients.iter().any(|r| {
+            if let RecipientStanza::Scrypt(_) = r {
+                true
+            } else {
+                false
+            }
+        });
+
+        if any_scrypt && header.recipients.len() == 1 {
+            Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
+        } else if !any_scrypt {
+            Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
+        } else {
+            Err(Error::InvalidHeader)
+        }
+    }
+}
+
 impl<R: Read> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
@@ -172,27 +193,11 @@ impl<R: Read> Decryptor<R> {
     pub fn new(mut input: R) -> Result<Self, Error> {
         let header = Header::read(&mut input)?;
 
-        match &header {
+        match header {
             Header::V1(v1_header) => {
                 let mut nonce = [0; 16];
                 input.read_exact(&mut nonce)?;
-
-                // Enforce structural requirements on the v1 header.
-                let any_scrypt = v1_header.recipients.iter().any(|r| {
-                    if let RecipientStanza::Scrypt(_) = r {
-                        true
-                    } else {
-                        false
-                    }
-                });
-
-                if any_scrypt && v1_header.recipients.len() == 1 {
-                    Ok(decryptor::PassphraseDecryptor::new(input, header, nonce).into())
-                } else if !any_scrypt {
-                    Ok(decryptor::RecipientsDecryptor::new(input, header, nonce).into())
-                } else {
-                    Err(Error::InvalidHeader)
-                }
+                Decryptor::from_v1_header(input, v1_header, nonce)
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
         }
@@ -207,27 +212,11 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
     pub async fn new_async(mut input: R) -> Result<Self, Error> {
         let header = Header::read_async(&mut input).await?;
 
-        match &header {
+        match header {
             Header::V1(v1_header) => {
                 let mut nonce = [0; 16];
                 input.read_exact(&mut nonce).await?;
-
-                // Enforce structural requirements on the v1 header.
-                let any_scrypt = v1_header.recipients.iter().any(|r| {
-                    if let RecipientStanza::Scrypt(_) = r {
-                        true
-                    } else {
-                        false
-                    }
-                });
-
-                if any_scrypt && v1_header.recipients.len() == 1 {
-                    Ok(decryptor::PassphraseDecryptor::new_async(input, header, nonce).into())
-                } else if !any_scrypt {
-                    Ok(decryptor::RecipientsDecryptor::new_async(input, header, nonce).into())
-                } else {
-                    Err(Error::InvalidHeader)
-                }
+                Decryptor::from_v1_header(input, v1_header, nonce)
             }
             Header::Unknown(_) => Err(Error::UnknownFormat),
         }
