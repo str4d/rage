@@ -92,6 +92,22 @@ impl Encryptor {
         Encryptor(EncryptorType::Passphrase(passphrase))
     }
 
+    fn prepare_wrapper(self) -> (Header, [u8; 16], [u8; 32]) {
+        let file_key = FileKey::generate();
+
+        let header = Header::new(
+            self.0.wrap_file_key(&file_key),
+            hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
+        );
+
+        let mut nonce = [0; 16];
+        OsRng.fill_bytes(&mut nonce);
+
+        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
+
+        (header, nonce, payload_key)
+    }
+
     /// Creates a wrapper around a writer that will encrypt its input.
     ///
     /// Returns errors from the underlying writer while writing the header.
@@ -100,19 +116,9 @@ impl Encryptor {
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
     pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
-        let file_key = FileKey::generate();
-
-        let header = Header::new(
-            self.0.wrap_file_key(&file_key),
-            hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
-        );
+        let (header, nonce, payload_key) = self.prepare_wrapper();
         header.write(&mut output)?;
-
-        let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
         output.write_all(&nonce)?;
-
-        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
         Ok(Stream::encrypt(&payload_key, output))
     }
 
@@ -128,19 +134,9 @@ impl Encryptor {
         self,
         mut output: W,
     ) -> io::Result<StreamWriter<W>> {
-        let file_key = FileKey::generate();
-
-        let header = Header::new(
-            self.0.wrap_file_key(&file_key),
-            hkdf(&[], HEADER_KEY_LABEL, file_key.0.expose_secret()),
-        );
+        let (header, nonce, payload_key) = self.prepare_wrapper();
         header.write_async(&mut output).await?;
-
-        let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
         output.write_all(&nonce).await?;
-
-        let payload_key = hkdf(&nonce, PAYLOAD_KEY_LABEL, file_key.0.expose_secret());
         Ok(Stream::encrypt_async(&payload_key, output))
     }
 }
