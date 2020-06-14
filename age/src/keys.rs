@@ -1,5 +1,6 @@
 //! Key structs and serialization.
 
+use age_core::primitives::hkdf;
 use bech32::{FromBase32, ToBase32};
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::{rngs::OsRng, RngCore};
@@ -13,14 +14,18 @@ use zeroize::Zeroize;
 
 use crate::{
     error::Error,
-    format::{ssh_ed25519, ssh_rsa, x25519, RecipientStanza},
+    format::{ssh_ed25519, ssh_rsa, x25519, HeaderV1, RecipientStanza},
     openssh::{EncryptedOpenSshKey, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
+    primitives::{stream::PayloadKey, HmacKey},
     protocol::Callbacks,
 };
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
 const PUBLIC_KEY_PREFIX: &str = "age";
+
+const HEADER_KEY_LABEL: &[u8] = b"header";
+const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
 
 fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static str>> {
     bech32::decode(s).ok().map(|(hrp, data)| {
@@ -43,6 +48,28 @@ impl FileKey {
         let mut file_key = [0; 16];
         OsRng.fill_bytes(&mut file_key);
         FileKey(Secret::new(file_key))
+    }
+
+    pub(crate) fn mac_key(&self) -> HmacKey {
+        HmacKey(Secret::new(hkdf(
+            &[],
+            HEADER_KEY_LABEL,
+            self.0.expose_secret(),
+        )))
+    }
+
+    pub(crate) fn v1_payload_key(
+        &self,
+        header: &HeaderV1,
+        nonce: &[u8; 16],
+    ) -> Result<PayloadKey, Error> {
+        // Verify the MAC
+        header.verify_mac(self.mac_key())?;
+
+        // Return the payload key
+        Ok(PayloadKey(
+            hkdf(nonce, PAYLOAD_KEY_LABEL, self.0.expose_secret()).into(),
+        ))
     }
 }
 

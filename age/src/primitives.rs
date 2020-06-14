@@ -5,11 +5,14 @@ use hmac::{
     Hmac, Mac, NewMac,
 };
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, ScryptParams};
+use secrecy::{ExposeSecret, Secret};
 use sha2::Sha256;
 use std::io::{self, Write};
 
 pub mod armor;
 pub mod stream;
+
+pub(crate) struct HmacKey(pub(crate) Secret<[u8; 32]>);
 
 /// `HMAC[key](message)`
 ///
@@ -22,9 +25,9 @@ pub(crate) struct HmacWriter {
 
 impl HmacWriter {
     /// Constructs a new writer to process input data.
-    pub(crate) fn new(key: [u8; 32]) -> Self {
+    pub(crate) fn new(key: HmacKey) -> Self {
         HmacWriter {
-            inner: Hmac::new_varkey(&key).expect("key is the correct length"),
+            inner: Hmac::new_varkey(key.0.expose_secret()).expect("key is the correct length"),
         }
     }
 

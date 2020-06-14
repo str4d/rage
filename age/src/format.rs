@@ -6,7 +6,7 @@ use rand::{
 };
 use std::io::{self, Read, Write};
 
-use crate::primitives::HmacWriter;
+use crate::primitives::{HmacKey, HmacWriter};
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -103,7 +103,7 @@ pub struct HeaderV1 {
 }
 
 impl HeaderV1 {
-    fn new(recipients: Vec<RecipientStanza>, mac_key: [u8; 32]) -> Self {
+    pub(crate) fn new(recipients: Vec<RecipientStanza>, mac_key: HmacKey) -> Self {
         let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
@@ -119,7 +119,7 @@ impl HeaderV1 {
         header
     }
 
-    pub(crate) fn verify_mac(&self, mac_key: [u8; 32]) -> Result<(), hmac::crypto_mac::MacError> {
+    pub(crate) fn verify_mac(&self, mac_key: HmacKey) -> Result<(), hmac::crypto_mac::MacError> {
         let mut mac = HmacWriter::new(mac_key);
         cookie_factory::gen(write::header_v1_minus_mac(self), &mut mac)
             .expect("can serialize Header into HmacWriter");
@@ -128,10 +128,6 @@ impl HeaderV1 {
 }
 
 impl Header {
-    pub(crate) fn new(recipients: Vec<RecipientStanza>, mac_key: [u8; 32]) -> Self {
-        Header::V1(HeaderV1::new(recipients, mac_key))
-    }
-
     pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
         let mut data = vec![];
         loop {
