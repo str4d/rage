@@ -56,7 +56,7 @@ fn target_scrypt_work_factor() -> u8 {
 }
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) salt: [u8; SALT_LEN],
     pub(crate) log_n: u8,
     pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],

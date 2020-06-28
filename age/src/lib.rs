@@ -41,7 +41,8 @@
 //!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(iter::once(key.into()))?;
+//!     let mut reader = decryptor.decrypt(
+//!         iter::once(Box::new(key) as Box<dyn age::Identity>))?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -116,6 +117,31 @@ pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;
+
+/// An Identity is a private key or other value that can decrypt an opaque [`FileKey`]
+/// from a recipient stanza.
+///
+/// [`FileKey`]: keys::FileKey
+pub trait Identity {
+    /// Attempts to unwrap the given stanza with this identity.
+    ///
+    /// This method is part of the `Identity` trait to expose age's [one joint] for
+    /// external implementations. You should not need to call this directly; instead, pass
+    /// identities to [`RecipientsDecryptor::decrypt`].
+    ///
+    /// Returns:
+    /// - `Some(Ok(file_key))` on success.
+    /// - `Some(Err(e))` if a decryption error occurs.
+    /// - `None` if the recipient stanza does not match this key.
+    ///
+    /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
+    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
+    fn unwrap_file_key(
+        &self,
+        stanza: &format::RecipientStanza,
+        callbacks: &dyn Callbacks,
+    ) -> Option<Result<keys::FileKey, Error>>;
+}
 
 /// Helper for fuzzing the Header parser and serializer.
 #[cfg(fuzzing)]

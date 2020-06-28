@@ -40,7 +40,8 @@ fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static
     })
 }
 
-pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
+/// A file key for encrypting or decrypting an age file.
+pub struct FileKey(pub(crate) Secret<[u8; 16]>);
 
 impl FileKey {
     pub(crate) fn generate() -> Self {
@@ -120,6 +121,16 @@ impl SecretKey {
             }
             _ => None,
         }
+    }
+}
+
+impl crate::Identity for SecretKey {
+    fn unwrap_file_key(
+        &self,
+        stanza: &RecipientStanza,
+        _callbacks: &dyn Callbacks,
+    ) -> Option<Result<FileKey, Error>> {
+        self.unwrap_file_key(stanza)
     }
 }
 
@@ -208,10 +219,22 @@ impl Identity {
         stanza: &RecipientStanza,
         callbacks: &dyn Callbacks,
     ) -> Option<Result<FileKey, Error>> {
+        use crate::Identity;
+
         match &self.key {
             IdentityKey::X25519(key) => key.unwrap_file_key(stanza),
             IdentityKey::Ssh(key) => key.unwrap_file_key(stanza, callbacks),
         }
+    }
+}
+
+impl crate::Identity for Identity {
+    fn unwrap_file_key(
+        &self,
+        stanza: &RecipientStanza,
+        callbacks: &dyn Callbacks,
+    ) -> Option<Result<FileKey, Error>> {
+        self.unwrap_file_key(stanza, callbacks)
     }
 }
 

@@ -10,6 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age::Identity` trait, representing an identity that can decrypt an age file.
+  All relevant `age` types implement this trait.
 - Asynchronous APIs for encryption and decryption, enabled by the `async`
   feature flag:
   - `age::Encryptor::wrap_async_output()`
@@ -21,11 +23,11 @@ to 1.0.0 are beta releases.
   a potentially-armored age file.
 - `age::armor::ArmoredWriter`, which can be wrapped around an output to
   optionally apply the armored age format.
+- `age::keys::FileKey` (used when implementing the `age::Identity` trait).
 
 ### Changed
 - `age::decryptor::RecipientsDecryptor` now takes
-  `impl Iterator<Item = Identity>` in its decryption methods instead of
-  `&[Identity]`.
+  `impl Iterator<Item = Box<dyn Identity>>` in its decryption methods.
 - `age::Encryptor::wrap_output` now only generates the non-malleable binary age
   format. Use `encryptor.wrap_output(ArmoredWriter::wrap_output(output, format))`
   to optionally generate armored age files.

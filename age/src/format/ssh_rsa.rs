@@ -19,7 +19,7 @@ fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
 }
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) tag: [u8; TAG_LEN_BYTES],
     pub(crate) encrypted_file_key: Vec<u8>,
 }

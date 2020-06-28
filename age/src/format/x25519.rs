@@ -16,7 +16,7 @@ pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) epk: PublicKey,
     pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }

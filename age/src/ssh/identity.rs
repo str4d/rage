@@ -178,8 +178,10 @@ impl Identity {
             }
         }
     }
+}
 
-    pub(crate) fn unwrap_file_key(
+impl crate::Identity for Identity {
+    fn unwrap_file_key(
         &self,
         stanza: &RecipientStanza,
         callbacks: &dyn Callbacks,

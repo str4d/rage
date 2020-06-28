@@ -7,8 +7,9 @@ use super::{Callbacks, NoCallbacks, Nonce};
 use crate::{
     error::Error,
     format::{Header, RecipientStanza},
-    keys::{FileKey, Identity},
+    keys::FileKey,
     primitives::stream::{PayloadKey, Stream, StreamReader},
+    Identity,
 };
 
 #[cfg(feature = "async")]
@@ -54,7 +55,7 @@ impl<R> RecipientsDecryptor<R> {
 
     fn obtain_payload_key(
         &self,
-        mut identities: impl Iterator<Item = Identity>,
+        mut identities: impl Iterator<Item = Box<dyn Identity>>,
         callbacks: &dyn Callbacks,
     ) -> Result<PayloadKey, Error> {
         self.0
@@ -71,7 +72,7 @@ impl<R: Read> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt(
         self,
-        identities: impl Iterator<Item = Identity>,
+        identities: impl Iterator<Item = Box<dyn Identity>>,
     ) -> Result<StreamReader<R>, Error> {
         self.decrypt_with_callbacks(identities, &NoCallbacks)
     }
@@ -81,7 +82,7 @@ impl<R: Read> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_with_callbacks(
         self,
-        identities: impl Iterator<Item = Identity>,
+        identities: impl Iterator<Item = Box<dyn Identity>>,
         callbacks: &dyn Callbacks,
     ) -> Result<StreamReader<R>, Error> {
         self.obtain_payload_key(identities, callbacks)
@@ -99,7 +100,7 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_async(
         self,
-        identities: impl Iterator<Item = Identity>,
+        identities: impl Iterator<Item = Box<dyn Identity>>,
     ) -> Result<StreamReader<R>, Error> {
         self.decrypt_async_with_callbacks(identities, &NoCallbacks)
     }
@@ -109,7 +110,7 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_async_with_callbacks(
         self,
-        identities: impl Iterator<Item = Identity>,
+        identities: impl Iterator<Item = Box<dyn Identity>>,
         callbacks: &dyn Callbacks,
     ) -> Result<StreamReader<R>, Error> {
         self.obtain_payload_key(identities, callbacks)
