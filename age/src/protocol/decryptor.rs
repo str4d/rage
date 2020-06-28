@@ -54,14 +54,11 @@ impl<R> RecipientsDecryptor<R> {
 
     fn obtain_payload_key(
         &self,
-        identities: &[Identity],
+        mut identities: impl Iterator<Item = Identity>,
         callbacks: &dyn Callbacks,
     ) -> Result<PayloadKey, Error> {
-        self.0.obtain_payload_key(|r| {
-            identities
-                .iter()
-                .find_map(|key| key.unwrap_file_key(r, callbacks))
-        })
+        self.0
+            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_file_key(r, callbacks)))
     }
 }
 
@@ -72,7 +69,10 @@ impl<R: Read> RecipientsDecryptor<R> {
     /// identities that require e.g. a passphrase to decrypt.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt(self, identities: &[Identity]) -> Result<StreamReader<R>, Error> {
+    pub fn decrypt(
+        self,
+        identities: impl Iterator<Item = Identity>,
+    ) -> Result<StreamReader<R>, Error> {
         self.decrypt_with_callbacks(identities, &NoCallbacks)
     }
 
@@ -81,7 +81,7 @@ impl<R: Read> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_with_callbacks(
         self,
-        identities: &[Identity],
+        identities: impl Iterator<Item = Identity>,
         callbacks: &dyn Callbacks,
     ) -> Result<StreamReader<R>, Error> {
         self.obtain_payload_key(identities, callbacks)
@@ -97,7 +97,10 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// identities that require e.g. a passphrase to decrypt.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_async(self, identities: &[Identity]) -> Result<StreamReader<R>, Error> {
+    pub fn decrypt_async(
+        self,
+        identities: impl Iterator<Item = Identity>,
+    ) -> Result<StreamReader<R>, Error> {
         self.decrypt_async_with_callbacks(identities, &NoCallbacks)
     }
 
@@ -106,7 +109,7 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_async_with_callbacks(
         self,
-        identities: &[Identity],
+        identities: impl Iterator<Item = Identity>,
         callbacks: &dyn Callbacks,
     ) -> Result<StreamReader<R>, Error> {
         self.obtain_payload_key(identities, callbacks)

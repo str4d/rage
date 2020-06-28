@@ -199,7 +199,7 @@ fn main() -> Result<(), Error> {
             )?;
 
             decryptor
-                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .decrypt_with_callbacks(identities.into_iter(), &UiCallbacks)
                 .map_err(|e| e.into())
                 .and_then(|stream| mount_stream(stream, types, mountpoint))
         }

@@ -13,6 +13,7 @@
 //!
 //! ```
 //! use std::io::{Read, Write};
+//! use std::iter;
 //!
 //! # fn run_main() -> Result<(), age::Error> {
 //! let key = age::SecretKey::generate();
@@ -40,7 +41,7 @@
 //!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(&[key.into()])?;
+//!     let mut reader = decryptor.decrypt(iter::once(key.into()))?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted

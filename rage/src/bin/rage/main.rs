@@ -354,7 +354,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             )?;
 
             decryptor
-                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .decrypt_with_callbacks(identities.into_iter(), &UiCallbacks)
                 .map_err(|e| e.into())
                 .and_then(|input| write_output(input, output))
         }
