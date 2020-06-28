@@ -460,37 +460,38 @@ mod read_ssh {
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Identity> {
-        let (i, encryption) = preceded(
-            tag(b"openssh-key-v1\x00"),
-            terminated(
-                encryption_header,
-                // We only support a single key, like OpenSSH:
-                // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
-                tag(b"\x00\x00\x00\x01"),
+        map_opt(
+            pair(
+                preceded(tag(b"openssh-key-v1\x00"), encryption_header),
+                pair(
+                    preceded(
+                        // We only support a single key, like OpenSSH:
+                        // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
+                        tag(b"\x00\x00\x00\x01"),
+                        string, // The public key in SSH format
+                    ),
+                    string, // The private key in SSH format
+                ),
             ),
-        )(input)?;
-
-        // The public key in SSH format
-        let (i, ssh_key) = string(i)?;
-
-        match encryption {
-            None => map(
-                map_parser(string, openssh_unencrypted_privkey(ssh_key)),
-                Identity::from,
-            )(i),
-            Some((CipherResult::Supported(cipher), kdf)) => map(string, |encrypted| {
-                EncryptedKey::OpenSsh(EncryptedOpenSshKey {
-                    ssh_key: ssh_key.to_vec(),
-                    cipher,
-                    kdf: kdf.clone(),
-                    encrypted: encrypted.to_vec(),
-                })
-                .into()
-            })(i),
-            Some((CipherResult::Unsupported(cipher), _)) => {
-                Ok((i, UnsupportedKey::EncryptedOpenSsh(cipher).into()))
-            }
-        }
+            |(encryption, (ssh_key, private))| match &encryption {
+                None => {
+                    let (_, privkey) = openssh_unencrypted_privkey(ssh_key)(private).ok()?;
+                    Some(privkey.into())
+                }
+                Some((CipherResult::Supported(cipher), kdf)) => Some(
+                    EncryptedKey::OpenSsh(EncryptedOpenSshKey {
+                        ssh_key: ssh_key.to_vec(),
+                        cipher: cipher.clone(),
+                        kdf: kdf.clone(),
+                        encrypted: private.to_vec(),
+                    })
+                    .into(),
+                ),
+                Some((CipherResult::Unsupported(cipher), _)) => {
+                    Some(UnsupportedKey::EncryptedOpenSsh(cipher.clone()).into())
+                }
+            },
+        )(input)
     }
 
     /// An SSH-encoded RSA public key.
