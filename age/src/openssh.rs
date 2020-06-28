@@ -245,7 +245,7 @@ mod read_ssh {
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
-        combinator::{map, map_opt, map_parser, map_res},
+        combinator::{map, map_opt, map_parser, map_res, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{pair, preceded, terminated, tuple},
@@ -419,42 +419,41 @@ mod read_ssh {
     /// We only support a single key, like OpenSSH.
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
-        ssh_key: &'a [u8],
+        ssh_key: &[u8],
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
-        move |input: &[u8]| {
-            let (mut padding, key) = preceded(
-                // Repeated checkint, intended for verifying correct decryption.
-                // Don't copy this idea into a new protocol; use an AEAD instead.
-                map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
-                    if c1 == c2 {
-                        Some(c1)
-                    } else {
-                        None
-                    }
-                }),
-                terminated(
-                    alt((
-                        map(openssh_rsa_privkey, |sk| {
-                            SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
-                        }),
-                        map(openssh_ed25519_privkey, |privkey| {
-                            SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
-                        }),
-                    )),
+        // We need to own, move, and clone these in order to keep them alive.
+        let ssh_key_rsa = ssh_key.to_vec();
+        let ssh_key_ed25519 = ssh_key.to_vec();
+
+        preceded(
+            // Repeated checkint, intended for verifying correct decryption.
+            // Don't copy this idea into a new protocol; use an AEAD instead.
+            map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
+                if c1 == c2 {
+                    Some(c1)
+                } else {
+                    None
+                }
+            }),
+            terminated(
+                alt((
+                    map(openssh_rsa_privkey, move |sk| {
+                        SecretKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk))
+                    }),
+                    map(openssh_ed25519_privkey, move |privkey| {
+                        SecretKey::SshEd25519(ssh_key_ed25519.clone(), privkey)
+                    }),
+                )),
+                pair(
                     // Comment
                     string,
+                    // Deterministic padding
+                    verify(rest, |padding: &[u8]| {
+                        padding.iter().enumerate().all(|(i, b)| *b == (i + 1) as u8)
+                    }),
                 ),
-            )(input)?;
-
-            // Check deterministic padding
-            let padlen = padding.len();
-            for i in 1..=padlen {
-                let (mid, _) = tag(&[i as u8])(padding)?;
-                padding = mid;
-            }
-
-            Ok((padding, key))
-        }
+            ),
+        )
     }
 
     /// An OpenSSH-formatted private key.
