@@ -64,11 +64,7 @@ impl fmt::Debug for Error {
             Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
             Error::MissingType => writeln!(f, "Missing -t/--types"),
             Error::UnknownType(t) => writeln!(f, "Unknown filesystem type \"{}\"", t),
-            Error::UnsupportedKey(filename, k) => {
-                writeln!(f, "Unsupported key: {}", filename)?;
-                writeln!(f)?;
-                writeln!(f, "{}", k)
-            }
+            Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }?;
         writeln!(f)?;
         writeln!(
@@ -199,19 +195,8 @@ fn main() -> Result<(), Error> {
                 opts.identity,
                 |default_filename| Error::MissingIdentities(default_filename.to_string()),
                 |filename| Error::IdentityNotFound(filename),
+                |filename, k| Error::UnsupportedKey(filename, k),
             )?;
-
-            // Check for unsupported keys and alert the user
-            for identity in &identities {
-                if let age::keys::IdentityKey::Ssh(age::ssh::Identity::Unsupported(k)) =
-                    identity.key()
-                {
-                    return Err(Error::UnsupportedKey(
-                        identity.filename().unwrap_or_default().to_string(),
-                        k.clone(),
-                    ));
-                }
-            }
 
             decryptor
                 .decrypt_with_callbacks(&identities, &UiCallbacks)

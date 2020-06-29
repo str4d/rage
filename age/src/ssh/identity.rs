@@ -8,6 +8,7 @@ use nom::{
 };
 use secrecy::{ExposeSecret, Secret};
 use std::fmt;
+use std::io;
 
 use super::{read_asn1, read_ssh, write_ssh, EncryptedKey};
 use crate::{
@@ -56,8 +57,13 @@ pub enum UnsupportedKey {
     EncryptedSsh(String),
 }
 
-impl fmt::Display for UnsupportedKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl UnsupportedKey {
+    /// Prints details about this unsupported identity.
+    pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
+        if let Some(name) = filename {
+            writeln!(f, "Unsupported SSH identity: {}", name)?;
+            writeln!(f)?;
+        }
         match self {
             UnsupportedKey::EncryptedPem => {
                 let message = [
@@ -140,18 +146,54 @@ impl From<UnsupportedKey> for Identity {
 }
 
 impl Identity {
+    /// Parses one or more identities from a buffered input containing valid UTF-8.
+    ///
+    /// `filename` is the path to the file that the input is reading from, if any.
+    pub fn from_buffer<R: io::BufRead>(mut data: R, filename: Option<String>) -> io::Result<Self> {
+        let mut buf = String::new();
+        loop {
+            match ssh_identity(&buf) {
+                Ok((_, mut identity)) => {
+                    // If we know the filename, cache it.
+                    match &mut identity {
+                        Identity::Encrypted(key) => key.filename = filename,
+                        _ => (),
+                    }
+
+                    break Ok(identity);
+                }
+                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
+                    if data.read_line(&mut buf)? == 0 {
+                        break Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "incomplete SSH identity in file",
+                        ));
+                    };
+                }
+                Err(_) => {
+                    break Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid SSH identity",
+                    ));
+                }
+            }
+        }
+    }
+
     pub(crate) fn unwrap_file_key(
         &self,
         stanza: &RecipientStanza,
         callbacks: &dyn Callbacks,
-        filename: Option<&str>,
     ) -> Option<Result<FileKey, Error>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
             Identity::Encrypted(enc) => {
                 let passphrase = callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
-                    filename.unwrap_or_default()
+                    enc.filename
+                        .as_ref()
+                        .map(|s| s.as_str())
+                        .unwrap_or_default()
                 ))?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
@@ -215,4 +257,95 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
 
 pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
     alt((rsa_privkey, openssh_privkey))(input)
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use secrecy::{ExposeSecret, Secret};
+    use std::io::BufReader;
+
+    use super::Identity;
+    use crate::{
+        keys::FileKey,
+        ssh::recipient::{
+            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+            Recipient,
+        },
+    };
+
+    pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEAxO5yF0xjbmkQTfbaCP8DQC7kHnPJr5bdIie6Nzmg9lL6Chye
+0vK5iJ+BYkA1Hnf1WnNzoVIm3otZPkwZptertkY95JYFmTiA4IvHeL1yiOTd2AYc
+a947EPpM9XPomeM/7U7c99OvuCuOl1YlTFsMsoPY/NiZ+NZjgMvb3XgyH0OXy3mh
+qp+SsJU+tRjZGfqM1iv2TZUCJTQnKF8YSVCyLPV67XM1slQQHmtZ5Q6NFhzg3j8a
+CY5rDR66UF5+Zn/TvN8bNdKn01I50VLePI0ZnnRcuLXK2t0Bpkk0NymZ3vsF10m9
+HCKVyxr2Y0Ejx4BtYXOK97gaYks73rBi7+/VywIDAQABAoIBADGsf8TWtOH9yGoS
+ES9hu90ttsbjqAUNhdv+r18Mv0hC5+UzEPDe3uPScB1rWrrDwXS+WHVhtoI+HhWz
+tmi6UArbLvOA0Aq1EPUS7Q7Mop5bNIYwDG09EiMXL+BeC1b91nsygFRW5iULf502
+0pOvB8XjshEdRcFZuqGbSmtTzTjLLxYS/aboBtZLHrH4cRlFMpHWCSuJng8Psahp
+SnJbkjL7fHG81dlH+M3qm5EwdDJ1UmNkBfoSfGRs2pupk2cSJaL+SPkvNX+6Xyoy
+yvfnbJzKUTcV6rf+0S0P0yrWK3zRK9maPJ1N60lFui9LvFsunCLkSAluGKiMwEjb
+fm40F4kCgYEA+QzIeIGMwnaOQdAW4oc7hX5MgRPXJ836iALy56BCkZpZMjZ+VKpk
+8P4E1HrEywpgqHMox08hfCTGX3Ph6fFIlS1/mkLojcgkrqmg1IrRvh8vvaZqzaAf
+GKEhxxRta9Pvm44E2nUY97iCKzE3Vfh+FIyQLRuc+0COu49Me4HPtBUCgYEAym1T
+vNZKPfC/eTMh+MbWMsQArOePdoHQyRC38zeWrLaDFOUVzwzEvCQ0IzSs0PnLWkZ4
+xx60wBg5ZdU4iH4cnOYgjavQrbRFrCmZ1KDUm2+NAMw3avcLQqu41jqzyAlkktUL
+fZzyqHIBmKYLqut5GslkGnQVg6hB4psutHhiel8CgYA3yy9WH9/C6QBxqgaWdSlW
+fLby69j1p+WKdu6oCXUgXW3CHActPIckniPC3kYcHpUM58+o5wdfYnW2iKWB3XYf
+RXQiwP6MVNwy7PmE5Byc9Sui1xdyPX75648/pEnnMDGrraNUtYsEZCd1Oa9l6SeF
+vv/Fuzvt5caUKkQ+HxTDCQKBgFhqUiXr7zeIvQkiFVeE+a/ovmbHKXlYkCoSPFZm
+VFCR00VAHjt2V0PaCE/MRSNtx61hlIVcWxSAQCnDbNLpSnQZa+SVRCtqzve4n/Eo
+YlSV75+GkzoMN4XiXXRs5XOc7qnXlhJCiBac3Segdv4rpZTWm/uV8oOz7TseDtNS
+tai/AoGAC0CiIJAzmmXscXNS/stLrL9bb3Yb+VZi9zN7Cb/w7B0IJ35N5UOFmKWA
+QIGpMU4gh6p52S1eLttpIf2+39rEDzo8pY6BVmEp3fKN3jWmGS4mJQ31tWefupC+
+fGNu+wyKxPnSU3svsuvrOdwwDKvfqCNyYK878qKAAaBqbGT1NJ8=
+-----END RSA PRIVATE KEY-----";
+
+    pub(crate) const TEST_SSH_ED25519_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACB7Ci6nqZYaVvrjm8+XbzII89TsXzP111AflR7WeorBjQAAAJCfEwtqnxML
+agAAAAtzc2gtZWQyNTUxOQAAACB7Ci6nqZYaVvrjm8+XbzII89TsXzP111AflR7WeorBjQ
+AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
+1OxfM/XXUB+VHtZ6isGNAAAADHN0cjRkQGNhcmJvbgE=
+-----END OPENSSH PRIVATE KEY-----";
+
+    #[test]
+    fn ssh_rsa_round_trip() {
+        let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        let sk = match identity {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
+        let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
+
+        let file_key = FileKey(Secret::new([12; 16]));
+
+        let wrapped = pk.wrap_file_key(&file_key);
+        let unwrapped = sk.unwrap_file_key(&wrapped);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
+    }
+
+    #[test]
+    fn ssh_ed25519_round_trip() {
+        let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        let sk = match identity {
+            Identity::Unencrypted(key) => key,
+            _ => panic!("key should be unencrypted"),
+        };
+        let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
+
+        let file_key = FileKey(Secret::new([12; 16]));
+
+        let wrapped = pk.wrap_file_key(&file_key);
+        let unwrapped = sk.unwrap_file_key(&wrapped);
+        assert_eq!(
+            unwrapped.unwrap().unwrap().0.expose_secret(),
+            file_key.0.expose_secret()
+        );
+    }
 }

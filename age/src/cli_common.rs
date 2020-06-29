@@ -39,15 +39,17 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities<E, F, G>(
+pub fn read_identities<E, F, G, H>(
     filenames: Vec<String>,
     no_default: F,
     file_not_found: G,
+    unsupported_ssh: H,
 ) -> Result<Vec<Identity>, E>
 where
     E: From<io::Error>,
     F: FnOnce(&str) -> E,
     G: Fn(String) -> E,
+    H: Fn(String, crate::ssh::UnsupportedKey) -> E,
 {
     let mut identities = vec![];
 
@@ -66,12 +68,25 @@ where
         identities.extend(Identity::from_buffer(buf)?);
     } else {
         for filename in filenames {
-            identities.extend(Identity::from_file(filename.clone()).map_err(
-                |e| match e.kind() {
-                    io::ErrorKind::NotFound => file_not_found(filename),
-                    _ => e.into(),
-                },
-            )?);
+            // Try parsing as a single multi-line SSH identity.
+            match crate::ssh::Identity::from_buffer(
+                BufReader::new(File::open(&filename)?),
+                Some(filename.clone()),
+            ) {
+                Ok(crate::ssh::Identity::Unsupported(k)) => {
+                    return Err(unsupported_ssh(filename, k))
+                }
+                Ok(identity) => identities.push(identity.into()),
+                Err(_) => {
+                    // Try parsing as multiple single-line age identities.
+                    identities.extend(Identity::from_file(filename.clone()).map_err(|e| {
+                        match e.kind() {
+                            io::ErrorKind::NotFound => file_not_found(filename),
+                            _ => e.into(),
+                        }
+                    })?);
+                }
+            }
         }
     }
 

@@ -67,6 +67,7 @@ pub struct EncryptedKey {
     cipher: OpenSshCipher,
     kdf: OpenSshKdf,
     encrypted: Vec<u8>,
+    filename: Option<String>,
 }
 
 impl EncryptedKey {
@@ -486,6 +487,7 @@ mod read_ssh {
                         cipher: cipher.clone(),
                         kdf: kdf.clone(),
                         encrypted: private.to_vec(),
+                        filename: None,
                     }
                     .into(),
                 ),

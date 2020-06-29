@@ -382,43 +382,43 @@ mod tests {
 
     #[test]
     fn ssh_rsa_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
-        let sk = Identity::from_buffer(buf).unwrap();
+        let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
+        let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![pk], &sk);
+        recipient_round_trip(vec![pk], &[sk.into()]);
     }
 
     #[cfg(feature = "async")]
     #[test]
     fn ssh_rsa_async_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
-        let sk = Identity::from_buffer(buf).unwrap();
+        let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
+        let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![pk], &sk);
+        recipient_async_round_trip(vec![pk], &[sk.into()]);
     }
 
     #[test]
     fn ssh_ed25519_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
-        let sk = Identity::from_buffer(buf).unwrap();
+        let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
+        let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![pk], &sk);
+        recipient_round_trip(vec![pk], &[sk.into()]);
     }
 
     #[cfg(feature = "async")]
     #[test]
     fn ssh_ed25519_async_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
-        let sk = Identity::from_buffer(buf).unwrap();
+        let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
+        let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![pk], &sk);
+        recipient_async_round_trip(vec![pk], &[sk.into()]);
     }
 }

@@ -350,19 +350,8 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                     error::DecryptError::MissingIdentities(default_filename.to_string())
                 },
                 error::DecryptError::IdentityNotFound,
+                |filename, k| error::DecryptError::UnsupportedKey(filename, k),
             )?;
-
-            // Check for unsupported keys and alert the user
-            for identity in &identities {
-                if let age::keys::IdentityKey::Ssh(age::ssh::Identity::Unsupported(k)) =
-                    identity.key()
-                {
-                    return Err(error::DecryptError::UnsupportedKey(
-                        identity.filename().unwrap_or_default().to_string(),
-                        k.clone(),
-                    ));
-                }
-            }
 
             decryptor
                 .decrypt_with_callbacks(&identities, &UiCallbacks)
