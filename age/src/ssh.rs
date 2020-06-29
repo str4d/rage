@@ -1,23 +1,22 @@
-//! Parser for OpenSSH public and private key formats.
+//! This module provides age.Identity and age.Recipient implementations of types "ssh-rsa"
+//! and "ssh-ed25519", which allow reusing existing SSH key files for encryption with
+//! https://age-encryption.org/v1.
+//!
+//! These should only be used for compatibility with existing keys, and native X25519 keys
+//! should be preferred otherwise.
 
 use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
-use nom::{
-    branch::alt,
-    bytes::streaming::{is_not, tag},
-    character::streaming::newline,
-    combinator::{map, map_opt, opt},
-    sequence::{pair, preceded, terminated, tuple},
-    IResult,
-};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{
-    error::Error,
-    keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
-    util::read::{encoded_str, str_while_encoded, wrapped_str_while_encoded},
-};
+use crate::error::Error;
+
+pub(crate) mod identity;
+pub(crate) mod recipient;
+
+pub use identity::{Identity, UnsupportedKey};
+pub use recipient::Recipient;
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
@@ -62,15 +61,18 @@ impl OpenSshKdf {
     }
 }
 
-pub struct EncryptedOpenSshKey {
+/// An encrypted SSH private key.
+pub struct EncryptedKey {
     ssh_key: Vec<u8>,
     cipher: OpenSshCipher,
     kdf: OpenSshKdf,
     encrypted: Vec<u8>,
+    filename: Option<String>,
 }
 
-impl EncryptedOpenSshKey {
-    pub fn decrypt(&self, passphrase: SecretString) -> Result<SecretKey, Error> {
+impl EncryptedKey {
+    /// Decrypts this private key.
+    pub fn decrypt(&self, passphrase: SecretString) -> Result<identity::UnencryptedKey, Error> {
         let decrypted = self
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
@@ -245,7 +247,7 @@ mod read_ssh {
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
-        combinator::{map, map_opt, map_parser, map_res},
+        combinator::{map, map_opt, map_parser, map_res, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{pair, preceded, terminated, tuple},
@@ -256,9 +258,10 @@ mod read_ssh {
     use secrecy::Secret;
 
     use super::{
-        EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
+        identity::{UnencryptedKey, UnsupportedKey},
+        EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX,
+        SSH_RSA_KEY_PREFIX,
     };
-    use crate::keys::{EncryptedKey, Identity, SecretKey, UnsupportedKey};
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
     fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -419,79 +422,80 @@ mod read_ssh {
     /// We only support a single key, like OpenSSH.
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
-        ssh_key: &'a [u8],
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
-        move |input: &[u8]| {
-            let (mut padding, key) = preceded(
-                // Repeated checkint, intended for verifying correct decryption.
-                // Don't copy this idea into a new protocol; use an AEAD instead.
-                map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
-                    if c1 == c2 {
-                        Some(c1)
-                    } else {
-                        None
-                    }
-                }),
-                terminated(
-                    alt((
-                        map(openssh_rsa_privkey, |sk| {
-                            SecretKey::SshRsa(ssh_key.to_vec(), Box::new(sk))
-                        }),
-                        map(openssh_ed25519_privkey, |privkey| {
-                            SecretKey::SshEd25519(ssh_key.to_vec(), privkey)
-                        }),
-                    )),
+        ssh_key: &[u8],
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], UnencryptedKey> {
+        // We need to own, move, and clone these in order to keep them alive.
+        let ssh_key_rsa = ssh_key.to_vec();
+        let ssh_key_ed25519 = ssh_key.to_vec();
+
+        preceded(
+            // Repeated checkint, intended for verifying correct decryption.
+            // Don't copy this idea into a new protocol; use an AEAD instead.
+            map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
+                if c1 == c2 {
+                    Some(c1)
+                } else {
+                    None
+                }
+            }),
+            terminated(
+                alt((
+                    map(openssh_rsa_privkey, move |sk| {
+                        UnencryptedKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk))
+                    }),
+                    map(openssh_ed25519_privkey, move |privkey| {
+                        UnencryptedKey::SshEd25519(ssh_key_ed25519.clone(), privkey)
+                    }),
+                )),
+                pair(
                     // Comment
                     string,
+                    // Deterministic padding
+                    verify(rest, |padding: &[u8]| {
+                        padding.iter().enumerate().all(|(i, b)| *b == (i + 1) as u8)
+                    }),
                 ),
-            )(input)?;
-
-            // Check deterministic padding
-            let padlen = padding.len();
-            for i in 1..=padlen {
-                let (mid, _) = tag(&[i as u8])(padding)?;
-                padding = mid;
-            }
-
-            Ok((padding, key))
-        }
+            ),
+        )
     }
 
     /// An OpenSSH-formatted private key.
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Identity> {
-        let (i, encryption) = preceded(
-            tag(b"openssh-key-v1\x00"),
-            terminated(
-                encryption_header,
-                // We only support a single key, like OpenSSH:
-                // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
-                tag(b"\x00\x00\x00\x01"),
+        map_opt(
+            pair(
+                preceded(tag(b"openssh-key-v1\x00"), encryption_header),
+                pair(
+                    preceded(
+                        // We only support a single key, like OpenSSH:
+                        // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
+                        tag(b"\x00\x00\x00\x01"),
+                        string, // The public key in SSH format
+                    ),
+                    string, // The private key in SSH format
+                ),
             ),
-        )(input)?;
-
-        // The public key in SSH format
-        let (i, ssh_key) = string(i)?;
-
-        match encryption {
-            None => map(
-                map_parser(string, openssh_unencrypted_privkey(ssh_key)),
-                Identity::from,
-            )(i),
-            Some((CipherResult::Supported(cipher), kdf)) => map(string, |encrypted| {
-                EncryptedKey::OpenSsh(EncryptedOpenSshKey {
-                    ssh_key: ssh_key.to_vec(),
-                    cipher,
-                    kdf: kdf.clone(),
-                    encrypted: encrypted.to_vec(),
-                })
-                .into()
-            })(i),
-            Some((CipherResult::Unsupported(cipher), _)) => {
-                Ok((i, UnsupportedKey::EncryptedOpenSsh(cipher).into()))
-            }
-        }
+            |(encryption, (ssh_key, private))| match &encryption {
+                None => {
+                    let (_, privkey) = openssh_unencrypted_privkey(ssh_key)(private).ok()?;
+                    Some(privkey.into())
+                }
+                Some((CipherResult::Supported(cipher), kdf)) => Some(
+                    EncryptedKey {
+                        ssh_key: ssh_key.to_vec(),
+                        cipher: *cipher,
+                        kdf: kdf.clone(),
+                        encrypted: private.to_vec(),
+                        filename: None,
+                    }
+                    .into(),
+                ),
+                Some((CipherResult::Unsupported(cipher), _)) => {
+                    Some(UnsupportedKey::EncryptedSsh(cipher.clone()).into())
+                }
+            },
+        )(input)
     }
 
     /// An SSH-encoded RSA public key.
@@ -579,95 +583,4 @@ mod write_ssh {
             mpint(pubkey.n()),
         ))
     }
-}
-
-fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
-    preceded(
-        tuple((tag("Proc-Type: 4,ENCRYPTED"), newline, tag("DEK-Info: "))),
-        terminated(is_not("\n"), newline),
-    )(input)
-}
-
-fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
-    preceded(
-        pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
-        terminated(
-            map_opt(
-                pair(
-                    opt(terminated(rsa_pem_encryption_header, newline)),
-                    wrapped_str_while_encoded(base64::STANDARD),
-                ),
-                |(enc_header, privkey)| {
-                    if enc_header.is_some() {
-                        Some(UnsupportedKey::EncryptedPem.into())
-                    } else {
-                        read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
-                            let mut ssh_key = vec![];
-                            cookie_factory::gen(
-                                write_ssh::rsa_pubkey(&privkey.to_public_key()),
-                                &mut ssh_key,
-                            )
-                            .expect("can write into a Vec");
-                            SecretKey::SshRsa(ssh_key, Box::new(privkey)).into()
-                        })
-                    }
-                },
-            ),
-            pair(newline, tag("-----END RSA PRIVATE KEY-----")),
-        ),
-    )(input)
-}
-
-fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
-    preceded(
-        pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
-        terminated(
-            map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
-                read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
-            }),
-            pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
-        ),
-    )(input)
-}
-
-pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Identity> {
-    alt((rsa_privkey, openssh_privkey))(input)
-}
-
-fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    preceded(
-        pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
-        map_opt(
-            str_while_encoded(base64::STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(RecipientKey::SshRsa(ssh_key, pk))),
-                Err(_) => None,
-            },
-        ),
-    )(input)
-}
-
-fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    preceded(
-        pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
-        map_opt(
-            encoded_str(51, base64::STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(RecipientKey::SshEd25519(ssh_key, pk))),
-                Err(_) => None,
-            },
-        ),
-    )(input)
-}
-
-fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    // Key types we want to ignore in SSH pubkey files
-    preceded(
-        pair(tag("ecdsa-sha2-nistp256"), tag(" ")),
-        map(str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
-    )(input)
-}
-
-pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
 }

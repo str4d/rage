@@ -75,7 +75,7 @@ pub(crate) enum DecryptError {
     PassphraseWithoutFileArgument,
     RecipientFlag,
     TimedOut(String),
-    UnsupportedKey(String, age::keys::UnsupportedKey),
+    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::Error> for DecryptError {
@@ -135,11 +135,7 @@ impl fmt::Display for DecryptError {
                 )
             }
             DecryptError::TimedOut(source) => write!(f, "Timed out waiting for {}", source),
-            DecryptError::UnsupportedKey(filename, k) => {
-                writeln!(f, "Unsupported key: {}", filename)?;
-                writeln!(f)?;
-                write!(f, "{}", k)
-            }
+            DecryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
     }
 }
