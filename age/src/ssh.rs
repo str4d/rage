@@ -484,7 +484,7 @@ mod read_ssh {
                 Some((CipherResult::Supported(cipher), kdf)) => Some(
                     EncryptedKey {
                         ssh_key: ssh_key.to_vec(),
-                        cipher: cipher.clone(),
+                        cipher: *cipher,
                         kdf: kdf.clone(),
                         encrypted: private.to_vec(),
                         filename: None,

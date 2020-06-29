@@ -195,7 +195,7 @@ fn main() -> Result<(), Error> {
                 opts.identity,
                 |default_filename| Error::MissingIdentities(default_filename.to_string()),
                 |filename| Error::IdentityNotFound(filename),
-                |filename, k| Error::UnsupportedKey(filename, k),
+                Error::UnsupportedKey,
             )?;
 
             decryptor

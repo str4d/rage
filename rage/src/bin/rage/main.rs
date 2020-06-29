@@ -350,7 +350,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                     error::DecryptError::MissingIdentities(default_filename.to_string())
                 },
                 error::DecryptError::IdentityNotFound,
-                |filename, k| error::DecryptError::UnsupportedKey(filename, k),
+                error::DecryptError::UnsupportedKey,
             )?;
 
             decryptor

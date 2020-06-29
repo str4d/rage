@@ -155,9 +155,8 @@ impl Identity {
             match ssh_identity(&buf) {
                 Ok((_, mut identity)) => {
                     // If we know the filename, cache it.
-                    match &mut identity {
-                        Identity::Encrypted(key) => key.filename = filename,
-                        _ => (),
+                    if let Identity::Encrypted(key) = &mut identity {
+                        key.filename = filename;
                     }
 
                     break Ok(identity);

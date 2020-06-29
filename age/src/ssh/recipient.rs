@@ -41,7 +41,7 @@ impl std::str::FromStr for Recipient {
     /// Parses an SSH recipient from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match ssh_recipient(s) {
-            Ok((_, Some(pk))) => Ok(pk.into()),
+            Ok((_, Some(pk))) => Ok(pk),
             Ok((_, None)) => Err(ParseRecipientKeyError::Ignore),
             _ => Err(ParseRecipientKeyError::Invalid("invalid SSH recipient")),
         }
