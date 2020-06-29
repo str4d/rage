@@ -354,7 +354,9 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
             // Check for unsupported keys and alert the user
             for identity in &identities {
-                if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
+                if let age::keys::IdentityKey::Ssh(age::ssh::Identity::Unsupported(k)) =
+                    identity.key()
+                {
                     return Err(error::DecryptError::UnsupportedKey(
                         identity.filename().unwrap_or_default().to_string(),
                         k.clone(),

@@ -75,7 +75,7 @@ pub(crate) enum DecryptError {
     PassphraseWithoutFileArgument,
     RecipientFlag,
     TimedOut(String),
-    UnsupportedKey(String, age::keys::UnsupportedKey),
+    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::Error> for DecryptError {

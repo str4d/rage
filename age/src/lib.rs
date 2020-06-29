@@ -103,9 +103,9 @@
 mod error;
 mod format;
 pub mod keys;
-mod openssh;
 mod primitives;
 mod protocol;
+pub mod ssh;
 mod util;
 
 pub use error::Error;

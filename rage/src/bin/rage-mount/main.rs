@@ -25,7 +25,7 @@ enum Error {
     MissingMountpoint,
     MissingType,
     UnknownType(String),
-    UnsupportedKey(String, age::keys::UnsupportedKey),
+    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::Error> for Error {
@@ -203,7 +203,9 @@ fn main() -> Result<(), Error> {
 
             // Check for unsupported keys and alert the user
             for identity in &identities {
-                if let age::keys::IdentityKey::Unsupported(k) = identity.key() {
+                if let age::keys::IdentityKey::Ssh(age::ssh::Identity::Unsupported(k)) =
+                    identity.key()
+                {
                     return Err(Error::UnsupportedKey(
                         identity.filename().unwrap_or_default().to_string(),
                         k.clone(),

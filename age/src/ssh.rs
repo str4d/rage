@@ -1,23 +1,31 @@
-//! Parser for OpenSSH public and private key formats.
+//! This module provides age.Identity and age.Recipient implementations of types "ssh-rsa"
+//! and "ssh-ed25519", which allow reusing existing SSH key files for encryption with
+//! https://age-encryption.org/v1.
+//!
+//! These should only be used for compatibility with existing keys, and native X25519 keys
+//! should be preferred otherwise.
 
 use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use nom::{
     branch::alt,
-    bytes::streaming::{is_not, tag},
-    character::streaming::newline,
-    combinator::{map, map_opt, opt},
-    sequence::{pair, preceded, terminated, tuple},
+    bytes::streaming::tag,
+    combinator::{map, map_opt},
+    sequence::{pair, preceded},
     IResult,
 };
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::{
     error::Error,
-    keys::{Identity, RecipientKey, SecretKey, UnsupportedKey},
-    util::read::{encoded_str, str_while_encoded, wrapped_str_while_encoded},
+    keys::RecipientKey,
+    util::read::{encoded_str, str_while_encoded},
 };
+
+pub(crate) mod identity;
+
+pub use identity::{Identity, UnsupportedKey};
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
@@ -62,15 +70,17 @@ impl OpenSshKdf {
     }
 }
 
-pub struct EncryptedOpenSshKey {
+/// An encrypted SSH private key.
+pub struct EncryptedKey {
     ssh_key: Vec<u8>,
     cipher: OpenSshCipher,
     kdf: OpenSshKdf,
     encrypted: Vec<u8>,
 }
 
-impl EncryptedOpenSshKey {
-    pub fn decrypt(&self, passphrase: SecretString) -> Result<SecretKey, Error> {
+impl EncryptedKey {
+    /// Decrypts this private key.
+    pub fn decrypt(&self, passphrase: SecretString) -> Result<identity::UnencryptedKey, Error> {
         let decrypted = self
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
@@ -256,9 +266,10 @@ mod read_ssh {
     use secrecy::Secret;
 
     use super::{
-        EncryptedOpenSshKey, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
+        identity::{UnencryptedKey, UnsupportedKey},
+        EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX,
+        SSH_RSA_KEY_PREFIX,
     };
-    use crate::keys::{EncryptedKey, Identity, SecretKey, UnsupportedKey};
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
     fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -420,7 +431,7 @@ mod read_ssh {
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &[u8],
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], SecretKey> {
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], UnencryptedKey> {
         // We need to own, move, and clone these in order to keep them alive.
         let ssh_key_rsa = ssh_key.to_vec();
         let ssh_key_ed25519 = ssh_key.to_vec();
@@ -438,10 +449,10 @@ mod read_ssh {
             terminated(
                 alt((
                     map(openssh_rsa_privkey, move |sk| {
-                        SecretKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk))
+                        UnencryptedKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk))
                     }),
                     map(openssh_ed25519_privkey, move |privkey| {
-                        SecretKey::SshEd25519(ssh_key_ed25519.clone(), privkey)
+                        UnencryptedKey::SshEd25519(ssh_key_ed25519.clone(), privkey)
                     }),
                 )),
                 pair(
@@ -479,16 +490,16 @@ mod read_ssh {
                     Some(privkey.into())
                 }
                 Some((CipherResult::Supported(cipher), kdf)) => Some(
-                    EncryptedKey::OpenSsh(EncryptedOpenSshKey {
+                    EncryptedKey {
                         ssh_key: ssh_key.to_vec(),
                         cipher: cipher.clone(),
                         kdf: kdf.clone(),
                         encrypted: private.to_vec(),
-                    })
+                    }
                     .into(),
                 ),
                 Some((CipherResult::Unsupported(cipher), _)) => {
-                    Some(UnsupportedKey::EncryptedOpenSsh(cipher.clone()).into())
+                    Some(UnsupportedKey::EncryptedSsh(cipher.clone()).into())
                 }
             },
         )(input)
@@ -580,60 +591,6 @@ mod write_ssh {
         ))
     }
 }
-
-fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
-    preceded(
-        tuple((tag("Proc-Type: 4,ENCRYPTED"), newline, tag("DEK-Info: "))),
-        terminated(is_not("\n"), newline),
-    )(input)
-}
-
-fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
-    preceded(
-        pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
-        terminated(
-            map_opt(
-                pair(
-                    opt(terminated(rsa_pem_encryption_header, newline)),
-                    wrapped_str_while_encoded(base64::STANDARD),
-                ),
-                |(enc_header, privkey)| {
-                    if enc_header.is_some() {
-                        Some(UnsupportedKey::EncryptedPem.into())
-                    } else {
-                        read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
-                            let mut ssh_key = vec![];
-                            cookie_factory::gen(
-                                write_ssh::rsa_pubkey(&privkey.to_public_key()),
-                                &mut ssh_key,
-                            )
-                            .expect("can write into a Vec");
-                            SecretKey::SshRsa(ssh_key, Box::new(privkey)).into()
-                        })
-                    }
-                },
-            ),
-            pair(newline, tag("-----END RSA PRIVATE KEY-----")),
-        ),
-    )(input)
-}
-
-fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
-    preceded(
-        pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
-        terminated(
-            map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
-                read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
-            }),
-            pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
-        ),
-    )(input)
-}
-
-pub(crate) fn ssh_secret_keys(input: &str) -> IResult<&str, Identity> {
-    alt((rsa_privkey, openssh_privkey))(input)
-}
-
 fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
