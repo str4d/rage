@@ -12,7 +12,7 @@ use std::io::{self, BufReader};
 use std::path::PathBuf;
 use subtle::ConstantTimeEq;
 
-use crate::{keys::Identity, protocol::Callbacks};
+use crate::{identity::IdentityFile, protocol::Callbacks, Identity};
 
 pub mod file_io;
 
@@ -44,14 +44,14 @@ pub fn read_identities<E, F, G, H>(
     no_default: F,
     file_not_found: G,
     unsupported_ssh: H,
-) -> Result<Vec<Identity>, E>
+) -> Result<Vec<Box<dyn Identity>>, E>
 where
     E: From<io::Error>,
     F: FnOnce(&str) -> E,
     G: Fn(String) -> E,
     H: Fn(String, crate::ssh::UnsupportedKey) -> E,
 {
-    let mut identities = vec![];
+    let mut identities: Vec<Box<dyn Identity>> = vec![];
 
     if filenames.is_empty() {
         let default_filename = get_config_dir()
@@ -65,7 +65,7 @@ where
             _ => e.into(),
         })?;
         let buf = BufReader::new(f);
-        identities.extend(Identity::from_buffer(buf)?);
+        identities.push(Box::new(IdentityFile::from_buffer(buf)?));
     } else {
         for filename in filenames {
             // Try parsing as a single multi-line SSH identity.
@@ -76,15 +76,15 @@ where
                 Ok(crate::ssh::Identity::Unsupported(k)) => {
                     return Err(unsupported_ssh(filename, k))
                 }
-                Ok(identity) => identities.push(identity.into()),
+                Ok(identity) => identities.push(Box::new(identity)),
                 Err(_) => {
                     // Try parsing as multiple single-line age identities.
-                    identities.extend(Identity::from_file(filename.clone()).map_err(|e| {
-                        match e.kind() {
+                    identities.push(Box::new(
+                        IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
                             io::ErrorKind::NotFound => file_not_found(filename),
                             _ => e.into(),
-                        }
-                    })?);
+                        })?,
+                    ));
                 }
             }
         }

@@ -199,12 +199,7 @@ fn main() -> Result<(), Error> {
             )?;
 
             decryptor
-                .decrypt_with_callbacks(
-                    identities
-                        .into_iter()
-                        .map(|i| Box::new(i) as Box<dyn age::Identity>),
-                    &UiCallbacks,
-                )
+                .decrypt_with_callbacks(identities.into_iter(), &UiCallbacks)
                 .map_err(|e| e.into())
                 .and_then(|stream| mount_stream(stream, types, mountpoint))
         }

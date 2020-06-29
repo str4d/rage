@@ -104,6 +104,7 @@
 
 mod error;
 mod format;
+mod identity;
 pub mod keys;
 mod primitives;
 mod protocol;
@@ -111,6 +112,7 @@ pub mod ssh;
 mod util;
 
 pub use error::Error;
+pub use identity::IdentityFile;
 pub use keys::SecretKey;
 pub use primitives::{armor, stream};
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
