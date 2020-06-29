@@ -8,24 +8,15 @@
 use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
-use nom::{
-    branch::alt,
-    bytes::streaming::tag,
-    combinator::{map, map_opt},
-    sequence::{pair, preceded},
-    IResult,
-};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{
-    error::Error,
-    keys::RecipientKey,
-    util::read::{encoded_str, str_while_encoded},
-};
+use crate::error::Error;
 
 pub(crate) mod identity;
+pub(crate) mod recipient;
 
 pub use identity::{Identity, UnsupportedKey};
+pub use recipient::Recipient;
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
@@ -590,41 +581,4 @@ mod write_ssh {
             mpint(pubkey.n()),
         ))
     }
-}
-fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    preceded(
-        pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
-        map_opt(
-            str_while_encoded(base64::STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(RecipientKey::SshRsa(ssh_key, pk))),
-                Err(_) => None,
-            },
-        ),
-    )(input)
-}
-
-fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    preceded(
-        pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
-        map_opt(
-            encoded_str(51, base64::STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(RecipientKey::SshEd25519(ssh_key, pk))),
-                Err(_) => None,
-            },
-        ),
-    )(input)
-}
-
-fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    // Key types we want to ignore in SSH pubkey files
-    preceded(
-        pair(tag("ecdsa-sha2-nistp256"), tag(" ")),
-        map(str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
-    )(input)
-}
-
-pub(crate) fn ssh_recipient_key(input: &str) -> IResult<&str, Option<RecipientKey>> {
-    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
 }

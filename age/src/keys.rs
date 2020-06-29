@@ -2,7 +2,6 @@
 
 use age_core::primitives::hkdf;
 use bech32::{FromBase32, ToBase32};
-use curve25519_dalek::edwards::EdwardsPoint;
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::convert::TryInto;
@@ -14,10 +13,10 @@ use zeroize::Zeroize;
 
 use crate::{
     error::Error,
-    format::{ssh_ed25519, ssh_rsa, x25519, HeaderV1, RecipientStanza},
+    format::{x25519, HeaderV1, RecipientStanza},
     primitives::{stream::PayloadKey, HmacKey},
     protocol::{Callbacks, Nonce},
-    ssh::{self, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX},
+    ssh,
 };
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
@@ -226,10 +225,14 @@ impl Identity {
 pub enum RecipientKey {
     /// An X25519 recipient key.
     X25519(PublicKey),
-    /// An ssh-rsa public key.
-    SshRsa(Vec<u8>, rsa::RSAPublicKey),
-    /// An ssh-ed25519 public key.
-    SshEd25519(Vec<u8>, EdwardsPoint),
+    /// An SSH recipient.
+    Ssh(ssh::Recipient),
+}
+
+impl From<ssh::Recipient> for RecipientKey {
+    fn from(key: ssh::Recipient) -> Self {
+        RecipientKey::Ssh(key)
+    }
 }
 
 /// Error conditions when parsing a recipient key.
@@ -257,11 +260,10 @@ impl std::str::FromStr for RecipientKey {
         }
 
         // Try parsing as an OpenSSH pubkey
-        match crate::ssh::ssh_recipient_key(s) {
-            Ok((_, Some(pk))) => Ok(pk),
-            Ok((_, None)) => Err(ParseRecipientKeyError::Ignore),
-            _ => Err(ParseRecipientKeyError::Invalid("invalid recipient key")),
-        }
+        Ok(RecipientKey::Ssh(s.parse().map_err(|e| match e {
+            ssh::recipient::ParseRecipientKeyError::Ignore => Self::Err::Ignore,
+            ssh::recipient::ParseRecipientKeyError::Invalid(e) => Self::Err::Invalid(e),
+        })?))
     }
 }
 
@@ -273,12 +275,7 @@ impl fmt::Display for RecipientKey {
                 "{}",
                 bech32::encode(PUBLIC_KEY_PREFIX, pk.as_bytes().to_base32()).expect("HRP is valid")
             ),
-            RecipientKey::SshRsa(ssh_key, _) => {
-                write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(&ssh_key))
-            }
-            RecipientKey::SshEd25519(ssh_key, _) => {
-                write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(&ssh_key))
-            }
+            RecipientKey::Ssh(r) => write!(f, "{}", r),
         }
     }
 }
@@ -287,12 +284,7 @@ impl RecipientKey {
     pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientStanza::wrap_file_key(file_key, pk).into(),
-            RecipientKey::SshRsa(ssh_key, pk) => {
-                ssh_rsa::RecipientStanza::wrap_file_key(file_key, ssh_key, pk).into()
-            }
-            RecipientKey::SshEd25519(ssh_key, ed25519_pk) => {
-                ssh_ed25519::RecipientStanza::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
-            }
+            RecipientKey::Ssh(r) => r.wrap_file_key(file_key).into(),
         }
     }
 }
@@ -370,7 +362,10 @@ pub(crate) mod tests {
     use std::io::BufReader;
 
     use super::{FileKey, Identity, IdentityKey, RecipientKey};
-    use crate::ssh;
+    use crate::ssh::{
+        self,
+        recipient::tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+    };
 
     pub(crate) const TEST_SK: &str =
         "AGE-SECRET-KEY-1GQ9778VQXMMJVE8SK7J6VT8UJ4HDQAJUVSFCWCM02D8GEWQ72PVQ2Y5J33";
@@ -404,7 +399,6 @@ tai/AoGAC0CiIJAzmmXscXNS/stLrL9bb3Yb+VZi9zN7Cb/w7B0IJ35N5UOFmKWA
 QIGpMU4gh6p52S1eLttpIf2+39rEDzo8pY6BVmEp3fKN3jWmGS4mJQ31tWefupC+
 fGNu+wyKxPnSU3svsuvrOdwwDKvfqCNyYK878qKAAaBqbGT1NJ8=
 -----END RSA PRIVATE KEY-----";
-    pub(crate) const TEST_SSH_RSA_PK: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE7nIXTGNuaRBN9toI/wNALuQec8mvlt0iJ7o3OaD2UvoKHJ7S8rmIn4FiQDUed/Vac3OhUibei1k+TBmm16u2Rj3klgWZOIDgi8d4vXKI5N3YBhxr3jsQ+kz1c+iZ4z/tTtz306+4K46XViVMWwyyg9j82Jn41mOAy9vdeDIfQ5fLeaGqn5KwlT61GNkZ+ozWK/ZNlQIlNCcoXxhJULIs9XrtczWyVBAea1nlDo0WHODePxoJjmsNHrpQXn5mf9O83xs10qfTUjnRUt48jRmedFy4tcra3QGmSTQ3KZne+wXXSb0cIpXLGvZjQSPHgG1hc4r3uBpiSzvesGLv79XL alice@rust";
 
     pub(crate) const TEST_SSH_ED25519_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -413,7 +407,6 @@ agAAAAtzc2gtZWQyNTUxOQAAACB7Ci6nqZYaVvrjm8+XbzII89TsXzP111AflR7WeorBjQ
 AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 1OxfM/XXUB+VHtZ6isGNAAAADHN0cjRkQGNhcmJvbgE=
 -----END OPENSSH PRIVATE KEY-----";
-    pub(crate) const TEST_SSH_ED25519_PK: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
 
     fn valid_secret_key_encoding(keydata: &str, num_keys: usize) {
         let buf = BufReader::new(keydata.as_bytes());
@@ -498,12 +491,6 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     }
 
     #[test]
-    fn ssh_rsa_encoding() {
-        let pk: RecipientKey = TEST_SSH_RSA_PK.parse().unwrap();
-        assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_RSA_PK);
-    }
-
-    #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
         let keys = Identity::from_buffer(buf).unwrap();
@@ -521,12 +508,6 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
             unwrapped.unwrap().unwrap().0.expose_secret(),
             file_key.0.expose_secret()
         );
-    }
-
-    #[test]
-    fn ssh_ed25519_encoding() {
-        let pk: RecipientKey = TEST_SSH_ED25519_PK.parse().unwrap();
-        assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_ED25519_PK);
     }
 
     #[test]

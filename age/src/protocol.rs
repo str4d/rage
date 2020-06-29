@@ -384,7 +384,9 @@ mod tests {
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
+        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+            .parse()
+            .unwrap();
         recipient_round_trip(vec![pk], &sk);
     }
 
@@ -393,7 +395,9 @@ mod tests {
     fn ssh_rsa_async_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_SSH_RSA_PK.parse().unwrap();
+        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+            .parse()
+            .unwrap();
         recipient_async_round_trip(vec![pk], &sk);
     }
 
@@ -401,7 +405,9 @@ mod tests {
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
+        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+            .parse()
+            .unwrap();
         recipient_round_trip(vec![pk], &sk);
     }
 
@@ -410,7 +416,9 @@ mod tests {
     fn ssh_ed25519_async_round_trip() {
         let buf = BufReader::new(crate::keys::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = Identity::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_SSH_ED25519_PK.parse().unwrap();
+        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+            .parse()
+            .unwrap();
         recipient_async_round_trip(vec![pk], &sk);
     }
 }
