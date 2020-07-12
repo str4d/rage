@@ -39,13 +39,25 @@ fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static
 }
 
 /// A file key for encrypting or decrypting an age file.
-pub struct FileKey(pub(crate) Secret<[u8; 16]>);
+pub struct FileKey(Secret<[u8; 16]>);
+
+impl From<[u8; 16]> for FileKey {
+    fn from(file_key: [u8; 16]) -> Self {
+        FileKey(Secret::new(file_key))
+    }
+}
+
+impl ExposeSecret<[u8; 16]> for FileKey {
+    fn expose_secret(&self) -> &[u8; 16] {
+        self.0.expose_secret()
+    }
+}
 
 impl FileKey {
     pub(crate) fn generate() -> Self {
         let mut file_key = [0; 16];
         OsRng.fill_bytes(&mut file_key);
-        FileKey(Secret::new(file_key))
+        file_key.into()
     }
 
     pub(crate) fn mac_key(&self) -> HmacKey {

@@ -3,9 +3,10 @@ use age_core::{
     primitives::{aead_decrypt, aead_encrypt},
 };
 use rand::{rngs::OsRng, RngCore};
-use secrecy::{ExposeSecret, Secret, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use std::convert::TryInto;
 use std::time::Duration;
+use zeroize::Zeroize;
 
 use crate::{error::Error, keys::FileKey, primitives::scrypt, util::read::base64_arg};
 
@@ -91,7 +92,7 @@ impl RecipientStanza {
         let enc_key = scrypt(&inner_salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = {
             let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.expose_secret()));
             key
         };
 
@@ -128,11 +129,11 @@ impl RecipientStanza {
                 }
             })?;
         aead_decrypt(&enc_key, &self.encrypted_file_key)
-            .map(|pt| {
+            .map(|mut pt| {
                 // It's ours!
-                let mut file_key = [0; 16];
-                file_key.copy_from_slice(&pt);
-                Some(FileKey(Secret::new(file_key)))
+                let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                pt.zeroize();
+                Some(file_key.into())
             })
             .map_err(Error::from)
     }

@@ -281,16 +281,13 @@ pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use secrecy::{ExposeSecret, Secret};
+    use secrecy::ExposeSecret;
     use std::io::BufReader;
 
     use super::Identity;
-    use crate::{
-        keys::FileKey,
-        ssh::recipient::{
-            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
-            Recipient,
-        },
+    use crate::ssh::recipient::{
+        tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+        Recipient,
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
@@ -339,13 +336,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
 
-        let file_key = FileKey(Secret::new([12; 16]));
+        let file_key = [12; 16].into();
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(
-            unwrapped.unwrap().unwrap().0.expose_secret(),
-            file_key.0.expose_secret()
+            unwrapped.unwrap().unwrap().expose_secret(),
+            file_key.expose_secret()
         );
     }
 
@@ -359,13 +356,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
 
-        let file_key = FileKey(Secret::new([12; 16]));
+        let file_key = [12; 16].into();
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(
-            unwrapped.unwrap().unwrap().0.expose_secret(),
-            file_key.0.expose_secret()
+            unwrapped.unwrap().unwrap().expose_secret(),
+            file_key.expose_secret()
         );
     }
 }

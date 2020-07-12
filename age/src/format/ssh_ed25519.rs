@@ -4,10 +4,11 @@ use age_core::{
 };
 use curve25519_dalek::edwards::EdwardsPoint;
 use rand::rngs::OsRng;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256, Sha512};
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use zeroize::Zeroize;
 
 use crate::{
     error::Error, format::x25519::ENCRYPTED_FILE_KEY_BYTES, keys::FileKey, util::read::base64_arg,
@@ -74,7 +75,7 @@ impl RecipientStanza {
         );
         let encrypted_file_key = {
             let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.expose_secret()));
             key
         };
 
@@ -124,11 +125,11 @@ impl RecipientStanza {
         Some(
             aead_decrypt(&enc_key, &self.rest.encrypted_file_key)
                 .map_err(Error::from)
-                .map(|pt| {
+                .map(|mut pt| {
                     // It's ours!
-                    let mut file_key = [0; 16];
-                    file_key.copy_from_slice(&pt);
-                    FileKey(Secret::new(file_key))
+                    let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                    pt.zeroize();
+                    file_key.into()
                 }),
         )
     }
