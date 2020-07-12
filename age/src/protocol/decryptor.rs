@@ -3,7 +3,7 @@
 use secrecy::SecretString;
 use std::io::Read;
 
-use super::{Callbacks, NoCallbacks, Nonce};
+use super::Nonce;
 use crate::{
     error::Error,
     format::{Header, RecipientStanza},
@@ -56,36 +56,21 @@ impl<R> RecipientsDecryptor<R> {
     fn obtain_payload_key(
         &self,
         mut identities: impl Iterator<Item = Box<dyn Identity>>,
-        callbacks: &dyn Callbacks,
     ) -> Result<PayloadKey, Error> {
         self.0
-            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_file_key(r, callbacks)))
+            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_file_key(r)))
     }
 }
 
 impl<R: Read> RecipientsDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///
-    /// The decryptor will have no callbacks registered, so it will be unable to use
-    /// identities that require e.g. a passphrase to decrypt.
-    ///
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt(
         self,
         identities: impl Iterator<Item = Box<dyn Identity>>,
     ) -> Result<StreamReader<R>, Error> {
-        self.decrypt_with_callbacks(identities, &NoCallbacks)
-    }
-
-    /// Attempts to decrypt the age file.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_with_callbacks(
-        self,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
-        callbacks: &dyn Callbacks,
-    ) -> Result<StreamReader<R>, Error> {
-        self.obtain_payload_key(identities, callbacks)
+        self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt(payload_key, self.0.input))
     }
 }
@@ -94,26 +79,12 @@ impl<R: Read> RecipientsDecryptor<R> {
 impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///
-    /// The decryptor will have no callbacks registered, so it will be unable to use
-    /// identities that require e.g. a passphrase to decrypt.
-    ///
     /// If successful, returns a reader that will provide the plaintext.
     pub fn decrypt_async(
         self,
         identities: impl Iterator<Item = Box<dyn Identity>>,
     ) -> Result<StreamReader<R>, Error> {
-        self.decrypt_async_with_callbacks(identities, &NoCallbacks)
-    }
-
-    /// Attempts to decrypt the age file.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_async_with_callbacks(
-        self,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
-        callbacks: &dyn Callbacks,
-    ) -> Result<StreamReader<R>, Error> {
-        self.obtain_payload_key(identities, callbacks)
+        self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
     }
 }

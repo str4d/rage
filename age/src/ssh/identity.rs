@@ -178,18 +178,37 @@ impl Identity {
             }
         }
     }
+
+    /// Wraps this identity with the provided callbacks, so that if this is an encrypted
+    /// identity, it can potentially be decrypted.
+    pub fn with_callbacks<C: Callbacks>(self, callbacks: C) -> impl crate::Identity {
+        DecryptableIdentity {
+            identity: self,
+            callbacks,
+        }
+    }
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-        callbacks: &dyn Callbacks,
-    ) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
+            Identity::Encrypted(_) | Identity::Unsupported(_) => None,
+        }
+    }
+}
+
+struct DecryptableIdentity<C: Callbacks> {
+    identity: Identity,
+    callbacks: C,
+}
+
+impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
+        match &self.identity {
+            Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
             Identity::Encrypted(enc) => {
-                let passphrase = callbacks.request_passphrase(&format!(
+                let passphrase = self.callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
                     enc.filename
                         .as_ref()

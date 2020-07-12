@@ -19,7 +19,6 @@ to 1.0.0 are beta releases.
   - `age::Encryptor::wrap_async_output()`
   - `age::Decryptor::new_async()`
   - `age::decryptor::RecipientsDecryptor::decrypt_async()`
-  - `age::decryptor::RecipientsDecryptor::decrypt_async_with_callbacks()`
   - `age::decryptor::PassphraseDecryptor::decrypt_async()`
 - `age::armor::ArmoredReader`, which can be wrapped around an input to handle
   a potentially-armored age file.
@@ -45,6 +44,8 @@ to 1.0.0 are beta releases.
 ### Removed
 - `age::keys::{Identity, IdentityKey}` (replaced by `age::Identity` trait on
   individual identities, and `age::IdentityFile` for parsing identities).
+- `age::decryptor::RecipientsDecryptor::decrypt_with_callbacks()` (identities
+  are now expected to handle their own callbacks).
 
 ## [0.4.0] - 2020-03-25
 ### Added

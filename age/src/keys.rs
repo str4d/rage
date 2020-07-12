@@ -13,7 +13,7 @@ use crate::{
     error::Error,
     format::{x25519, HeaderV1, RecipientStanza},
     primitives::{stream::PayloadKey, HmacKey},
-    protocol::{Callbacks, Nonce},
+    protocol::Nonce,
     ssh,
 };
 
@@ -101,15 +101,10 @@ impl SecretKey {
     pub fn to_public(&self) -> RecipientKey {
         RecipientKey::X25519((&self.0).into())
     }
+}
 
-    /// Returns:
-    /// - `Some(Ok(file_key))` on success.
-    /// - `Some(Err(e))` if a decryption error occurs.
-    /// - `None` if the [`RecipientStanza`] does not match this key.
-    pub(crate) fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-    ) -> Option<Result<FileKey, Error>> {
+impl crate::Identity for SecretKey {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
         match stanza {
             RecipientStanza::X25519(r) => {
                 // A failure to decrypt is non-fatal (we try to decrypt the recipient
@@ -119,16 +114,6 @@ impl SecretKey {
             }
             _ => None,
         }
-    }
-}
-
-impl crate::Identity for SecretKey {
-    fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-        _callbacks: &dyn Callbacks,
-    ) -> Option<Result<FileKey, Error>> {
-        self.unwrap_file_key(stanza)
     }
 }
 

@@ -141,7 +141,6 @@ pub trait Identity {
     fn unwrap_file_key(
         &self,
         stanza: &format::RecipientStanza,
-        callbacks: &dyn Callbacks,
     ) -> Option<Result<keys::FileKey, Error>>;
 }
 

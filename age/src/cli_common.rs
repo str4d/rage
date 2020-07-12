@@ -76,7 +76,7 @@ where
                 Ok(crate::ssh::Identity::Unsupported(k)) => {
                     return Err(unsupported_ssh(filename, k))
                 }
-                Ok(identity) => identities.push(Box::new(identity)),
+                Ok(identity) => identities.push(Box::new(identity.with_callbacks(UiCallbacks))),
                 Err(_) => {
                     // Try parsing as multiple single-line age identities.
                     identities.push(Box::new(

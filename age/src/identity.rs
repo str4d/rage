@@ -5,7 +5,6 @@ use crate::{
     error::Error,
     format::RecipientStanza,
     keys::{FileKey, SecretKey},
-    protocol::Callbacks,
     Identity,
 };
 
@@ -62,11 +61,7 @@ impl IdentityFile {
 }
 
 impl Identity for IdentityFile {
-    fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-        _callbacks: &dyn Callbacks,
-    ) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
         self.identities
             .iter()
             .find_map(|identity| identity.unwrap_file_key(stanza))

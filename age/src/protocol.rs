@@ -52,14 +52,6 @@ pub trait Callbacks {
     fn request_passphrase(&self, description: &str) -> Option<SecretString>;
 }
 
-struct NoCallbacks;
-
-impl Callbacks for NoCallbacks {
-    fn request_passphrase(&self, _description: &str) -> Option<SecretString> {
-        None
-    }
-}
-
 /// Handles the various types of age encryption.
 enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
