@@ -179,15 +179,36 @@ impl Identity {
         }
     }
 
-    pub(crate) fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-        callbacks: &dyn Callbacks,
-    ) -> Option<Result<FileKey, Error>> {
+    /// Wraps this identity with the provided callbacks, so that if this is an encrypted
+    /// identity, it can potentially be decrypted.
+    pub fn with_callbacks<C: Callbacks>(self, callbacks: C) -> impl crate::Identity {
+        DecryptableIdentity {
+            identity: self,
+            callbacks,
+        }
+    }
+}
+
+impl crate::Identity for Identity {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
+            Identity::Encrypted(_) | Identity::Unsupported(_) => None,
+        }
+    }
+}
+
+struct DecryptableIdentity<C: Callbacks> {
+    identity: Identity,
+    callbacks: C,
+}
+
+impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
+        match &self.identity {
+            Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
             Identity::Encrypted(enc) => {
-                let passphrase = callbacks.request_passphrase(&format!(
+                let passphrase = self.callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
                     enc.filename
                         .as_ref()
@@ -260,16 +281,13 @@ pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use secrecy::{ExposeSecret, Secret};
+    use secrecy::ExposeSecret;
     use std::io::BufReader;
 
     use super::Identity;
-    use crate::{
-        keys::FileKey,
-        ssh::recipient::{
-            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
-            Recipient,
-        },
+    use crate::ssh::recipient::{
+        tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+        Recipient,
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
@@ -318,13 +336,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
 
-        let file_key = FileKey(Secret::new([12; 16]));
+        let file_key = [12; 16].into();
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(
-            unwrapped.unwrap().unwrap().0.expose_secret(),
-            file_key.0.expose_secret()
+            unwrapped.unwrap().unwrap().expose_secret(),
+            file_key.expose_secret()
         );
     }
 
@@ -338,13 +356,13 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         };
         let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
 
-        let file_key = FileKey(Secret::new([12; 16]));
+        let file_key = [12; 16].into();
 
         let wrapped = pk.wrap_file_key(&file_key);
         let unwrapped = sk.unwrap_file_key(&wrapped);
         assert_eq!(
-            unwrapped.unwrap().unwrap().0.expose_secret(),
-            file_key.0.expose_secret()
+            unwrapped.unwrap().unwrap().expose_secret(),
+            file_key.expose_secret()
         );
     }
 }

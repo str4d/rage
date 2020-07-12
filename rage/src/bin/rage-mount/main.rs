@@ -2,7 +2,7 @@
 
 use age::{
     armor::ArmoredReader,
-    cli_common::{read_identities, read_secret, UiCallbacks},
+    cli_common::{read_identities, read_secret},
     stream::StreamReader,
 };
 use fuse_mt::FilesystemMT;
@@ -199,7 +199,7 @@ fn main() -> Result<(), Error> {
             )?;
 
             decryptor
-                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .decrypt(identities.into_iter())
                 .map_err(|e| e.into())
                 .and_then(|stream| mount_stream(stream, types, mountpoint))
         }

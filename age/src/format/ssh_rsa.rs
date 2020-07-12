@@ -1,8 +1,10 @@
 use age_core::format::AgeStanza;
 use rand::rngs::OsRng;
 use rsa::{padding::PaddingScheme, PublicKey, RSAPrivateKey, RSAPublicKey};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};
+use std::convert::TryInto;
+use zeroize::Zeroize;
 
 use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
@@ -19,7 +21,7 @@ fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
 }
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) tag: [u8; TAG_LEN_BYTES],
     pub(crate) encrypted_file_key: Vec<u8>,
 }
@@ -45,7 +47,7 @@ impl RecipientStanza {
             .encrypt(
                 &mut rng,
                 PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
-                file_key.0.expose_secret(),
+                file_key.expose_secret(),
             )
             .expect("pubkey is valid and file key is not too long");
 
@@ -75,11 +77,11 @@ impl RecipientStanza {
                 &self.encrypted_file_key,
             )
             .map_err(Error::from)
-            .map(|pt| {
+            .map(|mut pt| {
                 // It's ours!
-                let mut file_key = [0; 16];
-                file_key.copy_from_slice(&pt);
-                FileKey(Secret::new(file_key))
+                let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                pt.zeroize();
+                file_key.into()
             }),
         )
     }

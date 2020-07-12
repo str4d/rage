@@ -3,9 +3,10 @@ use age_core::{
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 use rand::rngs::OsRng;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 use std::convert::TryInto;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use zeroize::Zeroize;
 
 use crate::{error::Error, keys::FileKey, util::read::base64_arg};
 
@@ -16,7 +17,7 @@ pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) epk: PublicKey,
     pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
 }
@@ -48,7 +49,7 @@ impl RecipientStanza {
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = {
             let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.0.expose_secret()));
+            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.expose_secret()));
             key
         };
 
@@ -70,11 +71,11 @@ impl RecipientStanza {
 
         aead_decrypt(&enc_key, &self.encrypted_file_key)
             .map_err(Error::from)
-            .map(|pt| {
+            .map(|mut pt| {
                 // It's ours!
-                let mut file_key = [0; 16];
-                file_key.copy_from_slice(&pt);
-                FileKey(Secret::new(file_key))
+                let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                pt.zeroize();
+                file_key.into()
             })
     }
 }
@@ -102,11 +103,10 @@ pub(super) mod write {
 mod tests {
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
-    use secrecy::{ExposeSecret, Secret};
+    use secrecy::ExposeSecret;
     use x25519_dalek::{PublicKey, StaticSecret};
 
     use super::RecipientStanza;
-    use crate::keys::FileKey;
 
     #[quickcheck]
     fn wrap_and_unwrap(sk_bytes: Vec<u8>) -> TestResult {
@@ -114,7 +114,7 @@ mod tests {
             return TestResult::discard();
         }
 
-        let file_key = FileKey(Secret::new([7; 16]));
+        let file_key = [7; 16].into();
         let sk = {
             let mut tmp = [0; 32];
             tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);
@@ -125,7 +125,7 @@ mod tests {
         let res = stanza.unwrap_file_key(&sk);
 
         TestResult::from_bool(
-            res.is_ok() && res.unwrap().0.expose_secret() == file_key.0.expose_secret(),
+            res.is_ok() && res.unwrap().expose_secret() == file_key.expose_secret(),
         )
     }
 }

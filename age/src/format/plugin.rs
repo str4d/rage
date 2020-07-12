@@ -1,7 +1,7 @@
 use age_core::format::AgeStanza;
 
 #[derive(Debug)]
-pub(crate) struct RecipientStanza {
+pub struct RecipientStanza {
     pub(crate) tag: String,
     pub(crate) args: Vec<String>,
     pub(crate) body: Vec<u8>,

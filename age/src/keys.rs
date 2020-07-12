@@ -6,8 +6,6 @@ use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use std::convert::TryInto;
 use std::fmt;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
 use x25519_dalek::{PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
@@ -15,7 +13,7 @@ use crate::{
     error::Error,
     format::{x25519, HeaderV1, RecipientStanza},
     primitives::{stream::PayloadKey, HmacKey},
-    protocol::{Callbacks, Nonce},
+    protocol::Nonce,
     ssh,
 };
 
@@ -40,13 +38,26 @@ fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static
     })
 }
 
-pub(crate) struct FileKey(pub(crate) Secret<[u8; 16]>);
+/// A file key for encrypting or decrypting an age file.
+pub struct FileKey(Secret<[u8; 16]>);
+
+impl From<[u8; 16]> for FileKey {
+    fn from(file_key: [u8; 16]) -> Self {
+        FileKey(Secret::new(file_key))
+    }
+}
+
+impl ExposeSecret<[u8; 16]> for FileKey {
+    fn expose_secret(&self) -> &[u8; 16] {
+        self.0.expose_secret()
+    }
+}
 
 impl FileKey {
     pub(crate) fn generate() -> Self {
         let mut file_key = [0; 16];
         OsRng.fill_bytes(&mut file_key);
-        FileKey(Secret::new(file_key))
+        file_key.into()
     }
 
     pub(crate) fn mac_key(&self) -> HmacKey {
@@ -102,15 +113,10 @@ impl SecretKey {
     pub fn to_public(&self) -> RecipientKey {
         RecipientKey::X25519((&self.0).into())
     }
+}
 
-    /// Returns:
-    /// - `Some(Ok(file_key))` on success.
-    /// - `Some(Err(e))` if a decryption error occurs.
-    /// - `None` if the [`RecipientStanza`] does not match this key.
-    pub(crate) fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-    ) -> Option<Result<FileKey, Error>> {
+impl crate::Identity for SecretKey {
+    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
         match stanza {
             RecipientStanza::X25519(r) => {
                 // A failure to decrypt is non-fatal (we try to decrypt the recipient
@@ -119,98 +125,6 @@ impl SecretKey {
                 r.unwrap_file_key(&self.0).ok().map(Ok)
             }
             _ => None,
-        }
-    }
-}
-
-/// An key that has been parsed from some input.
-pub enum IdentityKey {
-    /// An X25519 age key.
-    X25519(SecretKey),
-    /// An SSH private key.
-    Ssh(ssh::Identity),
-}
-
-/// An identity that has been parsed from some input.
-pub struct Identity {
-    filename: Option<String>,
-    key: IdentityKey,
-}
-
-impl From<SecretKey> for Identity {
-    fn from(key: SecretKey) -> Self {
-        Identity {
-            filename: None,
-            key: IdentityKey::X25519(key),
-        }
-    }
-}
-
-impl From<ssh::Identity> for Identity {
-    fn from(key: ssh::Identity) -> Self {
-        Identity {
-            filename: None,
-            key: IdentityKey::Ssh(key),
-        }
-    }
-}
-
-impl Identity {
-    /// Parses one or more identities from a file containing valid UTF-8.
-    pub fn from_file(filename: String) -> io::Result<Vec<Self>> {
-        let buf = BufReader::new(File::open(filename.clone())?);
-        let mut keys = Identity::from_buffer(buf)?;
-
-        // We have context here about the filename.
-        for key in &mut keys {
-            key.filename = Some(filename.clone());
-        }
-
-        Ok(keys)
-    }
-
-    /// Parses one or more identities from a buffered input containing valid UTF-8.
-    pub fn from_buffer<R: BufRead>(mut data: R) -> io::Result<Vec<Self>> {
-        let mut buf = String::new();
-        loop {
-            match read::age_secret_keys(&buf) {
-                Ok((_, keys)) => {
-                    // Ensure we've found all keys in the file
-                    if data.read_line(&mut buf)? == 0 {
-                        break Ok(keys);
-                    }
-                }
-                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
-                    if data.read_line(&mut buf)? == 0 {
-                        break Err(io::Error::new(
-                            io::ErrorKind::Interrupted,
-                            "incomplete secret keys in file",
-                        ));
-                    };
-                }
-                Err(_) => {
-                    break Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid secret key file",
-                    ));
-                }
-            }
-        }
-    }
-
-    /// Returns the key corresponding to this identity.
-    pub fn key(&self) -> &IdentityKey {
-        &self.key
-    }
-
-    pub(crate) fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-        callbacks: &dyn Callbacks,
-    ) -> Option<Result<FileKey, Error>> {
-        match &self.key {
-            IdentityKey::X25519(key) => key.unwrap_file_key(stanza),
-            IdentityKey::Ssh(key) => key.unwrap_file_key(stanza, callbacks),
         }
     }
 }
@@ -284,138 +198,31 @@ impl RecipientKey {
     }
 }
 
-mod read {
+pub(crate) mod read {
     use nom::{
-        branch::alt,
-        bytes::streaming::{tag, take},
-        character::complete::{line_ending, not_line_ending},
-        combinator::{all_consuming, iterator, map, map_opt, map_parser, map_res, rest},
-        sequence::{terminated, tuple},
+        bytes::streaming::take,
+        combinator::{map_opt, map_res},
         IResult,
     };
 
     use super::*;
 
-    fn age_secret_key(input: &str) -> IResult<&str, Identity> {
+    pub(crate) fn age_secret_key(input: &str) -> IResult<&str, SecretKey> {
         map_res(
             map_opt(take(74u32), |buf| parse_bech32(buf, SECRET_KEY_PREFIX)),
-            |pk| {
-                pk.map(StaticSecret::from)
-                    .map(SecretKey)
-                    .map(Identity::from)
-            },
+            |pk| pk.map(StaticSecret::from).map(SecretKey),
         )(input)
-    }
-
-    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<Identity>> {
-        alt((
-            // Skip empty lines
-            map(all_consuming(tag("")), |_| None),
-            // Skip comments
-            map(all_consuming(tuple((tag("#"), rest))), |_| None),
-            // All other lines must be valid age secret keys.
-            map(all_consuming(age_secret_key), Some),
-        ))(input)
-    }
-
-    pub(super) fn age_secret_keys(input: &str) -> IResult<&str, Vec<Identity>> {
-        // Parse all lines that have line endings.
-        let mut it = iterator(
-            input,
-            terminated(
-                map_parser(not_line_ending, age_secret_keys_line),
-                line_ending,
-            ),
-        );
-        let mut keys: Vec<_> = it.filter_map(|x| x).collect();
-
-        it.finish().and_then(|(i, _)| {
-            // Handle the last line, which does not have a line ending.
-            age_secret_keys_line(i).map(|(i, res)| {
-                if let Some(k) = res {
-                    keys.push(k);
-                }
-                (i, keys)
-            })
-        })
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use secrecy::ExposeSecret;
-    use std::io::BufReader;
-
-    use super::{Identity, IdentityKey, RecipientKey};
+    use super::{read::age_secret_key, RecipientKey};
 
     pub(crate) const TEST_SK: &str =
         "AGE-SECRET-KEY-1GQ9778VQXMMJVE8SK7J6VT8UJ4HDQAJUVSFCWCM02D8GEWQ72PVQ2Y5J33";
     pub(crate) const TEST_PK: &str =
         "age1t7rxyev2z3rw82stdlrrepyc39nvn86l5078zqkf5uasdy86jp6svpy7pa";
-
-    fn valid_secret_key_encoding(keydata: &str, num_keys: usize) {
-        let buf = BufReader::new(keydata.as_bytes());
-        let keys = Identity::from_buffer(buf).unwrap();
-        assert_eq!(keys.len(), num_keys);
-        let key = match keys[0].key() {
-            IdentityKey::X25519(key) => key,
-            _ => panic!("key should be X25519"),
-        };
-        assert_eq!(key.to_string().expose_secret(), TEST_SK);
-    }
-
-    #[test]
-    fn secret_key_encoding() {
-        valid_secret_key_encoding(TEST_SK, 1);
-    }
-
-    #[test]
-    fn secret_key_lf() {
-        valid_secret_key_encoding(&format!("{}\n", TEST_SK), 1);
-    }
-
-    #[test]
-    fn two_secret_keys_lf() {
-        valid_secret_key_encoding(&format!("{}\n{}", TEST_SK, TEST_SK), 2);
-    }
-
-    #[test]
-    fn secret_key_with_comment_lf() {
-        valid_secret_key_encoding(&format!("# Foo bar baz\n{}", TEST_SK), 1);
-        valid_secret_key_encoding(&format!("{}\n# Foo bar baz", TEST_SK), 1);
-    }
-
-    #[test]
-    fn secret_key_with_empty_line_lf() {
-        valid_secret_key_encoding(&format!("\n\n{}", TEST_SK), 1);
-    }
-
-    #[test]
-    fn secret_key_crlf() {
-        valid_secret_key_encoding(&format!("{}\r\n", TEST_SK), 1);
-    }
-
-    #[test]
-    fn two_secret_keys_crlf() {
-        valid_secret_key_encoding(&format!("{}\r\n{}", TEST_SK, TEST_SK), 2);
-    }
-
-    #[test]
-    fn secret_key_with_comment_crlf() {
-        valid_secret_key_encoding(&format!("# Foo bar baz\r\n{}", TEST_SK), 1);
-        valid_secret_key_encoding(&format!("{}\r\n# Foo bar baz", TEST_SK), 1);
-    }
-
-    #[test]
-    fn secret_key_with_empty_line_crlf() {
-        valid_secret_key_encoding(&format!("\r\n\r\n{}", TEST_SK), 1);
-    }
-
-    #[test]
-    fn incomplete_secret_key_encoding() {
-        let buf = BufReader::new(&TEST_SK.as_bytes()[..4]);
-        assert!(Identity::from_buffer(buf).is_err());
-    }
 
     #[test]
     fn pubkey_encoding() {
@@ -425,13 +232,7 @@ pub(crate) mod tests {
 
     #[test]
     fn pubkey_from_secret_key() {
-        let buf = BufReader::new(TEST_SK.as_bytes());
-        let keys = Identity::from_buffer(buf).unwrap();
-        assert_eq!(keys.len(), 1);
-        let key = match keys[0].key() {
-            IdentityKey::X25519(key) => key,
-            _ => panic!("key should be unencrypted"),
-        };
+        let (_, key) = age_secret_key(TEST_SK).unwrap();
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 }

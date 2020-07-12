@@ -23,7 +23,7 @@ const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
 #[derive(Debug)]
-pub(crate) enum RecipientStanza {
+pub enum RecipientStanza {
     X25519(x25519::RecipientStanza),
     Scrypt(scrypt::RecipientStanza),
     SshRsa(ssh_rsa::RecipientStanza),

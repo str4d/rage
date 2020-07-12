@@ -4,7 +4,7 @@ use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
-        Passphrase, UiCallbacks,
+        Passphrase,
     },
 };
 use gumdrop::{Options, ParsingStyle};
@@ -354,7 +354,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             )?;
 
             decryptor
-                .decrypt_with_callbacks(&identities, &UiCallbacks)
+                .decrypt(identities.into_iter())
                 .map_err(|e| e.into())
                 .and_then(|input| write_output(input, output))
         }
