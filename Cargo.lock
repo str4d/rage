@@ -76,7 +76,7 @@ dependencies = [
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-test 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "hkdf 0.9.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hkdf 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hmac 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -104,7 +104,7 @@ dependencies = [
  "c2-chacha 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "chacha20poly1305 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cookie-factory 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hkdf 0.9.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hkdf 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -842,7 +842,7 @@ dependencies = [
 
 [[package]]
 name = "hkdf"
-version = "0.9.0-alpha.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "digest 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2038,7 +2038,7 @@ dependencies = [
 "checksum gumdrop_derive 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "915ef07c710d84733522461de2a734d4d62a3fd39a4d4f404c2f385ef8618d05"
 "checksum heck 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "20564e78d53d2bb135c343b3f47714a56af2061f1c928fdb541dc7b9fdd94205"
 "checksum hermit-abi 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "91780f809e750b0a89f5544be56617ff6b1227ee485bcb06ebe10cdf89bd3b71"
-"checksum hkdf 0.9.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e551da9a76291df932270bc2b100d0571588eaa9ef77af7bceee80dba9ace3ad"
+"checksum hkdf 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
 "checksum hmac 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b87b580bd66811cc2324a27f3587de707cacf7525b96dca8122f7493e6cce0da"
 "checksum humantime 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
 "checksum indexmap 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c398b2b113b55809ceb9ee3e753fcbac793f1956663f3c36549c1346015c2afe"
