@@ -285,9 +285,12 @@ pub(crate) mod tests {
     use std::io::BufReader;
 
     use super::Identity;
-    use crate::ssh::recipient::{
-        tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
-        Recipient,
+    use crate::{
+        ssh::recipient::{
+            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+            Recipient,
+        },
+        Recipient as _,
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----

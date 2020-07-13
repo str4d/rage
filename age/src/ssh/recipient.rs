@@ -61,8 +61,8 @@ impl fmt::Display for Recipient {
     }
 }
 
-impl Recipient {
-    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
+impl crate::Recipient for Recipient {
+    fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
             Recipient::SshRsa(ssh_key, pk) => {
                 ssh_rsa::RecipientStanza::wrap_file_key(file_key, ssh_key, pk).into()

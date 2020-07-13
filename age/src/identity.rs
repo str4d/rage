@@ -1,18 +1,13 @@
 use std::fs::File;
 use std::io;
 
-use crate::{
-    error::Error,
-    format::RecipientStanza,
-    keys::{FileKey, SecretKey},
-    Identity,
-};
+use crate::{error::Error, format::RecipientStanza, keys::FileKey, x25519, Identity};
 
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
     /// The name of the identity file, if known.
     filename: Option<String>,
-    identities: Vec<SecretKey>,
+    identities: Vec<x25519::Identity>,
 }
 
 impl IdentityFile {
@@ -78,20 +73,20 @@ mod read {
         IResult,
     };
 
-    use crate::keys::{read::age_secret_key, SecretKey};
+    use crate::x25519;
 
-    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<SecretKey>> {
+    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<x25519::Identity>> {
         alt((
             // Skip empty lines
             map(all_consuming(tag("")), |_| None),
             // Skip comments
             map(all_consuming(tuple((tag("#"), rest))), |_| None),
             // All other lines must be valid age secret keys.
-            map(all_consuming(age_secret_key), Some),
+            map(all_consuming(x25519::read::age_secret_key), Some),
         ))(input)
     }
 
-    pub(super) fn age_secret_keys(input: &str) -> IResult<&str, Vec<SecretKey>> {
+    pub(super) fn age_secret_keys(input: &str) -> IResult<&str, Vec<x25519::Identity>> {
         // Parse all lines that have line endings.
         let mut it = iterator(
             input,

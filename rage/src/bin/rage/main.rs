@@ -6,6 +6,7 @@ use age::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase,
     },
+    Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use log::{error, warn};
@@ -53,27 +54,26 @@ fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<Stri
 }
 
 /// Reads file contents as a list of recipients
-fn read_recipients_list<R: BufRead>(
-    filename: &str,
-    buf: R,
-) -> io::Result<Vec<age::keys::RecipientKey>> {
-    let mut recipients = vec![];
+fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Box<dyn Recipient>>> {
+    let mut recipients: Vec<Box<dyn Recipient>> = vec![];
 
     for line in buf.lines() {
         let line = line?;
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            match line.parse() {
-                Ok(key) => recipients.push(key),
-                Err(<age::keys::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
-                Err(e) => {
-                    error!("{:?}", e);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("recipients file {} contains non-recipient data", filename),
-                    ));
-                }
+            match line.parse::<age::x25519::Recipient>() {
+                Ok(key) => recipients.push(Box::new(key)),
+                Err(_) => match line.parse::<age::ssh::Recipient>() {
+                    Ok(key) => recipients.push(Box::new(key)),
+                    Err(e) => {
+                        error!("{:?}", e);
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("recipients file {} contains non-recipient data", filename),
+                        ));
+                    }
+                },
             }
         }
     }
@@ -89,16 +89,18 @@ fn read_recipients_list<R: BufRead>(
 fn read_recipients(
     mut arguments: Vec<String>,
     aliases: Option<String>,
-) -> Result<Vec<age::keys::RecipientKey>, error::EncryptError> {
+) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut aliases = load_aliases(aliases)?;
     let mut seen_aliases: Vec<String> = vec![];
 
-    let mut recipients = vec![];
+    let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     while !arguments.is_empty() {
         let arg = arguments.pop().expect("arguments is not empty");
 
-        if let Ok(pk) = arg.parse() {
-            recipients.push(pk);
+        if let Ok(pk) = arg.parse::<age::x25519::Recipient>() {
+            recipients.push(Box::new(pk));
+        } else if let Ok(pk) = arg.parse::<age::ssh::Recipient>() {
+            recipients.push(Box::new(pk));
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]
             {
