@@ -50,8 +50,8 @@ env_logger = "0.7"
 gumdrop = "0.8"
 log = "0.4"
 minreq = { version = "2", features = ["https"] }
-pinentry = "0.1"
-secrecy = "0.6"
+pinentry = "0.2"
+secrecy = "0.7"
 
 # rage-mount dependencies
 fuse_mt = { version = "0.5", optional = true }

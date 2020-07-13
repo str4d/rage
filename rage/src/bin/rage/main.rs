@@ -227,6 +227,13 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             Err(pinentry::Error::Timeout) => {
                 return Err(error::EncryptError::TimedOut("passphrase input".to_owned()))
             }
+            Err(pinentry::Error::Encoding(e)) => {
+                // Pretend it is an I/O error
+                return Err(error::EncryptError::Io(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    e,
+                )));
+            }
             Err(pinentry::Error::Gpg(e)) => {
                 // Pretend it is an I/O error
                 return Err(error::EncryptError::Io(io::Error::new(
@@ -332,6 +339,13 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                 Err(pinentry::Error::Cancelled) => Ok(()),
                 Err(pinentry::Error::Timeout) => {
                     Err(error::DecryptError::TimedOut("passphrase input".to_owned()))
+                }
+                Err(pinentry::Error::Encoding(e)) => {
+                    // Pretend it is an I/O error
+                    Err(error::DecryptError::Io(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        e,
+                    )))
                 }
                 Err(pinentry::Error::Gpg(e)) => {
                     // Pretend it is an I/O error

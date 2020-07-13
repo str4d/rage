@@ -65,7 +65,7 @@ nom = "5"
 radix64 = "0.6"
 
 # Secret management
-secrecy = "0.6"
+secrecy = "0.7"
 subtle = "2"
 zeroize = "1"
 
@@ -76,7 +76,7 @@ pin-project = "0.4"
 # Common CLI dependencies
 console = { version = "0.10", optional = true }
 dirs = { version = "2", optional = true }
-pinentry = { version = "0.1", optional = true }
+pinentry = { version = "0.2", optional = true }
 rpassword = { version = "4", optional = true }
 
 [dev-dependencies]
