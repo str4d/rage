@@ -9,6 +9,7 @@ use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use secrecy::{ExposeSecret, SecretString};
+use sha2::{Digest, Sha256};
 
 use crate::error::Error;
 
@@ -20,6 +21,21 @@ pub use recipient::Recipient;
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
+
+pub(super) const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
+const SSH_RSA_OAEP_LABEL: &str = "age-encryption.org/v1/ssh-rsa";
+
+pub(super) const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
+const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
+
+const TAG_LEN_BYTES: usize = 4;
+
+fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
+    let tag_bytes = Sha256::digest(pubkey);
+    let mut tag = [0; TAG_LEN_BYTES];
+    tag.copy_from_slice(&tag_bytes[..TAG_LEN_BYTES]);
+    tag
+}
 
 /// OpenSSH-supported ciphers.
 #[allow(clippy::enum_variant_names)]

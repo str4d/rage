@@ -1,3 +1,4 @@
+use age_core::primitives::{aead_decrypt, hkdf};
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
@@ -6,14 +7,26 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
+use rand::rngs::OsRng;
+use rsa::padding::PaddingScheme;
 use secrecy::{ExposeSecret, Secret};
+use sha2::{Digest, Sha256, Sha512};
+use std::convert::TryInto;
 use std::fmt;
 use std::io;
+use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
+use zeroize::Zeroize;
 
-use super::{read_asn1, read_ssh, write_ssh, EncryptedKey};
+use super::{
+    read_asn1, read_ssh, ssh_tag, write_ssh, EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
+};
 use crate::{
-    error::Error, format::RecipientStanza, keys::FileKey, protocol::Callbacks,
-    util::read::wrapped_str_while_encoded,
+    error::Error,
+    format::RecipientStanza,
+    keys::FileKey,
+    protocol::Callbacks,
+    util::read::{base64_arg, wrapped_str_while_encoded},
 };
 
 /// An SSH private key for decrypting an age file.
@@ -33,12 +46,79 @@ impl UnencryptedKey {
         &self,
         stanza: &RecipientStanza,
     ) -> Option<Result<FileKey, Error>> {
-        match (self, stanza) {
-            (UnencryptedKey::SshRsa(ssh_key, sk), RecipientStanza::SshRsa(r)) => {
-                r.unwrap_file_key(ssh_key, sk)
+        match (self, stanza.tag.as_str()) {
+            (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
+                let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+                if ssh_tag(&ssh_key) != tag {
+                    return None;
+                }
+
+                let mut rng = OsRng;
+
+                // A failure to decrypt is fatal, because we assume that we won't
+                // encounter 32-bit collisions on the key tag embedded in the header.
+                Some(
+                    sk.decrypt_blinded(
+                        &mut rng,
+                        PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        &stanza.body,
+                    )
+                    .map_err(Error::from)
+                    .map(|mut pt| {
+                        // It's ours!
+                        let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                        pt.zeroize();
+                        file_key.into()
+                    }),
+                )
             }
-            (UnencryptedKey::SshEd25519(ssh_key, privkey), RecipientStanza::SshEd25519(r)) => {
-                r.unwrap_file_key(ssh_key, privkey.expose_secret())
+            (UnencryptedKey::SshEd25519(ssh_key, privkey), SSH_ED25519_RECIPIENT_TAG) => {
+                let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+                if ssh_tag(&ssh_key) != tag {
+                    return None;
+                }
+                if stanza.body.len() != crate::x25519::ENCRYPTED_FILE_KEY_BYTES {
+                    return Some(Err(Error::InvalidHeader));
+                }
+
+                let epk =
+                    base64_arg(stanza.args.get(1)?, [0; crate::x25519::EPK_LEN_BYTES])?.into();
+
+                let sk: StaticSecret = {
+                    let mut sk = [0; 32];
+                    // privkey format is seed || pubkey
+                    sk.copy_from_slice(&Sha512::digest(&privkey.expose_secret()[0..32])[0..32]);
+                    sk.into()
+                };
+                let pk = X25519PublicKey::from(&sk);
+
+                let tweak: StaticSecret =
+                    hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
+                let shared_secret = tweak
+                    .diffie_hellman(&X25519PublicKey::from(*sk.diffie_hellman(&epk).as_bytes()));
+
+                let mut salt = vec![];
+                salt.extend_from_slice(epk.as_bytes());
+                salt.extend_from_slice(pk.as_bytes());
+
+                let enc_key = hkdf(
+                    &salt,
+                    SSH_ED25519_RECIPIENT_KEY_LABEL,
+                    shared_secret.as_bytes(),
+                );
+
+                // A failure to decrypt is fatal, because we assume that we won't
+                // encounter 32-bit collisions on the key tag embedded in the header.
+                Some(
+                    aead_decrypt(&enc_key, &stanza.body)
+                        .map_err(Error::from)
+                        .map(|mut pt| {
+                            // It's ours!
+                            let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                            pt.zeroize();
+                            file_key.into()
+                        }),
+                )
             }
             _ => None,
         }

@@ -1,3 +1,4 @@
+use age_core::primitives::{aead_encrypt, hkdf};
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
     branch::alt,
@@ -6,11 +7,19 @@ use nom::{
     sequence::{pair, preceded},
     IResult,
 };
+use rand::rngs::OsRng;
+use rsa::{padding::PaddingScheme, PublicKey};
+use secrecy::ExposeSecret;
+use sha2::Sha256;
 use std::fmt;
+use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
-use super::{read_ssh, SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX};
+use super::{
+    read_ssh, ssh_tag, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+};
 use crate::{
-    format::{ssh_ed25519, ssh_rsa, RecipientStanza},
+    format::RecipientStanza,
     keys::FileKey,
     util::read::{encoded_str, str_while_encoded},
 };
@@ -65,10 +74,57 @@ impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
             Recipient::SshRsa(ssh_key, pk) => {
-                ssh_rsa::RecipientStanza::wrap_file_key(file_key, ssh_key, pk).into()
+                let mut rng = OsRng;
+
+                let encrypted_file_key = pk
+                    .encrypt(
+                        &mut rng,
+                        PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        file_key.expose_secret(),
+                    )
+                    .expect("pubkey is valid and file key is not too long");
+
+                let encoded_tag =
+                    base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
+
+                RecipientStanza {
+                    tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
+                    args: vec![encoded_tag],
+                    body: encrypted_file_key,
+                }
             }
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
-                ssh_ed25519::RecipientStanza::wrap_file_key(file_key, ssh_key, ed25519_pk).into()
+                let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
+
+                let mut rng = OsRng;
+                let esk = EphemeralSecret::new(&mut rng);
+                let epk: X25519PublicKey = (&esk).into();
+
+                let tweak: StaticSecret =
+                    hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
+                let shared_secret =
+                    tweak.diffie_hellman(&(*esk.diffie_hellman(&pk).as_bytes()).into());
+
+                let mut salt = vec![];
+                salt.extend_from_slice(epk.as_bytes());
+                salt.extend_from_slice(pk.as_bytes());
+
+                let enc_key = hkdf(
+                    &salt,
+                    SSH_ED25519_RECIPIENT_KEY_LABEL,
+                    shared_secret.as_bytes(),
+                );
+                let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
+
+                let encoded_tag =
+                    base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
+
+                RecipientStanza {
+                    tag: SSH_ED25519_RECIPIENT_TAG.to_owned(),
+                    args: vec![encoded_tag, encoded_epk],
+                    body: encrypted_file_key,
+                }
             }
         }
     }

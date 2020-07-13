@@ -1,14 +1,14 @@
-use age_core::{
-    format::AgeStanza,
-    primitives::{aead_decrypt, aead_encrypt},
-};
+use age_core::primitives::{aead_decrypt, aead_encrypt};
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
 use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
-use crate::{error::Error, keys::FileKey, primitives::scrypt, util::read::base64_arg};
+use crate::{
+    error::Error, format::RecipientStanza, keys::FileKey, primitives::scrypt,
+    util::read::base64_arg,
+};
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
@@ -56,30 +56,12 @@ fn target_scrypt_work_factor() -> u8 {
         })
 }
 
-#[derive(Debug)]
-pub struct RecipientStanza {
-    pub(crate) salt: [u8; SALT_LEN],
-    pub(crate) log_n: u8,
-    pub(crate) encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES],
+pub(crate) struct Recipient {
+    pub(crate) passphrase: SecretString,
 }
 
-impl RecipientStanza {
-    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Option<Self> {
-        if stanza.tag != SCRYPT_RECIPIENT_TAG {
-            return None;
-        }
-
-        let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
-        let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
-
-        Some(RecipientStanza {
-            salt,
-            log_n,
-            encrypted_file_key: stanza.body[..].try_into().ok()?,
-        })
-    }
-
-    pub(crate) fn wrap_file_key(file_key: &FileKey, passphrase: &SecretString) -> Self {
+impl crate::Recipient for Recipient {
+    fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
@@ -89,71 +71,72 @@ impl RecipientStanza {
 
         let log_n = target_scrypt_work_factor();
 
-        let enc_key = scrypt(&inner_salt, log_n, passphrase.expose_secret()).expect("log_n < 64");
-        let encrypted_file_key = {
-            let mut key = [0; ENCRYPTED_FILE_KEY_BYTES];
-            key.copy_from_slice(&aead_encrypt(&enc_key, file_key.expose_secret()));
-            key
-        };
+        let enc_key =
+            scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
+        let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
+
+        let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
 
         RecipientStanza {
-            salt,
-            log_n,
-            encrypted_file_key,
+            tag: SCRYPT_RECIPIENT_TAG.to_owned(),
+            args: vec![encoded_salt, format!("{}", log_n)],
+            body: encrypted_file_key,
         }
     }
+}
 
-    pub(crate) fn unwrap_file_key(
+pub(crate) struct Identity<'a> {
+    pub(crate) passphrase: &'a SecretString,
+    pub(crate) max_work_factor: Option<u8>,
+}
+
+impl<'a> crate::Identity for Identity<'a> {
+    fn unwrap_file_key(
         &self,
-        passphrase: &SecretString,
-        max_work_factor: Option<u8>,
-    ) -> Result<Option<FileKey>, Error> {
+        stanza: &crate::format::RecipientStanza,
+    ) -> Option<Result<FileKey, Error>> {
+        if stanza.tag != SCRYPT_RECIPIENT_TAG {
+            return None;
+        }
+        if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
+            return Some(Err(Error::InvalidHeader));
+        }
+
+        let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
+        let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
+
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         let target = target_scrypt_work_factor();
-        if self.log_n > max_work_factor.unwrap_or_else(|| target + 4) {
-            return Err(Error::ExcessiveWork {
-                required: self.log_n,
+        if log_n > self.max_work_factor.unwrap_or_else(|| target + 4) {
+            return Some(Err(Error::ExcessiveWork {
+                required: log_n,
                 target,
-            });
+            }));
         }
 
         let mut inner_salt = vec![];
         inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
-        inner_salt.extend_from_slice(&self.salt);
+        inner_salt.extend_from_slice(&salt);
 
-        let enc_key =
-            scrypt(&inner_salt, self.log_n, passphrase.expose_secret()).map_err(|_| {
-                Error::ExcessiveWork {
-                    required: self.log_n,
+        let enc_key = match scrypt(&inner_salt, log_n, self.passphrase.expose_secret()) {
+            Ok(k) => k,
+            Err(_) => {
+                return Some(Err(Error::ExcessiveWork {
+                    required: log_n,
                     target,
-                }
-            })?;
-        aead_decrypt(&enc_key, &self.encrypted_file_key)
-            .map(|mut pt| {
-                // It's ours!
-                let file_key: [u8; 16] = pt[..].try_into().unwrap();
-                pt.zeroize();
-                Some(file_key.into())
-            })
-            .map_err(Error::from)
-    }
-}
+                }));
+            }
+        };
 
-pub(super) mod write {
-    use age_core::format::write::age_stanza;
-    use cookie_factory::{SerializeFn, WriteContext};
-    use std::io::Write;
-
-    use super::*;
-
-    pub(crate) fn recipient_stanza<'a, W: 'a + Write>(
-        r: &'a RecipientStanza,
-    ) -> impl SerializeFn<W> + 'a {
-        move |w: WriteContext<W>| {
-            let encoded_salt = base64::encode_config(&r.salt, base64::STANDARD_NO_PAD);
-            let args = &[encoded_salt.as_str(), &format!("{}", r.log_n)];
-            let writer = age_stanza(SCRYPT_RECIPIENT_TAG, args, &r.encrypted_file_key);
-            writer(w)
-        }
+        Some(
+            aead_decrypt(&enc_key, &stanza.body)
+                .map(|mut pt| {
+                    // It's ours!
+                    let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                    pt.zeroize();
+                    file_key.into()
+                })
+                .map_err(Error::from),
+        )
     }
 }

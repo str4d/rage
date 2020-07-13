@@ -1,64 +1,43 @@
 //! The age file format.
 
+use age_core::format::AgeStanza;
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
 };
 use std::io::{self, Read, Write};
 
-use crate::{
-    primitives::{HmacKey, HmacWriter},
-    scrypt, x25519,
-};
+use crate::primitives::{HmacKey, HmacWriter};
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-
-pub(crate) mod plugin;
-pub(crate) mod ssh_ed25519;
-pub(crate) mod ssh_rsa;
 
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
+/// A section of the age header that encapsulates the file key as encrypted to a specific
+/// recipient.
 #[derive(Debug)]
-pub enum RecipientStanza {
-    X25519(x25519::RecipientStanza),
-    Scrypt(scrypt::RecipientStanza),
-    SshRsa(ssh_rsa::RecipientStanza),
-    SshEd25519(ssh_ed25519::RecipientStanza),
-    Plugin(plugin::RecipientStanza),
+pub struct RecipientStanza {
+    /// A tag identifying this stanza type.
+    pub tag: String,
+    /// Zero or more arguments.
+    pub args: Vec<String>,
+    /// The body of the stanza, containing a wrapped [`FileKey`].
+    ///
+    /// [`FileKey`]: crate::keys::FileKey
+    pub body: Vec<u8>,
 }
 
-impl From<x25519::RecipientStanza> for RecipientStanza {
-    fn from(stanza: x25519::RecipientStanza) -> Self {
-        RecipientStanza::X25519(stanza)
-    }
-}
-
-impl From<scrypt::RecipientStanza> for RecipientStanza {
-    fn from(stanza: scrypt::RecipientStanza) -> Self {
-        RecipientStanza::Scrypt(stanza)
-    }
-}
-
-impl From<ssh_rsa::RecipientStanza> for RecipientStanza {
-    fn from(stanza: ssh_rsa::RecipientStanza) -> Self {
-        RecipientStanza::SshRsa(stanza)
-    }
-}
-
-impl From<ssh_ed25519::RecipientStanza> for RecipientStanza {
-    fn from(stanza: ssh_ed25519::RecipientStanza) -> Self {
-        RecipientStanza::SshEd25519(stanza)
-    }
-}
-
-impl From<plugin::RecipientStanza> for RecipientStanza {
-    fn from(stanza: plugin::RecipientStanza) -> Self {
-        RecipientStanza::Plugin(stanza)
+impl RecipientStanza {
+    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Self {
+        RecipientStanza {
+            tag: stanza.tag.to_string(),
+            args: stanza.args.into_iter().map(|s| s.to_string()).collect(),
+            body: stanza.body,
+        }
     }
 }
 
@@ -95,7 +74,7 @@ pub(crate) fn oil_the_joint() -> RecipientStanza {
     let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
     rng.fill_bytes(&mut body);
 
-    plugin::RecipientStanza { tag, args, body }.into()
+    RecipientStanza { tag, args, body }
 }
 
 pub struct HeaderV1 {
@@ -220,24 +199,7 @@ mod read {
     fn recipient_stanza(input: &[u8]) -> IResult<&[u8], RecipientStanza> {
         preceded(
             tag(RECIPIENT_TAG),
-            map_opt(age_stanza, |stanza| match stanza.tag {
-                x25519::X25519_RECIPIENT_TAG => {
-                    x25519::RecipientStanza::from_stanza(stanza).map(RecipientStanza::X25519)
-                }
-                scrypt::SCRYPT_RECIPIENT_TAG => {
-                    scrypt::RecipientStanza::from_stanza(stanza).map(RecipientStanza::Scrypt)
-                }
-                ssh_rsa::SSH_RSA_RECIPIENT_TAG => {
-                    ssh_rsa::RecipientStanza::from_stanza(stanza).map(RecipientStanza::SshRsa)
-                }
-                ssh_ed25519::SSH_ED25519_RECIPIENT_TAG => {
-                    ssh_ed25519::RecipientStanza::from_stanza(stanza)
-                        .map(RecipientStanza::SshEd25519)
-                }
-                _ => Some(RecipientStanza::Plugin(
-                    plugin::RecipientStanza::from_stanza(stanza),
-                )),
-            }),
+            map(age_stanza, RecipientStanza::from_stanza),
         )(input)
     }
 
@@ -280,6 +242,7 @@ mod read {
 }
 
 mod write {
+    use age_core::format::write::age_stanza;
     use cookie_factory::{
         combinator::{slice, string},
         multi::separated_list,
@@ -294,13 +257,9 @@ mod write {
     fn recipient_stanza<'a, W: 'a + Write>(r: &'a RecipientStanza) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let out = slice(RECIPIENT_TAG)(w)?;
-            match r {
-                RecipientStanza::X25519(r) => x25519::write::recipient_stanza(r)(out),
-                RecipientStanza::Scrypt(r) => scrypt::write::recipient_stanza(r)(out),
-                RecipientStanza::SshRsa(r) => ssh_rsa::write::recipient_stanza(r)(out),
-                RecipientStanza::SshEd25519(r) => ssh_ed25519::write::recipient_stanza(r)(out),
-                RecipientStanza::Plugin(r) => plugin::write::recipient_stanza(r)(out),
-            }
+            let args: Vec<_> = r.args.iter().map(|s| s.as_str()).collect();
+            let writer = age_stanza(&r.tag, &args, &r.body);
+            writer(out)
         }
     }
 

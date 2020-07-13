@@ -7,7 +7,7 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, Header, HeaderV1, RecipientStanza},
+    format::{oil_the_joint, Header, HeaderV1},
     keys::FileKey,
     primitives::stream::{PayloadKey, Stream, StreamWriter},
     scrypt, Recipient,
@@ -94,7 +94,7 @@ impl Encryptor {
                 .chain(iter::once(oil_the_joint()))
                 .collect(),
             EncryptorType::Passphrase(passphrase) => {
-                vec![scrypt::RecipientStanza::wrap_file_key(&file_key, &passphrase).into()]
+                vec![scrypt::Recipient { passphrase }.wrap_file_key(&file_key)]
             }
         };
 
@@ -163,13 +163,10 @@ impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, Error> {
         // Enforce structural requirements on the v1 header.
-        let any_scrypt = header.recipients.iter().any(|r| {
-            if let RecipientStanza::Scrypt(_) = r {
-                true
-            } else {
-                false
-            }
-        });
+        let any_scrypt = header
+            .recipients
+            .iter()
+            .any(|r| r.tag == scrypt::SCRYPT_RECIPIENT_TAG);
 
         if any_scrypt && header.recipients.len() == 1 {
             Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
