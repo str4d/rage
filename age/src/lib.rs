@@ -16,7 +16,7 @@
 //! use std::iter;
 //!
 //! # fn run_main() -> Result<(), age::Error> {
-//! let key = age::SecretKey::generate();
+//! let key = age::x25519::Identity::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
@@ -111,11 +111,10 @@ mod protocol;
 mod scrypt;
 pub mod ssh;
 mod util;
-mod x25519;
+pub mod x25519;
 
 pub use error::Error;
 pub use identity::IdentityFile;
-pub use keys::SecretKey;
 pub use primitives::{armor, stream};
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 

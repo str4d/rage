@@ -37,7 +37,7 @@ fn main() {
             }
         };
 
-    let sk = age::keys::SecretKey::generate();
+    let sk = age::x25519::Identity::generate();
     let pk = sk.to_public();
 
     if let Err(e) = (|| {

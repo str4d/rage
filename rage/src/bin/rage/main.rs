@@ -62,16 +62,18 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Bo
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            match line.parse::<age::keys::RecipientKey>() {
+            match line.parse::<age::x25519::Recipient>() {
                 Ok(key) => recipients.push(Box::new(key)),
-                Err(<age::keys::RecipientKey as std::str::FromStr>::Err::Ignore) => (),
-                Err(e) => {
-                    error!("{:?}", e);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("recipients file {} contains non-recipient data", filename),
-                    ));
-                }
+                Err(_) => match line.parse::<age::ssh::Recipient>() {
+                    Ok(key) => recipients.push(Box::new(key)),
+                    Err(e) => {
+                        error!("{:?}", e);
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("recipients file {} contains non-recipient data", filename),
+                        ));
+                    }
+                },
             }
         }
     }
@@ -95,7 +97,9 @@ fn read_recipients(
     while !arguments.is_empty() {
         let arg = arguments.pop().expect("arguments is not empty");
 
-        if let Ok(pk) = arg.parse::<age::keys::RecipientKey>() {
+        if let Ok(pk) = arg.parse::<age::x25519::Recipient>() {
+            recipients.push(Box::new(pk));
+        } else if let Ok(pk) = arg.parse::<age::ssh::Recipient>() {
             recipients.push(Box::new(pk));
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]

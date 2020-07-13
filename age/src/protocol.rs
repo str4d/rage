@@ -74,10 +74,10 @@ impl Encryptor {
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
     ///
     /// This API should only be used with a passphrase that was provided by (or generated
-    /// for) a human. For programmatic use cases, instead generate a [`SecretKey`] and
-    /// then use [`Encryptor::with_recipients`].
+    /// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`]
+    /// and then use [`Encryptor::with_recipients`].
     ///
-    /// [`SecretKey`]: crate::keys::SecretKey
+    /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
         Encryptor(EncryptorType::Passphrase(passphrase))
     }
@@ -223,7 +223,7 @@ mod tests {
     use std::iter;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, keys::RecipientKey, Identity, Recipient};
+    use crate::{identity::IdentityFile, ssh, x25519, Identity, Recipient};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -340,9 +340,9 @@ mod tests {
 
     #[test]
     fn x25519_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
+        let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
         let sk = IdentityFile::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             vec![Box::new(pk)],
             iter::once(Box::new(sk) as Box<dyn Identity>),
@@ -352,9 +352,9 @@ mod tests {
     #[cfg(feature = "async")]
     #[test]
     fn x25519_async_round_trip() {
-        let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
+        let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
         let sk = IdentityFile::from_buffer(buf).unwrap();
-        let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             vec![Box::new(pk)],
             iter::once(Box::new(sk) as Box<dyn Identity>),
@@ -390,7 +390,7 @@ mod tests {
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
         recipient_round_trip(
@@ -404,7 +404,7 @@ mod tests {
     fn ssh_rsa_async_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
         recipient_async_round_trip(
@@ -417,7 +417,7 @@ mod tests {
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
         recipient_round_trip(
@@ -431,7 +431,7 @@ mod tests {
     fn ssh_ed25519_async_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
         recipient_async_round_trip(
