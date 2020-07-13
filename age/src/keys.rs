@@ -11,10 +11,10 @@ use zeroize::Zeroize;
 
 use crate::{
     error::Error,
-    format::{x25519, HeaderV1, RecipientStanza},
+    format::{HeaderV1, RecipientStanza},
     primitives::{stream::PayloadKey, HmacKey},
     protocol::Nonce,
-    ssh, Recipient,
+    ssh, x25519, Recipient,
 };
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40

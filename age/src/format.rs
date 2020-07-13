@@ -6,16 +6,17 @@ use rand::{
 };
 use std::io::{self, Read, Write};
 
-use crate::primitives::{HmacKey, HmacWriter};
+use crate::{
+    primitives::{HmacKey, HmacWriter},
+    scrypt, x25519,
+};
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub(crate) mod plugin;
-pub(crate) mod scrypt;
 pub(crate) mod ssh_ed25519;
 pub(crate) mod ssh_rsa;
-pub(crate) mod x25519;
 
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";

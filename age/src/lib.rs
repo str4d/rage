@@ -108,8 +108,10 @@ mod identity;
 pub mod keys;
 mod primitives;
 mod protocol;
+mod scrypt;
 pub mod ssh;
 mod util;
+mod x25519;
 
 pub use error::Error;
 pub use identity::IdentityFile;

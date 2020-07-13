@@ -7,10 +7,10 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientStanza},
+    format::{oil_the_joint, Header, HeaderV1, RecipientStanza},
     keys::FileKey,
     primitives::stream::{PayloadKey, Stream, StreamWriter},
-    Recipient,
+    scrypt, Recipient,
 };
 
 #[cfg(feature = "async")]
