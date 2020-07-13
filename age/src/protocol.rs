@@ -8,8 +8,9 @@ use std::iter;
 use crate::{
     error::Error,
     format::{oil_the_joint, scrypt, Header, HeaderV1, RecipientStanza},
-    keys::{FileKey, RecipientKey},
+    keys::FileKey,
     primitives::stream::{PayloadKey, Stream, StreamWriter},
+    Recipient,
 };
 
 #[cfg(feature = "async")]
@@ -55,7 +56,7 @@ pub trait Callbacks {
 /// Handles the various types of age encryption.
 enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
-    Keys(Vec<RecipientKey>),
+    Keys(Vec<Box<dyn Recipient>>),
     /// Encryption to a passphrase.
     Passphrase(SecretString),
 }
@@ -66,7 +67,7 @@ pub struct Encryptor(EncryptorType);
 impl Encryptor {
     /// Returns an `Encryptor` that will create an age file encrypted to a list of
     /// recipients.
-    pub fn with_recipients(recipients: Vec<RecipientKey>) -> Self {
+    pub fn with_recipients(recipients: Vec<Box<dyn Recipient>>) -> Self {
         Encryptor(EncryptorType::Keys(recipients))
     }
 
@@ -222,7 +223,7 @@ mod tests {
     use std::iter;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, keys::RecipientKey, Identity};
+    use crate::{identity::IdentityFile, keys::RecipientKey, Identity, Recipient};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -235,7 +236,7 @@ mod tests {
     use futures_test::task::noop_context;
 
     fn recipient_round_trip(
-        recipients: Vec<RecipientKey>,
+        recipients: Vec<Box<dyn Recipient>>,
         identities: impl Iterator<Item = Box<dyn Identity>>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -261,7 +262,7 @@ mod tests {
 
     #[cfg(feature = "async")]
     fn recipient_async_round_trip(
-        recipients: Vec<RecipientKey>,
+        recipients: Vec<Box<dyn Recipient>>,
         identities: impl Iterator<Item = Box<dyn Identity>>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -342,7 +343,10 @@ mod tests {
         let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
         let sk = IdentityFile::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
-        recipient_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 
     #[cfg(feature = "async")]
@@ -351,7 +355,10 @@ mod tests {
         let buf = BufReader::new(crate::keys::tests::TEST_SK.as_bytes());
         let sk = IdentityFile::from_buffer(buf).unwrap();
         let pk: RecipientKey = crate::keys::tests::TEST_PK.parse().unwrap();
-        recipient_async_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_async_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 
     #[test]
@@ -386,7 +393,10 @@ mod tests {
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 
     #[cfg(feature = "async")]
@@ -397,7 +407,10 @@ mod tests {
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_async_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 
     #[test]
@@ -407,7 +420,10 @@ mod tests {
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 
     #[cfg(feature = "async")]
@@ -418,6 +434,9 @@ mod tests {
         let pk: RecipientKey = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![pk], iter::once(Box::new(sk) as Box<dyn Identity>));
+        recipient_async_round_trip(
+            vec![Box::new(pk)],
+            iter::once(Box::new(sk) as Box<dyn Identity>),
+        );
     }
 }

@@ -12,6 +12,8 @@ to 1.0.0 are beta releases.
 ### Added
 - `age::Identity` trait, representing an identity that can decrypt an age file.
   All relevant `age` types implement this trait.
+- `age::Recipient` trait, representing a recipient that an age file can be
+  encrypted to. All relevant `age` types implement this trait.
 - `age::IdentityFile` struct, for parsing a list of native age identities from a
   file.
 - Asynchronous APIs for encryption and decryption, enabled by the `async`
@@ -27,6 +29,7 @@ to 1.0.0 are beta releases.
 - `age::keys::FileKey` (used when implementing the `age::Identity` trait).
 
 ### Changed
+- `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
 - `age::decryptor::RecipientsDecryptor` now takes
   `impl Iterator<Item = Box<dyn Identity>>` in its decryption methods.
 - `age::Encryptor::wrap_output` now only generates the non-malleable binary age

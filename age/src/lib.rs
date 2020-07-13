@@ -23,7 +23,7 @@
 //!
 //! // Encrypt the plaintext to a ciphertext...
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::with_recipients(vec![pubkey]);
+//!     let encryptor = age::Encryptor::with_recipients(vec![Box::new(pubkey)]);
 //!
 //!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
@@ -142,6 +142,22 @@ pub trait Identity {
         &self,
         stanza: &format::RecipientStanza,
     ) -> Option<Result<keys::FileKey, Error>>;
+}
+
+/// A Recipient is a public key or other value that can encrypt an opaque [`FileKey`] to a
+/// recipient stanza.
+///
+/// [`FileKey`]: keys::FileKey
+pub trait Recipient {
+    /// Wraps the given file key for this recipient, returning a stanza to be placed in an
+    /// age file header.
+    ///
+    /// This method is part of the `Recipient` trait to expose age's [one joint] for
+    /// external implementations. You should not need to call this directly; instead, pass
+    /// recipients to [`Encryptor::with_recipients`].
+    ///
+    /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
+    fn wrap_file_key(&self, file_key: &keys::FileKey) -> format::RecipientStanza;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

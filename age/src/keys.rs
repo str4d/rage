@@ -14,7 +14,7 @@ use crate::{
     format::{x25519, HeaderV1, RecipientStanza},
     primitives::{stream::PayloadKey, HmacKey},
     protocol::Nonce,
-    ssh,
+    ssh, Recipient,
 };
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
@@ -189,8 +189,8 @@ impl fmt::Display for RecipientKey {
     }
 }
 
-impl RecipientKey {
-    pub(crate) fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
+impl Recipient for RecipientKey {
+    fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
         match self {
             RecipientKey::X25519(pk) => x25519::RecipientStanza::wrap_file_key(file_key, pk).into(),
             RecipientKey::Ssh(r) => r.wrap_file_key(file_key).into(),
