@@ -114,6 +114,7 @@ mod util;
 pub mod x25519;
 
 pub use error::Error;
+pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
 pub use primitives::{armor, stream};
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};

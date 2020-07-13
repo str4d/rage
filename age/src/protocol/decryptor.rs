@@ -9,7 +9,7 @@ use crate::{
     format::{Header, RecipientStanza},
     keys::FileKey,
     primitives::stream::{PayloadKey, Stream, StreamReader},
-    Identity,
+    scrypt, Identity,
 };
 
 #[cfg(feature = "async")]
@@ -106,13 +106,12 @@ impl<R> PassphraseDecryptor<R> {
         passphrase: &SecretString,
         max_work_factor: Option<u8>,
     ) -> Result<PayloadKey, Error> {
-        self.0.obtain_payload_key(|r| {
-            if let RecipientStanza::Scrypt(s) = r {
-                s.unwrap_file_key(passphrase, max_work_factor).transpose()
-            } else {
-                None
-            }
-        })
+        let identity = scrypt::Identity {
+            passphrase,
+            max_work_factor,
+        };
+
+        self.0.obtain_payload_key(|r| identity.unwrap_file_key(r))
     }
 }
 
