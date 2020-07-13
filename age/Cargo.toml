@@ -75,7 +75,7 @@ pin-project = "0.4"
 
 # Common CLI dependencies
 console = { version = "0.11", optional = true }
-dirs = { version = "2", optional = true }
+dirs = { version = "3.0.1", optional = true }
 pinentry = { version = "0.2", optional = true }
 rpassword = { version = "4", optional = true }
 

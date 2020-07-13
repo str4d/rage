@@ -26,15 +26,7 @@ const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 /// [os.UserConfigDir]: https://golang.org/pkg/os/#UserConfigDir
 /// [this issue]: https://github.com/FiloSottile/age/issues/15
 pub fn get_config_dir() -> Option<PathBuf> {
-    #[cfg(target_os = "macos")]
-    {
-        dirs::data_dir()
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        dirs::config_dir()
-    }
+    dirs::config_dir()
 }
 
 /// Reads identities from the provided files if given, or the default system
