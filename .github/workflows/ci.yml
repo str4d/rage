@@ -125,4 +125,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --all --all-features --document-private-items
+          args: --all --exclude rage --all-features --document-private-items
