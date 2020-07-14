@@ -125,8 +125,8 @@ impl Encryptor {
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
-    /// You **MUST** call [`StreamWriter::poll_close`] when you are done writing, in order
-    /// to finish the encryption process. Failing to call [`StreamWriter::poll_close`]
+    /// You **MUST** call [`AsyncWrite::poll_close`] when you are done writing, in order
+    /// to finish the encryption process. Failing to call [`AsyncWrite::poll_close`]
     /// will result in a truncated file that will fail to decrypt.
     #[cfg(feature = "async")]
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
