@@ -4,6 +4,7 @@ pub(crate) const LINE_ENDING: &str = "\r\n";
 pub(crate) const LINE_ENDING: &str = "\n";
 
 pub(crate) mod read {
+    #[cfg(feature = "ssh")]
     use nom::{
         combinator::map_res,
         error::{make_error, ErrorKind},
@@ -11,6 +12,7 @@ pub(crate) mod read {
         IResult,
     };
 
+    #[cfg(feature = "ssh")]
     pub(crate) fn encoded_str(
         count: usize,
         config: base64::Config,
@@ -37,6 +39,7 @@ pub(crate) mod read {
         }
     }
 
+    #[cfg(feature = "ssh")]
     pub(crate) fn str_while_encoded(
         config: base64::Config,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
@@ -55,6 +58,7 @@ pub(crate) mod read {
         }
     }
 
+    #[cfg(feature = "ssh")]
     pub(crate) fn wrapped_str_while_encoded(
         config: base64::Config,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {

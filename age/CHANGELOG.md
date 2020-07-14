@@ -41,7 +41,8 @@ to 1.0.0 are beta releases.
   potentially armored.
 - `age::Format` has been moved to `age::armor::Format`.
 - `age::SecretKey` has been renamed to `age::x25519::Identity`.
-- SSH support has been moved into the `age::ssh` module.
+- SSH support has been moved into the `age::ssh` module, behind the `ssh`
+  feature flag.
 - OpenSSH `ssh-rsa` keys are now supported without the `unstable` feature flag.
 - `age::cli_common::read_identities` now returns `Vec<Box<dyn Identity>>`, as it
   abstracts over `age::IdentityFile` and `age::ssh::Identity`.

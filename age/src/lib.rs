@@ -109,7 +109,6 @@ mod keys;
 mod primitives;
 mod protocol;
 mod scrypt;
-pub mod ssh;
 mod util;
 pub mod x25519;
 
@@ -122,6 +121,9 @@ pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;
+
+#[cfg(feature = "ssh")]
+pub mod ssh;
 
 /// An Identity is a private key or other value that can decrypt an opaque [`FileKey`]
 /// from a recipient stanza.
