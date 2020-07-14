@@ -27,7 +27,7 @@ to 1.0.0 are beta releases.
   a potentially-armored age file.
 - `age::armor::ArmoredWriter`, which can be wrapped around an output to
   optionally apply the armored age format.
-- `age::keys::FileKey` (used when implementing the `age::Identity` trait).
+- `age::FileKey` (used when implementing the `age::Identity` trait).
 
 ### Changed
 - `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
