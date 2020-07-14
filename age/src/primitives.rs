@@ -10,6 +10,7 @@ use sha2::Sha256;
 use std::io::{self, Write};
 
 #[cfg(feature = "armor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "armor")))]
 pub mod armor;
 
 pub mod stream;

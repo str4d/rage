@@ -97,6 +97,7 @@
 //! # run_main().unwrap();
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 // Catch documentation errors caused by code changes.
 #![deny(intra_doc_link_resolution_failure)]
@@ -123,9 +124,11 @@ pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 pub use primitives::armor;
 
 #[cfg(feature = "cli-common")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli-common")))]
 pub mod cli_common;
 
 #[cfg(feature = "ssh")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
 
 /// An Identity is a private key or other value that can decrypt an opaque [`FileKey`]

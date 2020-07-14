@@ -129,6 +129,7 @@ impl Encryptor {
     /// to finish the encryption process. Failing to call [`AsyncWrite::poll_close`]
     /// will result in a truncated file that will fail to decrypt.
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
         self,
         mut output: W,
