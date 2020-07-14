@@ -9,7 +9,9 @@ use secrecy::{ExposeSecret, Secret};
 use sha2::Sha256;
 use std::io::{self, Write};
 
+#[cfg(feature = "armor")]
 pub mod armor;
+
 pub mod stream;
 
 pub(crate) struct HmacKey(pub(crate) Secret<[u8; 32]>);

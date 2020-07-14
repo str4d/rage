@@ -116,8 +116,11 @@ pub use error::Error;
 pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
 pub use keys::FileKey;
-pub use primitives::{armor, stream};
+pub use primitives::stream;
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
+
+#[cfg(feature = "armor")]
+pub use primitives::armor;
 
 #[cfg(feature = "cli-common")]
 pub mod cli_common;

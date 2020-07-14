@@ -1,6 +1,6 @@
-#[cfg(windows)]
+#[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
-#[cfg(not(windows))]
+#[cfg(all(any(feature = "armor", feature = "cli-common"), not(windows)))]
 pub(crate) const LINE_ENDING: &str = "\n";
 
 pub(crate) mod read {

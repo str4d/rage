@@ -23,10 +23,11 @@ to 1.0.0 are beta releases.
   - `age::Decryptor::new_async()`
   - `age::decryptor::RecipientsDecryptor::decrypt_async()`
   - `age::decryptor::PassphraseDecryptor::decrypt_async()`
-- `age::armor::ArmoredReader`, which can be wrapped around an input to handle
-  a potentially-armored age file.
-- `age::armor::ArmoredWriter`, which can be wrapped around an output to
-  optionally apply the armored age format.
+- Explicit armoring support, enabled by the `armor` feature flag:
+  - `age::armor::ArmoredReader`, which can be wrapped around an input to handle
+    a potentially-armored age file.
+  - `age::armor::ArmoredWriter`, which can be wrapped around an output to
+    optionally apply the armored age format.
 - `age::FileKey` (used when implementing the `age::Identity` trait).
 
 ### Changed
