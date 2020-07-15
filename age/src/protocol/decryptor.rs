@@ -76,6 +76,7 @@ impl<R: Read> RecipientsDecryptor<R> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///
@@ -133,6 +134,7 @@ impl<R: Read> PassphraseDecryptor<R> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + Unpin> PassphraseDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///

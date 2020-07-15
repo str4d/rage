@@ -44,18 +44,18 @@ bech32 = "0.7"
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
-num-traits = "0.2"
-rsa = "0.3"
+num-traits = { version = "0.2", optional = true }
+rsa = { version = "0.3", optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
-curve25519-dalek = "2"
+curve25519-dalek = { version = "2", optional = true }
 
 # - Encrypted keys
-aes = "0.4"
-aes-ctr = "0.4"
-bcrypt-pbkdf = "0.2"
-block-cipher = "0.7"
-block-modes = "0.4"
+aes = { version = "0.4", optional = true }
+aes-ctr = { version = "0.4", optional = true }
+bcrypt-pbkdf = { version = "0.2", optional = true }
+block-cipher = { version = "0.7", optional = true }
+block-modes = { version = "0.4", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
@@ -88,8 +88,19 @@ quickcheck_macros = "0.9"
 
 [features]
 default = []
+armor = []
 async = ["futures"]
 cli-common = ["console", "dirs", "pinentry", "rpassword"]
+ssh = [
+    "aes",
+    "aes-ctr",
+    "bcrypt-pbkdf",
+    "block-cipher",
+    "block-modes",
+    "curve25519-dalek",
+    "num-traits",
+    "rsa",
+]
 unstable = []
 
 [[bench]]

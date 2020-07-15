@@ -23,11 +23,12 @@ to 1.0.0 are beta releases.
   - `age::Decryptor::new_async()`
   - `age::decryptor::RecipientsDecryptor::decrypt_async()`
   - `age::decryptor::PassphraseDecryptor::decrypt_async()`
-- `age::armor::ArmoredReader`, which can be wrapped around an input to handle
-  a potentially-armored age file.
-- `age::armor::ArmoredWriter`, which can be wrapped around an output to
-  optionally apply the armored age format.
-- `age::keys::FileKey` (used when implementing the `age::Identity` trait).
+- Explicit armoring support, enabled by the `armor` feature flag:
+  - `age::armor::ArmoredReader`, which can be wrapped around an input to handle
+    a potentially-armored age file.
+  - `age::armor::ArmoredWriter`, which can be wrapped around an output to
+    optionally apply the armored age format.
+- `age::FileKey` (used when implementing the `age::Identity` trait).
 
 ### Changed
 - `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
@@ -41,7 +42,8 @@ to 1.0.0 are beta releases.
   potentially armored.
 - `age::Format` has been moved to `age::armor::Format`.
 - `age::SecretKey` has been renamed to `age::x25519::Identity`.
-- SSH support has been moved into the `age::ssh` module.
+- SSH support has been moved into the `age::ssh` module, behind the `ssh`
+  feature flag.
 - OpenSSH `ssh-rsa` keys are now supported without the `unstable` feature flag.
 - `age::cli_common::read_identities` now returns `Vec<Box<dyn Identity>>`, as it
   abstracts over `age::IdentityFile` and `age::ssh::Identity`.

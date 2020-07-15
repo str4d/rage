@@ -31,17 +31,18 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities<E, F, G, H>(
+#[rustfmt::skip]
+pub fn read_identities<E, F, G>(
     filenames: Vec<String>,
     no_default: F,
     file_not_found: G,
-    unsupported_ssh: H,
+    #[cfg(feature = "ssh")]
+    unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
 ) -> Result<Vec<Box<dyn Identity>>, E>
 where
     E: From<io::Error>,
     F: FnOnce(&str) -> E,
     G: Fn(String) -> E,
-    H: Fn(String, crate::ssh::UnsupportedKey) -> E,
 {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
@@ -61,6 +62,7 @@ where
     } else {
         for filename in filenames {
             // Try parsing as a single multi-line SSH identity.
+            #[cfg(feature = "ssh")]
             match crate::ssh::Identity::from_buffer(
                 BufReader::new(File::open(&filename)?),
                 Some(filename.clone()),
@@ -68,17 +70,20 @@ where
                 Ok(crate::ssh::Identity::Unsupported(k)) => {
                     return Err(unsupported_ssh(filename, k))
                 }
-                Ok(identity) => identities.push(Box::new(identity.with_callbacks(UiCallbacks))),
-                Err(_) => {
-                    // Try parsing as multiple single-line age identities.
-                    identities.push(Box::new(
-                        IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                            io::ErrorKind::NotFound => file_not_found(filename),
-                            _ => e.into(),
-                        })?,
-                    ));
+                Ok(identity) => {
+                    identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
+                    continue;
                 }
+                Err(_) => (),
             }
+
+            // Try parsing as multiple single-line age identities.
+            identities.push(Box::new(
+                IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
+                    io::ErrorKind::NotFound => file_not_found(filename),
+                    _ => e.into(),
+                })?,
+            ));
         }
     }
 

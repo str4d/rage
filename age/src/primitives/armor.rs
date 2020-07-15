@@ -195,6 +195,7 @@ impl<R: Read> ArmoredReader<BufReader<R>> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + Unpin> ArmoredReader<AsyncBufReader<R>> {
     /// Wraps a reader that may contain an armored age file.
     pub fn from_async_reader(inner: R) -> Self {

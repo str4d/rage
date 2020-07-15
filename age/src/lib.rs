@@ -97,6 +97,7 @@
 //! # run_main().unwrap();
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 // Catch documentation errors caused by code changes.
 #![deny(intra_doc_link_resolution_failure)]
@@ -105,27 +106,33 @@
 mod error;
 mod format;
 mod identity;
-pub mod keys;
+mod keys;
 mod primitives;
 mod protocol;
 mod scrypt;
-pub mod ssh;
 mod util;
 pub mod x25519;
 
 pub use error::Error;
 pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
-pub use primitives::{armor, stream};
+pub use keys::FileKey;
+pub use primitives::stream;
 pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
 
+#[cfg(feature = "armor")]
+pub use primitives::armor;
+
 #[cfg(feature = "cli-common")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli-common")))]
 pub mod cli_common;
+
+#[cfg(feature = "ssh")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
+pub mod ssh;
 
 /// An Identity is a private key or other value that can decrypt an opaque [`FileKey`]
 /// from a recipient stanza.
-///
-/// [`FileKey`]: keys::FileKey
 pub trait Identity {
     /// Attempts to unwrap the given stanza with this identity.
     ///
@@ -140,16 +147,11 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_file_key(
-        &self,
-        stanza: &format::RecipientStanza,
-    ) -> Option<Result<keys::FileKey, Error>>;
+    fn unwrap_file_key(&self, stanza: &format::RecipientStanza) -> Option<Result<FileKey, Error>>;
 }
 
 /// A Recipient is a public key or other value that can encrypt an opaque [`FileKey`] to a
 /// recipient stanza.
-///
-/// [`FileKey`]: keys::FileKey
 pub trait Recipient {
     /// Wraps the given file key for this recipient, returning a stanza to be placed in an
     /// age file header.
@@ -159,7 +161,7 @@ pub trait Recipient {
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &keys::FileKey) -> format::RecipientStanza;
+    fn wrap_file_key(&self, file_key: &FileKey) -> format::RecipientStanza;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

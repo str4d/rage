@@ -43,7 +43,7 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 # rage and rage-keygen dependencies
-age = { version = "0.4.0", path = "../age", features = ["cli-common"] }
+age = { version = "0.4.0", path = "../age", features = ["armor", "cli-common"] }
 chrono = "0.4"
 console = "0.11"
 env_logger = "0.7"
@@ -67,7 +67,9 @@ flate2 = "1"
 man = "0.3"
 
 [features]
+default = ["ssh"]
 mount = ["fuse_mt", "libc", "tar", "time", "zip"]
+ssh = ["age/ssh"]
 unstable = ["age/unstable"]
 
 [[bin]]

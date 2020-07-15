@@ -125,10 +125,11 @@ impl Encryptor {
     ///
     /// Returns errors from the underlying writer while writing the header.
     ///
-    /// You **MUST** call [`StreamWriter::poll_close`] when you are done writing, in order
-    /// to finish the encryption process. Failing to call [`StreamWriter::poll_close`]
+    /// You **MUST** call [`AsyncWrite::poll_close`] when you are done writing, in order
+    /// to finish the encryption process. Failing to call [`AsyncWrite::poll_close`]
     /// will result in a truncated file that will fail to decrypt.
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
         self,
         mut output: W,
@@ -220,7 +221,7 @@ mod tests {
     use std::iter;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, ssh, x25519, Identity, Recipient};
+    use crate::{identity::IdentityFile, x25519, Identity, Recipient};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -383,11 +384,12 @@ mod tests {
         assert_eq!(&decrypted[..], &test_msg[..]);
     }
 
+    #[cfg(feature = "ssh")]
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+        let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
         recipient_round_trip(
@@ -396,12 +398,12 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "ssh", feature = "async"))]
     #[test]
     fn ssh_rsa_async_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_RSA_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
+        let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
         recipient_async_round_trip(
@@ -410,11 +412,12 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ssh")]
     #[test]
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+        let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
         recipient_round_trip(
@@ -423,12 +426,12 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "ssh", feature = "async"))]
     #[test]
     fn ssh_ed25519_async_round_trip() {
         let buf = BufReader::new(crate::ssh::identity::tests::TEST_SSH_ED25519_SK.as_bytes());
         let sk = crate::ssh::identity::Identity::from_buffer(buf, None).unwrap();
-        let pk: ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
+        let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
         recipient_async_round_trip(

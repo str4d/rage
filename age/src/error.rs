@@ -72,6 +72,7 @@ impl From<hmac::crypto_mac::MacError> for Error {
     }
 }
 
+#[cfg(feature = "ssh")]
 impl From<rsa::errors::Error> for Error {
     fn from(_: rsa::errors::Error) -> Self {
         Error::DecryptionFailed

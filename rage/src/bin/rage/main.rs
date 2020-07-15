@@ -64,16 +64,22 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Bo
         if !(line.is_empty() || line.find('#') == Some(0)) {
             match line.parse::<age::x25519::Recipient>() {
                 Ok(key) => recipients.push(Box::new(key)),
-                Err(_) => match line.parse::<age::ssh::Recipient>() {
-                    Ok(key) => recipients.push(Box::new(key)),
-                    Err(e) => {
-                        error!("{:?}", e);
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!("recipients file {} contains non-recipient data", filename),
-                        ));
-                    }
-                },
+                Err(_e) => {
+                    #[cfg(feature = "ssh")]
+                    let _e = match line.parse::<age::ssh::Recipient>() {
+                        Ok(key) => {
+                            recipients.push(Box::new(key));
+                            continue;
+                        }
+                        Err(e) => e,
+                    };
+
+                    error!("{:?}", _e);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("recipients file {} contains non-recipient data", filename),
+                    ));
+                }
             }
         }
     }
@@ -99,8 +105,16 @@ fn read_recipients(
 
         if let Ok(pk) = arg.parse::<age::x25519::Recipient>() {
             recipients.push(Box::new(pk));
-        } else if let Ok(pk) = arg.parse::<age::ssh::Recipient>() {
-            recipients.push(Box::new(pk));
+        } else if let Some(pk) = {
+            #[cfg(feature = "ssh")]
+            {
+                arg.parse::<age::ssh::Recipient>().ok().map(Box::new)
+            }
+
+            #[cfg(not(feature = "ssh"))]
+            None
+        } {
+            recipients.push(pk);
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]
             {
@@ -366,6 +380,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                     error::DecryptError::MissingIdentities(default_filename.to_string())
                 },
                 error::DecryptError::IdentityNotFound,
+                #[cfg(feature = "ssh")]
                 error::DecryptError::UnsupportedKey,
             )?;
 
