@@ -53,6 +53,7 @@ to 1.0.0 are beta releases.
   - `age::Format` has been moved to `age::armor::Format`.
 - SSH support is now disabled by default, behind the `ssh` feature flag.
   `ssh-rsa` keys are now supported without the `unstable` feature flag.
+- `age::Callbacks` has been moved to `age::decryptor::Callbacks`.
 
 ### Removed
 - `age::SecretKey` (replaced by `age::x25519::Identity` and

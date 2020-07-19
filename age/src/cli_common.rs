@@ -12,7 +12,7 @@ use std::io::{self, BufReader};
 use std::path::PathBuf;
 use subtle::ConstantTimeEq;
 
-use crate::{identity::IdentityFile, protocol::Callbacks, Identity};
+use crate::{identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
 
 pub mod file_io;
 

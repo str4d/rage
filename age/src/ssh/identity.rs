@@ -25,7 +25,7 @@ use crate::{
     error::Error,
     format::RecipientStanza,
     keys::FileKey,
-    protocol::Callbacks,
+    protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
 };
 

@@ -134,7 +134,7 @@ pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
 pub use keys::FileKey;
 pub use primitives::stream;
-pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
+pub use protocol::{decryptor, Decryptor, Encryptor};
 
 #[cfg(feature = "armor")]
 pub use primitives::armor;
