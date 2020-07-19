@@ -10,13 +10,14 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
-- `age::Identity` trait, representing an identity that can decrypt an age file.
-  All relevant `age` types implement this trait.
-- `age::Recipient` trait, representing a recipient that an age file can be
-  encrypted to. All relevant `age` types implement this trait.
-- `age::IdentityFile` struct, for parsing a list of native age identities from a
-  file.
-- `age::x25519::Recipient`
+- New core traits, implemented by all relevant `age` types:
+  - `age::Identity`, representing an identity that can decrypt an age file.
+  - `age::Recipient`, representing a potential recipient of an age file.
+- Separate modules and structs for different recipient types:
+  - `age::x25519`
+  - `age::ssh` (behind the `ssh` feature flag).
+- `age::IdentityFile` struct, for parsing a list of native age identities
+  (currently only `age::x25519::Identity`) from a file.
 - Asynchronous APIs for encryption and decryption, enabled by the `async`
   feature flag:
   - `age::Encryptor::wrap_async_output()`
@@ -28,33 +29,41 @@ to 1.0.0 are beta releases.
     a potentially-armored age file.
   - `age::armor::ArmoredWriter`, which can be wrapped around an output to
     optionally apply the armored age format.
-- `age::FileKey` (used when implementing the `age::Identity` trait).
+- Several structs used when implementing the `age::Identity` trait:
+  - `age::FileKey`
+  - `age::RecipientStanza`
 
 ### Changed
-- `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
-- `age::decryptor::RecipientsDecryptor` now takes
-  `impl Iterator<Item = Box<dyn Identity>>` in its decryption methods.
-- `age::Encryptor::wrap_output` now only generates the non-malleable binary age
-  format. Use `encryptor.wrap_output(ArmoredWriter::wrap_output(output, format))`
-  to optionally generate armored age files.
-- `age::Decryptor` now only decrypts the non-malleable binary age format. Use
-  `Decryptor::new(ArmoredReader::new(input))` to handle age files that are
-  potentially armored.
-- `age::Format` has been moved to `age::armor::Format`.
-- `age::SecretKey` has been renamed to `age::x25519::Identity`.
-- SSH support has been moved into the `age::ssh` module, behind the `ssh`
-  feature flag.
-- OpenSSH `ssh-rsa` keys are now supported without the `unstable` feature flag.
-- `age::cli_common::read_identities` now returns `Vec<Box<dyn Identity>>`, as it
-  abstracts over `age::IdentityFile` and `age::ssh::Identity`.
+- MSRV is now 1.39.0.
+- Changes due to the new core traits:
+  - `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
+  - `age::decryptor::RecipientsDecryptor` now takes
+    `impl Iterator<Item = Box<dyn Identity>>` in its decryption methods.
+  - `age::cli_common::read_identities` now returns `Vec<Box<dyn Identity>>`, as
+    it abstracts over `age::IdentityFile` and `age::ssh::Identity`. When the
+    `ssh` feature flag is enabled, it also takes an `unsupported_ssh` argument
+    for handling unsupported SSH identities.
+- Changes due to explicit armoring support:
+  - `age::Encryptor::wrap_output` now only generates the non-malleable binary
+    age format. To optionally generate armored age files, use
+    `encryptor.wrap_output(ArmoredWriter::wrap_output(output, format))`.
+  - `age::Decryptor` now only decrypts the non-malleable binary age format. To
+    handle age files that are potentially armored, use
+    `Decryptor::new(ArmoredReader::new(input))`.
+  - `age::Format` has been moved to `age::armor::Format`.
+- SSH support is now disabled by default, behind the `ssh` feature flag.
+  `ssh-rsa` keys are now supported without the `unstable` feature flag.
 
 ### Removed
-- `age::keys::{Identity, IdentityKey}` (replaced by `age::Identity` trait on
-  individual identities, and `age::IdentityFile` for parsing identities).
+- `age::SecretKey` (replaced by `age::x25519::Identity` and
+  `age::ssh::Identity`).
 - `age::keys::RecipientKey` (replaced by `age::x25519::Recipient` and
   `age::ssh::Recipient`).
+- `age::keys::{Identity, IdentityKey}` (replaced by `age::Identity` trait on
+  individual identities, and `age::IdentityFile` for parsing identities).
 - `age::decryptor::RecipientsDecryptor::decrypt_with_callbacks()` (identities
-  are now expected to handle their own callbacks).
+  are now expected to handle their own callbacks, and
+  `age::cli_common::read_identities` now adds callbacks to SSH identities).
 
 ## [0.4.0] - 2020-03-25
 ### Added
