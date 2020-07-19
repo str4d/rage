@@ -1,7 +1,6 @@
 //! I/O helper structs for the age ASCII armor format.
 
 use pin_project::pin_project;
-use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
@@ -92,7 +91,8 @@ impl<W: Write> Write for LineEndingWriter<W> {
 
 enum ArmorIs<W: Write> {
     Enabled {
-        encoder: EncodeWriter<Std, LineEndingWriter<W>>,
+        inner: LineEndingWriter<W>,
+        byte_buf: Option<Vec<u8>>,
     },
 
     Disabled {
@@ -109,7 +109,8 @@ impl<W: Write> ArmoredWriter<W> {
         match format {
             Format::AsciiArmor => LineEndingWriter::new(output).map(|w| {
                 ArmoredWriter(ArmorIs::Enabled {
-                    encoder: EncodeWriter::new(STD, w),
+                    inner: w,
+                    byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
                 })
             }),
             Format::Binary => Ok(ArmoredWriter(ArmorIs::Disabled { inner: output })),
@@ -123,26 +124,65 @@ impl<W: Write> ArmoredWriter<W> {
     /// that will fail to decrypt.
     pub fn finish(self) -> io::Result<W> {
         match self.0 {
-            ArmorIs::Enabled { encoder } => encoder
-                .finish()
-                .map_err(|e| io::Error::from(e.error().kind()))
-                .and_then(|line_ending| line_ending.finish()),
+            ArmorIs::Enabled {
+                mut inner,
+                byte_buf,
+                ..
+            } => {
+                let byte_buf = byte_buf.unwrap();
+                inner.write_all(base64::encode_config(&byte_buf, base64::STANDARD).as_bytes())?;
+                inner.finish()
+            }
             ArmorIs::Disabled { inner } => Ok(inner),
         }
     }
 }
 
 impl<W: Write> Write for ArmoredWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         match &mut self.0 {
-            ArmorIs::Enabled { encoder } => encoder.write(buf),
+            ArmorIs::Enabled {
+                inner, byte_buf, ..
+            } => {
+                // Guaranteed to be Some (as long as async and sync writing isn't mixed),
+                // because ArmoredWriter::finish consumes self.
+                let byte_buf = byte_buf.as_mut().unwrap();
+
+                let mut written = 0;
+                loop {
+                    let mut to_write = ARMORED_BYTES_PER_LINE - byte_buf.len();
+                    if to_write > buf.len() {
+                        to_write = buf.len()
+                    }
+
+                    byte_buf.extend_from_slice(&buf[..to_write]);
+                    buf = &buf[to_write..];
+                    written += to_write;
+
+                    // At this point, either buf is empty, or we have a full line.
+                    assert!(buf.is_empty() || byte_buf.len() == ARMORED_BYTES_PER_LINE);
+
+                    // Only encode the line if we have more data to write, as the last
+                    // (possibly-partial) line must be written in finish().
+                    if buf.is_empty() {
+                        break;
+                    } else {
+                        inner.write_all(
+                            base64::encode_config(&byte_buf, base64::STANDARD).as_bytes(),
+                        )?;
+                        byte_buf.clear();
+                    };
+                }
+
+                Ok(written)
+            }
             ArmorIs::Disabled { inner } => inner.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         match &mut self.0 {
-            ArmorIs::Enabled { encoder } => encoder.flush(),
+            ArmorIs::Enabled { inner, .. } => inner.flush(),
             ArmorIs::Disabled { inner } => inner.flush(),
         }
     }
