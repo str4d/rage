@@ -1,7 +1,6 @@
 //! I/O helper structs for the age ASCII armor format.
 
 use pin_project::pin_project;
-use radix64::{configs::Std, io::EncodeWriter, STD};
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
@@ -10,10 +9,12 @@ use crate::util::LINE_ENDING;
 
 #[cfg(feature = "async")]
 use futures::{
-    io::{AsyncBufRead, AsyncRead, BufReader as AsyncBufReader, Error},
+    io::{AsyncBufRead, AsyncRead, AsyncWrite, BufReader as AsyncBufReader, Error},
     ready,
     task::{Context, Poll},
 };
+#[cfg(feature = "async")]
+use pin_project::project;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 
@@ -32,9 +33,23 @@ pub enum Format {
     AsciiArmor,
 }
 
-pub(crate) struct LineEndingWriter<W: Write> {
+#[cfg(feature = "async")]
+struct EncodedLine {
+    bytes: Vec<u8>,
+    offset: usize,
+}
+
+#[pin_project]
+pub(crate) struct LineEndingWriter<W> {
+    #[pin]
     inner: W,
     total_written: usize,
+
+    /// None if `AsyncWrite::poll_closed` has been called.
+    #[cfg(feature = "async")]
+    line: Option<Vec<u8>>,
+    #[cfg(feature = "async")]
+    line_with_ending: Option<EncodedLine>,
 }
 
 impl<W: Write> LineEndingWriter<W> {
@@ -46,6 +61,10 @@ impl<W: Write> LineEndingWriter<W> {
         Ok(LineEndingWriter {
             inner,
             total_written: 0,
+            #[cfg(feature = "async")]
+            line: None,
+            #[cfg(feature = "async")]
+            line_with_ending: None,
         })
     }
 
@@ -90,18 +109,135 @@ impl<W: Write> Write for LineEndingWriter<W> {
     }
 }
 
-enum ArmorIs<W: Write> {
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> LineEndingWriter<W> {
+    fn new_async(inner: W) -> Self {
+        // Write the begin marker
+        let bytes = [ARMORED_BEGIN_MARKER.as_bytes(), LINE_ENDING.as_bytes()].concat();
+
+        LineEndingWriter {
+            inner,
+            total_written: 0,
+            line: Some(Vec::with_capacity(ARMORED_COLUMNS_PER_LINE)),
+            line_with_ending: Some(EncodedLine { bytes, offset: 0 }),
+        }
+    }
+
+    #[project]
+    fn poll_flush_line(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        #[project]
+        let LineEndingWriter {
+            mut inner,
+            line_with_ending,
+            ..
+        } = self.project();
+
+        if let Some(line) = line_with_ending {
+            loop {
+                line.offset += ready!(inner.as_mut().poll_write(cx, &line.bytes[line.offset..]))?;
+                if line.offset == line.bytes.len() {
+                    break;
+                }
+            }
+        }
+        *line_with_ending = None;
+
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> AsyncWrite for LineEndingWriter<W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        mut buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        ready!(self.as_mut().poll_flush_line(cx))?;
+
+        let this = self.as_mut().project();
+        if let Some(line) = this.line {
+            let mut to_write = ARMORED_COLUMNS_PER_LINE - line.len();
+            if to_write > buf.len() {
+                to_write = buf.len()
+            }
+
+            line.extend_from_slice(&buf[..to_write]);
+            buf = &buf[to_write..];
+
+            // At this point, either buf is empty, or we have a complete line.
+            assert!(buf.is_empty() || line.len() == ARMORED_COLUMNS_PER_LINE);
+
+            // Only add a line ending if we have more data to write, as the last
+            // line must be written in poll_close().
+            if !buf.is_empty() {
+                *this.line_with_ending = Some(EncodedLine {
+                    bytes: [&line, LINE_ENDING.as_bytes()].concat(),
+                    offset: 0,
+                });
+                line.clear();
+            }
+
+            Poll::Ready(Ok(to_write))
+        } else {
+            return Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::WriteZero,
+                "AsyncWrite::poll_closed has been called",
+            )));
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        ready!(self.as_mut().poll_flush_line(cx))?;
+        self.project().inner.poll_flush(cx)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        // Flush any remaining line bytes.
+        ready!(self.as_mut().poll_flush_line(cx))?;
+
+        let this = self.as_mut().project();
+        if let Some(line) = this.line {
+            // Finish the armored format with a partial line (if necessary) and the end
+            // marker.
+            *this.line_with_ending = Some(EncodedLine {
+                bytes: [
+                    &line,
+                    LINE_ENDING.as_bytes(),
+                    ARMORED_END_MARKER.as_bytes(),
+                    LINE_ENDING.as_bytes(),
+                ]
+                .concat(),
+                offset: 0,
+            });
+        }
+        *this.line = None;
+
+        // Flush the final line (if we didn't in the first call).
+        ready!(self.as_mut().poll_flush_line(cx))?;
+        self.project().inner.poll_close(cx)
+    }
+}
+
+#[pin_project(project = ArmorIsProj)]
+enum ArmorIs<W> {
     Enabled {
-        encoder: EncodeWriter<Std, LineEndingWriter<W>>,
+        #[pin]
+        inner: LineEndingWriter<W>,
+        byte_buf: Option<Vec<u8>>,
+        #[cfg(feature = "async")]
+        encoded_line: Option<EncodedLine>,
     },
 
     Disabled {
+        #[pin]
         inner: W,
     },
 }
 
 /// Writer that optionally applies the age ASCII armor format.
-pub struct ArmoredWriter<W: Write>(ArmorIs<W>);
+#[pin_project]
+pub struct ArmoredWriter<W>(#[pin] ArmorIs<W>);
 
 impl<W: Write> ArmoredWriter<W> {
     /// Wraps the given output in an `ArmoredWriter` that will apply the given [`Format`].
@@ -109,7 +245,10 @@ impl<W: Write> ArmoredWriter<W> {
         match format {
             Format::AsciiArmor => LineEndingWriter::new(output).map(|w| {
                 ArmoredWriter(ArmorIs::Enabled {
-                    encoder: EncodeWriter::new(STD, w),
+                    inner: w,
+                    byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
+                    #[cfg(feature = "async")]
+                    encoded_line: None,
                 })
             }),
             Format::Binary => Ok(ArmoredWriter(ArmorIs::Disabled { inner: output })),
@@ -123,27 +262,196 @@ impl<W: Write> ArmoredWriter<W> {
     /// that will fail to decrypt.
     pub fn finish(self) -> io::Result<W> {
         match self.0 {
-            ArmorIs::Enabled { encoder } => encoder
-                .finish()
-                .map_err(|e| io::Error::from(e.error().kind()))
-                .and_then(|line_ending| line_ending.finish()),
+            ArmorIs::Enabled {
+                mut inner,
+                byte_buf,
+                ..
+            } => {
+                let byte_buf = byte_buf.unwrap();
+                inner.write_all(base64::encode_config(&byte_buf, base64::STANDARD).as_bytes())?;
+                inner.finish()
+            }
             ArmorIs::Disabled { inner } => Ok(inner),
         }
     }
 }
 
 impl<W: Write> Write for ArmoredWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         match &mut self.0 {
-            ArmorIs::Enabled { encoder } => encoder.write(buf),
+            ArmorIs::Enabled {
+                inner, byte_buf, ..
+            } => {
+                // Guaranteed to be Some (as long as async and sync writing isn't mixed),
+                // because ArmoredWriter::finish consumes self.
+                let byte_buf = byte_buf.as_mut().unwrap();
+
+                let mut written = 0;
+                loop {
+                    let mut to_write = ARMORED_BYTES_PER_LINE - byte_buf.len();
+                    if to_write > buf.len() {
+                        to_write = buf.len()
+                    }
+
+                    byte_buf.extend_from_slice(&buf[..to_write]);
+                    buf = &buf[to_write..];
+                    written += to_write;
+
+                    // At this point, either buf is empty, or we have a full line.
+                    assert!(buf.is_empty() || byte_buf.len() == ARMORED_BYTES_PER_LINE);
+
+                    // Only encode the line if we have more data to write, as the last
+                    // (possibly-partial) line must be written in finish().
+                    if buf.is_empty() {
+                        break;
+                    } else {
+                        inner.write_all(
+                            base64::encode_config(&byte_buf, base64::STANDARD).as_bytes(),
+                        )?;
+                        byte_buf.clear();
+                    };
+                }
+
+                Ok(written)
+            }
             ArmorIs::Disabled { inner } => inner.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         match &mut self.0 {
-            ArmorIs::Enabled { encoder } => encoder.flush(),
+            ArmorIs::Enabled { inner, .. } => inner.flush(),
             ArmorIs::Disabled { inner } => inner.flush(),
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> ArmoredWriter<W> {
+    /// Wraps the given output in an `ArmoredWriter` that will apply the given [`Format`].
+    pub fn wrap_async_output(output: W, format: Format) -> Self {
+        match format {
+            Format::AsciiArmor => ArmoredWriter(ArmorIs::Enabled {
+                inner: LineEndingWriter::new_async(output),
+                byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
+                encoded_line: None,
+            }),
+            Format::Binary => ArmoredWriter(ArmorIs::Disabled { inner: output }),
+        }
+    }
+
+    #[project]
+    fn poll_flush_line(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        match self.project().0.project() {
+            ArmorIsProj::Enabled {
+                mut inner,
+                encoded_line,
+                ..
+            } => {
+                if let Some(line) = encoded_line {
+                    loop {
+                        line.offset +=
+                            ready!(inner.as_mut().poll_write(cx, &line.bytes[line.offset..]))?;
+                        if line.offset == line.bytes.len() {
+                            break;
+                        }
+                    }
+                }
+                *encoded_line = None;
+            }
+            _ => (),
+        }
+
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[cfg(feature = "async")]
+impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        mut buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        ready!(self.as_mut().poll_flush_line(cx))?;
+
+        match self.project().0.project() {
+            ArmorIsProj::Enabled {
+                byte_buf,
+                encoded_line,
+                ..
+            } => {
+                if let Some(byte_buf) = byte_buf {
+                    let mut to_write = ARMORED_BYTES_PER_LINE - byte_buf.len();
+                    if to_write > buf.len() {
+                        to_write = buf.len()
+                    }
+
+                    byte_buf.extend_from_slice(&buf[..to_write]);
+                    buf = &buf[to_write..];
+
+                    // At this point, either buf is empty, or we have a full line.
+                    assert!(buf.is_empty() || byte_buf.len() == ARMORED_BYTES_PER_LINE);
+
+                    // Only encode the line if we have more data to write, as the last
+                    // line must be written in poll_close().
+                    if !buf.is_empty() {
+                        *encoded_line = Some(EncodedLine {
+                            bytes: base64::encode_config(&byte_buf, base64::STANDARD).into_bytes(),
+                            offset: 0,
+                        });
+                        byte_buf.clear();
+                    }
+
+                    Poll::Ready(Ok(to_write))
+                } else {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::WriteZero,
+                        "AsyncWrite::poll_closed has been called",
+                    )));
+                }
+            }
+            ArmorIsProj::Disabled { inner } => inner.poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        ready!(self.as_mut().poll_flush_line(cx))?;
+        match self.project().0.project() {
+            ArmorIsProj::Enabled { inner, .. } => inner.poll_flush(cx),
+            ArmorIsProj::Disabled { inner } => inner.poll_flush(cx),
+        }
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        // Flush any remaining encoded line bytes.
+        ready!(self.as_mut().poll_flush_line(cx))?;
+
+        match self.as_mut().project().0.project() {
+            ArmorIsProj::Enabled {
+                byte_buf,
+                encoded_line,
+                ..
+            } => {
+                if let Some(byte_buf) = byte_buf {
+                    // Finish the armored format with a partial line (if necessary) and the end
+                    // marker.
+                    *encoded_line = Some(EncodedLine {
+                        bytes: base64::encode_config(&byte_buf, base64::STANDARD).into_bytes(),
+                        offset: 0,
+                    });
+                }
+                *byte_buf = None;
+            }
+            _ => (),
+        }
+
+        // Flush the final chunk (if we didn't in the first call).
+        ready!(self.as_mut().poll_flush_line(cx))?;
+
+        match self.project().0.project() {
+            ArmorIsProj::Enabled { inner, .. } => inner.poll_close(cx),
+            ArmorIsProj::Disabled { inner } => inner.poll_close(cx),
         }
     }
 }
@@ -662,7 +970,11 @@ mod tests {
     use super::{ArmoredReader, ArmoredWriter, Format, ARMORED_BYTES_PER_LINE};
 
     #[cfg(feature = "async")]
-    use futures::{io::AsyncRead, pin_mut, task::Poll};
+    use futures::{
+        io::{AsyncRead, AsyncWrite},
+        pin_mut,
+        task::Poll,
+    };
     #[cfg(feature = "async")]
     use futures_test::task::noop_context;
 
@@ -704,9 +1016,27 @@ mod tests {
 
             let mut encoded = vec![];
             {
-                let mut out = ArmoredWriter::wrap_output(&mut encoded, Format::AsciiArmor).unwrap();
-                out.write_all(&data).unwrap();
-                out.finish().unwrap();
+                let w = ArmoredWriter::wrap_async_output(&mut encoded, Format::AsciiArmor);
+                pin_mut!(w);
+
+                let mut cx = noop_context();
+
+                let mut tmp = &data[..];
+                loop {
+                    match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                        Poll::Ready(Ok(0)) => break,
+                        Poll::Ready(Ok(written)) => tmp = &tmp[written..],
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Pending => panic!("Unexpected Pending"),
+                    }
+                }
+                loop {
+                    match w.as_mut().poll_close(&mut cx) {
+                        Poll::Ready(Ok(())) => break,
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Pending => panic!("Unexpected Pending"),
+                    }
+                }
             }
 
             let mut buf = vec![];
