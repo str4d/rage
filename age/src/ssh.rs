@@ -1,6 +1,5 @@
-//! This module provides age.Identity and age.Recipient implementations of types "ssh-rsa"
-//! and "ssh-ed25519", which allow reusing existing SSH key files for encryption with
-//! https://age-encryption.org/v1.
+//! The "ssh-rsa" and "ssh-ed25519" recipient types, which allow reusing existing SSH key
+//! files for age encryption.
 //!
 //! These should only be used for compatibility with existing keys, and native X25519 keys
 //! should be preferred otherwise.

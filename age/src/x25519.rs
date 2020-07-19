@@ -1,4 +1,4 @@
-//! The native age identity type.
+//! The "x25519" recipient type, native to age.
 
 use age_core::primitives::{aead_decrypt, aead_encrypt, hkdf};
 use bech32::{FromBase32, ToBase32};
