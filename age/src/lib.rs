@@ -1,15 +1,31 @@
 //! *Library for encrypting and decryping age files*
 //!
-//! age is a simple, secure, and modern encryption tool with small explicit keys, no
-//! config options, and UNIX-style composability.
+//! This crate implements file encryption according to the [age-encryption.org/v1]
+//! specification. It generates and consumes encrypted files that are compatible with the
+//! [rage] CLI tool, as well as the reference [Golang] implementation.
 //!
-//! The age specification is available in a Google Doc here: [A simple file encryption tool & format](https://age-encryption.org/v1).
+//! The encryption and decryption APIs are provided by [`Encryptor`] and [`Decryptor`].
+//! There are several ways to use these:
+//! - For most cases (including programmatic usage), use [`Encryptor::with_recipients`]
+//!   with [`x25519::Recipient`], and [`Decryptor`] with [`x25519::Identity`].
+//! - APIs are available for passphrase-based encryption and decryption. These should
+//!   only be used with passphrases that were provided by (or generated for) a human.
+//! - For compatibility with existing SSH keys, enable the `ssh` feature flag, and use
+//!   [`ssh::Recipient`] and [`ssh::Identity`].
 //!
-//! *Caution*: all crate versions prior to 1.0 are beta releases for **testing purposes only**.
+//! Age-encrypted files are binary and non-malleable. To encode them as text, use the
+//! wrapping readers and writers in the [`armor`] module, behind the `armor` feature flag.
+//!
+//! *Caution*: all crate versions prior to 1.0 are beta releases for **testing purposes
+//! only**.
+//!
+//! [age-encryption.org/v1]: https://age-encryption.org/v1
+//! [rage]: https://crates.io/crates/rage
+//! [Golang]: https://filippo.io/age
 //!
 //! # Examples
 //!
-//! ## Key-based encryption
+//! ## Recipient-based encryption
 //!
 //! ```
 //! use std::io::{Read, Write};
@@ -118,7 +134,7 @@ pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
 pub use keys::FileKey;
 pub use primitives::stream;
-pub use protocol::{decryptor, Callbacks, Decryptor, Encryptor};
+pub use protocol::{decryptor, Decryptor, Encryptor};
 
 #[cfg(feature = "armor")]
 pub use primitives::armor;
@@ -131,8 +147,8 @@ pub mod cli_common;
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
 
-/// An Identity is a private key or other value that can decrypt an opaque [`FileKey`]
-/// from a recipient stanza.
+/// A private key or other value that can unwrap an opaque file key from a recipient
+/// stanza.
 pub trait Identity {
     /// Attempts to unwrap the given stanza with this identity.
     ///
@@ -150,8 +166,7 @@ pub trait Identity {
     fn unwrap_file_key(&self, stanza: &format::RecipientStanza) -> Option<Result<FileKey, Error>>;
 }
 
-/// A Recipient is a public key or other value that can encrypt an opaque [`FileKey`] to a
-/// recipient stanza.
+/// A public key or other value that can wrap an opaque file key to a recipient stanza.
 pub trait Recipient {
     /// Wraps the given file key for this recipient, returning a stanza to be placed in an
     /// age file header.

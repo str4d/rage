@@ -47,12 +47,6 @@ impl Nonce {
     }
 }
 
-/// Callbacks that might be triggered during decryption.
-pub trait Callbacks {
-    /// Requests a passphrase to decrypt a key.
-    fn request_passphrase(&self, description: &str) -> Option<SecretString>;
-}
-
 /// Handles the various types of age encryption.
 enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
