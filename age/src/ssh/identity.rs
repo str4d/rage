@@ -1,4 +1,7 @@
-use age_core::primitives::{aead_decrypt, hkdf};
+use age_core::{
+    format::Stanza,
+    primitives::{aead_decrypt, hkdf},
+};
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
@@ -23,7 +26,6 @@ use super::{
 };
 use crate::{
     error::Error,
-    format::RecipientStanza,
     keys::FileKey,
     protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
@@ -41,11 +43,8 @@ impl UnencryptedKey {
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
-    /// - `None` if the [`RecipientStanza`] does not match this key.
-    pub(crate) fn unwrap_file_key(
-        &self,
-        stanza: &RecipientStanza,
-    ) -> Option<Result<FileKey, Error>> {
+    /// - `None` if the [`Stanza`] does not match this key.
+    pub(crate) fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
                 let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
@@ -270,7 +269,7 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
             Identity::Encrypted(_) | Identity::Unsupported(_) => None,
@@ -284,7 +283,7 @@ struct DecryptableIdentity<C: Callbacks> {
 }
 
 impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
-    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         match &self.identity {
             Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
             Identity::Encrypted(enc) => {

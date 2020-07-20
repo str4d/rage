@@ -1,14 +1,14 @@
-use age_core::primitives::{aead_decrypt, aead_encrypt};
+use age_core::{
+    format::Stanza,
+    primitives::{aead_decrypt, aead_encrypt},
+};
 use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, SecretString};
 use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
-use crate::{
-    error::Error, format::RecipientStanza, keys::FileKey, primitives::scrypt,
-    util::read::base64_arg,
-};
+use crate::{error::Error, keys::FileKey, primitives::scrypt, util::read::base64_arg};
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
@@ -61,7 +61,7 @@ pub(crate) struct Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
@@ -77,7 +77,7 @@ impl crate::Recipient for Recipient {
 
         let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
 
-        RecipientStanza {
+        Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_salt, format!("{}", log_n)],
             body: encrypted_file_key,
@@ -91,10 +91,7 @@ pub(crate) struct Identity<'a> {
 }
 
 impl<'a> crate::Identity for Identity<'a> {
-    fn unwrap_file_key(
-        &self,
-        stanza: &crate::format::RecipientStanza,
-    ) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
         }

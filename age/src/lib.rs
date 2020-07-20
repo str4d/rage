@@ -130,7 +130,6 @@ mod util;
 pub mod x25519;
 
 pub use error::Error;
-pub use format::RecipientStanza as Stanza;
 pub use identity::IdentityFile;
 pub use keys::FileKey;
 pub use primitives::stream;
@@ -146,6 +145,8 @@ pub mod cli_common;
 #[cfg(feature = "ssh")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
+
+use age_core::format::Stanza;
 
 /// A private key or other value that can unwrap an opaque file key from a recipient
 /// stanza.
@@ -163,7 +164,7 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_file_key(&self, stanza: &format::RecipientStanza) -> Option<Result<FileKey, Error>>;
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>>;
 }
 
 /// A public key or other value that can wrap an opaque file key to a recipient stanza.
@@ -176,7 +177,7 @@ pub trait Recipient {
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &FileKey) -> format::RecipientStanza;
+    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

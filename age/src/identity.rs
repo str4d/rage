@@ -1,7 +1,8 @@
+use age_core::format::Stanza;
 use std::fs::File;
 use std::io;
 
-use crate::{error::Error, format::RecipientStanza, keys::FileKey, x25519, Identity};
+use crate::{error::Error, keys::FileKey, x25519, Identity};
 
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
@@ -56,7 +57,7 @@ impl IdentityFile {
 }
 
 impl Identity for IdentityFile {
-    fn unwrap_file_key(&self, stanza: &RecipientStanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         self.identities
             .iter()
             .find_map(|identity| identity.unwrap_file_key(stanza))

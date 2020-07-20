@@ -12,6 +12,30 @@ pub struct AgeStanza<'a> {
     pub body: Vec<u8>,
 }
 
+/// A section of the age header that encapsulates the file key as encrypted to a specific
+/// recipient.
+#[derive(Debug)]
+pub struct Stanza {
+    /// A tag identifying this stanza type.
+    pub tag: String,
+    /// Zero or more arguments.
+    pub args: Vec<String>,
+    /// The body of the stanza, containing a wrapped [`FileKey`].
+    ///
+    /// [`FileKey`]: crate::keys::FileKey
+    pub body: Vec<u8>,
+}
+
+impl From<AgeStanza<'_>> for Stanza {
+    fn from(stanza: AgeStanza<'_>) -> Self {
+        Stanza {
+            tag: stanza.tag.to_string(),
+            args: stanza.args.into_iter().map(|s| s.to_string()).collect(),
+            body: stanza.body,
+        }
+    }
+}
+
 pub mod read {
     use nom::{
         bytes::streaming::{tag, take_while1},

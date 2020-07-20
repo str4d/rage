@@ -1,6 +1,6 @@
 //! The age file format.
 
-use age_core::format::AgeStanza;
+use age_core::format::Stanza;
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
@@ -17,32 +17,8 @@ const V1_MAGIC: &[u8] = b"v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
-/// A section of the age header that encapsulates the file key as encrypted to a specific
-/// recipient.
-#[derive(Debug)]
-pub struct RecipientStanza {
-    /// A tag identifying this stanza type.
-    pub tag: String,
-    /// Zero or more arguments.
-    pub args: Vec<String>,
-    /// The body of the stanza, containing a wrapped [`FileKey`].
-    ///
-    /// [`FileKey`]: crate::keys::FileKey
-    pub body: Vec<u8>,
-}
-
-impl RecipientStanza {
-    pub(super) fn from_stanza(stanza: AgeStanza<'_>) -> Self {
-        RecipientStanza {
-            tag: stanza.tag.to_string(),
-            args: stanza.args.into_iter().map(|s| s.to_string()).collect(),
-            body: stanza.body,
-        }
-    }
-}
-
 /// Creates a random recipient stanza that exercises the joint in the age v1 format.
-pub(crate) fn oil_the_joint() -> RecipientStanza {
+pub(crate) fn oil_the_joint() -> Stanza {
     // Generate arbitrary strings between 1 and 9 characters long.
     fn gen_arbitrary_string<R: RngCore>(rng: &mut R) -> String {
         let length = Uniform::from(1..9).sample(rng);
@@ -74,16 +50,16 @@ pub(crate) fn oil_the_joint() -> RecipientStanza {
     let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
     rng.fill_bytes(&mut body);
 
-    RecipientStanza { tag, args, body }
+    Stanza { tag, args, body }
 }
 
 pub struct HeaderV1 {
-    pub(crate) recipients: Vec<RecipientStanza>,
+    pub(crate) recipients: Vec<Stanza>,
     pub(crate) mac: [u8; 32],
 }
 
 impl HeaderV1 {
-    pub(crate) fn new(recipients: Vec<RecipientStanza>, mac_key: HmacKey) -> Self {
+    pub(crate) fn new(recipients: Vec<Stanza>, mac_key: HmacKey) -> Self {
         let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
@@ -196,10 +172,10 @@ mod read {
     use super::*;
     use crate::util::read::base64_arg;
 
-    fn recipient_stanza(input: &[u8]) -> IResult<&[u8], RecipientStanza> {
+    fn recipient_stanza(input: &[u8]) -> IResult<&[u8], Stanza> {
         preceded(
             tag(RECIPIENT_TAG),
-            map(age_stanza, RecipientStanza::from_stanza),
+            map(age_stanza, Stanza::from),
         )(input)
     }
 
@@ -254,7 +230,7 @@ mod write {
     use super::*;
     use crate::util::write::encoded_data;
 
-    fn recipient_stanza<'a, W: 'a + Write>(r: &'a RecipientStanza) -> impl SerializeFn<W> + 'a {
+    fn recipient_stanza<'a, W: 'a + Write>(r: &'a Stanza) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
             let out = slice(RECIPIENT_TAG)(w)?;
             let args: Vec<_> = r.args.iter().map(|s| s.as_str()).collect();
