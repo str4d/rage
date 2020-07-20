@@ -1,6 +1,6 @@
 # rage: Rust implementation of age
 
-age is a simple, secure and modern encryption tool with small explicit keys, no
+rage is a simple, secure and modern encryption tool with small explicit keys, no
 config options, and UNIX-style composability. The format specification is at
 [age-encryption.org/v1](https://age-encryption.org/v1).
 
