@@ -1,5 +1,5 @@
 use age_core::{
-    format::Stanza,
+    format::{FileKey, Stanza},
     primitives::{aead_encrypt, hkdf},
 };
 use curve25519_dalek::edwards::EdwardsPoint;
@@ -21,10 +21,7 @@ use super::{
     read_ssh, ssh_tag, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
 };
-use crate::{
-    keys::FileKey,
-    util::read::{encoded_str, str_while_encoded},
-};
+use crate::util::read::{encoded_str, str_while_encoded};
 
 /// A key that can be used to encrypt a file to a recipient.
 #[derive(Clone, Debug)]

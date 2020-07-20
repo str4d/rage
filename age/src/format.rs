@@ -173,10 +173,7 @@ mod read {
     use crate::util::read::base64_arg;
 
     fn recipient_stanza(input: &[u8]) -> IResult<&[u8], Stanza> {
-        preceded(
-            tag(RECIPIENT_TAG),
-            map(age_stanza, Stanza::from),
-        )(input)
+        preceded(tag(RECIPIENT_TAG), map(age_stanza, Stanza::from))(input)
     }
 
     fn header_v1(input: &[u8]) -> IResult<&[u8], HeaderV1> {

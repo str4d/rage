@@ -1,5 +1,5 @@
 use age_core::{
-    format::Stanza,
+    format::{FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt},
 };
 use rand::{rngs::OsRng, RngCore};
@@ -8,7 +8,7 @@ use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
-use crate::{error::Error, keys::FileKey, primitives::scrypt, util::read::base64_arg};
+use crate::{error::Error, primitives::scrypt, util::read::base64_arg};
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";

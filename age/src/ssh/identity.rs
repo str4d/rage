@@ -1,5 +1,5 @@
 use age_core::{
-    format::Stanza,
+    format::{FileKey, Stanza},
     primitives::{aead_decrypt, hkdf},
 };
 use nom::{
@@ -26,7 +26,6 @@ use super::{
 };
 use crate::{
     error::Error,
-    keys::FileKey,
     protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
 };

@@ -131,7 +131,6 @@ pub mod x25519;
 
 pub use error::Error;
 pub use identity::IdentityFile;
-pub use keys::FileKey;
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
 
@@ -146,7 +145,7 @@ pub mod cli_common;
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
 
-use age_core::format::Stanza;
+use age_core::format::{FileKey, Stanza};
 
 /// A private key or other value that can unwrap an opaque file key from a recipient
 /// stanza.

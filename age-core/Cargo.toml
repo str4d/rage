@@ -27,3 +27,6 @@ sha2 = "0.9"
 # Parsing
 cookie-factory = "0.3.1"
 nom = "5"
+
+# Secret management
+secrecy = "0.7"

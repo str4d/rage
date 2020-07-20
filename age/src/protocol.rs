@@ -8,7 +8,7 @@ use std::iter;
 use crate::{
     error::Error,
     format::{oil_the_joint, Header, HeaderV1},
-    keys::FileKey,
+    keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamWriter},
     scrypt, Recipient,
 };
@@ -78,7 +78,7 @@ impl Encryptor {
 
     /// Creates the header for this age file.
     fn prepare_header(self) -> (Header, Nonce, PayloadKey) {
-        let file_key = FileKey::generate();
+        let file_key = new_file_key();
 
         let recipients = match self.0 {
             EncryptorType::Keys(recipients) => recipients
@@ -92,11 +92,9 @@ impl Encryptor {
             }
         };
 
-        let header = HeaderV1::new(recipients, file_key.mac_key());
+        let header = HeaderV1::new(recipients, mac_key(&file_key));
         let nonce = Nonce::random();
-        let payload_key = file_key
-            .v1_payload_key(&header, &nonce)
-            .expect("MAC is correct");
+        let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 
         (Header::V1(header), nonce, payload_key)
     }

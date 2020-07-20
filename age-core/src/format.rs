@@ -1,3 +1,20 @@
+use secrecy::{ExposeSecret, Secret};
+
+/// A file key for encrypting or decrypting an age file.
+pub struct FileKey(Secret<[u8; 16]>);
+
+impl From<[u8; 16]> for FileKey {
+    fn from(file_key: [u8; 16]) -> Self {
+        FileKey(Secret::new(file_key))
+    }
+}
+
+impl ExposeSecret<[u8; 16]> for FileKey {
+    fn expose_secret(&self) -> &[u8; 16] {
+        self.0.expose_secret()
+    }
+}
+
 /// From the age spec:
 /// ```text
 /// Each recipient stanza starts with a line beginning with -> and its type name, followed
@@ -21,8 +38,6 @@ pub struct Stanza {
     /// Zero or more arguments.
     pub args: Vec<String>,
     /// The body of the stanza, containing a wrapped [`FileKey`].
-    ///
-    /// [`FileKey`]: crate::keys::FileKey
     pub body: Vec<u8>,
 }
 

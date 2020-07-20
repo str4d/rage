@@ -1,7 +1,7 @@
 //! The "x25519" recipient type, native to age.
 
 use age_core::{
-    format::Stanza,
+    format::{FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 use bech32::{FromBase32, ToBase32};
@@ -13,7 +13,7 @@ use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
-use crate::{error::Error, keys::FileKey, util::read::base64_arg};
+use crate::{error::Error, util::read::base64_arg};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";

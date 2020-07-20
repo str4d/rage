@@ -1,8 +1,8 @@
-use age_core::format::Stanza;
+use age_core::format::{FileKey, Stanza};
 use std::fs::File;
 use std::io;
 
-use crate::{error::Error, keys::FileKey, x25519, Identity};
+use crate::{error::Error, x25519, Identity};
 
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
