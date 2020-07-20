@@ -8,6 +8,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Several structs used when implementing the `age::Identity` and
+  `age::Recipient` traits:
+  - `age_core::format::FileKey`
+  - `age_core::format::Stanza`
 - `age_core::primitives::{aead_decrypt, aead_encrypt, hkdf}`, to enable these
   common primitives to be reused in plugins.
 

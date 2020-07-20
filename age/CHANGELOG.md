@@ -29,9 +29,6 @@ to 1.0.0 are beta releases.
     a potentially-armored age file.
   - `age::armor::ArmoredWriter`, which can be wrapped around an output to
     optionally apply the armored age format.
-- Several structs used when implementing the `age::Identity` trait:
-  - `age::FileKey`
-  - `age::RecipientStanza`
 
 ### Changed
 - MSRV is now 1.39.0.
