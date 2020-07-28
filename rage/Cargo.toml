@@ -14,7 +14,7 @@ default-run = "rage"
 [package.metadata.deb]
 name = "rage"
 extended-description = """\
-age is a simple, secure and modern encryption format with small explicit keys, \
+age is a simple, modern, and secure encryption format with small explicit keys, \
 no config options, and UNIX-style composability. rage is a Rust implementation \
 of the age specification."""
 section = "utils"

@@ -1,13 +1,10 @@
 # rage: Rust implementation of age
 
-age is a simple, secure and modern encryption tool with small explicit keys, no
-config options, and UNIX-style composability. The format specification is at
-[age-encryption.org/v1](https://age-encryption.org/v1).
+rage is a simple, modern, and secure file encryption tool, using the *age*
+format. It features small explicit keys, no config options, and UNIX-style
+composability.
 
-rage is a Rust implementation of the age tool. It is pronounced like the Japanese
-[らげ](https://translate.google.com/#view=home&op=translate&sl=ja&tl=en&text=%E3%82%89%E3%81%92)
-(with a hard g).
-
+The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
 To discuss the spec or other age related topics, please email
 [the mailing list](https://groups.google.com/d/forum/age-dev) at
 age-dev@googlegroups.com. age was designed by
@@ -88,8 +85,6 @@ $ rage -r "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIZDRcvS8PnhXr30WKSKmf7WKKi92ACUa
 $ rage -d -i ~/.ssh/id_ed25519 example.png.age > example.png
 ```
 
-`ssh-rsa` support is currently behind the `unstable` feature flag.
-
 Note that SSH key support employs more complex cryptography, and embeds a public
 key tag in the encrypted file, making it possible to track files that are
 encrypted to a specific public key.
@@ -123,6 +118,9 @@ Help from new packagers is very welcome.
 - `mount` enables the `rage-mount` tool, which can mount age-encrypted TAR or
   ZIP archives as read-only. It is currently only usable on Unix systems, as it
   relies on `libfuse`.
+
+- `ssh` (enabled by default) enables support for reusing existing SSH key files
+  for age encryption.
 
 - `unstable` enables in-development functionality. Anything behind this feature
   flag has no stability or interoperability guarantees.
