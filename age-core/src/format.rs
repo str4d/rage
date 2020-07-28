@@ -15,22 +15,24 @@ impl ExposeSecret<[u8; 16]> for FileKey {
     }
 }
 
-/// From the age spec:
-/// ```text
-/// Each recipient stanza starts with a line beginning with -> and its type name, followed
-/// by zero or more SP-separated arguments. The type name and the arguments are arbitrary
-/// strings. Unknown recipient types are ignored. The rest of the recipient stanza is a
-/// body of canonical base64 from RFC 4648 without padding wrapped at exactly 64 columns.
-/// ```
+/// A section of the age header that encapsulates the file key as encrypted to a specific
+/// recipient.
+///
+/// This is the reference type; see [`Stanza`] for the owned type.
 #[derive(Debug)]
 pub struct AgeStanza<'a> {
+    /// A tag identifying this stanza type.
     pub tag: &'a str,
+    /// Zero or more arguments.
     pub args: Vec<&'a str>,
+    /// The body of the stanza, containing a wrapped [`FileKey`].
     pub body: Vec<u8>,
 }
 
 /// A section of the age header that encapsulates the file key as encrypted to a specific
 /// recipient.
+///
+/// This is the owned type; see [`AgeStanza`] for the reference type.
 #[derive(Debug)]
 pub struct Stanza {
     /// A tag identifying this stanza type.
@@ -105,6 +107,15 @@ pub mod read {
     }
 
     /// Reads an age stanza.
+    ///
+    /// From the age spec:
+    /// ```text
+    /// Each recipient stanza starts with a line beginning with -> and its type name,
+    /// followed by zero or more SP-separated arguments. The type name and the arguments
+    /// are arbitrary strings. Unknown recipient types are ignored. The rest of the
+    /// recipient stanza is a body of canonical base64 from RFC 4648 without padding
+    /// wrapped at exactly 64 columns.
+    /// ```
     pub fn age_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
         map(
             pair(
