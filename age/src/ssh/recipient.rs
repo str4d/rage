@@ -1,4 +1,7 @@
-use age_core::primitives::{aead_encrypt, hkdf};
+use age_core::{
+    format::{FileKey, Stanza},
+    primitives::{aead_encrypt, hkdf},
+};
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
     branch::alt,
@@ -18,11 +21,7 @@ use super::{
     read_ssh, ssh_tag, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
 };
-use crate::{
-    format::RecipientStanza,
-    keys::FileKey,
-    util::read::{encoded_str, str_while_encoded},
-};
+use crate::util::read::{encoded_str, str_while_encoded};
 
 /// A key that can be used to encrypt a file to a recipient.
 #[derive(Clone, Debug)]
@@ -71,7 +70,7 @@ impl fmt::Display for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> RecipientStanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
         match self {
             Recipient::SshRsa(ssh_key, pk) => {
                 let mut rng = OsRng;
@@ -87,7 +86,7 @@ impl crate::Recipient for Recipient {
                 let encoded_tag =
                     base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
 
-                RecipientStanza {
+                Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag],
                     body: encrypted_file_key,
@@ -120,7 +119,7 @@ impl crate::Recipient for Recipient {
                     base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
                 let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
-                RecipientStanza {
+                Stanza {
                     tag: SSH_ED25519_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag, encoded_epk],
                     body: encrypted_file_key,

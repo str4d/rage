@@ -1,6 +1,9 @@
 //! The "x25519" recipient type, native to age.
 
-use age_core::primitives::{aead_decrypt, aead_encrypt, hkdf};
+use age_core::{
+    format::{FileKey, Stanza},
+    primitives::{aead_decrypt, aead_encrypt, hkdf},
+};
 use bech32::{FromBase32, ToBase32};
 use rand::rngs::OsRng;
 use secrecy::ExposeSecret;
@@ -10,7 +13,7 @@ use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
-use crate::{error::Error, keys::FileKey, util::read::base64_arg};
+use crate::{error::Error, util::read::base64_arg};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -69,10 +72,7 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(
-        &self,
-        stanza: &crate::format::RecipientStanza,
-    ) -> Option<Result<FileKey, Error>> {
+    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
@@ -134,7 +134,7 @@ impl fmt::Display for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> crate::format::RecipientStanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
@@ -149,7 +149,7 @@ impl crate::Recipient for Recipient {
 
         let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
-        crate::format::RecipientStanza {
+        Stanza {
             tag: X25519_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_epk],
             body: encrypted_file_key,

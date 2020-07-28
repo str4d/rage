@@ -1,13 +1,14 @@
 //! Decryptors for age.
 
+use age_core::format::{FileKey, Stanza};
 use secrecy::SecretString;
 use std::io::Read;
 
 use super::Nonce;
 use crate::{
     error::Error,
-    format::{Header, RecipientStanza},
-    keys::FileKey,
+    format::Header,
+    keys::v1_payload_key,
     primitives::stream::{PayloadKey, Stream, StreamReader},
     scrypt, Identity,
 };
@@ -27,7 +28,7 @@ struct BaseDecryptor<R> {
 impl<R> BaseDecryptor<R> {
     fn obtain_payload_key<F>(&self, filter: F) -> Result<PayloadKey, Error>
     where
-        F: FnMut(&RecipientStanza) -> Option<Result<FileKey, Error>>,
+        F: FnMut(&Stanza) -> Option<Result<FileKey, Error>>,
     {
         match &self.header {
             Header::V1(header) => header
@@ -35,7 +36,7 @@ impl<R> BaseDecryptor<R> {
                 .iter()
                 .find_map(filter)
                 .unwrap_or(Err(Error::NoMatchingKeys))
-                .and_then(|file_key| file_key.v1_payload_key(header, &self.nonce)),
+                .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
             Header::Unknown(_) => unreachable!(),
         }
     }
