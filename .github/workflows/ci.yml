@@ -78,10 +78,8 @@ jobs:
         with:
           command: fetch
       - name: Build for target
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --package age --verbose --no-default-features --target ${{ matrix.target }}
+        working-directory: ./age
+        run: cargo build --verbose --no-default-features --target ${{ matrix.target }}
 
   codecov:
     name: Code coverage
