@@ -13,6 +13,9 @@ to 1.0.0 are beta releases.
 - `ssh` feature flag, enabled by default. It can be disabled to remove support
   for `ssh-rsa` and `ssh-ed25519` recipients and identities.
 
+### Changed
+- MSRV is now 1.41.0.
+
 ## [0.4.0] - 2020-03-25
 ### Added
 - `rage-mount` can now mount ASCII-armored age files.

@@ -1,9 +1,10 @@
 # age-core Rust library
 
-This crate contains common functions used across the `age` crates.
+This crate contains common structs and functions used across the `age` crates.
 
 You are probably looking for the [`age`](https://crates.io/crates/age) crate
-itself.
+itself. You should only need to directly depend on this crate if you are
+implementing a custom recipient type.
 
 ## License
 
