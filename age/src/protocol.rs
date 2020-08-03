@@ -1,5 +1,6 @@
 //! Encryption and decryption routines for age.
 
+use age_core::format::grease_the_joint;
 use rand::{rngs::OsRng, RngCore};
 use secrecy::SecretString;
 use std::io::{self, Read, Write};
@@ -7,7 +8,7 @@ use std::iter;
 
 use crate::{
     error::Error,
-    format::{oil_the_joint, Header, HeaderV1},
+    format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamWriter},
     scrypt, Recipient,
@@ -85,7 +86,7 @@ impl Encryptor {
                 .iter()
                 .map(|key| key.wrap_file_key(&file_key))
                 // Keep the joint well oiled!
-                .chain(iter::once(oil_the_joint()))
+                .chain(iter::once(grease_the_joint()))
                 .collect(),
             EncryptorType::Passphrase(passphrase) => {
                 vec![scrypt::Recipient { passphrase }.wrap_file_key(&file_key)]

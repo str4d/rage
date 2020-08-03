@@ -12,6 +12,8 @@ to 1.0.0 are beta releases.
   `age::Recipient` traits:
   - `age_core::format::FileKey`
   - `age_core::format::Stanza`
+- `age_core::format::grease_the_joint`, for generating a random valid recipient
+  stanza. No other guarantees are made about the stanza's fields.
 - `age_core::primitives::{aead_decrypt, aead_encrypt, hkdf}`, to enable these
   common primitives to be reused in plugins.
 

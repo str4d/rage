@@ -1,10 +1,6 @@
 //! The age file format.
 
 use age_core::format::Stanza;
-use rand::{
-    distributions::{Distribution, Uniform},
-    thread_rng, RngCore,
-};
 use std::io::{self, Read, Write};
 
 use crate::primitives::{HmacKey, HmacWriter};
@@ -16,42 +12,6 @@ const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
 const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
-
-/// Creates a random recipient stanza that exercises the joint in the age v1 format.
-pub(crate) fn oil_the_joint() -> Stanza {
-    // Generate arbitrary strings between 1 and 9 characters long.
-    fn gen_arbitrary_string<R: RngCore>(rng: &mut R) -> String {
-        let length = Uniform::from(1..9).sample(rng);
-        Uniform::from(33..=126)
-            .sample_iter(rng)
-            .map(char::from)
-            .take(length)
-            .collect()
-    }
-
-    let mut rng = thread_rng();
-
-    // Add a prefix to the random tag so users know what is going on.
-    let tag = format!("joint-oil-{}", gen_arbitrary_string(&mut rng));
-
-    // Between this and the above generation bounds, the first line of the recipient
-    // stanza will be between five and 69 characters.
-    let args = (0..Uniform::from(0..5).sample(&mut rng))
-        .map(|_| gen_arbitrary_string(&mut rng))
-        .collect();
-
-    // A length between 0 and 100 bytes exercises the following stanza bodies:
-    // - Empty
-    // - Single short-line
-    // - Single full-line
-    // - Two lines, second short
-    // - Two lines, both full
-    // - Three lines, last short
-    let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
-    rng.fill_bytes(&mut body);
-
-    Stanza { tag, args, body }
-}
 
 pub struct HeaderV1 {
     pub(crate) recipients: Vec<Stanza>,
