@@ -218,15 +218,17 @@ pub mod write {
     }
 
     /// Writes an age stanza.
-    pub fn age_stanza<'a, W: 'a + Write>(
+    pub fn age_stanza<'a, W: 'a + Write, S: AsRef<str>>(
         tag: &'a str,
-        args: &'a [&'a str],
+        args: &'a [S],
         body: &'a [u8],
     ) -> impl SerializeFn<W> + 'a {
         pair(
             separated_list(
                 string(" "),
-                iter::once(tag).chain(args.iter().copied()).map(string),
+                iter::once(tag)
+                    .chain(args.iter().map(|s| s.as_ref()))
+                    .map(string),
             ),
             cond(
                 !body.is_empty(),

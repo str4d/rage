@@ -19,6 +19,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.41.0.
+- `age_core::format::write::age_stanza` now takes `args: &[impl AsRef<str>]`.
 
 ## [0.4.0] - 2020-03-25
 No changes; version bumped to keep it in sync with `age`.
