@@ -4,7 +4,7 @@ use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
-use bech32::{FromBase32, ToBase32};
+use bech32::ToBase32;
 use rand::rngs::OsRng;
 use secrecy::ExposeSecret;
 use secrecy::SecretString;
@@ -13,7 +13,10 @@ use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
-use crate::{error::Error, util::read::base64_arg};
+use crate::{
+    error::Error,
+    util::{parse_bech32, read::base64_arg},
+};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -25,22 +28,28 @@ const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
-fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static str>> {
-    bech32::decode(s).ok().map(|(hrp, data)| {
-        if hrp == expected_hrp.to_lowercase() {
-            if let Ok(bytes) = Vec::from_base32(&data) {
-                bytes[..].try_into().map_err(|_| "incorrect pubkey length")
-            } else {
-                Err("incorrect Bech32 data padding")
-            }
-        } else {
-            Err("incorrect HRP")
-        }
-    })
-}
-
 /// A secret key for decrypting an age file.
 pub struct Identity(StaticSecret);
+
+impl std::str::FromStr for Identity {
+    type Err = &'static str;
+
+    /// Parses an X25519 identity from a string.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_bech32(s)
+            .ok_or("invalid Bech32 encoding")
+            .and_then(|(hrp, bytes)| {
+                if hrp == SECRET_KEY_PREFIX {
+                    TryInto::<[u8; 32]>::try_into(&bytes[..])
+                        .map_err(|_| "incorrect identity length")
+                        .map(StaticSecret::from)
+                        .map(Identity)
+                } else {
+                    Err("incorrect HRP")
+                }
+            })
+    }
+}
 
 impl Identity {
     /// Generates a new secret key.
@@ -116,10 +125,18 @@ impl std::str::FromStr for Recipient {
 
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s, PUBLIC_KEY_PREFIX)
-            .ok_or("Invalid Bech32 encoding")?
-            .map(PublicKey::from)
-            .map(Recipient)
+        parse_bech32(s)
+            .ok_or("invalid Bech32 encoding")
+            .and_then(|(hrp, bytes)| {
+                if hrp == PUBLIC_KEY_PREFIX {
+                    TryInto::<[u8; 32]>::try_into(&bytes[..])
+                        .map_err(|_| "incorrect pubkey length")
+                        .map(PublicKey::from)
+                        .map(Recipient)
+                } else {
+                    Err("incorrect HRP")
+                }
+            })
     }
 }
 
@@ -158,19 +175,12 @@ impl crate::Recipient for Recipient {
 }
 
 pub(crate) mod read {
-    use nom::{
-        bytes::streaming::take,
-        combinator::{map_opt, map_res},
-        IResult,
-    };
+    use nom::{bytes::streaming::take, combinator::map_res, IResult};
 
     use super::*;
 
     pub(crate) fn age_secret_key(input: &str) -> IResult<&str, Identity> {
-        map_res(
-            map_opt(take(74u32), |buf| parse_bech32(buf, SECRET_KEY_PREFIX)),
-            |pk| pk.map(StaticSecret::from).map(Identity),
-        )(input)
+        map_res(take(74u32), |buf: &str| buf.parse::<Identity>())(input)
     }
 }
 

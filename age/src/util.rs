@@ -1,7 +1,15 @@
+use bech32::FromBase32;
+
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
 #[cfg(all(any(feature = "armor", feature = "cli-common"), not(windows)))]
 pub(crate) const LINE_ENDING: &str = "\n";
+
+pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
+    bech32::decode(s)
+        .ok()
+        .and_then(|(hrp, data)| Vec::from_base32(&data).ok().map(|d| (hrp, d)))
+}
 
 pub(crate) mod read {
     #[cfg(feature = "ssh")]
