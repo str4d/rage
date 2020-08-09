@@ -163,7 +163,25 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>>;
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>>;
+
+    /// Attempts to unwrap any of the given stanzas, which are assumed to come from the
+    /// same age file header, and therefore contain the same file key.
+    ///
+    /// This method is part of the `Identity` trait to expose age's [one joint] for
+    /// external implementations. You should not need to call this directly; instead, pass
+    /// identities to [`RecipientsDecryptor::decrypt`].
+    ///
+    /// Returns:
+    /// - `Some(Ok(file_key))` on success.
+    /// - `Some(Err(e))` if a decryption error occurs.
+    /// - `None` if none of the recipient stanzas match this identity.
+    ///
+    /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
+    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
+    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, Error>> {
+        stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
+    }
 }
 
 /// A public key or other value that can wrap an opaque file key to a recipient stanza.

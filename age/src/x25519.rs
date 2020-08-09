@@ -81,7 +81,7 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
@@ -225,7 +225,7 @@ pub(crate) mod tests {
         };
 
         let stanza = Recipient(PublicKey::from(&sk)).wrap_file_key(&file_key);
-        let res = Identity(sk).unwrap_file_key(&stanza);
+        let res = Identity(sk).unwrap_stanzas(&[stanza]);
 
         match res {
             Some(Ok(res)) => TestResult::from_bool(res.expose_secret() == file_key.expose_secret()),

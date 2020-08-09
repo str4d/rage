@@ -26,15 +26,12 @@ struct BaseDecryptor<R> {
 }
 
 impl<R> BaseDecryptor<R> {
-    fn obtain_payload_key<F>(&self, filter: F) -> Result<PayloadKey, Error>
+    fn obtain_payload_key<F>(&self, mut filter: F) -> Result<PayloadKey, Error>
     where
-        F: FnMut(&Stanza) -> Option<Result<FileKey, Error>>,
+        F: FnMut(&[Stanza]) -> Option<Result<FileKey, Error>>,
     {
         match &self.header {
-            Header::V1(header) => header
-                .recipients
-                .iter()
-                .find_map(filter)
+            Header::V1(header) => filter(&header.recipients)
                 .unwrap_or(Err(Error::NoMatchingKeys))
                 .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
             Header::Unknown(_) => unreachable!(),
@@ -59,7 +56,7 @@ impl<R> RecipientsDecryptor<R> {
         mut identities: impl Iterator<Item = Box<dyn Identity>>,
     ) -> Result<PayloadKey, Error> {
         self.0
-            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_file_key(r)))
+            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_stanzas(r)))
     }
 }
 
@@ -113,7 +110,7 @@ impl<R> PassphraseDecryptor<R> {
             max_work_factor,
         };
 
-        self.0.obtain_payload_key(|r| identity.unwrap_file_key(r))
+        self.0.obtain_payload_key(|r| identity.unwrap_stanzas(r))
     }
 }
 

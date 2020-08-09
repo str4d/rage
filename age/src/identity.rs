@@ -57,10 +57,16 @@ impl IdentityFile {
 }
 
 impl Identity for IdentityFile {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         self.identities
             .iter()
-            .find_map(|identity| identity.unwrap_file_key(stanza))
+            .find_map(|identity| identity.unwrap_stanza(stanza))
+    }
+
+    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, Error>> {
+        self.identities
+            .iter()
+            .find_map(|identity| identity.unwrap_stanzas(stanzas))
     }
 }
 

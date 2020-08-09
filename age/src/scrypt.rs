@@ -91,7 +91,7 @@ pub(crate) struct Identity<'a> {
 }
 
 impl<'a> crate::Identity for Identity<'a> {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
         }
