@@ -40,6 +40,7 @@ to 1.0.0 are beta releases.
     it abstracts over `age::IdentityFile` and `age::ssh::Identity`. When the
     `ssh` feature flag is enabled, it also takes an `unsupported_ssh` argument
     for handling unsupported SSH identities.
+  - `age::Error` has been renamed to `age::DecryptError`.
 - Changes due to explicit armoring support:
   - `age::Encryptor::wrap_output` now only generates the non-malleable binary
     age format. To optionally generate armored age files, use

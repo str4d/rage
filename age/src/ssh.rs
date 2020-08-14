@@ -10,7 +10,7 @@ use bcrypt_pbkdf::bcrypt_pbkdf;
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
 
-use crate::error::Error;
+use crate::error::DecryptError;
 
 pub(crate) mod identity;
 pub(crate) mod recipient;
@@ -47,7 +47,12 @@ enum OpenSshCipher {
 }
 
 impl OpenSshCipher {
-    fn decrypt(self, kdf: &OpenSshKdf, p: SecretString, ct: &[u8]) -> Result<Vec<u8>, Error> {
+    fn decrypt(
+        self,
+        kdf: &OpenSshKdf,
+        p: SecretString,
+        ct: &[u8],
+    ) -> Result<Vec<u8>, DecryptError> {
         match self {
             OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256>(kdf, p, ct, 32),
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
@@ -87,7 +92,10 @@ pub struct EncryptedKey {
 
 impl EncryptedKey {
     /// Decrypts this private key.
-    pub fn decrypt(&self, passphrase: SecretString) -> Result<identity::UnencryptedKey, Error> {
+    pub fn decrypt(
+        &self,
+        passphrase: SecretString,
+    ) -> Result<identity::UnencryptedKey, DecryptError> {
         let decrypted = self
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
@@ -95,7 +103,7 @@ impl EncryptedKey {
         let parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
         parser(&decrypted)
             .map(|(_, sk)| sk)
-            .map_err(|_| Error::KeyDecryptionFailed)
+            .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 }
 
@@ -106,21 +114,21 @@ mod decrypt {
     use secrecy::SecretString;
 
     use super::OpenSshKdf;
-    use crate::error::Error;
+    use crate::error::DecryptError;
 
     pub(super) fn aes_cbc<C: BlockCipher + NewBlockCipher>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
         key_len: usize,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<Vec<u8>, DecryptError> {
         let kdf_output = kdf.derive(passphrase, key_len + 16);
         let (key, iv) = kdf_output.split_at(key_len);
 
         let cipher = Cbc::<C, NoPadding>::new_var(key, iv).expect("key and IV are correct length");
         cipher
             .decrypt_vec(&ciphertext)
-            .map_err(|_| Error::KeyDecryptionFailed)
+            .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 
     pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(

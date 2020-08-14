@@ -25,7 +25,7 @@ use super::{
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
 };
 use crate::{
-    error::Error,
+    error::DecryptError,
     protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
 };
@@ -43,7 +43,7 @@ impl UnencryptedKey {
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
     /// - `None` if the [`Stanza`] does not match this key.
-    pub(crate) fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    pub(crate) fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
                 let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
@@ -61,7 +61,7 @@ impl UnencryptedKey {
                         PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                         &stanza.body,
                     )
-                    .map_err(Error::from)
+                    .map_err(DecryptError::from)
                     .map(|mut pt| {
                         // It's ours!
                         let file_key: [u8; 16] = pt[..].try_into().unwrap();
@@ -76,7 +76,7 @@ impl UnencryptedKey {
                     return None;
                 }
                 if stanza.body.len() != crate::x25519::ENCRYPTED_FILE_KEY_BYTES {
-                    return Some(Err(Error::InvalidHeader));
+                    return Some(Err(DecryptError::InvalidHeader));
                 }
 
                 let epk =
@@ -109,7 +109,7 @@ impl UnencryptedKey {
                 // encounter 32-bit collisions on the key tag embedded in the header.
                 Some(
                     aead_decrypt(&enc_key, &stanza.body)
-                        .map_err(Error::from)
+                        .map_err(DecryptError::from)
                         .map(|mut pt| {
                             // It's ours!
                             let file_key: [u8; 16] = pt[..].try_into().unwrap();
@@ -268,7 +268,7 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match self {
             Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(_) | Identity::Unsupported(_) => None,
@@ -282,7 +282,7 @@ struct DecryptableIdentity<C: Callbacks> {
 }
 
 impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
-    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match &self.identity {
             Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(enc) => {

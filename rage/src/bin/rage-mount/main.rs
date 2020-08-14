@@ -17,7 +17,7 @@ mod tar;
 mod zip;
 
 enum Error {
-    Age(age::Error),
+    Age(age::DecryptError),
     IdentityNotFound(String),
     Io(io::Error),
     MissingFilename,
@@ -28,8 +28,8 @@ enum Error {
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
-impl From<age::Error> for Error {
-    fn from(e: age::Error) -> Self {
+impl From<age::DecryptError> for Error {
+    fn from(e: age::DecryptError) -> Self {
         Error::Age(e)
     }
 }
@@ -46,7 +46,7 @@ impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Age(e) => match e {
-                age::Error::ExcessiveWork { required, .. } => {
+                age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
                     write!(f, "To decrypt, retry with --max-work-factor {}", required)
                 }

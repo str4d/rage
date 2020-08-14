@@ -5,7 +5,7 @@ use rand::{rngs::OsRng, RngCore};
 use secrecy::{ExposeSecret, Secret};
 
 use crate::{
-    error::Error,
+    error::DecryptError,
     format::HeaderV1,
     primitives::{stream::PayloadKey, HmacKey},
     protocol::Nonce,
@@ -32,7 +32,7 @@ pub(crate) fn v1_payload_key(
     file_key: &FileKey,
     header: &HeaderV1,
     nonce: &Nonce,
-) -> Result<PayloadKey, Error> {
+) -> Result<PayloadKey, DecryptError> {
     // Verify the MAC
     header.verify_mac(mac_key(file_key))?;
 

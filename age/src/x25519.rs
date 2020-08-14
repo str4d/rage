@@ -14,7 +14,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
 use crate::{
-    error::Error,
+    error::DecryptError,
     util::{parse_bech32, read::base64_arg},
 };
 
@@ -81,12 +81,12 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
-            return Some(Err(Error::InvalidHeader));
+            return Some(Err(DecryptError::InvalidHeader));
         }
 
         let epk: PublicKey = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?.into();

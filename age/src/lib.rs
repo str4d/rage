@@ -31,7 +31,7 @@
 //! use std::io::{Read, Write};
 //! use std::iter;
 //!
-//! # fn run_main() -> Result<(), age::Error> {
+//! # fn run_main() -> Result<(), age::DecryptError> {
 //! let key = age::x25519::Identity::generate();
 //! let pubkey = key.to_public();
 //!
@@ -77,7 +77,7 @@
 //! use secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
-//! # fn run_main() -> Result<(), age::Error> {
+//! # fn run_main() -> Result<(), age::DecryptError> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
@@ -129,7 +129,7 @@ mod scrypt;
 mod util;
 pub mod x25519;
 
-pub use error::Error;
+pub use error::DecryptError;
 pub use identity::IdentityFile;
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
@@ -163,7 +163,7 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>>;
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>>;
 
     /// Attempts to unwrap any of the given stanzas, which are assumed to come from the
     /// same age file header, and therefore contain the same file key.
@@ -179,7 +179,7 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
         stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
     }
 }

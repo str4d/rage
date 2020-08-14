@@ -7,7 +7,7 @@ use std::io::{self, Read, Write};
 use std::iter;
 
 use crate::{
-    error::Error,
+    error::DecryptError,
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamWriter},
@@ -155,7 +155,7 @@ impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
 }
 
 impl<R> Decryptor<R> {
-    fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, Error> {
+    fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
         let any_scrypt = header
             .recipients
@@ -167,7 +167,7 @@ impl<R> Decryptor<R> {
         } else if !any_scrypt {
             Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
         } else {
-            Err(Error::InvalidHeader)
+            Err(DecryptError::InvalidHeader)
         }
     }
 }
@@ -176,7 +176,7 @@ impl<R: Read> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
-    pub fn new(mut input: R) -> Result<Self, Error> {
+    pub fn new(mut input: R) -> Result<Self, DecryptError> {
         let header = Header::read(&mut input)?;
 
         match header {
@@ -184,7 +184,7 @@ impl<R: Read> Decryptor<R> {
                 let nonce = Nonce::read(&mut input)?;
                 Decryptor::from_v1_header(input, v1_header, nonce)
             }
-            Header::Unknown(_) => Err(Error::UnknownFormat),
+            Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
     }
 }
@@ -194,7 +194,7 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
-    pub async fn new_async(mut input: R) -> Result<Self, Error> {
+    pub async fn new_async(mut input: R) -> Result<Self, DecryptError> {
         let header = Header::read_async(&mut input).await?;
 
         match header {
@@ -202,7 +202,7 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
                 let nonce = Nonce::read_async(&mut input).await?;
                 Decryptor::from_v1_header(input, v1_header, nonce)
             }
-            Header::Unknown(_) => Err(Error::UnknownFormat),
+            Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
     }
 }

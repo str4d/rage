@@ -65,7 +65,7 @@ impl fmt::Display for EncryptError {
 }
 
 pub(crate) enum DecryptError {
-    Age(age::Error),
+    Age(age::DecryptError),
     ArmorFlag,
     IdentityNotFound(String),
     Io(io::Error),
@@ -79,8 +79,8 @@ pub(crate) enum DecryptError {
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
-impl From<age::Error> for DecryptError {
-    fn from(e: age::Error) -> Self {
+impl From<age::DecryptError> for DecryptError {
+    fn from(e: age::DecryptError) -> Self {
         DecryptError::Age(e)
     }
 }
@@ -95,7 +95,7 @@ impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecryptError::Age(e) => match e {
-                age::Error::ExcessiveWork { required, .. } => {
+                age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
                     write!(f, "To decrypt, retry with --max-work-factor {}", required)
                 }
