@@ -65,7 +65,7 @@ pub(crate) struct Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError> {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
@@ -81,11 +81,11 @@ impl crate::Recipient for Recipient {
 
         let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
 
-        Ok(Stanza {
+        Ok(vec![Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_salt, format!("{}", log_n)],
             body: encrypted_file_key,
-        })
+        }])
     }
 }
 

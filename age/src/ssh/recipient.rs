@@ -73,7 +73,7 @@ impl fmt::Display for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError> {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         match self {
             Recipient::SshRsa(ssh_key, pk) => {
                 let mut rng = OsRng;
@@ -89,11 +89,11 @@ impl crate::Recipient for Recipient {
                 let encoded_tag =
                     base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
 
-                Ok(Stanza {
+                Ok(vec![Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag],
                     body: encrypted_file_key,
-                })
+                }])
             }
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
@@ -122,11 +122,11 @@ impl crate::Recipient for Recipient {
                     base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
                 let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
-                Ok(Stanza {
+                Ok(vec![Stanza {
                     tag: SSH_ED25519_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag, encoded_epk],
                     body: encrypted_file_key,
-                })
+                }])
             }
         }
     }

@@ -4,7 +4,6 @@ use age_core::format::grease_the_joint;
 use rand::{rngs::OsRng, RngCore};
 use secrecy::SecretString;
 use std::io::{self, Read, Write};
-use std::iter;
 
 use crate::{
     error::{DecryptError, EncryptError},
@@ -82,14 +81,17 @@ impl Encryptor {
         let file_key = new_file_key();
 
         let recipients = match self.0 {
-            EncryptorType::Keys(recipients) => recipients
-                .iter()
-                .map(|key| key.wrap_file_key(&file_key))
+            EncryptorType::Keys(recipients) => {
+                let mut stanzas = Vec::with_capacity(recipients.len() + 1);
+                for recipient in recipients {
+                    stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
+                }
                 // Keep the joint well oiled!
-                .chain(iter::once(Ok(grease_the_joint())))
-                .collect::<Result<Vec<_>, _>>()?,
+                stanzas.push(grease_the_joint());
+                stanzas
+            }
             EncryptorType::Passphrase(passphrase) => {
-                vec![scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?]
+                scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?
             }
         };
 

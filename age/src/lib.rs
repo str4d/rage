@@ -205,16 +205,19 @@ pub trait Identity {
 }
 
 /// A public key or other value that can wrap an opaque file key to a recipient stanza.
+///
+/// Implementations of this trait might represent more than one recipient.
 pub trait Recipient {
-    /// Wraps the given file key for this recipient, returning a stanza to be placed in an
-    /// age file header.
+    /// Wraps the given file key, returning stanzas to be placed in an age file header.
+    ///
+    /// Implementations MUST NOT return more than one stanza per "actual recipient".
     ///
     /// This method is part of the `Recipient` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError>;
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError>;
 }
 
 /// Helper for fuzzing the Header parser and serializer.
