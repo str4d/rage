@@ -16,6 +16,7 @@ to 1.0.0 are beta releases.
 - Separate modules and structs for different recipient types:
   - `age::x25519`
   - `age::ssh` (behind the `ssh` feature flag).
+- `age::EncryptError`, representing errors that can occur during encryption.
 - `age::IdentityFile` struct, for parsing a list of native age identities
   (currently only `age::x25519::Identity`) from a file.
 - Asynchronous APIs for encryption and decryption, enabled by the `async`

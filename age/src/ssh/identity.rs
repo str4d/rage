@@ -419,7 +419,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key);
+        let wrapped = pk.wrap_file_key(&file_key).unwrap();
         let unwrapped = identity.unwrap_stanzas(&[wrapped]);
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),
@@ -439,7 +439,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 
         let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key);
+        let wrapped = pk.wrap_file_key(&file_key).unwrap();
         let unwrapped = identity.unwrap_stanzas(&[wrapped]);
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),

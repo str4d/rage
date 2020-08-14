@@ -8,7 +8,11 @@ use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
-use crate::{error::DecryptError, primitives::scrypt, util::read::base64_arg};
+use crate::{
+    error::{DecryptError, EncryptError},
+    primitives::scrypt,
+    util::read::base64_arg,
+};
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
@@ -61,7 +65,7 @@ pub(crate) struct Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError> {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
@@ -77,11 +81,11 @@ impl crate::Recipient for Recipient {
 
         let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
 
-        Stanza {
+        Ok(Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_salt, format!("{}", log_n)],
             body: encrypted_file_key,
-        }
+        })
     }
 }
 

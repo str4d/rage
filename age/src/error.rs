@@ -3,6 +3,27 @@
 use std::fmt;
 use std::io;
 
+/// The various errors that can be returned during the encryption process.
+#[derive(Debug)]
+pub enum EncryptError {
+    /// An I/O error occurred during decryption.
+    Io(io::Error),
+}
+
+impl From<io::Error> for EncryptError {
+    fn from(e: io::Error) -> Self {
+        EncryptError::Io(e)
+    }
+}
+
+impl fmt::Display for EncryptError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EncryptError::Io(e) => e.fmt(f),
+        }
+    }
+}
+
 /// The various errors that can be returned during the decryption process.
 #[derive(Debug)]
 pub enum DecryptError {

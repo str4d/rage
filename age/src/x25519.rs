@@ -14,7 +14,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
 use crate::{
-    error::DecryptError,
+    error::{DecryptError, EncryptError},
     util::{parse_bech32, read::base64_arg},
 };
 
@@ -151,7 +151,7 @@ impl fmt::Display for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError> {
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
@@ -166,11 +166,11 @@ impl crate::Recipient for Recipient {
 
         let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
-        Stanza {
+        Ok(Stanza {
             tag: X25519_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_epk],
             body: encrypted_file_key,
-        }
+        })
     }
 }
 
@@ -224,7 +224,9 @@ pub(crate) mod tests {
             StaticSecret::from(tmp)
         };
 
-        let stanza = Recipient(PublicKey::from(&sk)).wrap_file_key(&file_key);
+        let stanza = Recipient(PublicKey::from(&sk))
+            .wrap_file_key(&file_key)
+            .unwrap();
         let res = Identity(sk).unwrap_stanzas(&[stanza]);
 
         match res {

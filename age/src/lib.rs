@@ -31,13 +31,14 @@
 //! use std::io::{Read, Write};
 //! use std::iter;
 //!
-//! # fn run_main() -> Result<(), age::DecryptError> {
+//! # fn run_main() -> Result<(), ()> {
 //! let key = age::x25519::Identity::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
 //!
 //! // Encrypt the plaintext to a ciphertext...
+//! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_recipients(vec![Box::new(pubkey)]);
 //!
@@ -48,8 +49,11 @@
 //!
 //!     encrypted
 //! };
+//! # Ok(encrypted)
+//! # }
 //!
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
+//! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
 //!         age::Decryptor::Recipients(d) => d,
@@ -63,6 +67,12 @@
 //!
 //!     decrypted
 //! };
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     key,
+//! #     encrypt(pubkey, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
@@ -77,11 +87,12 @@
 //! use secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
-//! # fn run_main() -> Result<(), age::DecryptError> {
+//! # fn run_main() -> Result<(), ()> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
+//! # fn encrypt(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
 //!
@@ -92,8 +103,11 @@
 //!
 //!     encrypted
 //! };
+//! # Ok(encrypted)
+//! # }
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
+//! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
 //!         age::Decryptor::Passphrase(d) => d,
@@ -106,6 +120,12 @@
 //!
 //!     decrypted
 //! };
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     passphrase,
+//! #     encrypt(passphrase, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
@@ -129,7 +149,7 @@ mod scrypt;
 mod util;
 pub mod x25519;
 
-pub use error::DecryptError;
+pub use error::{DecryptError, EncryptError};
 pub use identity::IdentityFile;
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
@@ -194,7 +214,7 @@ pub trait Recipient {
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza;
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Stanza, EncryptError>;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

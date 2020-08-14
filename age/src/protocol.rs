@@ -7,7 +7,7 @@ use std::io::{self, Read, Write};
 use std::iter;
 
 use crate::{
-    error::DecryptError,
+    error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamWriter},
@@ -78,7 +78,7 @@ impl Encryptor {
     }
 
     /// Creates the header for this age file.
-    fn prepare_header(self) -> (Header, Nonce, PayloadKey) {
+    fn prepare_header(self) -> Result<(Header, Nonce, PayloadKey), EncryptError> {
         let file_key = new_file_key();
 
         let recipients = match self.0 {
@@ -86,10 +86,10 @@ impl Encryptor {
                 .iter()
                 .map(|key| key.wrap_file_key(&file_key))
                 // Keep the joint well oiled!
-                .chain(iter::once(grease_the_joint()))
-                .collect(),
+                .chain(iter::once(Ok(grease_the_joint())))
+                .collect::<Result<Vec<_>, _>>()?,
             EncryptorType::Passphrase(passphrase) => {
-                vec![scrypt::Recipient { passphrase }.wrap_file_key(&file_key)]
+                vec![scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?]
             }
         };
 
@@ -97,7 +97,7 @@ impl Encryptor {
         let nonce = Nonce::random();
         let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 
-        (Header::V1(header), nonce, payload_key)
+        Ok((Header::V1(header), nonce, payload_key))
     }
 
     /// Creates a wrapper around a writer that will encrypt its input.
@@ -107,8 +107,8 @@ impl Encryptor {
     /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
-    pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
-        let (header, nonce, payload_key) = self.prepare_header();
+    pub fn wrap_output<W: Write>(self, mut output: W) -> Result<StreamWriter<W>, EncryptError> {
+        let (header, nonce, payload_key) = self.prepare_header()?;
         header.write(&mut output)?;
         output.write_all(nonce.as_ref())?;
         Ok(Stream::encrypt(payload_key, output))
@@ -126,8 +126,8 @@ impl Encryptor {
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
         self,
         mut output: W,
-    ) -> io::Result<StreamWriter<W>> {
-        let (header, nonce, payload_key) = self.prepare_header();
+    ) -> Result<StreamWriter<W>, EncryptError> {
+        let (header, nonce, payload_key) = self.prepare_header()?;
         header.write_async(&mut output).await?;
         output.write_all(nonce.as_ref()).await?;
         Ok(Stream::encrypt_async(payload_key, output))

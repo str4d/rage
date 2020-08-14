@@ -14,6 +14,14 @@ pub(crate) enum EncryptError {
     UnknownAlias(String),
 }
 
+impl From<age::EncryptError> for EncryptError {
+    fn from(e: age::EncryptError) -> Self {
+        match e {
+            age::EncryptError::Io(e) => EncryptError::Io(e),
+        }
+    }
+}
+
 impl From<io::Error> for EncryptError {
     fn from(e: io::Error) -> Self {
         EncryptError::Io(e)
