@@ -17,83 +17,29 @@ impl IdentityFile {
     }
 
     /// Parses one or more identities from a buffered input containing valid UTF-8.
-    pub fn from_buffer<R: io::BufRead>(mut data: R) -> io::Result<Self> {
-        let mut buf = String::new();
-        loop {
-            match read::age_secret_keys(&buf) {
-                Ok((_, identities)) => {
-                    // Ensure we've found all identities in the file
-                    if data.read_line(&mut buf)? == 0 {
-                        break Ok(IdentityFile { identities });
-                    }
-                }
-                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
-                    if data.read_line(&mut buf)? == 0 {
-                        break Err(io::Error::new(
-                            io::ErrorKind::Interrupted,
-                            "incomplete secret keys in file",
-                        ));
-                    };
-                }
-                Err(_) => {
-                    break Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid secret key file",
-                    ));
-                }
+    pub fn from_buffer<R: io::BufRead>(data: R) -> io::Result<Self> {
+        let mut identities = vec![];
+        for line in data.lines() {
+            let line = line?;
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            if let Ok(identity) = line.parse::<x25519::Identity>() {
+                identities.push(identity);
+            } else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid identity file",
+                ));
             }
         }
+        Ok(IdentityFile { identities })
     }
 
     /// Returns the identities in this file.
     pub fn into_identities(self) -> Vec<x25519::Identity> {
         self.identities
-    }
-}
-
-mod read {
-    use nom::{
-        branch::alt,
-        bytes::streaming::tag,
-        character::complete::{line_ending, not_line_ending},
-        combinator::{all_consuming, iterator, map, map_parser, rest},
-        sequence::{terminated, tuple},
-        IResult,
-    };
-
-    use crate::x25519;
-
-    fn age_secret_keys_line(input: &str) -> IResult<&str, Option<x25519::Identity>> {
-        alt((
-            // Skip empty lines
-            map(all_consuming(tag("")), |_| None),
-            // Skip comments
-            map(all_consuming(tuple((tag("#"), rest))), |_| None),
-            // All other lines must be valid age secret keys.
-            map(all_consuming(x25519::read::age_secret_key), Some),
-        ))(input)
-    }
-
-    pub(super) fn age_secret_keys(input: &str) -> IResult<&str, Vec<x25519::Identity>> {
-        // Parse all lines that have line endings.
-        let mut it = iterator(
-            input,
-            terminated(
-                map_parser(not_line_ending, age_secret_keys_line),
-                line_ending,
-            ),
-        );
-        let mut keys: Vec<_> = it.filter_map(|x| x).collect();
-
-        it.finish().and_then(|(i, _)| {
-            // Handle the last line, which does not have a line ending.
-            age_secret_keys_line(i).map(|(i, res)| {
-                if let Some(k) = res {
-                    keys.push(k);
-                }
-                (i, keys)
-            })
-        })
     }
 }
 

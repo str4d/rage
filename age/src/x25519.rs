@@ -174,16 +174,6 @@ impl crate::Recipient for Recipient {
     }
 }
 
-pub(crate) mod read {
-    use nom::{bytes::streaming::take, combinator::map_res, IResult};
-
-    use super::*;
-
-    pub(crate) fn age_secret_key(input: &str) -> IResult<&str, Identity> {
-        map_res(take(74u32), |buf: &str| buf.parse::<Identity>())(input)
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use quickcheck::TestResult;
@@ -191,7 +181,7 @@ pub(crate) mod tests {
     use secrecy::ExposeSecret;
     use x25519_dalek::{PublicKey, StaticSecret};
 
-    use super::{read::age_secret_key, Identity, Recipient};
+    use super::{Identity, Recipient};
     use crate::{Identity as _, Recipient as _};
 
     pub(crate) const TEST_SK: &str =
@@ -207,7 +197,7 @@ pub(crate) mod tests {
 
     #[test]
     fn pubkey_from_secret_key() {
-        let (_, key) = age_secret_key(TEST_SK).unwrap();
+        let key = TEST_SK.parse::<Identity>().unwrap();
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
