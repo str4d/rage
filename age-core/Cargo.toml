@@ -34,5 +34,8 @@ nom = "5"
 # Secret management
 secrecy = "0.7"
 
+[features]
+plugin = []
+
 [lib]
 bench = false
