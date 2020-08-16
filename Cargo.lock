@@ -97,6 +97,7 @@ dependencies = [
  "secrecy",
  "sha2",
  "subtle",
+ "which",
  "x25519-dalek",
  "zeroize",
 ]
@@ -120,6 +121,7 @@ dependencies = [
 name = "age-plugin"
 version = "0.0.0"
 dependencies = [
+ "age-core",
  "bech32",
  "chrono",
 ]

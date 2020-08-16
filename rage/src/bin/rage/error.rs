@@ -15,6 +15,7 @@ macro_rules! wlnfl {
 }
 
 pub(crate) enum EncryptError {
+    Age(age::EncryptError),
     BrokenPipe { is_stdout: bool, source: io::Error },
     IdentityFlag,
     InvalidRecipient(String),
@@ -31,6 +32,7 @@ impl From<age::EncryptError> for EncryptError {
     fn from(e: age::EncryptError) -> Self {
         match e {
             age::EncryptError::Io(e) => EncryptError::Io(e),
+            _ => EncryptError::Age(e),
         }
     }
 }
@@ -50,6 +52,7 @@ impl From<minreq::Error> for EncryptError {
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EncryptError::Age(e) => write!(f, "{}", e),
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
                     writeln!(

@@ -164,6 +164,10 @@ pub mod cli_common;
 mod i18n;
 pub use i18n::localizer;
 
+#[cfg(feature = "plugin")]
+#[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+pub mod plugin;
+
 #[cfg(feature = "ssh")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;

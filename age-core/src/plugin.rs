@@ -7,6 +7,8 @@ use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 
 use crate::format::{grease_the_joint, read, write, Stanza};
 
+pub const RECIPIENT_V1: &str = "recipient-v1";
+
 const COMMAND_DONE: &str = "done";
 const RESPONSE_OK: &str = "ok";
 const RESPONSE_FAIL: &str = "fail";

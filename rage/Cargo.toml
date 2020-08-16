@@ -43,7 +43,7 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 # rage and rage-keygen dependencies
-age = { version = "0.5.0", path = "../age", features = ["armor", "cli-common"] }
+age = { version = "0.5.0", path = "../age", features = ["armor", "cli-common", "plugin"] }
 chrono = "0.4"
 console = "0.13"
 env_logger = "0.8"
