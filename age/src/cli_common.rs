@@ -31,13 +31,11 @@ pub fn get_config_dir() -> Option<PathBuf> {
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-#[rustfmt::skip]
 pub fn read_identities<E, F, G>(
     filenames: Vec<String>,
     no_default: F,
     file_not_found: G,
-    #[cfg(feature = "ssh")]
-    unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
+    #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
 ) -> Result<Vec<Box<dyn Identity>>, E>
 where
     E: From<io::Error>,
@@ -57,8 +55,13 @@ where
             io::ErrorKind::NotFound => no_default(default_filename.to_str().unwrap_or("")),
             _ => e.into(),
         })?;
-        let buf = BufReader::new(f);
-        identities.push(Box::new(IdentityFile::from_buffer(buf)?));
+        let identity_file = IdentityFile::from_buffer(BufReader::new(f))?;
+        identities.extend(
+            identity_file
+                .into_identities()
+                .into_iter()
+                .map(|i| Box::new(i) as Box<dyn Identity>),
+        );
     } else {
         for filename in filenames {
             // Try parsing as a single multi-line SSH identity.
@@ -78,12 +81,17 @@ where
             }
 
             // Try parsing as multiple single-line age identities.
-            identities.push(Box::new(
+            let identity_file =
                 IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
                     io::ErrorKind::NotFound => file_not_found(filename),
                     _ => e.into(),
-                })?,
-            ));
+                })?;
+            identities.extend(
+                identity_file
+                    .into_identities()
+                    .into_iter()
+                    .map(|i| Box::new(i) as Box<dyn Identity>),
+            );
         }
     }
 

@@ -1,26 +1,19 @@
-use age_core::format::{FileKey, Stanza};
 use std::fs::File;
 use std::io;
 
-use crate::{error::Error, x25519, Identity};
+use crate::x25519;
 
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
-    /// The name of the identity file, if known.
-    filename: Option<String>,
     identities: Vec<x25519::Identity>,
 }
 
 impl IdentityFile {
     /// Parses one or more identities from a file containing valid UTF-8.
     pub fn from_file(filename: String) -> io::Result<Self> {
-        let buf = io::BufReader::new(File::open(filename.clone())?);
-        let mut keys = IdentityFile::from_buffer(buf)?;
-
-        // We have context here about the filename.
-        keys.filename = Some(filename.clone());
-
-        Ok(keys)
+        File::open(filename)
+            .map(io::BufReader::new)
+            .and_then(IdentityFile::from_buffer)
     }
 
     /// Parses one or more identities from a buffered input containing valid UTF-8.
@@ -31,10 +24,7 @@ impl IdentityFile {
                 Ok((_, identities)) => {
                     // Ensure we've found all identities in the file
                     if data.read_line(&mut buf)? == 0 {
-                        break Ok(IdentityFile {
-                            filename: None,
-                            identities,
-                        });
+                        break Ok(IdentityFile { identities });
                     }
                 }
                 Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
@@ -54,19 +44,10 @@ impl IdentityFile {
             }
         }
     }
-}
 
-impl Identity for IdentityFile {
-    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    /// Returns the identities in this file.
+    pub fn into_identities(self) -> Vec<x25519::Identity> {
         self.identities
-            .iter()
-            .find_map(|identity| identity.unwrap_stanza(stanza))
-    }
-
-    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, Error>> {
-        self.identities
-            .iter()
-            .find_map(|identity| identity.unwrap_stanzas(stanzas))
     }
 }
 

@@ -334,11 +334,13 @@ mod tests {
     #[test]
     fn x25519_round_trip() {
         let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
-        let sk = IdentityFile::from_buffer(buf).unwrap();
+        let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
+            f.into_identities()
+                .into_iter()
+                .map(|sk| Box::new(sk) as Box<dyn Identity>),
         );
     }
 
@@ -346,11 +348,13 @@ mod tests {
     #[test]
     fn x25519_async_round_trip() {
         let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
-        let sk = IdentityFile::from_buffer(buf).unwrap();
+        let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
+            f.into_identities()
+                .into_iter()
+                .map(|sk| Box::new(sk) as Box<dyn Identity>),
         );
     }
 
