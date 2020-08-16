@@ -23,6 +23,7 @@ enum Error {
     MissingFilename,
     MissingIdentities(String),
     MissingMountpoint,
+    MissingPlugin(String),
     MissingType,
     UnknownType(String),
     UnsupportedKey(String, age::ssh::UnsupportedKey),
@@ -62,6 +63,10 @@ impl fmt::Debug for Error {
                 write!(f, "    {}", default_filename)
             }
             Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
+            Error::MissingPlugin(name) => {
+                writeln!(f, "Could not find '{}' on the PATH.", name)?;
+                write!(f, "Have you installed the plugin?")
+            }
             Error::MissingType => writeln!(f, "Missing -t/--types"),
             Error::UnknownType(t) => writeln!(f, "Unknown filesystem type \"{}\"", t),
             Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
@@ -195,6 +200,7 @@ fn main() -> Result<(), Error> {
                 opts.identity,
                 |default_filename| Error::MissingIdentities(default_filename.to_string()),
                 |filename| Error::IdentityNotFound(filename),
+                Error::MissingPlugin,
                 Error::UnsupportedKey,
             )?;
 

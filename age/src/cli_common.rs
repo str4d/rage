@@ -1,6 +1,6 @@
 //! Common helpers for CLI binaries.
 
-use pinentry::PassphraseInput;
+use pinentry::{MessageDialog, PassphraseInput};
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
@@ -13,6 +13,9 @@ use std::path::PathBuf;
 use subtle::ConstantTimeEq;
 
 use crate::{identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
+
+#[cfg(feature = "plugin")]
+use crate::plugin;
 
 pub mod file_io;
 
@@ -35,6 +38,7 @@ pub fn read_identities<E, F, G>(
     filenames: Vec<String>,
     no_default: F,
     file_not_found: G,
+    #[cfg(feature = "plugin")] missing_plugin: impl Fn(String) -> E,
     #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
 ) -> Result<Vec<Box<dyn Identity>>, E>
 where
@@ -43,6 +47,9 @@ where
     G: Fn(String) -> E,
 {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
+
+    #[cfg(feature = "plugin")]
+    let mut plugin_identities: Vec<plugin::Identity> = vec![];
 
     if filenames.is_empty() {
         let default_filename = get_config_dir()
@@ -56,12 +63,21 @@ where
             _ => e.into(),
         })?;
         let identity_file = IdentityFile::from_buffer(BufReader::new(f))?;
+
+        #[cfg(feature = "plugin")]
+        let (new_ids, mut new_plugin_ids) = identity_file.split_into();
+
+        #[cfg(not(feature = "plugin"))]
+        let new_ids = identity_file.into_identities();
+
         identities.extend(
-            identity_file
-                .into_identities()
+            new_ids
                 .into_iter()
                 .map(|i| Box::new(i) as Box<dyn Identity>),
         );
+
+        #[cfg(feature = "plugin")]
+        plugin_identities.append(&mut new_plugin_ids);
     } else {
         for filename in filenames {
             // Try parsing as a single multi-line SSH identity.
@@ -86,12 +102,40 @@ where
                     io::ErrorKind::NotFound => file_not_found(filename),
                     _ => e.into(),
                 })?;
+
+            #[cfg(feature = "plugin")]
+            let (new_ids, mut new_plugin_ids) = identity_file.split_into();
+
+            #[cfg(not(feature = "plugin"))]
+            let new_ids = identity_file.into_identities();
+
             identities.extend(
-                identity_file
-                    .into_identities()
+                new_ids
                     .into_iter()
                     .map(|i| Box::new(i) as Box<dyn Identity>),
             );
+
+            #[cfg(feature = "plugin")]
+            plugin_identities.append(&mut new_plugin_ids);
+        }
+    }
+
+    #[cfg(feature = "plugin")]
+    {
+        // Collect the names of the required plugins.
+        let mut plugin_names = plugin_identities
+            .iter()
+            .map(|r| r.plugin())
+            .collect::<Vec<_>>();
+        plugin_names.sort();
+        plugin_names.dedup();
+
+        // Find the required plugins.
+        for plugin_name in plugin_names {
+            identities.push(Box::new(
+                crate::plugin::IdentityPluginV1::new(plugin_name, &plugin_identities, UiCallbacks)
+                    .map_err(|_| missing_plugin(plugin_name.to_owned()))?,
+            ))
         }
     }
 
@@ -160,6 +204,18 @@ pub fn read_secret(
 pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
+    fn prompt(&self, message: &str) {
+        if let Some(dialog) = MessageDialog::with_default_binary() {
+            // pinentry binary is available!
+            if dialog.show_message(message).is_ok() {
+                return;
+            }
+        }
+
+        // Fall back to CLI interface.
+        eprintln!("{}", message);
+    }
+
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {
         read_secret(description, "Passphrase", None).ok()
     }

@@ -12,3 +12,4 @@ edition = "2018"
 age-core = { version = "0.4.0", path = "../age-core", features = ["plugin"] }
 bech32 = "0.7.2"
 chrono = "0.4"
+secrecy = "0.7"

@@ -5,15 +5,22 @@ use age_core::{
     plugin::Connection,
 };
 use secrecy::ExposeSecret;
+use std::convert::TryInto;
 use std::fmt;
 use std::io;
+use std::iter;
 use std::path::PathBuf;
 use std::process::{ChildStdin, ChildStdout};
 
-use crate::{error::EncryptError, util::parse_bech32};
+use crate::{
+    error::{DecryptError, EncryptError},
+    protocol::decryptor::Callbacks,
+    util::parse_bech32,
+};
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
 const PLUGIN_RECIPIENT_PREFIX: &str = "age1";
+const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 
 /// A plugin-compatible recipient.
 #[derive(Clone)]
@@ -54,6 +61,54 @@ impl fmt::Display for Recipient {
 
 impl Recipient {
     /// Returns the plugin name for this recipient.
+    pub fn plugin(&self) -> &str {
+        &self.name
+    }
+}
+
+/// A plugin-compatible identity.
+#[derive(Clone)]
+pub struct Identity {
+    /// The plugin name, extracted from `identity`.
+    name: String,
+    /// The identity.
+    identity: String,
+}
+
+impl std::str::FromStr for Identity {
+    type Err = &'static str;
+
+    /// Parses a plugin identity from a string.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_bech32(s)
+            .ok_or("invalid Bech32 encoding")
+            .and_then(|(hrp, _)| {
+                if hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
+                    && hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
+                {
+                    Ok(Identity {
+                        name: hrp
+                            .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                            .1
+                            .trim_end_matches("-")
+                            .to_owned(),
+                        identity: s.to_owned(),
+                    })
+                } else {
+                    Err("invalid HRP")
+                }
+            })
+    }
+}
+
+impl fmt::Display for Identity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.identity)
+    }
+}
+
+impl Identity {
+    /// Returns the plugin name for this identity.
     pub fn plugin(&self) -> &str {
         &self.name
     }
@@ -139,5 +194,96 @@ impl crate::Recipient for RecipientPluginV1 {
             (true, false) => unimplemented!(),
             _ => unimplemented!(),
         }
+    }
+}
+
+/// TODO
+pub struct IdentityPluginV1<C: Callbacks> {
+    plugin: Plugin,
+    identities: Vec<Identity>,
+    callbacks: C,
+}
+
+impl<C: Callbacks> IdentityPluginV1<C> {
+    /// TODO
+    pub fn new(plugin_name: &str, identities: &[Identity], callbacks: C) -> which::Result<Self> {
+        Plugin::new(plugin_name).map(|plugin| IdentityPluginV1 {
+            plugin,
+            identities: identities
+                .iter()
+                .filter(|r| r.name == plugin_name)
+                .cloned()
+                .collect(),
+            callbacks,
+        })
+    }
+
+    fn unwrap_stanzas<'a>(
+        &self,
+        stanzas: impl Iterator<Item = &'a Stanza>,
+    ) -> Option<Result<FileKey, DecryptError>> {
+        // Open connection
+        let mut conn = self.plugin.connect("--identity-plugin-v1").unwrap();
+
+        // Phase 1: add identities and stanza
+        if let Err(e) = conn.unidir_send(|mut phase| {
+            for identity in &self.identities {
+                phase.send("add-identity", &[identity.identity.as_str()], &[])?;
+            }
+            for stanza in stanzas {
+                phase.send_stanza("recipient-stanza", &["0"], stanza)?;
+            }
+            Ok(())
+        }) {
+            return Some(Err(e.into()));
+        };
+
+        // Phase 2: interactively unwrap
+        let mut file_key = None;
+        if let Err(e) = conn.bidir_receive(|command, reply| match command.tag.as_str() {
+            "prompt" => {
+                if let Ok(message) = std::str::from_utf8(&command.body) {
+                    self.callbacks.prompt(message);
+                    reply.ok(None)
+                } else {
+                    reply.fail()
+                }
+            }
+            "request-secret" => {
+                if let Ok(description) = std::str::from_utf8(&command.body) {
+                    if let Some(secret) = self.callbacks.request_passphrase(description) {
+                        reply.ok(Some(secret.expose_secret().as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
+                } else {
+                    reply.fail()
+                }
+            }
+            "file-key" => {
+                file_key = Some(
+                    TryInto::<[u8; 16]>::try_into(&command.body[..])
+                        .map_err(|_| DecryptError::DecryptionFailed)
+                        .map(FileKey::from),
+                );
+                reply.ok(None)
+            }
+            "error" => reply.ok(None),
+            _ => reply.unsupported(),
+        }) {
+            return Some(Err(e.into()));
+        };
+
+        file_key
+    }
+}
+
+impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
+        self.unwrap_stanzas(iter::once(stanza))
+    }
+
+    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
+        self.unwrap_stanzas(stanzas.iter())
     }
 }

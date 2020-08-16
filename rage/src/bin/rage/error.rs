@@ -83,6 +83,7 @@ pub(crate) enum DecryptError {
     IdentityNotFound(String),
     Io(io::Error),
     MissingIdentities(String),
+    MissingPlugin(String),
     PassphraseFlag,
     #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
@@ -127,6 +128,10 @@ impl fmt::Display for DecryptError {
                 writeln!(f, "Did you forget to specify -i/--identity?")?;
                 writeln!(f, "You can also store default identities in this file:")?;
                 write!(f, "    {}", default_filename)
+            }
+            DecryptError::MissingPlugin(name) => {
+                writeln!(f, "Could not find '{}' on the PATH.", name)?;
+                write!(f, "Have you installed the plugin?")
             }
             DecryptError::PassphraseFlag => {
                 writeln!(f, "-p/--passphrase can't be used with -d/--decrypt.")?;
