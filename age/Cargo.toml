@@ -40,7 +40,7 @@ scrypt = { version = "0.5", default-features = false }
 rand = "0.7"
 
 # - Key encoding
-bech32 = "0.7"
+bech32 = "0.7.2"
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
