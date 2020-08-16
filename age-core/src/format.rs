@@ -37,7 +37,7 @@ pub struct AgeStanza<'a> {
 /// recipient.
 ///
 /// This is the owned type; see [`AgeStanza`] for the reference type.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Stanza {
     /// A tag identifying this stanza type.
     pub tag: String,

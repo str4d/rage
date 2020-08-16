@@ -4,3 +4,6 @@
 
 pub mod format;
 pub mod primitives;
+
+#[cfg(feature = "plugin")]
+pub mod plugin;
