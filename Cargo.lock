@@ -140,6 +140,10 @@ dependencies = [
 [[package]]
 name = "age-plugin"
 version = "0.0.0"
+dependencies = [
+ "bech32",
+ "chrono",
+]
 
 [[package]]
 name = "aho-corasick"
