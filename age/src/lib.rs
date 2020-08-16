@@ -161,6 +161,10 @@ pub use primitives::armor;
 #[cfg_attr(docsrs, doc(cfg(feature = "cli-common")))]
 pub mod cli_common;
 
+#[cfg(feature = "plugin")]
+#[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+pub mod plugin;
+
 #[cfg(feature = "ssh")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;

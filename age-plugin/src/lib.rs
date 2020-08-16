@@ -5,9 +5,19 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
+pub mod recipient;
+
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
 const PLUGIN_RECIPIENT_PREFIX: &str = "age1";
 const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
+
+/// An error message within the plugin protocol.
+pub struct Error {
+    /// The error kind. Should be a single word.
+    pub kind: String,
+    /// The error message, to be displayed to the user.
+    pub message: String,
+}
 
 /// Prints the newly-created identity and corresponding recipient to standard out.
 ///

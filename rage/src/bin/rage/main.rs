@@ -6,7 +6,7 @@ use age::{
         file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
         Passphrase,
     },
-    Recipient,
+    plugin, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use log::{error, warn};
@@ -100,6 +100,7 @@ fn read_recipients(
     let mut seen_aliases: Vec<String> = vec![];
 
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
+    let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
     while !arguments.is_empty() {
         let arg = arguments.pop().expect("arguments is not empty");
 
@@ -115,6 +116,8 @@ fn read_recipients(
             None
         } {
             recipients.push(pk);
+        } else if let Ok(recipient) = arg.parse::<plugin::Recipient>() {
+            plugin_recipients.push(recipient);
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]
             {
@@ -172,6 +175,22 @@ fn read_recipients(
         } else {
             return Err(error::EncryptError::InvalidRecipient(arg));
         }
+    }
+
+    // Collect the names of the required plugins.
+    let mut plugin_names = plugin_recipients
+        .iter()
+        .map(|r| r.plugin())
+        .collect::<Vec<_>>();
+    plugin_names.sort();
+    plugin_names.dedup();
+
+    // Find the required plugins.
+    for plugin_name in plugin_names {
+        recipients.push(Box::new(
+            plugin::RecipientPluginV1::new(plugin_name, &plugin_recipients)
+                .map_err(|_| error::EncryptError::MissingPlugin(plugin_name.to_owned()))?,
+        ))
     }
 
     Ok(recipients)

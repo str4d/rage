@@ -76,6 +76,10 @@ dirs = { version = "3.0.1", optional = true }
 pinentry = { version = "0.2", optional = true }
 rpassword = { version = "5", optional = true }
 
+[target.'cfg(any(unix, windows))'.dependencies]
+# Plugin management
+which = { version = "4", optional = true }
+
 [dev-dependencies]
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
@@ -88,6 +92,7 @@ default = []
 armor = []
 async = ["futures"]
 cli-common = ["console", "dirs", "pinentry", "rpassword"]
+plugin = ["age-core/plugin", "which"]
 ssh = [
     "aes",
     "aes-ctr",

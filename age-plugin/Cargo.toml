@@ -9,5 +9,6 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
+age-core = { version = "0.4.0", path = "../age-core", features = ["plugin"] }
 bech32 = "0.7.2"
 chrono = "0.4"

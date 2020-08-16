@@ -7,6 +7,7 @@ pub(crate) enum EncryptError {
     InvalidRecipient(String),
     Io(io::Error),
     Minreq(minreq::Error),
+    MissingPlugin(String),
     MissingRecipients,
     MixedRecipientAndPassphrase,
     PassphraseWithoutFileArgument,
@@ -55,6 +56,10 @@ impl fmt::Display for EncryptError {
             EncryptError::InvalidRecipient(r) => write!(f, "Invalid recipient '{}'", r),
             EncryptError::Io(e) => write!(f, "{}", e),
             EncryptError::Minreq(e) => write!(f, "{}", e),
+            EncryptError::MissingPlugin(name) => {
+                writeln!(f, "Could not find '{}' on the PATH.", name)?;
+                write!(f, "Have you installed the plugin?")
+            }
             EncryptError::MissingRecipients => {
                 writeln!(f, "Missing recipients.")?;
                 write!(f, "Did you forget to specify -r/--recipient?")
