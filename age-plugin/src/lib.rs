@@ -7,6 +7,7 @@
 
 use std::io;
 
+pub mod identity;
 pub mod recipient;
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
@@ -46,14 +47,16 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
 ///
 /// This should be triggered if the `--age-plugin=state_machine` flag is provided as an
 /// argument when starting the plugin.
-pub fn run_state_machine<R: recipient::RecipientPluginV1>(
+pub fn run_state_machine<R: recipient::RecipientPluginV1, I: identity::IdentityPluginV1>(
     state_machine: &str,
     recipient_v1: impl FnOnce() -> R,
+    identity_v1: impl FnOnce() -> I,
 ) -> io::Result<()> {
-    use age_core::plugin::RECIPIENT_V1;
+    use age_core::plugin::{IDENTITY_V1, RECIPIENT_V1};
 
     match state_machine {
         RECIPIENT_V1 => recipient::run_v1(recipient_v1()),
+        IDENTITY_V1 => identity::run_v1(identity_v1()),
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown plugin state machine",

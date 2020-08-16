@@ -3,9 +3,14 @@ use std::io;
 
 use crate::x25519;
 
+#[cfg(feature = "plugin")]
+use crate::plugin;
+
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
     identities: Vec<x25519::Identity>,
+    #[cfg(feature = "plugin")]
+    plugin_identities: Vec<plugin::Identity>,
 }
 
 impl IdentityFile {
@@ -19,6 +24,10 @@ impl IdentityFile {
     /// Parses one or more identities from a buffered input containing valid UTF-8.
     pub fn from_buffer<R: io::BufRead>(data: R) -> io::Result<Self> {
         let mut identities = vec![];
+
+        #[cfg(feature = "plugin")]
+        let mut plugin_identities = vec![];
+
         for line in data.lines() {
             let line = line?;
             if line.is_empty() || line.starts_with('#') {
@@ -27,6 +36,23 @@ impl IdentityFile {
 
             if let Ok(identity) = line.parse::<x25519::Identity>() {
                 identities.push(identity);
+            } else if let Some(identity) = {
+                #[cfg(feature = "plugin")]
+                {
+                    line.parse::<plugin::Identity>().ok()
+                }
+
+                #[cfg(not(feature = "plugin"))]
+                None
+            } {
+                #[cfg(feature = "plugin")]
+                {
+                    plugin_identities.push(identity);
+                }
+
+                // Add a binding to provide a type when plugins are disabled.
+                #[cfg(not(feature = "plugin"))]
+                let _: () = identity;
             } else {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -34,12 +60,24 @@ impl IdentityFile {
                 ));
             }
         }
-        Ok(IdentityFile { identities })
+
+        Ok(IdentityFile {
+            identities,
+            #[cfg(feature = "plugin")]
+            plugin_identities,
+        })
     }
 
     /// Returns the identities in this file.
     pub fn into_identities(self) -> Vec<x25519::Identity> {
         self.identities
+    }
+
+    /// Splits this file into native and plugin identities.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    pub fn split_into(self) -> (Vec<x25519::Identity>, Vec<plugin::Identity>) {
+        (self.identities, self.plugin_identities)
     }
 }
 

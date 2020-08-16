@@ -53,6 +53,7 @@ rec-unknown-format = Have you tried upgrading to the latest version?
 err-missing-plugin = Could not find '{$plugin_name}' on the PATH.
 rec-missing-plugin = Have you installed the plugin?
 
+err-plugin-identity = '{$plugin_name}' couldn't use an identity: {$message}
 err-plugin-recipient = '{$plugin_name}' couldn't use recipient {$recipient}: {$message}
 err-plugin-multiple = Plugin returned multiple errors:
 

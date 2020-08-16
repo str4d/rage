@@ -13,6 +13,13 @@ use age_core::format::Stanza;
 #[cfg(feature = "plugin")]
 #[derive(Debug)]
 pub enum PluginError {
+    /// An error caused by a specific identity.
+    Identity {
+        /// The plugin's binary name.
+        binary_name: String,
+        /// The error message.
+        message: String,
+    },
     /// An error caused by a specific recipient.
     Recipient {
         /// The plugin's binary name.
@@ -50,6 +57,19 @@ impl From<Stanza> for PluginError {
 impl fmt::Display for PluginError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            PluginError::Identity {
+                binary_name,
+                message,
+            } => write!(
+                f,
+                "{}",
+                fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "err-plugin-identity",
+                    plugin_name = binary_name.as_str(),
+                    message = message.as_str()
+                )
+            ),
             PluginError::Recipient {
                 binary_name,
                 recipient,
@@ -169,8 +189,17 @@ pub enum DecryptError {
     Io(io::Error),
     /// Failed to decrypt an encrypted key.
     KeyDecryptionFailed,
+    /// A required plugin could not be found.
+    #[cfg(feature = "plugin")]
+    MissingPlugin {
+        /// The plugin's binary name.
+        binary_name: String,
+    },
     /// None of the provided keys could be used to decrypt the age file.
     NoMatchingKeys,
+    /// Errors from a plugin.
+    #[cfg(feature = "plugin")]
+    Plugin(Vec<PluginError>),
     /// An unknown age format, probably from a newer version.
     UnknownFormat,
 }
@@ -195,7 +224,32 @@ impl fmt::Display for DecryptError {
             DecryptError::InvalidMac => wfl!(f, "err-header-mac-invalid"),
             DecryptError::Io(e) => e.fmt(f),
             DecryptError::KeyDecryptionFailed => wfl!(f, "err-key-decryption"),
+            #[cfg(feature = "plugin")]
+            DecryptError::MissingPlugin { binary_name } => {
+                writeln!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::i18n::LANGUAGE_LOADER,
+                        "err-missing-plugin",
+                        plugin_name = binary_name.as_str()
+                    )
+                )?;
+                wfl!(f, "rec-missing-plugin")
+            }
             DecryptError::NoMatchingKeys => wfl!(f, "err-no-matching-keys"),
+            #[cfg(feature = "plugin")]
+            DecryptError::Plugin(errors) => match &errors[..] {
+                [] => unreachable!(),
+                [e] => write!(f, "{}", e),
+                _ => {
+                    wlnfl!(f, "err-plugin-multiple")?;
+                    for e in errors {
+                        writeln!(f, "- {}", e)?;
+                    }
+                    Ok(())
+                }
+            },
             DecryptError::UnknownFormat => {
                 wlnfl!(f, "err-unknown-format")?;
                 wfl!(f, "rec-unknown-format")

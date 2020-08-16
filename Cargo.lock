@@ -124,6 +124,7 @@ dependencies = [
  "age-core",
  "bech32",
  "chrono",
+ "secrecy",
 ]
 
 [[package]]
