@@ -25,7 +25,7 @@ use super::{
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
 };
 use crate::{
-    error::Error,
+    error::DecryptError,
     protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
 };
@@ -43,7 +43,7 @@ impl UnencryptedKey {
     /// - `Some(Ok(file_key))` on success.
     /// - `Some(Err(e))` if a decryption error occurs.
     /// - `None` if the [`Stanza`] does not match this key.
-    pub(crate) fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    pub(crate) fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
                 let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
@@ -61,7 +61,7 @@ impl UnencryptedKey {
                         PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                         &stanza.body,
                     )
-                    .map_err(Error::from)
+                    .map_err(DecryptError::from)
                     .map(|mut pt| {
                         // It's ours!
                         let file_key: [u8; 16] = pt[..].try_into().unwrap();
@@ -76,7 +76,7 @@ impl UnencryptedKey {
                     return None;
                 }
                 if stanza.body.len() != crate::x25519::ENCRYPTED_FILE_KEY_BYTES {
-                    return Some(Err(Error::InvalidHeader));
+                    return Some(Err(DecryptError::InvalidHeader));
                 }
 
                 let epk =
@@ -109,7 +109,7 @@ impl UnencryptedKey {
                 // encounter 32-bit collisions on the key tag embedded in the header.
                 Some(
                     aead_decrypt(&enc_key, &stanza.body)
-                        .map_err(Error::from)
+                        .map_err(DecryptError::from)
                         .map(|mut pt| {
                             // It's ours!
                             let file_key: [u8; 16] = pt[..].try_into().unwrap();
@@ -268,9 +268,9 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match self {
-            Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
+            Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(_) | Identity::Unsupported(_) => None,
         }
     }
@@ -282,9 +282,9 @@ struct DecryptableIdentity<C: Callbacks> {
 }
 
 impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match &self.identity {
-            Identity::Unencrypted(key) => key.unwrap_file_key(stanza),
+            Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(enc) => {
                 let passphrase = self.callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
@@ -297,7 +297,7 @@ impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
                     Ok(d) => d,
                     Err(e) => return Some(Err(e)),
                 };
-                decrypted.unwrap_file_key(stanza)
+                decrypted.unwrap_stanza(stanza)
             }
             Identity::Unsupported(_) => None,
         }
@@ -368,7 +368,7 @@ pub(crate) mod tests {
             tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
             Recipient,
         },
-        Recipient as _,
+        Identity as _, Recipient as _,
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
@@ -411,16 +411,16 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
         let identity = Identity::from_buffer(buf, None).unwrap();
-        let sk = match identity {
-            Identity::Unencrypted(key) => key,
+        match &identity {
+            Identity::Unencrypted(_) => (),
             _ => panic!("key should be unencrypted"),
         };
         let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
 
         let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk.unwrap_file_key(&wrapped);
+        let wrapped = pk.wrap_file_key(&file_key).unwrap();
+        let unwrapped = identity.unwrap_stanzas(&wrapped);
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),
             file_key.expose_secret()
@@ -431,16 +431,16 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
     fn ssh_ed25519_round_trip() {
         let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
         let identity = Identity::from_buffer(buf, None).unwrap();
-        let sk = match identity {
-            Identity::Unencrypted(key) => key,
+        match &identity {
+            Identity::Unencrypted(_) => (),
             _ => panic!("key should be unencrypted"),
         };
         let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
 
         let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key);
-        let unwrapped = sk.unwrap_file_key(&wrapped);
+        let wrapped = pk.wrap_file_key(&file_key).unwrap();
+        let unwrapped = identity.unwrap_stanzas(&wrapped);
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),
             file_key.expose_secret()

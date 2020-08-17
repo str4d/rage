@@ -8,7 +8,11 @@ use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
-use crate::{error::Error, primitives::scrypt, util::read::base64_arg};
+use crate::{
+    error::{DecryptError, EncryptError},
+    primitives::scrypt,
+    util::read::base64_arg,
+};
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
@@ -61,7 +65,7 @@ pub(crate) struct Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
@@ -77,11 +81,11 @@ impl crate::Recipient for Recipient {
 
         let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
 
-        Stanza {
+        Ok(vec![Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_salt, format!("{}", log_n)],
             body: encrypted_file_key,
-        }
+        }])
     }
 }
 
@@ -91,12 +95,12 @@ pub(crate) struct Identity<'a> {
 }
 
 impl<'a> crate::Identity for Identity<'a> {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
         }
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
-            return Some(Err(Error::InvalidHeader));
+            return Some(Err(DecryptError::InvalidHeader));
         }
 
         let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
@@ -105,7 +109,7 @@ impl<'a> crate::Identity for Identity<'a> {
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         let target = target_scrypt_work_factor();
         if log_n > self.max_work_factor.unwrap_or_else(|| target + 4) {
-            return Some(Err(Error::ExcessiveWork {
+            return Some(Err(DecryptError::ExcessiveWork {
                 required: log_n,
                 target,
             }));
@@ -118,7 +122,7 @@ impl<'a> crate::Identity for Identity<'a> {
         let enc_key = match scrypt(&inner_salt, log_n, self.passphrase.expose_secret()) {
             Ok(k) => k,
             Err(_) => {
-                return Some(Err(Error::ExcessiveWork {
+                return Some(Err(DecryptError::ExcessiveWork {
                     required: log_n,
                     target,
                 }));
@@ -133,7 +137,7 @@ impl<'a> crate::Identity for Identity<'a> {
                     pt.zeroize();
                     file_key.into()
                 })
-                .map_err(Error::from),
+                .map_err(DecryptError::from),
         )
     }
 }

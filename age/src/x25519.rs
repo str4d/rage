@@ -4,7 +4,7 @@ use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
-use bech32::{FromBase32, ToBase32};
+use bech32::ToBase32;
 use rand::rngs::OsRng;
 use secrecy::ExposeSecret;
 use secrecy::SecretString;
@@ -13,7 +13,10 @@ use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
-use crate::{error::Error, util::read::base64_arg};
+use crate::{
+    error::{DecryptError, EncryptError},
+    util::{parse_bech32, read::base64_arg},
+};
 
 // Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
 const SECRET_KEY_PREFIX: &str = "age-secret-key-";
@@ -25,22 +28,28 @@ const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
-fn parse_bech32(s: &str, expected_hrp: &str) -> Option<Result<[u8; 32], &'static str>> {
-    bech32::decode(s).ok().map(|(hrp, data)| {
-        if hrp == expected_hrp.to_lowercase() {
-            if let Ok(bytes) = Vec::from_base32(&data) {
-                bytes[..].try_into().map_err(|_| "incorrect pubkey length")
-            } else {
-                Err("incorrect Bech32 data padding")
-            }
-        } else {
-            Err("incorrect HRP")
-        }
-    })
-}
-
 /// A secret key for decrypting an age file.
 pub struct Identity(StaticSecret);
+
+impl std::str::FromStr for Identity {
+    type Err = &'static str;
+
+    /// Parses an X25519 identity from a string.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_bech32(s)
+            .ok_or("invalid Bech32 encoding")
+            .and_then(|(hrp, bytes)| {
+                if hrp == SECRET_KEY_PREFIX {
+                    TryInto::<[u8; 32]>::try_into(&bytes[..])
+                        .map_err(|_| "incorrect identity length")
+                        .map(StaticSecret::from)
+                        .map(Identity)
+                } else {
+                    Err("incorrect HRP")
+                }
+            })
+    }
+}
 
 impl Identity {
     /// Generates a new secret key.
@@ -72,12 +81,12 @@ impl Identity {
 }
 
 impl crate::Identity for Identity {
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>> {
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
-            return Some(Err(Error::InvalidHeader));
+            return Some(Err(DecryptError::InvalidHeader));
         }
 
         let epk: PublicKey = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?.into();
@@ -116,10 +125,18 @@ impl std::str::FromStr for Recipient {
 
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s, PUBLIC_KEY_PREFIX)
-            .ok_or("Invalid Bech32 encoding")?
-            .map(PublicKey::from)
-            .map(Recipient)
+        parse_bech32(s)
+            .ok_or("invalid Bech32 encoding")
+            .and_then(|(hrp, bytes)| {
+                if hrp == PUBLIC_KEY_PREFIX {
+                    TryInto::<[u8; 32]>::try_into(&bytes[..])
+                        .map_err(|_| "incorrect pubkey length")
+                        .map(PublicKey::from)
+                        .map(Recipient)
+                } else {
+                    Err("incorrect HRP")
+                }
+            })
     }
 }
 
@@ -134,7 +151,7 @@ impl fmt::Display for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza {
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         let mut rng = OsRng;
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
@@ -149,28 +166,11 @@ impl crate::Recipient for Recipient {
 
         let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
-        Stanza {
+        Ok(vec![Stanza {
             tag: X25519_RECIPIENT_TAG.to_owned(),
             args: vec![encoded_epk],
             body: encrypted_file_key,
-        }
-    }
-}
-
-pub(crate) mod read {
-    use nom::{
-        bytes::streaming::take,
-        combinator::{map_opt, map_res},
-        IResult,
-    };
-
-    use super::*;
-
-    pub(crate) fn age_secret_key(input: &str) -> IResult<&str, Identity> {
-        map_res(
-            map_opt(take(74u32), |buf| parse_bech32(buf, SECRET_KEY_PREFIX)),
-            |pk| pk.map(StaticSecret::from).map(Identity),
-        )(input)
+        }])
     }
 }
 
@@ -181,7 +181,7 @@ pub(crate) mod tests {
     use secrecy::ExposeSecret;
     use x25519_dalek::{PublicKey, StaticSecret};
 
-    use super::{read::age_secret_key, Identity, Recipient};
+    use super::{Identity, Recipient};
     use crate::{Identity as _, Recipient as _};
 
     pub(crate) const TEST_SK: &str =
@@ -197,7 +197,7 @@ pub(crate) mod tests {
 
     #[test]
     fn pubkey_from_secret_key() {
-        let (_, key) = age_secret_key(TEST_SK).unwrap();
+        let key = TEST_SK.parse::<Identity>().unwrap();
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
@@ -214,8 +214,10 @@ pub(crate) mod tests {
             StaticSecret::from(tmp)
         };
 
-        let stanza = Recipient(PublicKey::from(&sk)).wrap_file_key(&file_key);
-        let res = Identity(sk).unwrap_file_key(&stanza);
+        let stanzas = Recipient(PublicKey::from(&sk))
+            .wrap_file_key(&file_key)
+            .unwrap();
+        let res = Identity(sk).unwrap_stanzas(&stanzas);
 
         match res {
             Some(Ok(res)) => TestResult::from_bool(res.expose_secret() == file_key.expose_secret()),

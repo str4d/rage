@@ -31,13 +31,14 @@
 //! use std::io::{Read, Write};
 //! use std::iter;
 //!
-//! # fn run_main() -> Result<(), age::Error> {
+//! # fn run_main() -> Result<(), ()> {
 //! let key = age::x25519::Identity::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
 //!
 //! // Encrypt the plaintext to a ciphertext...
+//! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_recipients(vec![Box::new(pubkey)]);
 //!
@@ -48,8 +49,11 @@
 //!
 //!     encrypted
 //! };
+//! # Ok(encrypted)
+//! # }
 //!
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
+//! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
 //!         age::Decryptor::Recipients(d) => d,
@@ -63,6 +67,12 @@
 //!
 //!     decrypted
 //! };
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     key,
+//! #     encrypt(pubkey, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
@@ -77,11 +87,12 @@
 //! use secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
-//! # fn run_main() -> Result<(), age::Error> {
+//! # fn run_main() -> Result<(), ()> {
 //! let plaintext = b"Hello world!";
 //! let passphrase = "this is not a good passphrase";
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
+//! # fn encrypt(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
 //!
@@ -92,8 +103,11 @@
 //!
 //!     encrypted
 //! };
+//! # Ok(encrypted)
+//! # }
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
+//! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
 //!         age::Decryptor::Passphrase(d) => d,
@@ -106,6 +120,12 @@
 //!
 //!     decrypted
 //! };
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     passphrase,
+//! #     encrypt(passphrase, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
 //!
 //! assert_eq!(decrypted, plaintext);
 //! # Ok(())
@@ -129,7 +149,7 @@ mod scrypt;
 mod util;
 pub mod x25519;
 
-pub use error::Error;
+pub use error::{DecryptError, EncryptError};
 pub use identity::IdentityFile;
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
@@ -163,20 +183,41 @@ pub trait Identity {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
-    fn unwrap_file_key(&self, stanza: &Stanza) -> Option<Result<FileKey, Error>>;
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>>;
+
+    /// Attempts to unwrap any of the given stanzas, which are assumed to come from the
+    /// same age file header, and therefore contain the same file key.
+    ///
+    /// This method is part of the `Identity` trait to expose age's [one joint] for
+    /// external implementations. You should not need to call this directly; instead, pass
+    /// identities to [`RecipientsDecryptor::decrypt`].
+    ///
+    /// Returns:
+    /// - `Some(Ok(file_key))` on success.
+    /// - `Some(Err(e))` if a decryption error occurs.
+    /// - `None` if none of the recipient stanzas match this identity.
+    ///
+    /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
+    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
+    fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
+        stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
+    }
 }
 
 /// A public key or other value that can wrap an opaque file key to a recipient stanza.
+///
+/// Implementations of this trait might represent more than one recipient.
 pub trait Recipient {
-    /// Wraps the given file key for this recipient, returning a stanza to be placed in an
-    /// age file header.
+    /// Wraps the given file key, returning stanzas to be placed in an age file header.
+    ///
+    /// Implementations MUST NOT return more than one stanza per "actual recipient".
     ///
     /// This method is part of the `Recipient` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &FileKey) -> Stanza;
+    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError>;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

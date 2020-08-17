@@ -12,11 +12,14 @@ to 1.0.0 are beta releases.
   `age::Recipient` traits:
   - `age_core::format::FileKey`
   - `age_core::format::Stanza`
+- `age_core::format::grease_the_joint`, for generating a random valid recipient
+  stanza. No other guarantees are made about the stanza's fields.
 - `age_core::primitives::{aead_decrypt, aead_encrypt, hkdf}`, to enable these
   common primitives to be reused in plugins.
 
 ### Changed
 - MSRV is now 1.41.0.
+- `age_core::format::write::age_stanza` now takes `args: &[impl AsRef<str>]`.
 
 ## [0.4.0] - 2020-03-25
 No changes; version bumped to keep it in sync with `age`.

@@ -6,7 +6,7 @@ use std::io::Read;
 
 use super::Nonce;
 use crate::{
-    error::Error,
+    error::DecryptError,
     format::Header,
     keys::v1_payload_key,
     primitives::stream::{PayloadKey, Stream, StreamReader},
@@ -26,16 +26,13 @@ struct BaseDecryptor<R> {
 }
 
 impl<R> BaseDecryptor<R> {
-    fn obtain_payload_key<F>(&self, filter: F) -> Result<PayloadKey, Error>
+    fn obtain_payload_key<F>(&self, mut filter: F) -> Result<PayloadKey, DecryptError>
     where
-        F: FnMut(&Stanza) -> Option<Result<FileKey, Error>>,
+        F: FnMut(&[Stanza]) -> Option<Result<FileKey, DecryptError>>,
     {
         match &self.header {
-            Header::V1(header) => header
-                .recipients
-                .iter()
-                .find_map(filter)
-                .unwrap_or(Err(Error::NoMatchingKeys))
+            Header::V1(header) => filter(&header.recipients)
+                .unwrap_or(Err(DecryptError::NoMatchingKeys))
                 .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
             Header::Unknown(_) => unreachable!(),
         }
@@ -57,9 +54,9 @@ impl<R> RecipientsDecryptor<R> {
     fn obtain_payload_key(
         &self,
         mut identities: impl Iterator<Item = Box<dyn Identity>>,
-    ) -> Result<PayloadKey, Error> {
+    ) -> Result<PayloadKey, DecryptError> {
         self.0
-            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_file_key(r)))
+            .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_stanzas(r)))
     }
 }
 
@@ -70,7 +67,7 @@ impl<R: Read> RecipientsDecryptor<R> {
     pub fn decrypt(
         self,
         identities: impl Iterator<Item = Box<dyn Identity>>,
-    ) -> Result<StreamReader<R>, Error> {
+    ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt(payload_key, self.0.input))
     }
@@ -85,7 +82,7 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     pub fn decrypt_async(
         self,
         identities: impl Iterator<Item = Box<dyn Identity>>,
-    ) -> Result<StreamReader<R>, Error> {
+    ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
     }
@@ -107,13 +104,13 @@ impl<R> PassphraseDecryptor<R> {
         &self,
         passphrase: &SecretString,
         max_work_factor: Option<u8>,
-    ) -> Result<PayloadKey, Error> {
+    ) -> Result<PayloadKey, DecryptError> {
         let identity = scrypt::Identity {
             passphrase,
             max_work_factor,
         };
 
-        self.0.obtain_payload_key(|r| identity.unwrap_file_key(r))
+        self.0.obtain_payload_key(|r| identity.unwrap_stanzas(r))
     }
 }
 
@@ -128,7 +125,7 @@ impl<R: Read> PassphraseDecryptor<R> {
         self,
         passphrase: &SecretString,
         max_work_factor: Option<u8>,
-    ) -> Result<StreamReader<R>, Error> {
+    ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(passphrase, max_work_factor)
             .map(|payload_key| Stream::decrypt(payload_key, self.0.input))
     }
@@ -147,7 +144,7 @@ impl<R: AsyncRead + Unpin> PassphraseDecryptor<R> {
         self,
         passphrase: &SecretString,
         max_work_factor: Option<u8>,
-    ) -> Result<StreamReader<R>, Error> {
+    ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(passphrase, max_work_factor)
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
     }
