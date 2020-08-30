@@ -1,5 +1,7 @@
 use age::{armor::ArmoredReader, stream::StreamReader};
 use fuse_mt::*;
+use os_thread_local::ThreadLocal;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
@@ -89,6 +91,7 @@ pub struct AgeZipFs {
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
     open_files: Mutex<(HashMap<u64, usize>, u64)>,
+    read_buf: ThreadLocal<RefCell<Vec<u8>>>,
 }
 
 impl AgeZipFs {
@@ -117,6 +120,7 @@ impl AgeZipFs {
             dir_map,
             open_dirs: Mutex::new((HashMap::new(), 0)),
             open_files: Mutex::new((HashMap::new(), 0)),
+            read_buf: ThreadLocal::new(|| RefCell::new(vec![])),
         })
     }
 }
@@ -232,20 +236,23 @@ impl FilesystemMT for AgeZipFs {
                     return callback(Err(libc::EINVAL));
                 }
 
-                // Skip to offset
-                let mut buf = vec![];
-                buf.resize(offset as usize, 0);
-                if zf.read_exact(&mut buf).is_err() {
-                    return callback(Err(libc::EIO));
-                }
+                self.read_buf.with(|buf| {
+                    let mut buf = buf.borrow_mut();
 
-                // Read bytes
-                let to_read = usize::min(size as usize, (zf.size() - offset) as usize);
-                buf.resize(to_read, 0);
-                match zf.read_exact(&mut buf) {
-                    Ok(_) => callback(Ok(&buf)),
-                    Err(_) => callback(Err(libc::EIO)),
-                }
+                    // Skip to offset
+                    buf.resize(offset as usize, 0);
+                    if zf.read_exact(&mut buf).is_err() {
+                        return callback(Err(libc::EIO));
+                    }
+
+                    // Read bytes
+                    let to_read = usize::min(size as usize, (zf.size() - offset) as usize);
+                    buf.resize(to_read, 0);
+                    match zf.read_exact(&mut buf) {
+                        Ok(_) => callback(Ok(&buf)),
+                        Err(_) => callback(Err(libc::EIO)),
+                    }
+                })
             }
             None => callback(Err(libc::EBADF)),
         }

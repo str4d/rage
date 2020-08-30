@@ -1,5 +1,7 @@
 use age::{armor::ArmoredReader, stream::StreamReader};
 use fuse_mt::*;
+use os_thread_local::ThreadLocal;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
@@ -111,6 +113,7 @@ pub struct AgeTarFs {
     file_map: HashMap<PathBuf, (FileAttr, u64)>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
     open_files: Mutex<(HashMap<u64, OpenFile>, u64)>,
+    read_buf: ThreadLocal<RefCell<Vec<u8>>>,
 }
 
 impl AgeTarFs {
@@ -145,6 +148,7 @@ impl AgeTarFs {
             file_map,
             open_dirs: Mutex::new((HashMap::new(), 0)),
             open_files: Mutex::new((HashMap::new(), 0)),
+            read_buf: ThreadLocal::new(|| RefCell::new(vec![])),
         })
     }
 }
@@ -268,14 +272,17 @@ impl FilesystemMT for AgeTarFs {
                 return callback(Err(libc::EIO));
             }
 
-            // Read bytes
-            let to_read = usize::min(size as usize, (file_size - offset) as usize);
-            let mut buf = vec![];
-            buf.resize(to_read, 0);
-            match inner.read_exact(&mut buf) {
-                Ok(_) => callback(Ok(&buf)),
-                Err(_) => callback(Err(libc::EIO)),
-            }
+            self.read_buf.with(|buf| {
+                let mut buf = buf.borrow_mut();
+
+                // Read bytes
+                let to_read = usize::min(size as usize, (file_size - offset) as usize);
+                buf.resize(to_read, 0);
+                match inner.read_exact(&mut buf) {
+                    Ok(_) => callback(Ok(&buf)),
+                    Err(_) => callback(Err(libc::EIO)),
+                }
+            })
         } else {
             callback(Err(libc::EBADF))
         }
