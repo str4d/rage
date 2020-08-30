@@ -146,10 +146,6 @@ impl AgeTarFs {
 const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
 
 impl FilesystemMT for AgeTarFs {
-    fn init(&self, _req: RequestInfo) -> ResultEmpty {
-        Ok(())
-    }
-
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         let open_dirs = self.open_dirs.lock().unwrap();
         let open_files = self.open_files.lock().unwrap();
@@ -245,21 +241,19 @@ impl FilesystemMT for AgeTarFs {
         fh: u64,
         offset: u64,
         size: u32,
-        result: impl FnOnce(Result<&[u8], libc::c_int>),
-    ) {
+        callback: impl FnOnce(ResultSlice<'_>) -> CallbackResult,
+    ) -> CallbackResult {
         let mut inner = self.inner.lock().unwrap();
         let open_files = self.open_files.lock().unwrap();
 
         if let Some((_, pos, file_size)) = open_files.0.get(&fh) {
             if offset > *file_size {
-                result(Err(libc::EINVAL));
-                return;
+                return callback(Err(libc::EINVAL));
             }
 
             // Skip to offset
             if inner.seek(SeekFrom::Start(pos + offset)).is_err() {
-                result(Err(libc::EIO));
-                return;
+                return callback(Err(libc::EIO));
             }
 
             // Read bytes
@@ -267,11 +261,11 @@ impl FilesystemMT for AgeTarFs {
             let mut buf = vec![];
             buf.resize(to_read, 0);
             match inner.read_exact(&mut buf) {
-                Ok(_) => result(Ok(&buf)),
-                Err(_) => result(Err(libc::EIO)),
+                Ok(_) => callback(Ok(&buf)),
+                Err(_) => callback(Err(libc::EIO)),
             }
         } else {
-            result(Err(libc::EBADF));
+            callback(Err(libc::EBADF))
         }
     }
 

@@ -54,7 +54,7 @@ pinentry = "0.2"
 secrecy = "0.7"
 
 # rage-mount dependencies
-fuse_mt = { version = "0.5", optional = true }
+fuse_mt = { version = "0.5.1", optional = true }
 libc = { version = "0.2", optional = true }
 tar = { version = "0.4", optional = true }
 time = { version = "0.1", optional = true }

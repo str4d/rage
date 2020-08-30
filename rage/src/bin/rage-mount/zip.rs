@@ -117,10 +117,6 @@ impl AgeZipFs {
 const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
 
 impl FilesystemMT for AgeZipFs {
-    fn init(&self, _req: RequestInfo) -> ResultEmpty {
-        Ok(())
-    }
-
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         let mut inner = self.inner.lock().unwrap();
         let open_dirs = self.open_dirs.lock().unwrap();
@@ -211,8 +207,8 @@ impl FilesystemMT for AgeZipFs {
         fh: u64,
         offset: u64,
         size: u32,
-        result: impl FnOnce(Result<&[u8], libc::c_int>),
-    ) {
+        callback: impl FnOnce(ResultSlice<'_>) -> CallbackResult,
+    ) -> CallbackResult {
         let mut inner = self.inner.lock().unwrap();
         let open_files = self.open_files.lock().unwrap();
 
@@ -220,27 +216,25 @@ impl FilesystemMT for AgeZipFs {
             Some(index) => {
                 let mut zf = inner.by_index(*index).expect("open_files is correct");
                 if offset > zf.size() {
-                    result(Err(libc::EINVAL));
-                    return;
+                    return callback(Err(libc::EINVAL));
                 }
 
                 // Skip to offset
                 let mut buf = vec![];
                 buf.resize(offset as usize, 0);
                 if zf.read_exact(&mut buf).is_err() {
-                    result(Err(libc::EIO));
-                    return;
+                    return callback(Err(libc::EIO));
                 }
 
                 // Read bytes
                 let to_read = usize::min(size as usize, (zf.size() - offset) as usize);
                 buf.resize(to_read, 0);
                 match zf.read_exact(&mut buf) {
-                    Ok(_) => result(Ok(&buf)),
-                    Err(_) => result(Err(libc::EIO)),
+                    Ok(_) => callback(Ok(&buf)),
+                    Err(_) => callback(Err(libc::EIO)),
                 }
             }
-            None => result(Err(libc::EBADF)),
+            None => callback(Err(libc::EBADF)),
         }
     }
 
