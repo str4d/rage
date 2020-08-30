@@ -25,7 +25,7 @@ c2-chacha = "0.2"
 chacha20poly1305 = { version = "0.4", default-features = false, features = ["alloc"] }
 
 # - X25519 from RFC 7748
-x25519-dalek = "0.6"
+x25519-dalek = "1"
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
@@ -48,7 +48,7 @@ num-traits = { version = "0.2", optional = true }
 rsa = { version = "0.3", optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
-curve25519-dalek = { version = "2", optional = true }
+curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
 aes = { version = "0.4", optional = true }
