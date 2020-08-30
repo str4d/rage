@@ -104,7 +104,7 @@ dependencies = [
  "futures",
  "futures-test",
  "hkdf",
- "hmac",
+ "hmac 0.8.1",
  "nom",
  "num-traits",
  "pin-project",
@@ -204,7 +204,7 @@ checksum = "f247b010c64cd549f37a8a28174589b9c054308724df0c2de446472a74ab1d1d"
 dependencies = [
  "blowfish",
  "crypto-mac 0.9.1",
- "pbkdf2 0.5.0",
+ "pbkdf2",
  "sha2",
  "zeroize",
 ]
@@ -942,7 +942,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
 dependencies = [
  "digest",
- "hmac",
+ "hmac 0.8.1",
 ]
 
 [[package]]
@@ -952,6 +952,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
 dependencies = [
  "crypto-mac 0.8.0",
+ "digest",
+]
+
+[[package]]
+name = "hmac"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deae6d9dbb35ec2c502d62b8f7b1c000a0822c3b0794ba36b3149c0a1c840dff"
+dependencies = [
+ "crypto-mac 0.9.1",
  "digest",
 ]
 
@@ -1211,15 +1221,6 @@ name = "os_str_bytes"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ac6fe3538f701e339953a3ebbe4f39941aababa8a3f6964635b24ab526daeac"
-
-[[package]]
-name = "pbkdf2"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "216eaa586a190f0a738f2f918511eecfa90f13295abec0e457cdebcceda80cbd"
-dependencies = [
- "crypto-mac 0.8.0",
-]
 
 [[package]]
 name = "pbkdf2"
@@ -1655,12 +1656,12 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scrypt"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10e7e75e27e8cd47e4be027d4b9fdc0b696116f981c22de21ca7bad63a9cb33a"
+checksum = "3437654bbbe34054a268b3859fe41f871215069b39f0aef78808d85c37100696"
 dependencies = [
- "hmac",
- "pbkdf2 0.4.0",
+ "hmac 0.9.0",
+ "pbkdf2",
  "sha2",
 ]
 
