@@ -30,7 +30,7 @@ x25519-dalek = "1"
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
 hkdf = "0.9"
-hmac = "0.8"
+hmac = "0.9"
 sha2 = "0.9"
 
 # - scrypt from RFC 7914
