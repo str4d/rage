@@ -2,9 +2,31 @@
 
 use age::cli_common::file_io;
 use gumdrop::Options;
+use i18n_embed::{
+    fluent::{fluent_language_loader, FluentLanguageLoader},
+    DesktopLanguageRequester,
+};
+use lazy_static::lazy_static;
 use log::error;
+use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
 use std::io::Write;
+
+#[derive(RustEmbed)]
+#[folder = "i18n"]
+struct Translations;
+
+const TRANSLATIONS: Translations = Translations {};
+
+lazy_static! {
+    static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+}
+
+macro_rules! fl {
+    ($message_id:literal) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+    }};
+}
 
 #[derive(Debug, Options)]
 struct AgeOptions {
@@ -21,6 +43,9 @@ struct AgeOptions {
 fn main() {
     env_logger::builder().format_timestamp(None).init();
 
+    let requested_languages = DesktopLanguageRequester::requested_languages();
+    i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+
     let opts = AgeOptions::parse_args_default_or_exit();
 
     if opts.version {
@@ -32,7 +57,14 @@ fn main() {
         match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600) {
             Ok(output) => output,
             Err(e) => {
-                error!("Failed to open output: {}", e);
+                error!(
+                    "{}",
+                    i18n_embed_fl::fl!(
+                        LANGUAGE_LOADER,
+                        "err-failed-to-open-output",
+                        err = e.to_string()
+                    )
+                );
                 return;
             }
         };
@@ -42,17 +74,25 @@ fn main() {
 
     if let Err(e) = (|| {
         if !output.is_terminal() {
-            eprintln!("Public key: {}", pk);
+            eprintln!("{}: {}", fl!("tty-pubkey"), pk);
         }
 
         writeln!(
             output,
-            "# created: {}",
+            "# {}: {}",
+            fl!("identity-file-created"),
             chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )?;
-        writeln!(output, "# public key: {}", pk)?;
+        writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
         writeln!(output, "{}", sk.to_string().expose_secret())
     })() {
-        error!("Failed to write to output: {}", e);
+        error!(
+            "{}",
+            i18n_embed_fl::fl!(
+                LANGUAGE_LOADER,
+                "err-failed-to-write-output",
+                err = e.to_string()
+            )
+        );
     }
 }
