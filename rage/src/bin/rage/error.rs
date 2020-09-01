@@ -1,5 +1,18 @@
+use i18n_embed_fl::fl;
 use std::fmt;
 use std::io;
+
+macro_rules! wfl {
+    ($f:ident, $message_id:literal) => {
+        write!($f, "{}", $crate::fl!($message_id))
+    };
+}
+
+macro_rules! wlnfl {
+    ($f:ident, $message_id:literal) => {
+        writeln!($f, "{}", $crate::fl!($message_id))
+    };
+}
 
 pub(crate) enum EncryptError {
     BrokenPipe { is_stdout: bool, source: io::Error },
@@ -9,8 +22,8 @@ pub(crate) enum EncryptError {
     Minreq(minreq::Error),
     MissingRecipients,
     MixedRecipientAndPassphrase,
+    PassphraseTimedOut,
     PassphraseWithoutFileArgument,
-    TimedOut(String),
     UnknownAlias(String),
 }
 
@@ -39,35 +52,63 @@ impl fmt::Display for EncryptError {
         match self {
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
-                    writeln!(f, "Could not write to stdout: {}", source)?;
+                    writeln!(
+                        f,
+                        "{}",
+                        fl!(
+                            crate::LANGUAGE_LOADER,
+                            "err-enc-broken-stdout",
+                            err = source.to_string()
+                        )
+                    )?;
+                    wfl!(f, "rec-enc-broken-stdout")
+                } else {
                     write!(
                         f,
-                        "Are you piping to a program that isn't reading from stdin?"
+                        "{}",
+                        fl!(
+                            crate::LANGUAGE_LOADER,
+                            "err-enc-broken-file",
+                            err = source.to_string()
+                        )
                     )
-                } else {
-                    write!(f, "Could not write to file: {}", source)
                 }
             }
             EncryptError::IdentityFlag => {
-                writeln!(f, "-i/--identity can't be used in encryption mode.")?;
-                write!(f, "Did you forget to specify -d/--decrypt?")
+                wlnfl!(f, "err-enc-identity")?;
+                wfl!(f, "rec-enc-identity")
             }
-            EncryptError::InvalidRecipient(r) => write!(f, "Invalid recipient '{}'", r),
+            EncryptError::InvalidRecipient(recipient) => write!(
+                f,
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-enc-invalid-recipient",
+                    recipient = recipient.as_str()
+                )
+            ),
             EncryptError::Io(e) => write!(f, "{}", e),
             EncryptError::Minreq(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
-                writeln!(f, "Missing recipients.")?;
-                write!(f, "Did you forget to specify -r/--recipient?")
+                wlnfl!(f, "err-enc-missing-recipients")?;
+                wfl!(f, "rec-enc-missing-recipients")
             }
             EncryptError::MixedRecipientAndPassphrase => {
-                write!(f, "-r/--recipient can't be used with -p/--passphrase")
+                wfl!(f, "err-enc-mixed-recipient-passphrase")
             }
-            EncryptError::PassphraseWithoutFileArgument => write!(
+            EncryptError::PassphraseTimedOut => wfl!(f, "err-passphrase-timed-out"),
+            EncryptError::PassphraseWithoutFileArgument => {
+                wfl!(f, "err-enc-passphrase-without-file")
+            }
+            EncryptError::UnknownAlias(alias) => write!(
                 f,
-                "File to encrypt must be passed as an argument when using -p/--passphrase"
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-enc-unknown-alias",
+                    alias = alias.as_str()
+                )
             ),
-            EncryptError::TimedOut(source) => write!(f, "Timed out waiting for {}", source),
-            EncryptError::UnknownAlias(alias) => write!(f, "Unknown {}", alias),
         }
     }
 }
@@ -79,10 +120,10 @@ pub(crate) enum DecryptError {
     Io(io::Error),
     MissingIdentities(String),
     PassphraseFlag,
+    PassphraseTimedOut,
     #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
     RecipientFlag,
-    TimedOut(String),
     #[cfg(feature = "ssh")]
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
@@ -105,45 +146,51 @@ impl fmt::Display for DecryptError {
             DecryptError::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
-                    write!(f, "To decrypt, retry with --max-work-factor {}", required)
+                    write!(
+                        f,
+                        "{}",
+                        fl!(
+                            crate::LANGUAGE_LOADER,
+                            "rec-dec-excessive-work",
+                            wf = required
+                        )
+                    )
                 }
                 _ => write!(f, "{}", e),
             },
             DecryptError::ArmorFlag => {
-                writeln!(f, "-a/--armor can't be used with -d/--decrypt.")?;
-                write!(f, "Note that armored files are detected automatically.")
+                wlnfl!(f, "err-dec-armor-flag")?;
+                wfl!(f, "rec-dec-armor-flag")
             }
-            DecryptError::IdentityNotFound(filename) => {
-                write!(f, "Identity file not found: {}", filename)
-            }
+            DecryptError::IdentityNotFound(filename) => write!(
+                f,
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-dec-identity-not-found",
+                    filename = filename.as_str()
+                )
+            ),
             DecryptError::Io(e) => write!(f, "{}", e),
             DecryptError::MissingIdentities(default_filename) => {
-                writeln!(f, "Missing identities.")?;
-                writeln!(f, "Did you forget to specify -i/--identity?")?;
-                writeln!(f, "You can also store default identities in this file:")?;
+                wlnfl!(f, "err-dec-missing-identities")?;
+                wlnfl!(f, "rec-dec-missing-identities-1")?;
+                wlnfl!(f, "rec-dec-missing-identities-2")?;
                 write!(f, "    {}", default_filename)
             }
             DecryptError::PassphraseFlag => {
-                writeln!(f, "-p/--passphrase can't be used with -d/--decrypt.")?;
-                write!(
-                    f,
-                    "Note that passphrase-encrypted files are detected automatically."
-                )
+                wlnfl!(f, "err-dec-passphrase-flag")?;
+                wfl!(f, "rec-dec-passphrase-flag")
             }
+            DecryptError::PassphraseTimedOut => wfl!(f, "err-passphrase-timed-out"),
             #[cfg(not(unix))]
             DecryptError::PassphraseWithoutFileArgument => {
-                writeln!(f, "This file requires a passphrase, and on Windows the")?;
-                writeln!(f, "file to decrypt must be passed as a positional argument")?;
-                write!(f, "when decrypting with a passphrase.")
+                wfl!(f, "err-dec-passphrase-without-file-win")
             }
             DecryptError::RecipientFlag => {
-                writeln!(f, "-r/--recipient can't be used with -d/--decrypt.")?;
-                write!(
-                    f,
-                    "Did you mean to use -i/--identity to specify a private key?"
-                )
+                wlnfl!(f, "err-dec-recipient-flag")?;
+                wfl!(f, "rec-dec-recipient-flag")
             }
-            DecryptError::TimedOut(source) => write!(f, "Timed out waiting for {}", source),
             #[cfg(feature = "ssh")]
             DecryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
@@ -176,13 +223,12 @@ impl fmt::Debug for Error {
             Error::Encryption(e) => writeln!(f, "{}", e)?,
         }
         writeln!(f)?;
-        writeln!(
-            f,
-            "[ Did rage not do what you expected? Could an error be more useful? ]"
-        )?;
+        writeln!(f, "[ {} ]", crate::fl!("err-ux-A"))?;
         write!(
             f,
-            "[ Tell us: https://str4d.xyz/rage/report                            ]"
+            "[ {}: https://str4d.xyz/rage/report {} ]",
+            crate::fl!("err-ux-B"),
+            crate::fl!("err-ux-C")
         )
     }
 }
