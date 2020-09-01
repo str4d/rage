@@ -7,7 +7,13 @@ use age::{
 };
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
+use i18n_embed::{
+    fluent::{fluent_language_loader, FluentLanguageLoader},
+    DesktopLanguageRequester,
+};
+use lazy_static::lazy_static;
 use log::{error, info};
+use rust_embed::RustEmbed;
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs::File;
@@ -15,6 +21,34 @@ use std::io;
 
 mod tar;
 mod zip;
+
+#[derive(RustEmbed)]
+#[folder = "i18n"]
+struct Translations;
+
+const TRANSLATIONS: Translations = Translations {};
+
+lazy_static! {
+    static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+}
+
+macro_rules! fl {
+    ($message_id:literal) => {{
+        i18n_embed_fl::fl!(LANGUAGE_LOADER, $message_id)
+    }};
+}
+
+macro_rules! wfl {
+    ($f:ident, $message_id:literal) => {
+        write!($f, "{}", fl!($message_id))
+    };
+}
+
+macro_rules! wlnfl {
+    ($f:ident, $message_id:literal) => {
+        writeln!($f, "{}", fl!($message_id))
+    };
+}
 
 enum Error {
     Age(age::DecryptError),
@@ -48,32 +82,55 @@ impl fmt::Debug for Error {
             Error::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
-                    write!(f, "To decrypt, retry with --max-work-factor {}", required)
+                    write!(
+                        f,
+                        "{}",
+                        i18n_embed_fl::fl!(
+                            LANGUAGE_LOADER,
+                            "rec-dec-excessive-work",
+                            wf = required
+                        )
+                    )
                 }
                 _ => write!(f, "{}", e),
             },
-            Error::IdentityNotFound(filename) => write!(f, "Identity file not found: {}", filename),
-            Error::Io(e) => writeln!(f, "{}", e),
-            Error::MissingFilename => writeln!(f, "Missing filename"),
+            Error::IdentityNotFound(filename) => write!(
+                f,
+                "{}",
+                i18n_embed_fl::fl!(
+                    LANGUAGE_LOADER,
+                    "err-dec-identity-not-found",
+                    filename = filename.as_str()
+                )
+            ),
+            Error::Io(e) => write!(f, "{}", e),
+            Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
             Error::MissingIdentities(default_filename) => {
-                writeln!(f, "Missing identities.")?;
-                writeln!(f, "Did you forget to specify -i/--identity?")?;
-                writeln!(f, "You can also store default identities in this file:")?;
+                wlnfl!(f, "err-dec-missing-identities")?;
+                wlnfl!(f, "rec-dec-missing-identities-1")?;
+                wlnfl!(f, "rec-dec-missing-identities-2")?;
                 write!(f, "    {}", default_filename)
             }
-            Error::MissingMountpoint => writeln!(f, "Missing mountpoint"),
-            Error::MissingType => writeln!(f, "Missing -t/--types"),
-            Error::UnknownType(t) => writeln!(f, "Unknown filesystem type \"{}\"", t),
+            Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
+            Error::MissingType => wfl!(f, "err-mnt-missing-types"),
+            Error::UnknownType(t) => write!(
+                f,
+                "{}",
+                i18n_embed_fl::fl!(
+                    LANGUAGE_LOADER,
+                    "err-mnt-unknown-type",
+                    fs_type = t.as_str()
+                )
+            ),
             Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }?;
         writeln!(f)?;
-        writeln!(
-            f,
-            "[ Did rage not do what you expected? Could an error be more useful? ]"
-        )?;
+        writeln!(f, "[ {} ]", fl!("err-ux-A"))?;
         write!(
             f,
-            "[ Tell us: https://str4d.xyz/rage/report                            ]"
+            "[ {}: https://str4d.xyz/rage/report {} ]",
+            fl!("err-ux-B"),
+            fl!("err-ux-C")
         )
     }
 }
@@ -114,7 +171,7 @@ where
 
     match open().map(|fs| fuse_mt::FuseMT::new(fs, 1)) {
         Ok(fs) => {
-            info!("Mounting as FUSE filesystem");
+            info!("{}", fl!("info-mounting-as-fuse"));
             if let Err(e) = fuse_mt::mount(fs, &mountpoint, &fuse_args) {
                 error!("{}", e);
             }
@@ -146,12 +203,15 @@ fn main() -> Result<(), Error> {
 
     env_logger::builder().format_timestamp(None).init();
 
+    let requested_languages = DesktopLanguageRequester::requested_languages();
+    i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+
     let args = args().collect::<Vec<_>>();
 
     if console::user_attended() && args.len() == 1 {
         // If gumdrop ever merges that PR, that can be used here
         // instead.
-        println!("Usage: {} [OPTIONS]", args[0]);
+        println!("{} {} [OPTIONS]", fl!("usage-header"), args[0]);
         println!();
         println!("{}", AgeMountOptions::usage());
 
@@ -174,7 +234,14 @@ fn main() -> Result<(), Error> {
         return Err(Error::MissingType);
     }
 
-    info!("Decrypting {}", opts.filename);
+    info!(
+        "{}",
+        i18n_embed_fl::fl!(
+            LANGUAGE_LOADER,
+            "info-decrypting",
+            filename = opts.filename.as_str()
+        )
+    );
     let file = File::open(opts.filename)?;
 
     let types = opts.types;
@@ -182,7 +249,7 @@ fn main() -> Result<(), Error> {
 
     match age::Decryptor::new(ArmoredReader::new(file))? {
         age::Decryptor::Passphrase(decryptor) => {
-            match read_secret("Type passphrase", "Passphrase", None) {
+            match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
                 Ok(passphrase) => decryptor
                     .decrypt(&passphrase, opts.max_work_factor)
                     .map_err(|e| e.into())

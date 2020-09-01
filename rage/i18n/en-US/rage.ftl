@@ -25,8 +25,10 @@
 -identity = IDENTITY
 -recipient = RECIPIENT
 
+usage-header = Usage:
+
 rage-usage =
-    Usage:
+    {usage-header}
       {$usage_a}
       {$usage_b}
 
@@ -115,6 +117,18 @@ err-dec-passphrase-without-file-win =
 
 err-dec-recipient-flag = {-flag-recipient} can't be used with {-flag-decrypt}.
 rec-dec-recipient-flag = Did you mean to use {-flag-identity} to specify a private key?
+
+## rage-mount strings
+
+-flag-mnt-types = -t/--types
+
+info-decrypting = Decrypting {$filename}
+info-mounting-as-fuse = Mounting as FUSE filesystem
+
+err-mnt-missing-filename = Missing filename.
+err-mnt-missing-mountpoint = Missing mountpoint.
+err-mnt-missing-types = Missing {-flag-mnt-types}.
+err-mnt-unknown-type = Unknown filesystem type "{$fs_type}"
 
 ## Unstable features
 
