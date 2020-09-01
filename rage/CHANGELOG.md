@@ -14,7 +14,7 @@ to 1.0.0 are beta releases.
   for `ssh-rsa` and `ssh-ed25519` recipients and identities.
 
 ### Changed
-- MSRV is now 1.41.0.
+- MSRV is now 1.45.0.
 
 ## [0.4.0] - 2020-03-25
 ### Added
