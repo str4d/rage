@@ -99,7 +99,7 @@ fn rage_page() {
                 .text("Encryption to a list of recipients at an HTTPS URL")
                 .command(
                     "echo \"_o/\" | rage -o hello.age \
-                     -r https://filippo.io/.well-known/age.keys > hello.age",
+                     -r https://github.com/str4d.keys > hello.age",
                 ),
         )
         .example(
