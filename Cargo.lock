@@ -21,32 +21,21 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd2bc6d3f370b5666245ff421e231cba4353df936e26986d2918e61a8fd6aef6"
 dependencies = [
- "aes-soft 0.5.0",
+ "aes-soft",
  "aesni 0.8.0",
- "block-cipher 0.8.0",
+ "block-cipher",
 ]
 
 [[package]]
 name = "aes-ctr"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e60aeefd2a0243bd53a42e92444e039f67c3d7f0382c9813577696e7c10bf3"
+checksum = "64c3b03608ea1c077228520a167cca2514dc7cd8100a81b30a2b38be985234e5"
 dependencies = [
- "aes-soft 0.4.0",
- "aesni 0.7.0",
+ "aes-soft",
+ "aesni 0.9.0",
  "ctr",
- "stream-cipher 0.4.1",
-]
-
-[[package]]
-name = "aes-soft"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4925647ee64e5056cf231608957ce7c81e12d6d6e316b9ce1404778cc1d35fa7"
-dependencies = [
- "block-cipher 0.7.1",
- "byteorder",
- "opaque-debug 0.2.3",
+ "stream-cipher 0.7.1",
 ]
 
 [[package]]
@@ -55,20 +44,9 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63dd91889c49327ad7ef3b500fd1109dbd3c509a03db0d4a9ce413b79f575cb6"
 dependencies = [
- "block-cipher 0.8.0",
+ "block-cipher",
  "byteorder",
- "opaque-debug 0.3.0",
-]
-
-[[package]]
-name = "aesni"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d050d39b0b7688b3a3254394c3e30a9d66c41dcf9b05b0e2dbdc623f6505d264"
-dependencies = [
- "block-cipher 0.7.1",
- "opaque-debug 0.2.3",
- "stream-cipher 0.4.1",
+ "opaque-debug",
 ]
 
 [[package]]
@@ -77,8 +55,19 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a6fe808308bb07d393e2ea47780043ec47683fcf19cf5efc8ca51c50cc8c68a"
 dependencies = [
- "block-cipher 0.8.0",
- "opaque-debug 0.3.0",
+ "block-cipher",
+ "opaque-debug",
+]
+
+[[package]]
+name = "aesni"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6a4d655ae633a96d0acaf0fd7e76aafb8ca5732739bba37aac6f882c8fce656"
+dependencies = [
+ "block-cipher",
+ "opaque-debug",
+ "stream-cipher 0.7.1",
 ]
 
 [[package]]
@@ -91,7 +80,7 @@ dependencies = [
  "base64 0.12.3",
  "bcrypt-pbkdf",
  "bech32",
- "block-cipher 0.8.0",
+ "block-cipher",
  "block-modes",
  "c2-chacha",
  "chacha20poly1305",
@@ -249,15 +238,6 @@ dependencies = [
 
 [[package]]
 name = "block-cipher"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa136449e765dc7faa244561ccae839c394048667929af599b5d931ebe7b7f10"
-dependencies = [
- "generic-array 0.14.4",
-]
-
-[[package]]
-name = "block-cipher"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f337a3e6da609650eb74e02bc9fac7b735049f7623ab12f2e4c719316fcc7e80"
@@ -271,7 +251,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9b14fd8a4739e6548d4b6018696cf991dcf8c6effd9ef9eb33b29b8a650972"
 dependencies = [
- "block-cipher 0.8.0",
+ "block-cipher",
  "block-padding",
 ]
 
@@ -287,9 +267,9 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f06850ba969bc59388b2cc0a4f186fc6d9d37208863b15b84ae3866ac90ac06"
 dependencies = [
- "block-cipher 0.8.0",
+ "block-cipher",
  "byteorder",
- "opaque-debug 0.3.0",
+ "opaque-debug",
 ]
 
 [[package]]
@@ -633,11 +613,11 @@ dependencies = [
 
 [[package]]
 name = "ctr"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3592740fd55aaf61dd72df96756bd0d11e6037b89dcf30ae2e1895b267692be"
+checksum = "cc03dee3a2843ac6eb4b5fb39cfcf4cb034d078555d1f4a0afbed418b822f3c2"
 dependencies = [
- "stream-cipher 0.4.1",
+ "stream-cipher 0.7.1",
 ]
 
 [[package]]
@@ -1439,12 +1419,6 @@ checksum = "a170cebd8021a008ea92e4db85a72f80b35df514ec664b296fdcbb654eac0b2c"
 
 [[package]]
 name = "opaque-debug"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
-
-[[package]]
-name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
@@ -2084,7 +2058,7 @@ dependencies = [
  "cfg-if",
  "cpuid-bool",
  "digest",
- "opaque-debug 0.3.0",
+ "opaque-debug",
 ]
 
 [[package]]
@@ -2139,11 +2113,11 @@ dependencies = [
 
 [[package]]
 name = "stream-cipher"
-version = "0.4.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f8ed9974042b8c3672ff3030a69fcc03b74c47c3d1ecb7755e8a3626011e88"
+checksum = "c80e15f898d8d8f25db24c253ea615cc14acf418ff307822995814e7d42cfa89"
 dependencies = [
- "block-cipher 0.7.1",
+ "block-cipher",
  "generic-array 0.14.4",
 ]
 
