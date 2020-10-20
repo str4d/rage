@@ -33,3 +33,6 @@ nom = "5"
 
 # Secret management
 secrecy = "0.7"
+
+[lib]
+bench = false

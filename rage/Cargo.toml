@@ -77,5 +77,13 @@ ssh = ["age/ssh"]
 unstable = ["age/unstable"]
 
 [[bin]]
+name = "rage"
+bench = false
+
+[[bin]]
+name = "rage-keygen"
+bench = false
+
+[[bin]]
 name = "rage-mount"
 required-features = ["mount"]
