@@ -17,8 +17,6 @@ use futures::{
     task::{Context, Poll},
 };
 #[cfg(feature = "async")]
-use pin_project::project;
-#[cfg(feature = "async")]
 use std::pin::Pin;
 
 const CHUNK_SIZE: usize = 64 * 1024;
@@ -217,7 +215,7 @@ impl Stream {
 }
 
 /// Writes an encrypted age file.
-#[pin_project]
+#[pin_project(project = StreamWriterProj)]
 pub struct StreamWriter<W> {
     stream: Stream,
     #[pin]
@@ -276,10 +274,8 @@ impl<W: Write> Write for StreamWriter<W> {
 
 #[cfg(feature = "async")]
 impl<W: AsyncWrite> StreamWriter<W> {
-    #[project]
     fn poll_flush_chunk(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        #[project]
-        let StreamWriter {
+        let StreamWriterProj {
             mut inner,
             encrypted_chunk,
             ..
