@@ -108,8 +108,8 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes_ctr::stream_cipher::{NewStreamCipher, StreamCipher};
-    use block_cipher::{BlockCipher, NewBlockCipher};
+    use aes::cipher::block::{BlockCipher, NewBlockCipher};
+    use aes_ctr::cipher::stream::{NewStreamCipher, StreamCipher};
     use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
     use secrecy::SecretString;
 

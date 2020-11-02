@@ -29,12 +29,12 @@ x25519-dalek = "1"
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
-hkdf = "0.9"
-hmac = "0.9"
+hkdf = "0.10"
+hmac = "0.10"
 sha2 = "0.9"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.4", default-features = false }
+scrypt = { version = "0.5", default-features = false }
 
 # - CSPRNG
 rand = "0.7"
@@ -51,11 +51,10 @@ rsa = { version = "0.3", optional = true }
 curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
-aes = { version = "0.5", optional = true }
-aes-ctr = { version = "0.5", optional = true }
-bcrypt-pbkdf = { version = "0.3", optional = true }
-block-cipher = { version = "0.8", optional = true }
-block-modes = { version = "0.6", optional = true }
+aes = { version = "0.6", optional = true }
+aes-ctr = { version = "0.6", optional = true }
+bcrypt-pbkdf = { version = "0.4", optional = true }
+block-modes = { version = "0.7", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
@@ -68,10 +67,10 @@ zeroize = "1"
 
 # Async I/O
 futures = { version = "0.3", optional = true }
-pin-project = "0.4"
+pin-project = "0.4.21"
 
 # Common CLI dependencies
-console = { version = "0.12", optional = true }
+console = { version = "0.13", optional = true }
 dirs = { version = "3.0.1", optional = true }
 pinentry = { version = "0.2", optional = true }
 rpassword = { version = "5", optional = true }
@@ -92,7 +91,6 @@ ssh = [
     "aes",
     "aes-ctr",
     "bcrypt-pbkdf",
-    "block-cipher",
     "block-modes",
     "curve25519-dalek",
     "num-traits",

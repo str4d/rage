@@ -28,45 +28,45 @@ fn generate_completions(mut app: App, bin_name: &str) {
 
 fn rage_completions() {
     let app = App::new("rage")
-        .arg(Arg::with_name("input"))
-        .arg(Arg::with_name("decrypt").short('d').long("decrypt"))
-        .arg(Arg::with_name("passphrase").short('p').long("passphrase"))
+        .arg(Arg::new("input"))
+        .arg(Arg::new("decrypt").short('d').long("decrypt"))
+        .arg(Arg::new("passphrase").short('p').long("passphrase"))
         .arg(
-            Arg::with_name("max-work-factor")
+            Arg::new("max-work-factor")
                 .takes_value(true)
                 .long("max-work-factor"),
         )
-        .arg(Arg::with_name("armor").short('a').long("armor"))
+        .arg(Arg::new("armor").short('a').long("armor"))
         .arg(
-            Arg::with_name("recipient")
+            Arg::new("recipient")
                 .takes_value(true)
                 .multiple(true)
                 .short('r')
                 .long("recipient"),
         )
         .arg(
-            Arg::with_name("identity")
+            Arg::new("identity")
                 .takes_value(true)
                 .multiple(true)
                 .short('i')
                 .long("identity"),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::new("output")
                 .takes_value(true)
                 .short('o')
                 .long("output"),
         );
 
     #[cfg(feature = "unstable")]
-    let app = app.arg(Arg::with_name("aliases").long("aliases"));
+    let app = app.arg(Arg::new("aliases").long("aliases"));
 
     generate_completions(app, "rage");
 }
 
 fn rage_keygen_completions() {
     let app = App::new("rage-keygen").arg(
-        Arg::with_name("output")
+        Arg::new("output")
             .takes_value(true)
             .short('o')
             .long("output"),
@@ -77,16 +77,16 @@ fn rage_keygen_completions() {
 
 fn rage_mount_completions() {
     let app = App::new("rage-mount")
-        .arg(Arg::with_name("filename"))
-        .arg(Arg::with_name("mountpoint"))
-        .arg(Arg::with_name("types").short('t').long("types"))
+        .arg(Arg::new("filename"))
+        .arg(Arg::new("mountpoint"))
+        .arg(Arg::new("types").short('t').long("types"))
         .arg(
-            Arg::with_name("max-work-factor")
+            Arg::new("max-work-factor")
                 .takes_value(true)
                 .long("max-work-factor"),
         )
         .arg(
-            Arg::with_name("identity")
+            Arg::new("identity")
                 .takes_value(true)
                 .multiple(true)
                 .short('i')

@@ -14,8 +14,6 @@ use futures::{
     task::{Context, Poll},
 };
 #[cfg(feature = "async")]
-use pin_project::project;
-#[cfg(feature = "async")]
 use std::pin::Pin;
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
@@ -39,7 +37,7 @@ struct EncodedLine {
     offset: usize,
 }
 
-#[pin_project]
+#[pin_project(project = LineEndingWriterProj)]
 pub(crate) struct LineEndingWriter<W> {
     #[pin]
     inner: W,
@@ -123,10 +121,8 @@ impl<W: AsyncWrite> LineEndingWriter<W> {
         }
     }
 
-    #[project]
     fn poll_flush_line(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        #[project]
-        let LineEndingWriter {
+        let LineEndingWriterProj {
             mut inner,
             line_with_ending,
             ..
@@ -340,7 +336,6 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
         }
     }
 
-    #[project]
     fn poll_flush_line(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         match self.project().0.project() {
             ArmorIsProj::Enabled {

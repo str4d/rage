@@ -288,10 +288,7 @@ impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
             Identity::Encrypted(enc) => {
                 let passphrase = self.callbacks.request_passphrase(&format!(
                     "Type passphrase for OpenSSH key '{}'",
-                    enc.filename
-                        .as_ref()
-                        .map(|s| s.as_str())
-                        .unwrap_or_default()
+                    enc.filename.as_deref().unwrap_or_default()
                 ))?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
