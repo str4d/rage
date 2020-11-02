@@ -87,3 +87,4 @@ bench = false
 [[bin]]
 name = "rage-mount"
 required-features = ["mount"]
+bench = false

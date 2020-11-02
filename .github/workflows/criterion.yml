@@ -20,12 +20,8 @@ jobs:
       - name: Run benchmarks
         run: |
           # run benchmarks and save baseline to "criterion.dev.temp"
-          cargo bench -- --verbose --noplot --save-baseline criterion.dev.temp
-
-          # set the path to the file to upload to criterion.dev
-          echo "::set-env name=CRITERION_FILE_PATH::$(find $(find . -type d -name criterion.dev.temp) -name raw.csv)"
+          cargo bench -- --verbose --noplot
       - name: Upload benchmarks
         run: |
           # upload the file
-          curl -F 'raw.csv=@${{ env.CRITERION_FILE_PATH }}' \
-          'https://api.criterion.dev/v1/${{ github.repository }}/measurements?token=${{ secrets.CRITERION_TOKEN }}&commit=${{ github.sha }}'
+          bash <(curl -s https://criterion.dev/bash)
