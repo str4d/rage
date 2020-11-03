@@ -95,7 +95,7 @@ pub(crate) struct Stream {
 impl Stream {
     fn new(key: PayloadKey) -> Self {
         Stream {
-            aead: ChaChaPoly1305::new(key.0),
+            aead: ChaChaPoly1305::new(&key.0),
             nonce: Nonce::default(),
         }
     }
