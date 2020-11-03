@@ -21,8 +21,8 @@ age-core = { version = "0.4.0", path = "../age-core" }
 base64 = "0.12"
 
 # - ChaCha20-Poly1305 from RFC 7539
-c2-chacha = "0.2"
-chacha20poly1305 = { version = "0.4", default-features = false, features = ["alloc"] }
+c2-chacha = "0.3"
+chacha20poly1305 = { version = "0.7", default-features = false, features = ["alloc"] }
 
 # - X25519 from RFC 7748
 x25519-dalek = "1"
@@ -67,7 +67,7 @@ zeroize = "1"
 
 # Async I/O
 futures = { version = "0.3", optional = true }
-pin-project = "0.4.21"
+pin-project = "1"
 
 # Common CLI dependencies
 console = { version = "0.13", optional = true }
