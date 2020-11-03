@@ -10,6 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Support for translations!
 - New core traits, implemented by all relevant `age` types:
   - `age::Identity`, representing an identity that can decrypt an age file.
   - `age::Recipient`, representing a potential recipient of an age file.
