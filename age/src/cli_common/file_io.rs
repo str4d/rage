@@ -7,19 +7,17 @@ use std::io::{self, Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
-use crate::util::LINE_ENDING;
+use crate::{fl, util::LINE_ENDING, wfl, wlnfl};
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
-const TRUNCATED_TTY_MSG: &[u8] =
-    b"[truncated; use a pipe, a redirect, or -o/--output to decrypt the entire file]";
 
 #[derive(Debug)]
 struct DenyBinaryOutputError;
 
 impl fmt::Display for DenyBinaryOutputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "refusing to output binary to the terminal.")?;
-        write!(f, "Did you mean to use -a/--armor? Force with '-o -'.")
+        wlnfl!(f, "err-deny-binary-output")?;
+        wfl!(f, "rec-deny-binary-output")
     }
 }
 
@@ -30,11 +28,8 @@ struct DetectedBinaryOutputError;
 
 impl fmt::Display for DetectedBinaryOutputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "detected unprintable data; refusing to output to the terminal."
-        )?;
-        write!(f, "Force with '-o -'.")
+        wlnfl!(f, "err-detected-binary")?;
+        wfl!(f, "rec-detected-binary")
     }
 }
 
@@ -124,7 +119,9 @@ impl Write for StdoutWriter {
                 if self.truncated || self.count == SHORT_OUTPUT_LENGTH {
                     if !self.truncated {
                         self.inner.write_all(LINE_ENDING.as_bytes())?;
-                        self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.inner.write_all(b"[")?;
+                        self.inner.write_all(fl!("cli-truncated-tty").as_bytes())?;
+                        self.inner.write_all(b"]")?;
                         self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.truncated = true;
                     }
@@ -150,7 +147,9 @@ impl Write for StdoutWriter {
                 if self.count == SHORT_OUTPUT_LENGTH && data.len() > to_write {
                     if !self.truncated {
                         self.inner.write_all(LINE_ENDING.as_bytes())?;
-                        self.inner.write_all(TRUNCATED_TTY_MSG)?;
+                        self.inner.write_all(b"[")?;
+                        self.inner.write_all(fl!("cli-truncated-tty").as_bytes())?;
+                        self.inner.write_all(b"]")?;
                         self.inner.write_all(LINE_ENDING.as_bytes())?;
                         self.truncated = true;
                     }
