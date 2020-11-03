@@ -3,7 +3,10 @@
 use age_core::format::Stanza;
 use std::io::{self, Read, Write};
 
-use crate::primitives::{HmacKey, HmacWriter};
+use crate::{
+    error::DecryptError,
+    primitives::{HmacKey, HmacWriter},
+};
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -44,7 +47,7 @@ impl HeaderV1 {
 }
 
 impl Header {
-    pub(crate) fn read<R: Read>(mut input: R) -> io::Result<Self> {
+    pub(crate) fn read<R: Read>(mut input: R) -> Result<Self, DecryptError> {
         let mut data = vec![];
         loop {
             match read::header(&data) {
@@ -58,14 +61,16 @@ impl Header {
                     input.read_exact(&mut data[m..m + n])?;
                 }
                 Err(_) => {
-                    break Err(io::Error::new(io::ErrorKind::InvalidData, "invalid header"));
+                    break Err(DecryptError::InvalidHeader);
                 }
             }
         }
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn read_async<R: AsyncRead + Unpin>(mut input: R) -> io::Result<Self> {
+    pub(crate) async fn read_async<R: AsyncRead + Unpin>(
+        mut input: R,
+    ) -> Result<Self, DecryptError> {
         let mut data = vec![];
         loop {
             match read::header(&data) {
@@ -79,7 +84,7 @@ impl Header {
                     input.read_exact(&mut data[m..m + n]).await?;
                 }
                 Err(_) => {
-                    break Err(io::Error::new(io::ErrorKind::InvalidData, "invalid header"));
+                    break Err(DecryptError::InvalidHeader);
                 }
             }
         }
