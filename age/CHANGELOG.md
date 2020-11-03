@@ -33,7 +33,7 @@ to 1.0.0 are beta releases.
     optionally apply the armored age format.
 
 ### Changed
-- MSRV is now 1.41.0.
+- MSRV is now 1.45.0.
 - Changes due to the new core traits:
   - `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
   - `age::decryptor::RecipientsDecryptor` now takes
