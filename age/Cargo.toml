@@ -67,7 +67,7 @@ zeroize = "1"
 
 # Async I/O
 futures = { version = "0.3", optional = true }
-pin-project = "0.4.21"
+pin-project = "1"
 
 # Common CLI dependencies
 console = { version = "0.13", optional = true }
