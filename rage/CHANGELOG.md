@@ -10,7 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
-- Internationalization (i18n) support!
+- Support for translations!
 - `ssh` feature flag, enabled by default. It can be disabled to remove support
   for `ssh-rsa` and `ssh-ed25519` recipients and identities.
 

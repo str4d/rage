@@ -1,6 +1,6 @@
 [package]
 name = "age"
-description = "[BETA] A simple, secure, and modern encryption tool."
+description = "[BETA] A simple, secure, and modern encryption library."
 version = "0.4.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
@@ -68,6 +68,12 @@ zeroize = "1"
 # Async I/O
 futures = { version = "0.3", optional = true }
 pin-project = "1"
+
+# Localization
+i18n-embed = { version = "0.9", features = ["fluent-system"] }
+i18n-embed-fl = "0.2"
+lazy_static = "1"
+rust-embed = "5"
 
 # Common CLI dependencies
 console = { version = "0.13", optional = true }

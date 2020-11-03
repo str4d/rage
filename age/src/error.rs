@@ -1,7 +1,20 @@
 //! Error type.
 
+use i18n_embed_fl::fl;
 use std::fmt;
 use std::io;
+
+macro_rules! wfl {
+    ($f:ident, $message_id:literal) => {
+        write!($f, "{}", $crate::fl!($message_id))
+    };
+}
+
+macro_rules! wlnfl {
+    ($f:ident, $message_id:literal) => {
+        writeln!($f, "{}", $crate::fl!($message_id))
+    };
+}
 
 /// The various errors that can be returned during the encryption process.
 #[derive(Debug)]
@@ -53,23 +66,27 @@ pub enum DecryptError {
 impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DecryptError::DecryptionFailed => write!(f, "Decryption failed"),
+            DecryptError::DecryptionFailed => wfl!(f, "err-decryption-failed"),
             DecryptError::ExcessiveWork { required, target } => {
-                writeln!(f, "Excessive work parameter for passphrase.")?;
+                wlnfl!(f, "err-excessive-work")?;
                 write!(
                     f,
-                    "Decryption would take around {} seconds.",
-                    1 << (required - target)
+                    "{}",
+                    fl!(
+                        crate::i18n::LANGUAGE_LOADER,
+                        "rec-excessive-work",
+                        duration = (1 << (required - target))
+                    )
                 )
             }
-            DecryptError::InvalidHeader => write!(f, "Header is invalid"),
-            DecryptError::InvalidMac => write!(f, "Header MAC is invalid"),
+            DecryptError::InvalidHeader => wfl!(f, "err-header-invalid"),
+            DecryptError::InvalidMac => wfl!(f, "err-header-mac-invalid"),
             DecryptError::Io(e) => e.fmt(f),
-            DecryptError::KeyDecryptionFailed => write!(f, "Failed to decrypt an encrypted key"),
-            DecryptError::NoMatchingKeys => write!(f, "No matching keys found"),
+            DecryptError::KeyDecryptionFailed => wfl!(f, "err-key-decryption"),
+            DecryptError::NoMatchingKeys => wfl!(f, "err-no-matching-keys"),
             DecryptError::UnknownFormat => {
-                writeln!(f, "Unknown age format.")?;
-                write!(f, "Have you tried upgrading to the latest version?")
+                wlnfl!(f, "err-unknown-format")?;
+                wfl!(f, "rec-unknown-format")
             }
         }
     }

@@ -10,6 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Support for translations!
 - New core traits, implemented by all relevant `age` types:
   - `age::Identity`, representing an identity that can decrypt an age file.
   - `age::Recipient`, representing a potential recipient of an age file.
@@ -32,7 +33,7 @@ to 1.0.0 are beta releases.
     optionally apply the armored age format.
 
 ### Changed
-- MSRV is now 1.41.0.
+- MSRV is now 1.45.0.
 - Changes due to the new core traits:
   - `age::Encryptor::with_recipients` now takes `Vec<Box<dyn Recipient>>`.
   - `age::decryptor::RecipientsDecryptor` now takes

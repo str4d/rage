@@ -2,6 +2,7 @@ use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_decrypt, hkdf},
 };
+use i18n_embed_fl::fl;
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
@@ -139,56 +140,43 @@ impl UnsupportedKey {
     /// Prints details about this unsupported identity.
     pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
         if let Some(name) = filename {
-            writeln!(f, "Unsupported SSH identity: {}", name)?;
+            writeln!(
+                f,
+                "{}",
+                fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "ssh-unsupported-identity",
+                    name = name
+                )
+            )?;
             writeln!(f)?;
         }
         match self {
-            UnsupportedKey::EncryptedPem => {
-                let message = [
-                    "Insecure Encrypted Key Format",
-                    "-----------------------------",
-                    "Prior to OpenSSH version 7.8, if a password was set when generating a new",
-                    "DSA, ECDSA, or RSA key, ssh-keygen would encrypt the key using the encrypted",
-                    "PEM format. This encryption format is insecure and should no longer be used.",
-                    "",
-                    "You can migrate your key to the encrypted SSH private key format (which has",
-                    "been supported by OpenSSH since version 6.5, released in January 2014) by",
-                    "changing its passphrase with the following command:",
-                    "",
-                    "    ssh-keygen -o -p",
-                    "",
-                    "If you are using an OpenSSH version between 6.5 and 7.7 (such as the default",
-                    "OpenSSH provided on Ubuntu 18.04 LTS), you can use the following command to",
-                    "force keys to be generated using the new format:",
-                    "",
-                    "    ssh-keygen -o",
-                ];
-                for line in &message {
-                    writeln!(f, "{}", line)?;
-                }
-            }
+            UnsupportedKey::EncryptedPem => writeln!(
+                f,
+                "{}",
+                fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "ssh-insecure-key-format",
+                    change_passphrase = "ssh-keygen -o -p",
+                    gen_new = "ssh-keygen -o"
+                )
+            )?,
             UnsupportedKey::EncryptedSsh(cipher) => {
-                let currently_unsupported = format!("currently-unsupported cipher ({}).", cipher);
                 let new_issue = format!(
                     "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{}",
                     cipher,
                 );
-                let message = [
-                    "Unsupported Cipher for Encrypted SSH Key",
-                    "----------------------------------------",
-                    "OpenSSH internally supports several different ciphers for encrypted keys,",
-                    "but it has only ever directly generated a few of them. rage supports all",
-                    "ciphers that ssh-keygen might generate, and is being updated on a",
-                    "case-by-case basis with support for non-standard ciphers. Your key uses a",
-                    &currently_unsupported,
-                    "",
-                    "If you would like support for this key type, please open an issue here:",
-                    "",
-                    &new_issue,
-                ];
-                for line in &message {
-                    writeln!(f, "{}", line)?;
-                }
+                writeln!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::i18n::LANGUAGE_LOADER,
+                        "ssh-unsupported-cipher",
+                        cipher = cipher.as_str(),
+                        new_issue = new_issue.as_str()
+                    )
+                )?;
             }
         }
         Ok(())
@@ -286,9 +274,10 @@ impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
         match &self.identity {
             Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(enc) => {
-                let passphrase = self.callbacks.request_passphrase(&format!(
-                    "Type passphrase for OpenSSH key '{}'",
-                    enc.filename.as_deref().unwrap_or_default()
+                let passphrase = self.callbacks.request_passphrase(&fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "ssh-passphrase-prompt",
+                    filename = enc.filename.as_deref().unwrap_or_default()
                 ))?;
                 let decrypted = match enc.decrypt(passphrase) {
                     Ok(d) => d,
