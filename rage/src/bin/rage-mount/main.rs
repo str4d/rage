@@ -205,6 +205,7 @@ fn main() -> Result<(), Error> {
 
     let requested_languages = DesktopLanguageRequester::requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+    age::localizer().select(&requested_languages).unwrap();
 
     let args = args().collect::<Vec<_>>();
 
