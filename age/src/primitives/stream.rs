@@ -1,7 +1,7 @@
 //! I/O helper structs for age file encryption and decryption.
 
 use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, NewAead},
+    aead::{generic_array::GenericArray, AeadInPlace, NewAead},
     ChaChaPoly1305,
 };
 use pin_project::pin_project;
@@ -177,43 +177,77 @@ impl Stream {
     }
 
     fn encrypt_chunks(&mut self, chunks: &[u8], last: bool) -> io::Result<Vec<u8>> {
-        // TODO: Generalise to multiple chunks.
-        let chunk = chunks;
-        assert!(chunk.len() <= CHUNK_SIZE);
+        if self.nonce.is_last() {
+            Err(io::Error::new(
+                io::ErrorKind::WriteZero,
+                "last chunk has been processed",
+            ))?;
+        };
 
-        self.nonce.set_last(last).map_err(|_| {
-            io::Error::new(io::ErrorKind::WriteZero, "last chunk has been processed")
-        })?;
+        // Allocate an output buffer of the correct length.
+        let chunks_len = chunks.len();
+        let chunks = chunks.chunks(CHUNK_SIZE);
+        let num_chunks = chunks.len();
+        let mut encrypted = vec![0; chunks_len + TAG_SIZE * num_chunks];
 
-        let encrypted = self
-            .aead
-            .encrypt(&self.nonce.to_bytes().into(), chunk)
-            .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size");
-        self.nonce.increment_counter();
+        for (i, (encrypted, chunk)) in encrypted
+            .chunks_mut(ENCRYPTED_CHUNK_SIZE)
+            .zip(chunks)
+            .enumerate()
+        {
+            if i + 1 == num_chunks {
+                self.nonce.set_last(last).unwrap();
+            }
+
+            let (buffer, tag) = encrypted.split_at_mut(chunk.len());
+            buffer.copy_from_slice(chunk);
+            tag.copy_from_slice(
+                self.aead
+                    .encrypt_in_place_detached(&self.nonce.to_bytes().into(), &[], buffer)
+                    .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size")
+                    .as_slice(),
+            );
+
+            self.nonce.increment_counter();
+        }
 
         Ok(encrypted)
     }
 
     fn decrypt_chunks(&mut self, chunks: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
-        // TODO: Generalise to multiple chunks.
-        let chunk = chunks;
-        assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
-
-        self.nonce.set_last(last).map_err(|_| {
-            io::Error::new(
+        if self.nonce.is_last() {
+            Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "last chunk has been processed",
-            )
-        })?;
+            ))?;
+        };
 
-        let decrypted = self
-            .aead
-            .decrypt(&self.nonce.to_bytes().into(), chunk)
-            .map(SecretVec::new)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
-        self.nonce.increment_counter();
+        // Allocate an output buffer of the correct length.
+        let chunks_len = chunks.len();
+        let chunks = chunks.chunks(ENCRYPTED_CHUNK_SIZE);
+        let num_chunks = chunks.len();
+        let mut decrypted = vec![0; chunks_len - TAG_SIZE * num_chunks];
 
-        Ok(decrypted)
+        for (i, (decrypted, chunk)) in decrypted.chunks_mut(CHUNK_SIZE).zip(chunks).enumerate() {
+            if i + 1 == num_chunks {
+                self.nonce.set_last(last).unwrap();
+            }
+
+            let (chunk, tag) = chunk.split_at(decrypted.len());
+            decrypted.copy_from_slice(chunk);
+            self.aead
+                .decrypt_in_place_detached(
+                    &self.nonce.to_bytes().into(),
+                    &[],
+                    decrypted,
+                    tag.into(),
+                )
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
+
+            self.nonce.increment_counter();
+        }
+
+        Ok(SecretVec::new(decrypted))
     }
 
     fn is_complete(&self) -> bool {
