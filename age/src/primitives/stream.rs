@@ -6,6 +6,7 @@ use chacha20poly1305::{
 };
 use pin_project::pin_project;
 use secrecy::{ExposeSecret, SecretVec};
+use std::cmp;
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroize;
@@ -243,11 +244,7 @@ impl<W: Write> Write for StreamWriter<W> {
         let mut bytes_written = 0;
 
         while !buf.is_empty() {
-            let mut to_write = CHUNK_SIZE - self.chunk.len();
-            if to_write > buf.len() {
-                to_write = buf.len()
-            }
-
+            let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
             self.chunk.extend_from_slice(&buf[..to_write]);
             bytes_written += to_write;
             buf = &buf[to_write..];
@@ -305,10 +302,7 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
     ) -> Poll<io::Result<usize>> {
         ready!(self.as_mut().poll_flush_chunk(cx))?;
 
-        let mut to_write = CHUNK_SIZE - self.chunk.len();
-        if to_write > buf.len() {
-            to_write = buf.len()
-        }
+        let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
 
         self.as_mut()
             .project()
@@ -432,10 +426,7 @@ impl<R> StreamReader<R> {
         let chunk = self.chunk.as_ref().unwrap();
         let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
 
-        let mut to_read = chunk.expose_secret().len() - cur_chunk_offset;
-        if to_read > buf.len() {
-            to_read = buf.len()
-        }
+        let to_read = cmp::min(chunk.expose_secret().len() - cur_chunk_offset, buf.len());
 
         buf[..to_read]
             .copy_from_slice(&chunk.expose_secret()[cur_chunk_offset..cur_chunk_offset + to_read]);
