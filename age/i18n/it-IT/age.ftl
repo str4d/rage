@@ -24,7 +24,7 @@ cli-passphrase-confirm = Conferma la passphrase
 -flag-output = -o/--output
 -output-stdout = -o -
 
-cli-truncated-tty = troncato; usa una pipe, una redirezione, o {-flag-output} per decrittare l'intero file
+cli-truncated-tty = troncato; usa una pipe, una redirezione, o {-flag-output} per decifrare l'intero file
 
 err-detected-binary = rilevati dati non stampabili; rifiuto l'invio dell'output al terminale.
 rec-detected-binary = Puoi forzarlo con '{-output-stdout}'.
@@ -34,16 +34,16 @@ rec-deny-binary-output = Intendevi usare {-flag-armor}? {rec-detected-binary}
 
 ## Errors
 
-err-decryption-failed = Decrittazione fallita
+err-decryption-failed = Decifrazione fallita
 
 err-excessive-work = Parametro di lavoro per la passphrase troppo elevato.
-rec-excessive-work = La decrittazione impiegherà circa {$duration} secondi.
+rec-excessive-work = La decifrazione impiegherà circa {$duration} secondi.
 
 err-header-invalid = L'header è invalido
 
-err-header-mac-invalid = L'header MAC è invalido
+err-header-mac-invalid = Il MAC dell'header è invalido
 
-err-key-decryption = La decrittazione di una chiave crittografata è fallita
+err-key-decryption = La decifrazione di una chiave crittografata è fallita
 
 err-no-matching-keys = Nessuna chiave corrispondente trovata
 
@@ -57,11 +57,11 @@ ssh-passphrase-prompt = Inserisci la passphrase per la chiave OpenSSH '{$filenam
 ssh-unsupported-identity = Identità SSH non supportata: {$name}
 
 ssh-insecure-key-format =
-    Formato della Chiave Crittografica Insicuro
+    Formato della Chiave Crittografica Non Sicuro
     -------------------------------------------
     Precedentemente alla versione 7.8 di OpenSSH, se una password veniva
     impostata quando si generava una nuova chiave DSA, ECDSA, o RSA, ssh-keygen
-    avrebbe crittografato la chiave usando un formato PEM crittato.
+    avrebbe crittografato la chiave usando un formato PEM cifrato.
 
     Puoi migrare la tua chiave nel formato della chiave privata SSH
     crittografata (supportato dalla versione 6.5 di OpenSSH in poi, rilasciata

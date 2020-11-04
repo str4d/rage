@@ -87,7 +87,7 @@ rec-enc-broken-stdout = Stai usando una pipe verso un programma che non sta legg
 
 err-enc-broken-file = Impossibile scrivere sul file: {$err}
 
-err-enc-identity = {-flag-identity} non può essere usato in modalità crittazione.
+err-enc-identity = {-flag-identity} non può essere usato in modalità cifrazione.
 rec-enc-identity = Hai dimenticato di specificare {-flag-decrypt}?
 
 err-enc-invalid-recipient = Destinatario '{$recipient}' invalido
@@ -96,12 +96,12 @@ err-enc-missing-recipients = Destinatari mancanti.
 rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}
-err-enc-passphrase-without-file = Il file da crittare deve essere passato come argomento quando si usa {-flag-passphrase}
+err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}
 err-enc-unknown-alias = {$alias} sconosciuto
 
 ## Decryption errors
 
-rec-dec-excessive-work = Per decrittare, riprova usando {-flag-max-work-factor} {$wf}
+rec-dec-excessive-work = Per decifrare, riprova usando {-flag-max-work-factor} {$wf}
 
 err-dec-armor-flag = {-flag-armor} non può essere usato assieme a {-flag-decrypt}.
 rec-dec-armor-flag = Nota che i file armored vengono rilevati automaticamente.
@@ -117,8 +117,8 @@ rec-dec-passphrase-flag = Nota che i file crittografati con la passphrase vengon
 
 err-dec-passphrase-without-file-win =
     Questo file richiede una passphrase, e su Windows il
-    file da decrittare deve essere passato come argomento
-    posizionale quando si decritta con la passphrase.
+    file da decifrare deve essere passato come argomento
+    posizionale quando si decifra con la passphrase.
 
 err-dec-recipient-flag = {-flag-recipient} non può essere usato assieme a {-flag-decrypt}.
 rec-dec-recipient-flag = Intendevi usare {-flag-identity} per specificare una chiave privata?
@@ -127,7 +127,7 @@ rec-dec-recipient-flag = Intendevi usare {-flag-identity} per specificare una ch
 
 -flag-mnt-types = -t/--types
 
-info-decrypting = Decrittando {$filename}
+info-decrypting = Decifrando {$filename}
 info-mounting-as-fuse = Montando come filesystem FUSE
 
 err-mnt-missing-filename = Nome del file mancante.
