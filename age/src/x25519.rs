@@ -29,6 +29,7 @@ pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
 
 /// A secret key for decrypting an age file.
+#[derive(Clone)]
 pub struct Identity(StaticSecret);
 
 impl std::str::FromStr for Identity {
