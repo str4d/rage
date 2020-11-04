@@ -11,6 +11,27 @@
 -age = age
 -rage = rage
 
+## CLI helpers
+
+cli-secret-input-required = È richiesto un input
+cli-secret-input-mismatch = Gli input non corrispondono
+
+cli-passphrase-desc = Digita la passphrase (lascia vuoto per generarne una sicura automaticamente)
+cli-passphrase-prompt = Passphrase
+cli-passphrase-confirm = Conferma la passphrase
+
+-flag-armor = -a/--armor
+-flag-output = -o/--output
+-output-stdout = -o -
+
+cli-truncated-tty = troncato; usa una pipe, una redirezione, o {-flag-output} per decrittare l'intero file
+
+err-detected-binary = rilevati dati non stampabili; rifiuto l'invio dell'output al terminale.
+rec-detected-binary = Puoi forzarlo con '{-output-stdout}'.
+
+err-deny-binary-output = rifiuto l'invio di output binario al terminale.
+rec-deny-binary-output = Intendevi usare {-flag-armor}? {rec-detected-binary}
+
 ## Errors
 
 err-decryption-failed = Decrittazione fallita
