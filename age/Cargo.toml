@@ -75,6 +75,7 @@ rust-embed = "6"
 
 # Performance
 num_cpus = "1.0"
+rayon = "1.5"
 
 # Common CLI dependencies
 console = { version = "0.15", optional = true, default-features = false }

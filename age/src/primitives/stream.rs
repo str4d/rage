@@ -7,6 +7,7 @@ use chacha20poly1305::{
 };
 use lazy_static::lazy_static;
 use pin_project::pin_project;
+use rayon::prelude::*;
 use std::cmp;
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -51,9 +52,9 @@ impl Nonce {
         self.0 = u128::from(val) << 8;
     }
 
-    fn increment_counter(&mut self) {
+    fn increment_counter(&mut self, by: usize) {
         // Increment the 11-byte counter
-        self.0 += 1 << 8;
+        self.0 += (by as u128) << 8;
         if self.0 >> (8 * 12) != 0 {
             panic!("We overflowed the nonce!");
         }
@@ -197,26 +198,29 @@ impl Stream {
         let num_chunks = chunks.len();
         let mut encrypted = vec![0; chunks_len + TAG_SIZE * num_chunks];
 
-        for (i, (encrypted, chunk)) in encrypted
+        encrypted
             .chunks_mut(ENCRYPTED_CHUNK_SIZE)
             .zip(chunks)
             .enumerate()
-        {
-            if i + 1 == num_chunks {
-                self.nonce.set_last(last).unwrap();
-            }
+            .par_bridge()
+            .for_each_with(self.nonce, |nonce, (i, (encrypted, chunk))| {
+                nonce.increment_counter(i);
+                if i + 1 == num_chunks {
+                    nonce.set_last(last).unwrap();
+                }
 
-            let (buffer, tag) = encrypted.split_at_mut(chunk.len());
-            buffer.copy_from_slice(chunk);
-            tag.copy_from_slice(
-                self.aead
-                    .encrypt_in_place_detached(&self.nonce.to_bytes().into(), &[], buffer)
-                    .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size")
-                    .as_slice(),
-            );
+                let (buffer, tag) = encrypted.split_at_mut(chunk.len());
+                buffer.copy_from_slice(chunk);
+                tag.copy_from_slice(
+                    self.aead
+                        .encrypt_in_place_detached(&nonce.to_bytes().into(), &[], buffer)
+                        .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size")
+                        .as_slice(),
+                );
+            });
 
-            self.nonce.increment_counter();
-        }
+        self.nonce.increment_counter(num_chunks);
+        self.nonce.set_last(last).unwrap();
 
         Ok(encrypted)
     }
@@ -251,7 +255,7 @@ impl Stream {
                 )
                 .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
 
-            self.nonce.increment_counter();
+            self.nonce.increment_counter(1);
         }
 
         Ok(SecretVec::new(decrypted))

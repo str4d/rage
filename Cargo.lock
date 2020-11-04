@@ -76,6 +76,7 @@ dependencies = [
  "quickcheck_macros",
  "rand 0.7.3",
  "rand 0.8.4",
+ "rayon",
  "rpassword",
  "rsa",
  "rust-embed",
