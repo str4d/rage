@@ -58,7 +58,7 @@ ssh-unsupported-identity = Identità SSH non supportata: {$name}
 
 ssh-insecure-key-format =
     Formato della Chiave Crittografica Non Sicuro
-    -------------------------------------------
+    ---------------------------------------------
     Precedentemente alla versione 7.8 di OpenSSH, se una password veniva
     impostata quando si generava una nuova chiave DSA, ECDSA, o RSA, ssh-keygen
     avrebbe crittografato la chiave usando un formato PEM cifrato.
