@@ -10,7 +10,15 @@ fn bench(c: &mut Criterion<CyclesPerByte>) {
     let mut group = c.benchmark_group("stream");
     let buf = vec![0u8; 1024 * KB];
 
-    for &size in &[KB, 16 * KB, 64 * KB, 128 * KB, 256 * KB, 500 * KB, 1024 * KB] {
+    for &size in &[
+        KB,
+        16 * KB,
+        64 * KB,
+        128 * KB,
+        256 * KB,
+        500 * KB,
+        1024 * KB,
+    ] {
         group.throughput(Throughput::Bytes(size as u64));
 
         group.bench_function(BenchmarkId::new("encrypt", size), |b| {
