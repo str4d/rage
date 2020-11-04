@@ -12,7 +12,7 @@ use std::io::{self, BufReader};
 use std::path::PathBuf;
 use subtle::ConstantTimeEq;
 
-use crate::{identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
+use crate::{fl, identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
 
 pub mod file_io;
 
@@ -119,14 +119,16 @@ pub fn read_secret(
 ) -> pinentry::Result<SecretString> {
     if let Some(mut input) = PassphraseInput::with_default_binary() {
         // pinentry binary is available!
+        let mismatch_error = fl!("cli-secret-input-mismatch");
+        let empty_error = fl!("cli-secret-input-required");
         input
             .with_description(description)
             .with_prompt(prompt)
             .with_timeout(30);
         if let Some(confirm_prompt) = confirm {
-            input.with_confirmation(confirm_prompt, "Inputs do not match");
+            input.with_confirmation(confirm_prompt, &mismatch_error);
         } else {
-            input.required("Input is required");
+            input.required(&empty_error);
         }
         input.interact()
     } else {
@@ -145,7 +147,7 @@ pub fn read_secret(
             ) {
                 return Err(pinentry::Error::Io(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "Inputs do not match",
+                    fl!("cli-secret-input-mismatch"),
                 )));
             }
         } else if passphrase.expose_secret().is_empty() {
@@ -161,7 +163,7 @@ pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {
-        read_secret(description, "Passphrase", None).ok()
+        read_secret(description, &fl!("cli-passphrase-prompt"), None).ok()
     }
 }
 
@@ -176,9 +178,9 @@ pub enum Passphrase {
 /// Reads a passphrase from stdin, or generates a secure one if none is provided.
 pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
     let res = read_secret(
-        "Type passphrase (leave empty to autogenerate a secure one)",
-        "Passphrase",
-        Some("Confirm passphrase"),
+        &fl!("cli-passphrase-desc"),
+        &fl!("cli-passphrase-prompt"),
+        Some(&fl!("cli-passphrase-confirm")),
     )?;
 
     if res.expose_secret().is_empty() {

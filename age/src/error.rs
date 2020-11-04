@@ -4,17 +4,7 @@ use i18n_embed_fl::fl;
 use std::fmt;
 use std::io;
 
-macro_rules! wfl {
-    ($f:ident, $message_id:literal) => {
-        write!($f, "{}", $crate::fl!($message_id))
-    };
-}
-
-macro_rules! wlnfl {
-    ($f:ident, $message_id:literal) => {
-        writeln!($f, "{}", $crate::fl!($message_id))
-    };
-}
+use crate::{wfl, wlnfl};
 
 /// The various errors that can be returned during the encryption process.
 #[derive(Debug)]

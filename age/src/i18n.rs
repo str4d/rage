@@ -23,6 +23,22 @@ macro_rules! fl {
     }};
 }
 
+/// age-localized version of the write! macro.
+#[macro_export]
+macro_rules! wfl {
+    ($f:ident, $message_id:literal) => {
+        write!($f, "{}", $crate::fl!($message_id))
+    };
+}
+
+/// age-localized version of the writeln! macro.
+#[macro_export]
+macro_rules! wlnfl {
+    ($f:ident, $message_id:literal) => {
+        writeln!($f, "{}", $crate::fl!($message_id))
+    };
+}
+
 /// Returns the [`Localizer`] to be used for localizing this library.
 pub fn localizer() -> Box<dyn Localizer> {
     Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &TRANSLATIONS))
