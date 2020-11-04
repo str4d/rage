@@ -68,6 +68,7 @@ dependencies = [
  "lazy_static",
  "nom",
  "num-traits",
+ "num_cpus",
  "pin-project",
  "pinentry",
  "pprof",

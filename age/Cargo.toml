@@ -73,6 +73,9 @@ i18n-embed-fl = "0.6"
 lazy_static = "1"
 rust-embed = "6"
 
+# Performance
+num_cpus = "1.0"
+
 # Common CLI dependencies
 console = { version = "0.15", optional = true, default-features = false }
 pinentry = { version = "0.5", optional = true }
