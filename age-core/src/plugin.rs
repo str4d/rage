@@ -1,3 +1,6 @@
+#[cfg(not(feature = "unstable"))]
+compile_error!("Plugin support is unstable; enable the 'unstable' feature flag.");
+
 use rand::{thread_rng, Rng};
 use secrecy::Zeroize;
 use std::io::{self, BufRead, BufReader, Read, Write};

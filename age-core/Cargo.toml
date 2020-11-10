@@ -36,6 +36,7 @@ secrecy = "0.7"
 
 [features]
 plugin = []
+unstable = []
 
 [lib]
 bench = false
