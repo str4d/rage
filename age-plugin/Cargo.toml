@@ -16,3 +16,6 @@ secrecy = "0.7"
 
 [dev-dependencies]
 gumdrop = "0.8"
+
+[lib]
+bench = false
