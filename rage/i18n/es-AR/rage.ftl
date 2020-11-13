@@ -78,7 +78,7 @@ err-passphrase-timed-out = Tiempo de espera para ingresar frase contraseña agot
 err-ux-A = Acaso {-rage} no hizo lo que esperabas? Puede que un error te sea mas útil?
 err-ux-B = Contanos
 # Put (len(A) - len(B) - 32) spaces here.
-err-ux-C = {"                          "}
+err-ux-C = {"                                "}
 
 ## Encryption errors
 
