@@ -112,13 +112,13 @@ err-dec-missing-identities = No se encontraron las identidades.
 rec-dec-missing-identities-1 = ¿Te olvidaste de especificar {-flag-identity}?
 rec-dec-missing-identities-2 = Tambien puedes guardar las identidades por defecto en este archivo:
 
-err-dec-passphrase-flag = {-flag-passphrase} can't be used with {-flag-decrypt}.
-rec-dec-passphrase-flag = Note that passphrase-encrypted files are detected automatically.
+err-dec-passphrase-flag = {-flag-passphrase} no puede ser usado con {-flag-decrypt}.
+rec-dec-passphrase-flag = Nota que los archivos encriptados con frases contraseñas son detectados automáticamente.
 
 err-dec-passphrase-without-file-win =
-    This file requires a passphrase, and on Windows the
-    file to decrypt must be passed as a positional argument
-    when decrypting with a passphrase.
+    Este archivo requiere una frase contraseña. En Windows
+    los archivos a desencriptar deben ser pasados posicionalmente
+    como argumentos cuando se desencripta con una frase contraseña.
 
 err-dec-recipient-flag = {-flag-recipient} no puede ser usado con {-flag-decrypt}.
 rec-dec-recipient-flag = ¿Tenías la intención de utilizar {-flag-identity} para especificar una clave privada?
