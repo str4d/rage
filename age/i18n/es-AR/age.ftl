@@ -13,8 +13,8 @@
 
 ## CLI helpers
 
-cli-secret-input-required = requiere un Input
-cli-secret-input-mismatch = los Inputs no coinciden
+cli-secret-input-required = requiere una entrada de texto
+cli-secret-input-mismatch = las entrada provistas no coinciden
 
 cli-passphrase-desc = Escriba su frase contraseña (dejar vacío para autogenerar una segura)
 cli-passphrase-prompt = Frase contraseña
