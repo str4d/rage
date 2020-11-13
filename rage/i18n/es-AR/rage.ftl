@@ -46,7 +46,6 @@ rage-usage =
     línea (ignorando comentarios con el prefijo "#" y líneas vacías).
 
     {-identity} es una ruta a una archivo con una identidad {-age} por línea
-    {-identity} is a path to a file with {-age} identities, one per line
     (ignorando comentarios con el prefijo "#" y líneas vacías), o a un archivo
     de claves SSH. Pueden proveerse múltiples idendidades, cualquiera que no sea
     utilizada será ignorada.
