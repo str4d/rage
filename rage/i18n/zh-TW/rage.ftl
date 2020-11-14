@@ -74,8 +74,8 @@ err-passphrase-timed-out = 等待輸入密碼短語時超時了。
 
 err-ux-A = {-rage} 的行為與您的預期不符嗎? 或是某個錯誤消息可包含更多信息?
 err-ux-B = 請與我們分享
-# Put (len(A) - len(B) - 32) spaces here.
-err-ux-C = {"                          "}
+# Put spaces here to align the two lines in error output.
+err-ux-C = {"                "}
 
 ## Encryption errors
 
