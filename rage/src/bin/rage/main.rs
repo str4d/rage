@@ -45,7 +45,7 @@ macro_rules! fl {
 /// Returns an error if a filename is given that does not exist.
 fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<String>>> {
     let buf = filename
-        .map(|f| read_to_string(f))
+        .map(read_to_string)
         .transpose()?
         .unwrap_or_default();
 
@@ -389,7 +389,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             )?;
 
             if identities.is_empty() {
-                Err(error::DecryptError::MissingIdentities)?;
+                return Err(error::DecryptError::MissingIdentities);
             }
 
             decryptor
