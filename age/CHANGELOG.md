@@ -65,6 +65,9 @@ to 1.0.0 are beta releases.
 - `age::decryptor::RecipientsDecryptor::decrypt_with_callbacks()` (identities
   are now expected to handle their own callbacks, and
   `age::cli_common::read_identities` now adds callbacks to SSH identities).
+- Default identity path:
+  - `age::cli_common::get_config_dir`.
+  - The `no_default` parameter for `age::cli_common::read_identities`.
 
 ## [0.4.0] - 2020-03-25
 ### Added

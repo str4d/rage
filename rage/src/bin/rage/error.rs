@@ -118,7 +118,7 @@ pub(crate) enum DecryptError {
     ArmorFlag,
     IdentityNotFound(String),
     Io(io::Error),
-    MissingIdentities(String),
+    MissingIdentities,
     PassphraseFlag,
     PassphraseTimedOut,
     #[cfg(not(unix))]
@@ -172,11 +172,9 @@ impl fmt::Display for DecryptError {
                 )
             ),
             DecryptError::Io(e) => write!(f, "{}", e),
-            DecryptError::MissingIdentities(default_filename) => {
+            DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
-                wlnfl!(f, "rec-dec-missing-identities-1")?;
-                wlnfl!(f, "rec-dec-missing-identities-2")?;
-                write!(f, "    {}", default_filename)
+                wlnfl!(f, "rec-dec-missing-identities")
             }
             DecryptError::PassphraseFlag => {
                 wlnfl!(f, "err-dec-passphrase-flag")?;

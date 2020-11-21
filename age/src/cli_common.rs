@@ -9,7 +9,6 @@ use rpassword::read_password_from_tty;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs::File;
 use std::io::{self, BufReader};
-use std::path::PathBuf;
 use subtle::ConstantTimeEq;
 
 use crate::{fl, identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
@@ -18,81 +17,46 @@ pub mod file_io;
 
 const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
-/// Returns the age config directory.
-///
-/// Replicates the behaviour of [os.UserConfigDir] from Golang, which the
-/// reference implementation uses. See [this issue] for more details.
-///
-/// [os.UserConfigDir]: https://golang.org/pkg/os/#UserConfigDir
-/// [this issue]: https://github.com/FiloSottile/age/issues/15
-pub fn get_config_dir() -> Option<PathBuf> {
-    dirs::config_dir()
-}
-
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities<E, F, G>(
+pub fn read_identities<E, G>(
     filenames: Vec<String>,
-    no_default: F,
     file_not_found: G,
     #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
 ) -> Result<Vec<Box<dyn Identity>>, E>
 where
     E: From<io::Error>,
-    F: FnOnce(&str) -> E,
     G: Fn(String) -> E,
 {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
-    if filenames.is_empty() {
-        let default_filename = get_config_dir()
-            .map(|mut path| {
-                path.push("age/keys.txt");
-                path
-            })
-            .expect("an OS for which we know the default config directory");
-        let f = File::open(&default_filename).map_err(|e| match e.kind() {
-            io::ErrorKind::NotFound => no_default(default_filename.to_str().unwrap_or("")),
-            _ => e.into(),
-        })?;
-        let identity_file = IdentityFile::from_buffer(BufReader::new(f))?;
+    for filename in filenames {
+        // Try parsing as a single multi-line SSH identity.
+        #[cfg(feature = "ssh")]
+        match crate::ssh::Identity::from_buffer(
+            BufReader::new(File::open(&filename)?),
+            Some(filename.clone()),
+        ) {
+            Ok(crate::ssh::Identity::Unsupported(k)) => return Err(unsupported_ssh(filename, k)),
+            Ok(identity) => {
+                identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
+                continue;
+            }
+            Err(_) => (),
+        }
+
+        // Try parsing as multiple single-line age identities.
+        let identity_file =
+            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
+                io::ErrorKind::NotFound => file_not_found(filename),
+                _ => e.into(),
+            })?;
         identities.extend(
             identity_file
                 .into_identities()
                 .into_iter()
                 .map(|i| Box::new(i) as Box<dyn Identity>),
         );
-    } else {
-        for filename in filenames {
-            // Try parsing as a single multi-line SSH identity.
-            #[cfg(feature = "ssh")]
-            match crate::ssh::Identity::from_buffer(
-                BufReader::new(File::open(&filename)?),
-                Some(filename.clone()),
-            ) {
-                Ok(crate::ssh::Identity::Unsupported(k)) => {
-                    return Err(unsupported_ssh(filename, k))
-                }
-                Ok(identity) => {
-                    identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
-                    continue;
-                }
-                Err(_) => (),
-            }
-
-            // Try parsing as multiple single-line age identities.
-            let identity_file =
-                IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                    io::ErrorKind::NotFound => file_not_found(filename),
-                    _ => e.into(),
-                })?;
-            identities.extend(
-                identity_file
-                    .into_identities()
-                    .into_iter()
-                    .map(|i| Box::new(i) as Box<dyn Identity>),
-            );
-        }
     }
 
     Ok(identities)

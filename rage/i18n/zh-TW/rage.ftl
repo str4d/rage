@@ -106,8 +106,7 @@ rec-dec-armor-flag = 請注意，裝甲文件 （armored files） 會被自動�
 err-dec-identity-not-found = 未搜索到身份文件： {$filename}
 
 err-dec-missing-identities = 缺少身份。
-rec-dec-missing-identities-1 = 您是否忘記指定 {-flag-identity} 標記？
-rec-dec-missing-identities-2 = 您即可在該文件內存放默認身份：
+rec-dec-missing-identities = 您是否忘記指定 {-flag-identity} 標記？
 
 err-dec-passphrase-flag = {-flag-passphrase} 和 {-flag-decrypt} 標記不可聯用。
 rec-dec-passphrase-flag = 請注意，以密碼短語加密的文件會被自動檢測。

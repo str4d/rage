@@ -108,8 +108,7 @@ rec-dec-armor-flag = Nota que los archivos blindados son detectados automáticam
 err-dec-identity-not-found = Archivo identidad no encontrado: {$filename}
 
 err-dec-missing-identities = No se encontraron las identidades.
-rec-dec-missing-identities-1 = ¿Te olvidaste de especificar {-flag-identity}?
-rec-dec-missing-identities-2 = Tambien puedes guardar las identidades por defecto en este archivo:
+rec-dec-missing-identities = ¿Te olvidaste de especificar {-flag-identity}?
 
 err-dec-passphrase-flag = {-flag-passphrase} no puede ser usado con {-flag-decrypt}.
 rec-dec-passphrase-flag = Nota que los archivos encriptados con frases contraseñas son detectados automáticamente.

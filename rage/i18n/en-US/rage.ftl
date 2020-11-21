@@ -107,8 +107,7 @@ rec-dec-armor-flag = Note that armored files are detected automatically.
 err-dec-identity-not-found = Identity file not found: {$filename}
 
 err-dec-missing-identities = Missing identities.
-rec-dec-missing-identities-1 = Did you forget to specify {-flag-identity}?
-rec-dec-missing-identities-2 = You can also store default identities in this file:
+rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
 
 err-dec-passphrase-flag = {-flag-passphrase} can't be used with {-flag-decrypt}.
 rec-dec-passphrase-flag = Note that passphrase-encrypted files are detected automatically.
