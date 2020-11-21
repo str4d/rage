@@ -68,14 +68,15 @@ jobs:
         with:
           repository: FiloSottile/age
           ref: ${{ env.AGE_REF }}
+          path: go-age/age
       - name: go build
         run: |
-          cd $GITHUB_WORKSPACE/../age
+          cd $GITHUB_WORKSPACE/go-age/age
           go build filippo.io/age/cmd/age
       - uses: actions/upload-artifact@v1
         with:
           name: age
-          path: ../age/age
+          path: go-age/age/age
 
       - name: Update FiloSottile/age status with result
         if: github.event.action == 'age-interop-request'
