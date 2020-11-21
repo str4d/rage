@@ -17,6 +17,10 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.45.0.
 
+### Removed
+- Default identity path (identities should instead be set per-use).
+- Default alias path (for unstable aliases feature).
+
 ## [0.4.0] - 2020-03-25
 ### Added
 - `rage-mount` can now mount ASCII-armored age files.

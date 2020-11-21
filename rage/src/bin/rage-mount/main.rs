@@ -55,7 +55,7 @@ enum Error {
     IdentityNotFound(String),
     Io(io::Error),
     MissingFilename,
-    MissingIdentities(String),
+    MissingIdentities,
     MissingMountpoint,
     MissingType,
     UnknownType(String),
@@ -105,11 +105,9 @@ impl fmt::Debug for Error {
             ),
             Error::Io(e) => write!(f, "{}", e),
             Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
-            Error::MissingIdentities(default_filename) => {
+            Error::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
-                wlnfl!(f, "rec-dec-missing-identities-1")?;
-                wlnfl!(f, "rec-dec-missing-identities-2")?;
-                write!(f, "    {}", default_filename)
+                wlnfl!(f, "rec-dec-missing-identities")
             }
             Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
             Error::MissingType => wfl!(f, "err-mnt-missing-types"),
@@ -261,10 +259,13 @@ fn main() -> Result<(), Error> {
         age::Decryptor::Recipients(decryptor) => {
             let identities = read_identities(
                 opts.identity,
-                |default_filename| Error::MissingIdentities(default_filename.to_string()),
                 |filename| Error::IdentityNotFound(filename),
                 Error::UnsupportedKey,
             )?;
+
+            if identities.is_empty() {
+                Err(Error::MissingIdentities)?;
+            }
 
             decryptor
                 .decrypt(identities.into_iter())

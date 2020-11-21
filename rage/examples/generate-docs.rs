@@ -104,13 +104,7 @@ fn rage_page() {
         )
         .example(
             Example::new()
-                .text("Decryption with identities at ~/.config/age/keys.txt")
-                .command("rage --decrypt hello.age")
-                .output("_o/"),
-        )
-        .example(
-            Example::new()
-                .text("Decryption with custom identities")
+                .text("Decryption with identities")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
         );
     #[cfg(feature = "unstable")]
@@ -118,7 +112,7 @@ fn rage_page() {
         .option(
             Opt::new("ALIASES")
                 .long("--aliases")
-                .help("Load the aliases list from ALIASES. Defaults to ~/.config/age/aliases.txt"),
+                .help("Load the aliases list from ALIASES."),
         )
         .example(
             Example::new()
@@ -131,7 +125,7 @@ fn rage_page() {
         .example(
             Example::new()
                 .text("Encryption to an alias")
-                .command("tar cv ~/xxx | rage -r alias:str4d > xxx.tar.age"),
+                .command("tar cv ~/xxx | rage --aliases aliases.txt -r alias:str4d > xxx.tar.age"),
         );
     let page = builder.render();
 
@@ -209,12 +203,7 @@ fn rage_mount_page() {
         .arg(Arg::new("mountpoint"))
         .example(
             Example::new()
-                .text("Mounting an archive with keys at ~/.config/age/keys.txt")
-                .command("rage-mount -t zip encrypted.zip.age ./tmp"),
-        )
-        .example(
-            Example::new()
-                .text("Mounting an archive with custom keys")
+                .text("Mounting an archive encrypted to a recipient")
                 .command("rage-mount -t tar -i key.txt encrypted.tar.age ./tmp"),
         )
         .example(

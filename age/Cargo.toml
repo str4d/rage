@@ -77,7 +77,6 @@ rust-embed = "5"
 
 # Common CLI dependencies
 console = { version = "0.13", optional = true }
-dirs = { version = "3.0.1", optional = true }
 pinentry = { version = "0.2", optional = true }
 rpassword = { version = "5", optional = true }
 
@@ -92,7 +91,7 @@ quickcheck_macros = "0.9"
 default = []
 armor = []
 async = ["futures"]
-cli-common = ["console", "dirs", "pinentry", "rpassword"]
+cli-common = ["console", "pinentry", "rpassword"]
 ssh = [
     "aes",
     "aes-ctr",

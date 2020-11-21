@@ -2,10 +2,7 @@
 
 use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
-    cli_common::{
-        file_io, get_config_dir, read_identities, read_or_generate_passphrase, read_secret,
-        Passphrase,
-    },
+    cli_common::{file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase},
     Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
@@ -43,23 +40,14 @@ macro_rules! fl {
     }};
 }
 
-/// Load map of aliases from the given file, or the default system location
-/// otherwise.
+/// Loads a map of aliases from the given file, if any.
 ///
-/// Returns an error if a filename is given that does not exist. A missing
-/// aliases file at the default system location is ignored.
+/// Returns an error if a filename is given that does not exist.
 fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<String>>> {
-    let buf = if let Some(f) = filename {
-        read_to_string(f)?
-    } else {
-        // If the default aliases file doesn't exist, ignore it.
-        get_config_dir()
-            .map(|mut path| {
-                path.push("age/aliases.txt");
-                read_to_string(path).unwrap_or_default()
-            })
-            .unwrap_or_default()
-    };
+    let buf = filename
+        .map(read_to_string)
+        .transpose()?
+        .unwrap_or_default();
 
     let mut aliases = HashMap::new();
 
@@ -395,13 +383,14 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         age::Decryptor::Recipients(decryptor) => {
             let identities = read_identities(
                 opts.identity,
-                |default_filename| {
-                    error::DecryptError::MissingIdentities(default_filename.to_string())
-                },
                 error::DecryptError::IdentityNotFound,
                 #[cfg(feature = "ssh")]
                 error::DecryptError::UnsupportedKey,
             )?;
+
+            if identities.is_empty() {
+                return Err(error::DecryptError::MissingIdentities);
+            }
 
             decryptor
                 .decrypt(identities.into_iter())
