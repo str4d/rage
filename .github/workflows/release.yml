@@ -107,6 +107,7 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        shell: bash
 
       - name: Echo the version
         run: echo ${{ steps.get_version.outputs.VERSION }}
