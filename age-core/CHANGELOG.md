@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.5.0] - 2020-11-22
 ### Added
 - Several structs used when implementing the `age::Identity` and
   `age::Recipient` traits:

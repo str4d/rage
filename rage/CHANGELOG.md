@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.5.0] - 2020-11-22
 ### Added
 - Italian, Spanish, and Chinese translations!
 - `ssh` feature flag, enabled by default. It can be disabled to remove support
