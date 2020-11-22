@@ -86,7 +86,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --release --locked ${{ matrix.build_flags }}
+          args: --release --locked ${{ matrix.build_flags }}
+        working-directory: ./rage
 
       - name: Create archive
         run: |
