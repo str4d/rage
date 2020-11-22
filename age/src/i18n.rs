@@ -16,6 +16,7 @@ lazy_static! {
 }
 
 /// Loads a localized age string.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{
@@ -24,6 +25,7 @@ macro_rules! fl {
 }
 
 /// age-localized version of the write! macro.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! wfl {
     ($f:ident, $message_id:literal) => {
@@ -32,6 +34,7 @@ macro_rules! wfl {
 }
 
 /// age-localized version of the writeln! macro.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
