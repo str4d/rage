@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Testing the release workflow'
+        required: true
+        default: true
 
 jobs:
   build:
@@ -103,13 +109,18 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-      - name: Upload archive to release
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.archive_name }}
-          asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
-          tag: ${{ github.ref }}
+
+      - name: Echo the version
+        run: echo ${{ steps.get_version.outputs.VERSION }}
+        if: github.event.inputs.test == true
+
+      # - name: Upload archive to release
+      #   uses: svenstaro/upload-release-action@v1-release
+      #   with:
+      #     repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #     file: ${{ matrix.archive_name }}
+      #     asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
+      #     tag: ${{ github.ref }}
 
   deb:
     name: Debian ${{ matrix.name }}
@@ -191,10 +202,14 @@ jobs:
           command: deb
           args: --package rage --no-build --target ${{ matrix.target }}
 
-      - name: Upload Debian package to release
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/debian/*.deb
-          tag: ${{ github.ref }}
-          file_glob: true
+      - name: Inspect the result
+        run: ls target/${{ matrix.target }}/debian/*.deb
+        if: github.event.inputs.test == true
+
+      # - name: Upload Debian package to release
+      #   uses: svenstaro/upload-release-action@v1-release
+      #   with:
+      #     repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #     file: target/${{ matrix.target }}/debian/*.deb
+      #     tag: ${{ github.ref }}
+      #     file_glob: true
