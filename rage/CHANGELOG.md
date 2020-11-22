@@ -9,10 +9,13 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.5.0] - 2020-11-22
 ### Added
-- Support for translations!
+- Italian, Spanish, and Chinese translations!
 - `ssh` feature flag, enabled by default. It can be disabled to remove support
-  for `ssh-rsa` and `ssh-ed25519` recipients and identities.
+  for `ssh-rsa` and `ssh-ed25519` recipients and identities. `ssh-rsa` keys are
+  now supported without the `unstable` feature flag.
 
 ### Changed
 - MSRV is now 1.45.0.

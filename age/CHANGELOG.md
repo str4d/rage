@@ -9,8 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.5.0] - 2020-11-22
 ### Added
-- Support for translations!
+- Italian, Spanish, and Chinese translations!
 - New core traits, implemented by all relevant `age` types:
   - `age::Identity`, representing an identity that can decrypt an age file.
   - `age::Recipient`, representing a potential recipient of an age file.
