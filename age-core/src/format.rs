@@ -78,7 +78,7 @@ pub fn grease_the_joint() -> Stanza {
     let tag = format!("{}-grease", gen_arbitrary_string(&mut rng));
 
     // Between this and the above generation bounds, the first line of the recipient
-    // stanza will be between five and 69 characters.
+    // stanza will be between eight and 66 characters.
     let args = (0..Uniform::from(0..5).sample(&mut rng))
         .map(|_| gen_arbitrary_string(&mut rng))
         .collect();
