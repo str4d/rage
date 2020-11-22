@@ -9,7 +9,7 @@ on:
       test:
         description: 'Testing the release workflow'
         required: true
-        default: true
+        default: 'true'
 
 jobs:
   build:
@@ -83,10 +83,8 @@ jobs:
         if: matrix.cargo_config != ''
 
       - name: cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all --release --locked ${{ matrix.build_flags }}
+        run: cargo build --release --locked ${{ matrix.build_flags }}
+        working-directory: ./rage
 
       - name: Create archive
         run: |
@@ -106,21 +104,15 @@ jobs:
         shell: bash
         if: matrix.name == 'windows'
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
-      - name: Echo the version
-        run: echo ${{ steps.get_version.outputs.VERSION }}
-        if: github.event.inputs.test == true
-
-      # - name: Upload archive to release
-      #   uses: svenstaro/upload-release-action@v1-release
-      #   with:
-      #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-      #     file: ${{ matrix.archive_name }}
-      #     asset_name: rage-${{ steps.get_version.outputs.VERSION }}-${{ matrix.asset_suffix }}
-      #     tag: ${{ github.ref }}
+      - name: Upload archive to release
+        uses: svenstaro/upload-release-action@2.2.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.archive_name }}
+          asset_name: rage-$tag-${{ matrix.asset_suffix }}
+          tag: ${{ github.ref }}
+          prerelease: true
+        if: github.event.inputs.test != 'true'
 
   deb:
     name: Debian ${{ matrix.name }}
@@ -202,14 +194,12 @@ jobs:
           command: deb
           args: --package rage --no-build --target ${{ matrix.target }}
 
-      - name: Inspect the result
-        run: ls target/${{ matrix.target }}/debian/*.deb
-        if: github.event.inputs.test == true
-
-      # - name: Upload Debian package to release
-      #   uses: svenstaro/upload-release-action@v1-release
-      #   with:
-      #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-      #     file: target/${{ matrix.target }}/debian/*.deb
-      #     tag: ${{ github.ref }}
-      #     file_glob: true
+      - name: Upload Debian package to release
+        uses: svenstaro/upload-release-action@2.2.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/debian/*.deb
+          tag: ${{ github.ref }}
+          file_glob: true
+          prerelease: true
+        if: github.event.inputs.test != 'true'
