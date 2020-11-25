@@ -41,7 +41,11 @@ struct AgeOptions {
 }
 
 fn main() {
-    env_logger::builder().format_timestamp(None).init();
+    env_logger::builder()
+        .format_timestamp(None)
+        .filter_level(log::LevelFilter::Off)
+        .parse_default_env()
+        .init();
 
     let requested_languages = DesktopLanguageRequester::requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();

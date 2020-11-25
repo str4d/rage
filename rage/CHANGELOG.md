@@ -9,6 +9,11 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- Log output is now disabled by default, to prevent non-fatal error messages
+  (such as an unset or invalid `LANG` variable) being printed to stderr while
+  the program succeeds (which is confusing for users). The previous behaviour
+  can be configured by setting the environment variable `RUST_LOG=error`.
 
 ## [0.5.0] - 2020-11-22
 ### Added
