@@ -27,6 +27,14 @@ impl fmt::Display for EncryptError {
     }
 }
 
+impl std::error::Error for EncryptError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            EncryptError::Io(inner) => Some(inner),
+        }
+    }
+}
+
 /// The various errors that can be returned during the decryption process.
 #[derive(Debug)]
 pub enum DecryptError {
