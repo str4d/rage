@@ -4,6 +4,9 @@ use rand::{
 };
 use secrecy::{ExposeSecret, Secret};
 
+/// The prefix identifying an age stanza.
+const STANZA_TAG: &str = "-> ";
+
 /// A file key for encrypting or decrypting an age file.
 pub struct FileKey(Secret<[u8; 16]>);
 
@@ -106,7 +109,7 @@ pub mod read {
         IResult,
     };
 
-    use super::AgeStanza;
+    use super::{AgeStanza, STANZA_TAG};
 
     /// From the age specification:
     /// ```text
@@ -162,7 +165,10 @@ pub mod read {
     pub fn age_stanza<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
         map(
             pair(
-                separated_nonempty_list(tag(" "), arbitrary_string),
+                preceded(
+                    tag(STANZA_TAG),
+                    separated_nonempty_list(tag(" "), arbitrary_string),
+                ),
                 opt(preceded(newline, wrapped_encoded_data)),
             ),
             |(mut args, body)| {
@@ -198,6 +204,8 @@ pub mod write {
     use std::io::Write;
     use std::iter;
 
+    use super::STANZA_TAG;
+
     fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
         let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
 
@@ -224,11 +232,14 @@ pub mod write {
         body: &'a [u8],
     ) -> impl SerializeFn<W> + 'a {
         pair(
-            separated_list(
-                string(" "),
-                iter::once(tag)
-                    .chain(args.iter().map(|s| s.as_ref()))
-                    .map(string),
+            pair(
+                string(STANZA_TAG),
+                separated_list(
+                    string(" "),
+                    iter::once(tag)
+                        .chain(args.iter().map(|s| s.as_ref()))
+                        .map(string),
+                ),
             ),
             cond(
                 !body.is_empty(),
@@ -254,7 +265,7 @@ mod tests {
 
         // We need two newlines here so that the streaming body parser can detect the
         // end of the stanza.
-        let test_stanza = "X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+        let test_stanza = "-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
 C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 
 ";
@@ -279,7 +290,7 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
 
         // We need two newlines here so that the streaming body parser can detect the
         // end of the stanza.
-        let test_stanza = "empty-body some arguments
+        let test_stanza = "-> empty-body some arguments
 
 ";
 

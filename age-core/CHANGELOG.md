@@ -7,6 +7,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- The stanza prefix `-> ` is now a formal part of the age stanza; it will be
+  included in the output of `age_core::format::write::age_stanza`, and expected
+  by `age_core::format::read::age_stanza`.
 
 ## [0.5.0] - 2020-11-22
 ### Added

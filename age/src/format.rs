@@ -13,7 +13,6 @@ use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
-const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
 pub struct HeaderV1 {
@@ -138,7 +137,7 @@ mod read {
     use crate::util::read::base64_arg;
 
     fn recipient_stanza(input: &[u8]) -> IResult<&[u8], Stanza> {
-        preceded(tag(RECIPIENT_TAG), map(age_stanza, Stanza::from))(input)
+        map(age_stanza, Stanza::from)(input)
     }
 
     fn header_v1(input: &[u8]) -> IResult<&[u8], HeaderV1> {
@@ -194,10 +193,9 @@ mod write {
 
     fn recipient_stanza<'a, W: 'a + Write>(r: &'a Stanza) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
-            let out = slice(RECIPIENT_TAG)(w)?;
             let args: Vec<_> = r.args.iter().map(|s| s.as_str()).collect();
             let writer = age_stanza(&r.tag, &args, &r.body);
-            writer(out)
+            writer(w)
         }
     }
 
