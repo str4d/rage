@@ -11,6 +11,11 @@ to 1.0.0 are beta releases.
 - The stanza prefix `-> ` and trailing newline are now formal parts of the age
   stanza; `age_core::format::write::age_stanza` now includes them in its output,
   and `age_core::format::read::age_stanza` expects them to be present.
+- Stanza bodies are now canonically serialized with a short (empty if necessary)
+  last line. `age_core::format::write::age_stanza` outputs the new encoding, and
+  `age_core::format::read::age_stanza` accepts only the new encoding. The new
+  API `age_core::format::read::legacy_age_stanza` accepts either kind of stanza
+  body encoding (the legacy minimal encoding, and the new explicit encoding).
 
 ## [0.5.0] - 2020-11-22
 ### Added

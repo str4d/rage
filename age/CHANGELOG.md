@@ -9,6 +9,11 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- Files encrypted with this version of `age` might not decrypt with previous
+  beta versions, due to changes in how stanza bodies are canonically encoded.
+  This should only affect a small fraction of files (if grease that triggers the
+  change is added, which has a 3% chance per file).
 
 ## [0.5.0] - 2020-11-22
 ### Added

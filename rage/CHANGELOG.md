@@ -9,6 +9,12 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- Files encrypted with this version of `rage` might not decrypt with previous
+  beta versions, due to changes in how stanza bodies are canonically encoded.
+  This should only affect a small fraction of files (if grease that triggers the
+  change is added, which has a 3% chance per file).
+
 ### Fixed
 - Log output is now disabled by default, to prevent non-fatal error messages
   (such as an unset or invalid `LANG` variable) being printed to stderr while
