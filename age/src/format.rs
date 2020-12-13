@@ -128,7 +128,7 @@ mod read {
         bytes::streaming::{tag, take},
         character::streaming::newline,
         combinator::{map, map_opt},
-        multi::separated_nonempty_list,
+        multi::many1,
         sequence::{pair, preceded, terminated},
         IResult,
     };
@@ -145,7 +145,7 @@ mod read {
             pair(tag(V1_MAGIC), newline),
             map(
                 pair(
-                    terminated(separated_nonempty_list(newline, recipient_stanza), newline),
+                    many1(recipient_stanza),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
@@ -182,7 +182,7 @@ mod write {
     use age_core::format::write::age_stanza;
     use cookie_factory::{
         combinator::{slice, string},
-        multi::separated_list,
+        multi::all,
         sequence::tuple,
         SerializeFn, WriteContext,
     };
@@ -206,11 +206,7 @@ mod write {
             slice(AGE_MAGIC),
             slice(V1_MAGIC),
             string("\n"),
-            separated_list(
-                string("\n"),
-                h.recipients.iter().map(move |r| recipient_stanza(r)),
-            ),
-            string("\n"),
+            all(h.recipients.iter().map(move |r| recipient_stanza(r))),
             slice(MAC_TAG),
         ))
     }

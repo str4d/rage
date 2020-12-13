@@ -105,7 +105,7 @@ pub mod read {
         character::streaming::newline,
         combinator::{map, map_opt, opt, verify},
         multi::separated_nonempty_list,
-        sequence::{pair, preceded},
+        sequence::{pair, preceded, terminated},
         IResult,
     };
 
@@ -169,7 +169,7 @@ pub mod read {
                     tag(STANZA_TAG),
                     separated_nonempty_list(tag(" "), arbitrary_string),
                 ),
-                opt(preceded(newline, wrapped_encoded_data)),
+                terminated(opt(preceded(newline, wrapped_encoded_data)), newline),
             ),
             |(mut args, body)| {
                 let tag = args.remove(0);
@@ -241,9 +241,12 @@ pub mod write {
                         .map(string),
                 ),
             ),
-            cond(
-                !body.is_empty(),
-                pair(string("\n"), wrapped_encoded_data(body)),
+            pair(
+                cond(
+                    !body.is_empty(),
+                    pair(string("\n"), wrapped_encoded_data(body)),
+                ),
+                string("\n"),
             ),
         )
     }
@@ -263,7 +266,7 @@ mod tests {
         )
         .unwrap();
 
-        // We need two newlines here so that the streaming body parser can detect the
+        // We need an extra newline here so that the streaming body parser can detect the
         // end of the stanza.
         let test_stanza = "-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
 C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
@@ -278,8 +281,8 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
         let mut buf = vec![];
         cookie_factory::gen_simple(write::age_stanza(test_tag, test_args, &test_body), &mut buf)
             .unwrap();
-        // write::age_stanza does not append newlines.
-        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 2]);
+        // write::age_stanza does not append the extra newline.
+        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 1]);
     }
 
     #[test]
@@ -302,7 +305,7 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
         let mut buf = vec![];
         cookie_factory::gen_simple(write::age_stanza(test_tag, test_args, test_body), &mut buf)
             .unwrap();
-        // write::age_stanza does not append newlines.
-        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 2]);
+        // write::age_stanza does not append the extra newline.
+        assert_eq!(buf, &test_stanza.as_bytes()[..test_stanza.len() - 1]);
     }
 }

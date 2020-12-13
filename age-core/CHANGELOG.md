@@ -8,9 +8,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Changed
-- The stanza prefix `-> ` is now a formal part of the age stanza; it will be
-  included in the output of `age_core::format::write::age_stanza`, and expected
-  by `age_core::format::read::age_stanza`.
+- The stanza prefix `-> ` and trailing newline are now formal parts of the age
+  stanza; `age_core::format::write::age_stanza` now includes them in its output,
+  and `age_core::format::read::age_stanza` expects them to be present.
 
 ## [0.5.0] - 2020-11-22
 ### Added
