@@ -129,6 +129,13 @@ impl<'a> crate::Identity for Identity<'a> {
             }
         };
 
+        // This AEAD is not robust, so an attacker could craft a message that decrypts
+        // under two different keys (meaning two different passphrases) and then use an
+        // error side-channel in an online decryption oracle to learn if either key is
+        // correct. This is deemed acceptable because the use case (an online decryption
+        // oracle) is not recommended, and the security loss is only one bit. This also
+        // does not bypass any scrypt work, but that work can be precomputed in an online
+        // oracle scenario.
         Some(
             aead_decrypt(&enc_key, FILE_KEY_BYTES, &stanza.body)
                 .map(|mut pt| {

@@ -1,8 +1,11 @@
-//! The "ssh-rsa" and "ssh-ed25519" recipient types, which allow reusing existing SSH key
-//! files for age encryption.
+//! The "ssh-rsa" and "ssh-ed25519" recipient types, which allow reusing existing SSH keys
+//! for encryption with age-encryption.org/v1.
 //!
-//! These should only be used for compatibility with existing keys, and native X25519 keys
-//! should be preferred otherwise.
+//! These recipient types should only be used for compatibility with existing keys, and
+//! native X25519 keys should be preferred otherwise.
+//!
+//! Note that these recipient types are not anonymous: the encrypted message will include
+//! a short 32-bit ID of the public key.
 
 use aes::Aes256;
 use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};

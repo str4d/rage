@@ -28,7 +28,8 @@ const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 pub(super) const EPK_LEN_BYTES: usize = 32;
 pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
-/// A secret key for decrypting an age file.
+/// The standard age identity type, which can decrypt files encrypted to the corresponding
+/// [`Recipient`].
 #[derive(Clone)]
 pub struct Identity(StaticSecret);
 
@@ -117,7 +118,11 @@ impl crate::Identity for Identity {
     }
 }
 
-/// The standard age public key.
+/// The standard age recipient type. Files encrypted to this recipient can be decrypted
+/// with the corresponding [`Identity`].
+///
+/// This recipient type is anonymous, in the sense that an attacker can't tell from the
+/// age-encrypted file alone if it is encrypted to a certain recipient.
 #[derive(Clone)]
 pub struct Recipient(PublicKey);
 
