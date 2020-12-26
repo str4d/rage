@@ -1,5 +1,5 @@
 use age_core::{
-    format::{FileKey, Stanza},
+    format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, hkdf},
 };
 use i18n_embed_fl::fl;
@@ -109,11 +109,11 @@ impl UnencryptedKey {
                 // A failure to decrypt is fatal, because we assume that we won't
                 // encounter 32-bit collisions on the key tag embedded in the header.
                 Some(
-                    aead_decrypt(&enc_key, &stanza.body)
+                    aead_decrypt(&enc_key, FILE_KEY_BYTES, &stanza.body)
                         .map_err(DecryptError::from)
                         .map(|mut pt| {
                             // It's ours!
-                            let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                            let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
                             pt.zeroize();
                             file_key.into()
                         }),

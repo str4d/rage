@@ -1,5 +1,5 @@
 use age_core::{
-    format::{FileKey, Stanza},
+    format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt},
 };
 use rand::{rngs::OsRng, RngCore};
@@ -19,7 +19,7 @@ const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
 const SALT_LEN: usize = 16;
-const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
+const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
 /// Pick an scrypt work factor that will take around 1 second on this device.
 ///
@@ -130,10 +130,10 @@ impl<'a> crate::Identity for Identity<'a> {
         };
 
         Some(
-            aead_decrypt(&enc_key, &stanza.body)
+            aead_decrypt(&enc_key, FILE_KEY_BYTES, &stanza.body)
                 .map(|mut pt| {
                     // It's ours!
-                    let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                    let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
                     pt.zeroize();
                     file_key.into()
                 })

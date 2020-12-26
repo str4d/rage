@@ -1,7 +1,7 @@
 //! The "x25519" recipient type, native to age.
 
 use age_core::{
-    format::{FileKey, Stanza},
+    format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 use bech32::ToBase32;
@@ -26,7 +26,7 @@ pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 
 pub(super) const EPK_LEN_BYTES: usize = 32;
-pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = 32;
+pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
 /// A secret key for decrypting an age file.
 #[derive(Clone)]
@@ -106,11 +106,11 @@ impl crate::Identity for Identity {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
 
-        aead_decrypt(&enc_key, &encrypted_file_key)
+        aead_decrypt(&enc_key, FILE_KEY_BYTES, &encrypted_file_key)
             .ok()
             .map(|mut pt| {
                 // It's ours!
-                let file_key: [u8; 16] = pt[..].try_into().unwrap();
+                let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
                 pt.zeroize();
                 Ok(file_key.into())
             })
