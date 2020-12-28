@@ -9,8 +9,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 [[package]]
 name = "aead"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fc95d1bdb8e6666b2b217308eeeb09f2d6728d104be3e31916cc74d15420331"
+source = "git+https://github.com/RustCrypto/traits.git?branch=aead/stream#1c1bfb9504b1191118676dbe6ebb6c0f3a3d7675"
 dependencies = [
  "generic-array",
 ]
@@ -62,6 +61,7 @@ dependencies = [
 name = "age"
 version = "0.5.0"
 dependencies = [
+ "aead",
  "aes",
  "aes-ctr",
  "age-core",

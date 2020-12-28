@@ -4,3 +4,6 @@ members = [
     "age-core",
     "rage",
 ]
+
+[patch.crates-io]
+aead = { git = "https://github.com/RustCrypto/traits.git", branch = "aead/stream", features = ["stream"] }
