@@ -13,9 +13,9 @@ use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
-const RECIPIENT_TAG: &[u8] = b"-> ";
 const MAC_TAG: &[u8] = b"---";
 
+#[derive(Debug, PartialEq)]
 pub struct HeaderV1 {
     pub(crate) recipients: Vec<Stanza>,
     pub(crate) mac: [u8; 32],
@@ -117,19 +117,20 @@ impl Header {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub(crate) enum Header {
     V1(HeaderV1),
     Unknown(String),
 }
 
 mod read {
-    use age_core::format::read::{age_stanza, arbitrary_string};
+    use age_core::format::read::{arbitrary_string, legacy_age_stanza};
     use nom::{
         branch::alt,
         bytes::streaming::{tag, take},
         character::streaming::newline,
         combinator::{map, map_opt},
-        multi::separated_nonempty_list,
+        multi::many1,
         sequence::{pair, preceded, terminated},
         IResult,
     };
@@ -138,7 +139,7 @@ mod read {
     use crate::util::read::base64_arg;
 
     fn recipient_stanza(input: &[u8]) -> IResult<&[u8], Stanza> {
-        preceded(tag(RECIPIENT_TAG), map(age_stanza, Stanza::from))(input)
+        map(legacy_age_stanza, Stanza::from)(input)
     }
 
     fn header_v1(input: &[u8]) -> IResult<&[u8], HeaderV1> {
@@ -146,7 +147,7 @@ mod read {
             pair(tag(V1_MAGIC), newline),
             map(
                 pair(
-                    terminated(separated_nonempty_list(newline, recipient_stanza), newline),
+                    many1(recipient_stanza),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
@@ -183,7 +184,7 @@ mod write {
     use age_core::format::write::age_stanza;
     use cookie_factory::{
         combinator::{slice, string},
-        multi::separated_list,
+        multi::all,
         sequence::tuple,
         SerializeFn, WriteContext,
     };
@@ -194,10 +195,9 @@ mod write {
 
     fn recipient_stanza<'a, W: 'a + Write>(r: &'a Stanza) -> impl SerializeFn<W> + 'a {
         move |w: WriteContext<W>| {
-            let out = slice(RECIPIENT_TAG)(w)?;
             let args: Vec<_> = r.args.iter().map(|s| s.as_str()).collect();
             let writer = age_stanza(&r.tag, &args, &r.body);
-            writer(out)
+            writer(w)
         }
     }
 
@@ -208,11 +208,7 @@ mod write {
             slice(AGE_MAGIC),
             slice(V1_MAGIC),
             string("\n"),
-            separated_list(
-                string("\n"),
-                h.recipients.iter().map(move |r| recipient_stanza(r)),
-            ),
-            string("\n"),
+            all(h.recipients.iter().map(move |r| recipient_stanza(r))),
             slice(MAC_TAG),
         ))
     }
@@ -257,6 +253,10 @@ J9FSm+GFHiVWpr1MfYCo/w
 -> ssh-ed25519 BjH7FA RO+wV4kbbl4NtSmp56lQcfRdRp3dEFpdQmWkaoiw6lY
 51eEu5Oo2JYAG7OU4oamH03FDRP18/GnzeCrY7Z+sa8
 -> some-empty-body-recipient BjH7FA 37 mhir0Q
+
+-> some-full-body-recipient BjH7FA 37 mhir0Q
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
+
 -> some-other-recipient mhir0Q BjH7FA 37
 m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
 J9FSm+GFHiVWpr1MfYCo/w
@@ -266,5 +266,36 @@ J9FSm+GFHiVWpr1MfYCo/w
         let mut data = vec![];
         h.write(&mut data).unwrap();
         assert_eq!(std::str::from_utf8(&data), Ok(test_header));
+    }
+
+    #[test]
+    fn parse_legacy_header() {
+        let test_header = "age-encryption.org/v1
+-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
+-> some-empty-body-recipient BjH7FA 37 mhir0Q
+
+-> some-full-body-recipient BjH7FA 37 mhir0Q
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
+
+-> some-other-recipient mhir0Q BjH7FA 37
+m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
+J9FSm+GFHiVWpr1MfYCo/w
+--- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
+";
+        let test_legacy_header = "age-encryption.org/v1
+-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
+C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
+-> some-empty-body-recipient BjH7FA 37 mhir0Q
+-> some-full-body-recipient BjH7FA 37 mhir0Q
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
+-> some-other-recipient mhir0Q BjH7FA 37
+m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
+J9FSm+GFHiVWpr1MfYCo/w
+--- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
+";
+        let h = Header::read(test_header.as_bytes()).unwrap();
+        let h_legacy = Header::read(test_legacy_header.as_bytes()).unwrap();
+        assert_eq!(h, h_legacy);
     }
 }
