@@ -2,6 +2,7 @@ use secrecy::SecretString;
 use std::fs;
 use std::io::{self, Read};
 
+#[cfg(unix)]
 #[test]
 fn age_test_vectors() -> Result<(), age::DecryptError> {
     for test_vector in fs::read_dir("./tests/testdata")?.filter(|res| {
