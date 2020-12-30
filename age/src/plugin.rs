@@ -134,6 +134,16 @@ impl Plugin {
     fn new(name: &str) -> Result<Self, String> {
         let binary_name = binary_name(name);
         which::which(&binary_name)
+            .or_else(|e| {
+                // If we are running in WSL, try appending `.exe`; plugins installed in
+                // the Windows host are available to us, but `which` only trials PATHEXT
+                // extensions automatically when compiled for Windows.
+                if wsl::is_wsl() {
+                    which::which(format!("{}.exe", binary_name)).map_err(|_| e)
+                } else {
+                    Err(e)
+                }
+            })
             .map(Plugin)
             .map_err(|_| binary_name)
     }

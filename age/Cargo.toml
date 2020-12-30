@@ -83,6 +83,7 @@ rpassword = { version = "5", optional = true }
 [target.'cfg(any(unix, windows))'.dependencies]
 # Plugin management
 which = { version = "4", optional = true }
+wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -96,7 +97,7 @@ default = []
 armor = []
 async = ["futures"]
 cli-common = ["console", "pinentry", "rpassword"]
-plugin = ["age-core/plugin", "which"]
+plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",
     "aes-ctr",
