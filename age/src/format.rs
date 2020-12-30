@@ -14,11 +14,19 @@ use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
 const MAC_TAG: &[u8] = b"---";
+const ENCODED_MAC_LENGTH: usize = 43;
 
 #[derive(Debug, PartialEq)]
-pub struct HeaderV1 {
+pub(crate) struct HeaderV1 {
     pub(crate) recipients: Vec<Stanza>,
     pub(crate) mac: [u8; 32],
+    /// The serialized bytes of this header. Set if we parsed this header from a reader,
+    /// to handle the possibility that the header is not round-trip canonical, such as it
+    /// containing a legacy stanza with a body of length 0 mod 64.
+    ///
+    /// We do not write this back out in `Header::write`, because we never write headers
+    /// that we have parsed, and headers we generate for writing will never have this set.
+    encoded_bytes: Option<Vec<u8>>,
 }
 
 impl HeaderV1 {
@@ -26,6 +34,7 @@ impl HeaderV1 {
         let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
+            encoded_bytes: None,
         };
 
         let mut mac = HmacWriter::new(mac_key);
@@ -40,8 +49,14 @@ impl HeaderV1 {
 
     pub(crate) fn verify_mac(&self, mac_key: HmacKey) -> Result<(), hmac::crypto_mac::MacError> {
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_v1_minus_mac(self), &mut mac)
-            .expect("can serialize Header into HmacWriter");
+        if let Some(bytes) = &self.encoded_bytes {
+            // The MAC covers all bytes up to the end of the --- prefix.
+            mac.write_all(&bytes[..bytes.len() - ENCODED_MAC_LENGTH - 2])
+                .expect("can serialize Header into HmacWriter");
+        } else {
+            cookie_factory::gen(write::header_v1_minus_mac(self), &mut mac)
+                .expect("can serialize Header into HmacWriter");
+        }
         mac.verify(&self.mac)
     }
 }
@@ -51,7 +66,13 @@ impl Header {
         let mut data = vec![];
         loop {
             match read::header(&data) {
-                Ok((_, header)) => break Ok(header),
+                Ok((_, mut header)) => {
+                    match &mut header {
+                        Header::V1(h) => h.encoded_bytes = Some(data),
+                        _ => (),
+                    }
+                    break Ok(header);
+                }
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
                     // parser is constructed, because if we read more than we need, the
@@ -74,7 +95,13 @@ impl Header {
         let mut data = vec![];
         loop {
             match read::header(&data) {
-                Ok((_, header)) => break Ok(header),
+                Ok((_, mut header)) => {
+                    match &mut header {
+                        Header::V1(h) => h.encoded_bytes = Some(data),
+                        _ => (),
+                    }
+                    break Ok(header);
+                }
                 Err(nom::Err::Incomplete(nom::Needed::Size(n))) => {
                     // Read the needed additional bytes. We need to be careful how the
                     // parser is constructed, because if we read more than we need, the
@@ -151,12 +178,16 @@ mod read {
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
-                            map_opt(take(43usize), |tag| base64_arg(&tag, [0; 32])),
+                            map_opt(take(ENCODED_MAC_LENGTH), |tag| base64_arg(&tag, [0; 32])),
                             newline,
                         ),
                     ),
                 ),
-                |(recipients, mac)| HeaderV1 { recipients, mac },
+                |(recipients, mac)| HeaderV1 {
+                    recipients,
+                    mac,
+                    encoded_bytes: None,
+                },
             ),
         )(input)
     }
@@ -294,8 +325,18 @@ m/uPLMQdlIkiOOdbsrE6tFesRLZNHAYspeRKI9MJ++Xg9i7rutU34ZM+1BL6KgZf
 J9FSm+GFHiVWpr1MfYCo/w
 --- fgMiVLJHMlg9fW7CVG/hPS5EAU4Zeg19LyCP7SoH5nA
 ";
-        let h = Header::read(test_header.as_bytes()).unwrap();
-        let h_legacy = Header::read(test_legacy_header.as_bytes()).unwrap();
+        let mut h = Header::read(test_header.as_bytes()).unwrap();
+        let mut h_legacy = Header::read(test_legacy_header.as_bytes()).unwrap();
+        // Remove the `encoded_bytes` field from both headers, which is intentionally
+        // different (to ensure their MACs would validate, if these were real headers).
+        match (&mut h, &mut h_legacy) {
+            (Header::V1(h), Header::V1(h_legacy)) => {
+                h.encoded_bytes = None;
+                h_legacy.encoded_bytes = None;
+            }
+            _ => unreachable!(),
+        }
+        // The remainder of the headers should be identical.
         assert_eq!(h, h_legacy);
     }
 }
