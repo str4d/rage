@@ -2,6 +2,10 @@
 
 This crate provides an API for building age plugins.
 
+Currently in unstable alpha; the plugin architecture has been designed, but
+expect APIs to be altered and bugs to be fixed as we iterate. Try using it and
+[let me know how it goes!](https://github.com/str4d/rage/issues/new/choose)
+
 ## License
 
 Licensed under either of
