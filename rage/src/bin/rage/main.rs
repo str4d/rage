@@ -18,6 +18,9 @@ use std::collections::HashMap;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader};
 
+#[cfg(feature = "unstable")]
+use age::plugin;
+
 mod error;
 
 const ALIAS_PREFIX: &str = "alias:";
@@ -111,6 +114,8 @@ fn read_recipients(
     let mut seen_aliases: Vec<String> = vec![];
 
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
+    #[cfg(feature = "unstable")]
+    let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
     while !arguments.is_empty() {
         let arg = arguments.pop().expect("arguments is not empty");
 
@@ -126,6 +131,23 @@ fn read_recipients(
             None
         } {
             recipients.push(pk);
+        } else if let Some(recipient) = {
+            #[cfg(feature = "unstable")]
+            {
+                arg.parse::<plugin::Recipient>().ok()
+            }
+
+            #[cfg(not(feature = "unstable"))]
+            None
+        } {
+            #[cfg(feature = "unstable")]
+            {
+                plugin_recipients.push(recipient);
+            }
+
+            // Bind the value so it has a type.
+            #[cfg(not(feature = "unstable"))]
+            let _: () = recipient;
         } else if arg.starts_with(ALIAS_PREFIX) {
             #[cfg(not(feature = "unstable"))]
             {
@@ -182,6 +204,25 @@ fn read_recipients(
             recipients.extend(read_recipients_list(&arg, buf)?);
         } else {
             return Err(error::EncryptError::InvalidRecipient(arg));
+        }
+    }
+
+    #[cfg(feature = "unstable")]
+    {
+        // Collect the names of the required plugins.
+        let mut plugin_names = plugin_recipients
+            .iter()
+            .map(|r| r.plugin())
+            .collect::<Vec<_>>();
+        plugin_names.sort();
+        plugin_names.dedup();
+
+        // Find the required plugins.
+        for plugin_name in plugin_names {
+            recipients.push(Box::new(plugin::RecipientPluginV1::new(
+                plugin_name,
+                &plugin_recipients,
+            )?))
         }
     }
 
