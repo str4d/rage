@@ -1,13 +1,13 @@
 //! Primitive cryptographic operations used across various `age` components.
 
 use chacha20poly1305::{
-    aead::{self, Aead, NewAead},
+    aead::{self, generic_array::typenum::Unsigned, Aead, NewAead},
     ChaChaPoly1305,
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
 
-/// `encrypt[key](plaintext)`
+/// `encrypt[key](plaintext)` - encrypts a message with a one-time key.
 ///
 /// ChaCha20-Poly1305 from [RFC 7539] with a zero nonce.
 ///
@@ -18,12 +18,24 @@ pub fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
         .expect("we won't overflow the ChaCha20 block counter")
 }
 
-/// `decrypt[key](ciphertext)`
+/// `decrypt[key](ciphertext)` - decrypts a message of an expected fixed size.
 ///
 /// ChaCha20-Poly1305 from [RFC 7539] with a zero nonce.
 ///
+/// The message size is limited to mitigate multi-key attacks, where a ciphertext can be
+/// crafted that decrypts successfully under multiple keys. Short ciphertexts can only
+/// target two keys, which has limited impact.
+///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
-pub fn aead_decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>, aead::Error> {
+pub fn aead_decrypt(
+    key: &[u8; 32],
+    size: usize,
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, aead::Error> {
+    if ciphertext.len() != size + <ChaChaPoly1305<c2_chacha::Ietf> as Aead>::TagSize::to_usize() {
+        return Err(aead::Error);
+    }
+
     let c = ChaChaPoly1305::<c2_chacha::Ietf>::new(key.into());
     c.decrypt(&[0; 12].into(), ciphertext)
 }
@@ -50,7 +62,7 @@ mod tests {
         let key = [14; 32];
         let plaintext = b"12345678";
         let encrypted = aead_encrypt(&key, plaintext);
-        let decrypted = aead_decrypt(&key, &encrypted).unwrap();
+        let decrypted = aead_decrypt(&key, plaintext.len(), &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 }

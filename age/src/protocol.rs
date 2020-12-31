@@ -66,6 +66,7 @@ impl Encryptor {
     }
 
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
+    /// Anyone with the passphrase can decrypt the file.
     ///
     /// This API should only be used with a passphrase that was provided by (or generated
     /// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`]
