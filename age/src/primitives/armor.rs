@@ -41,6 +41,7 @@ struct EncodedLine {
 pub(crate) struct LineEndingWriter<W> {
     #[pin]
     inner: W,
+    buf: Vec<u8>,
     total_written: usize,
 
     /// None if `AsyncWrite::poll_closed` has been called.
@@ -58,6 +59,7 @@ impl<W: Write> LineEndingWriter<W> {
 
         Ok(LineEndingWriter {
             inner,
+            buf: Vec::with_capacity(8 * 1024),
             total_written: 0,
             #[cfg(feature = "async")]
             line: None,
@@ -66,7 +68,17 @@ impl<W: Write> LineEndingWriter<W> {
         })
     }
 
+    fn flush_buffered(&mut self) -> io::Result<()> {
+        self.inner.write_all(&self.buf)?;
+        self.total_written += self.buf.len();
+        self.buf.clear();
+        Ok(())
+    }
+
     fn finish(mut self) -> io::Result<W> {
+        // Ensure all bytes have been written.
+        self.flush_buffered()?;
+
         // Write the end marker
         self.inner.write_all(LINE_ENDING.as_bytes())?;
         self.inner.write_all(ARMORED_END_MARKER.as_bytes())?;
@@ -77,32 +89,42 @@ impl<W: Write> LineEndingWriter<W> {
 }
 
 impl<W: Write> Write for LineEndingWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
+        let written = buf.len();
 
-        let remaining = ARMORED_COLUMNS_PER_LINE - (self.total_written % ARMORED_COLUMNS_PER_LINE);
+        while !buf.is_empty() {
+            let remaining =
+                ARMORED_COLUMNS_PER_LINE - (self.total_written % ARMORED_COLUMNS_PER_LINE);
 
-        // Write the next newline if we are at the end of the line.
-        if remaining == ARMORED_COLUMNS_PER_LINE && self.total_written > 0 {
-            // This may involve multiple write calls to the wrapped writer, but consumes
-            // no bytes from the input buffer.
-            self.inner.write_all(LINE_ENDING.as_bytes())?;
+            // Write the next newline if we are at the end of the line.
+            if remaining == ARMORED_COLUMNS_PER_LINE && self.total_written > 0 {
+                self.buf.extend_from_slice(LINE_ENDING.as_bytes());
+            }
+            let to_write = cmp::min(remaining, buf.len());
+
+            self.buf.extend_from_slice(&buf[..to_write]);
+            buf = &buf[to_write..];
+            self.total_written += to_write;
         }
 
-        let to_write = cmp::min(remaining, buf.len());
+        // Write the buffer to the inner writer, and drop the written bytes. We trigger
+        // this when we are close to the buffer's capacity, to avoid reallocation.
+        if self.buf.len() + 1024 > self.buf.capacity() {
+            let inner_written = self.inner.write(&self.buf)?;
+            let mut i = 0;
+            self.buf.retain(|_| (i >= inner_written, i += 1).0);
+        }
 
-        // Write at most one line's worth of input. This ensures that we maintain the
-        // invariant that if the wrapped writer returns an error, no bytes of the input
-        // buffer have been written.
-        let written = self.inner.write(&buf[..to_write])?;
-
-        self.total_written += written;
+        // We always return the number of bytes we consumed, not how many we actually
+        // wrote to the inner writer. Any discrepancy is handled in self.flush().
         Ok(written)
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        self.flush_buffered()?;
         self.inner.flush()
     }
 }
@@ -115,6 +137,7 @@ impl<W: AsyncWrite> LineEndingWriter<W> {
 
         LineEndingWriter {
             inner,
+            buf: vec![],
             total_written: 0,
             line: Some(Vec::with_capacity(ARMORED_COLUMNS_PER_LINE)),
             line_with_ending: Some(EncodedLine { bytes, offset: 0 }),
