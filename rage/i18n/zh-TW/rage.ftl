@@ -131,5 +131,4 @@ err-mnt-unknown-type = 未知的文件系統類型 "{$fs_type}"
 
 ## Unstable features
 
-unstable-github = GitHub 查找不穩定， 將忽略接收方。
 test-unstable = 構建 {-rage} 時採用 {-flag-unstable} 以測試。

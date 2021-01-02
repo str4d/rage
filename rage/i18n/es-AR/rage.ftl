@@ -134,5 +134,4 @@ err-mnt-unknown-type = Tipo de sistema de archivos desconocido "{$fs_type}"
 
 ## Unstable features
 
-unstable-github = GitHub lookups es funcionalidad inestable, ignorando destinatarios.
 test-unstable = Para probar esto, compilar {-rage} con {-flag-unstable}.

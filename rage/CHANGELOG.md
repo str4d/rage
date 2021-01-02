@@ -16,6 +16,7 @@ to 1.0.0 are beta releases.
   change is added, which has a 3% chance per file).
 
 ### Removed
+- The unstable GitHub feature (which relied on HTTPS support).
 - The unstable aliases feature.
 
 ### Fixed

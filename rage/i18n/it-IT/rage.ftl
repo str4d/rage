@@ -135,5 +135,4 @@ err-mnt-unknown-type = Tipo di filesystem sconosciuto "{$fs_type}"
 
 ## Unstable features
 
-unstable-github = Le ricerche con GitHub sono instabili, ignoro il destinatario.
 test-unstable = Per testare questo esegui la build di {-rage} con {-flag-unstable}.

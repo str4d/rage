@@ -107,16 +107,6 @@ fn rage_page() {
                 .text("Decryption with identities")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
         );
-    #[cfg(feature = "unstable")]
-    let builder = builder
-        .example(
-            Example::new()
-                .text(
-                    "Encryption to a GitHub user \
-                     (equivalent to https://github.com/str4d.keys)",
-                )
-                .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
-        );
     let page = builder.render();
 
     generate_manpage(page, "rage");

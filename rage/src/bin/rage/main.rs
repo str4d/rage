@@ -22,8 +22,6 @@ use age::plugin;
 
 mod error;
 
-const GITHUB_PREFIX: &str = "github:";
-
 #[derive(RustEmbed)]
 #[folder = "i18n"]
 struct Translations;
@@ -118,19 +116,6 @@ fn read_recipients(
             // Bind the value so it has a type.
             #[cfg(not(feature = "unstable"))]
             let _: () = recipient;
-        } else if arg.starts_with(GITHUB_PREFIX) {
-            #[cfg(not(feature = "unstable"))]
-            {
-                eprintln!("{}", fl!("unstable-github"));
-                eprintln!("{}", fl!("test-unstable"));
-                continue;
-            }
-
-            #[cfg(feature = "unstable")]
-            arguments.push(format!(
-                "https://github.com/{}.keys",
-                &arg[GITHUB_PREFIX.len()..],
-            ));
         } else if arg.starts_with("https://") {
             let response = minreq::get(&arg).send()?;
             match response.status_code {
