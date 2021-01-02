@@ -15,6 +15,15 @@ to 1.0.0 are beta releases.
   This should only affect a small fraction of files (if grease that triggers the
   change is added, which has a 3% chance per file).
 
+### Removed
+- HTTPS support. This added otherwise-unnecessary networking dependencies to
+  `rage`, and there are many decisions that need to be made when downloading a
+  file (e.g. what roots to trust?) that go beyond the APIs we want to focus on
+  here. Users should use a tool like `curl` or `wget` to download a recipients
+  file, and then pass it to `rage`.
+- The unstable GitHub feature (which relied on HTTPS support).
+- The unstable aliases feature.
+
 ### Fixed
 - Log output is now disabled by default, to prevent non-fatal error messages
   (such as an unset or invalid `LANG` variable) being printed to stderr while

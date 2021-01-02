@@ -98,34 +98,13 @@ fn rage_page() {
             Example::new()
                 .text("Encryption to a list of recipients at an HTTPS URL")
                 .command(
-                    "echo \"_o/\" | rage -o hello.age \
-                     -r https://github.com/str4d.keys > hello.age",
+                    "echo \"_o/\" | rage -o hello.age -r <(curl https://github.com/str4d.keys)",
                 ),
         )
         .example(
             Example::new()
                 .text("Decryption with identities")
                 .command("rage -d -o hello -i keyA.txt -i keyB.txt hello.age"),
-        );
-    #[cfg(feature = "unstable")]
-    let builder = builder
-        .option(
-            Opt::new("ALIASES")
-                .long("--aliases")
-                .help("Load the aliases list from ALIASES."),
-        )
-        .example(
-            Example::new()
-                .text(
-                    "Encryption to a GitHub user \
-                     (equivalent to https://github.com/str4d.keys)",
-                )
-                .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
-        )
-        .example(
-            Example::new()
-                .text("Encryption to an alias")
-                .command("tar cv ~/xxx | rage --aliases aliases.txt -r alias:str4d > xxx.tar.age"),
         );
     let page = builder.render();
 

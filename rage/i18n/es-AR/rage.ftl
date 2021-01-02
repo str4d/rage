@@ -42,7 +42,7 @@ rage-usage =
     {-recipient} puede ser:
     - Una clave pública {-age}, como es generada por {$keygen_name} ("age1...").
     - Una clave pública SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
-    - Una ruta o una URL HTTPS a un archivo que contenga un destinatario {-age} por
+    - Una ruta a un archivo que contenga un destinatario {-age} por
       línea (ignorando comentarios con el prefijo "#" y líneas vacías).
 
     {-identity} es una ruta a una archivo con una identidad {-age} por línea
@@ -96,7 +96,6 @@ rec-enc-missing-recipients = ¿Te olvidaste de especificar {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} no puede ser usado con {-flag-passphrase}
 err-enc-passphrase-without-file = El archivo a encriptar debe ser pasado como argumento cuando se utiliza {-flag-passphrase}
-err-enc-unknown-alias = {$alias} Desconocido
 
 ## Decryption errors
 
@@ -135,6 +134,4 @@ err-mnt-unknown-type = Tipo de sistema de archivos desconocido "{$fs_type}"
 
 ## Unstable features
 
-unstable-aliases = Aliases es funcionalidad inestable.
-unstable-github = GitHub lookups es funcionalidad inestable, ignorando destinatarios.
 test-unstable = Para probar esto, compilar {-rage} con {-flag-unstable}.

@@ -42,7 +42,7 @@ rage-usage =
     {-recipient} 可為：
     - 一把以 {$keygen_name} 生成的 {-age} 公鑰 ("age1...")。
     - 一把 SSH 公鑰 ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...")。
-    - 一個文件的路徑或 HTTPS URL。該文件應含有 {-age} 接收方, 每行一個
+    - 一個文件的路徑。該文件應含有 {-age} 接收方, 每行一個
       （前綴為 "#" 的注釋以及空行將被忽略）。
 
     {-identity} 是一個文件路徑。該文件或含 {-age} 身份, 每行一個（前綴為 "#" 的注釋以及空行將被忽略），
@@ -94,7 +94,6 @@ rec-enc-missing-recipients = 您是否忘記指定 {-flag-recipient} 標記？
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} 和 {-flag-passphrase} 標記不可聯用。
 err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 時， 必將要加密的文件傳遞為參數
-err-enc-unknown-alias = 未知的 {$alias}
 
 ## Decryption errors
 
@@ -132,6 +131,4 @@ err-mnt-unknown-type = 未知的文件系統類型 "{$fs_type}"
 
 ## Unstable features
 
-unstable-aliases = 別名不穩定。
-unstable-github = GitHub 查找不穩定， 將忽略接收方。
 test-unstable = 構建 {-rage} 時採用 {-flag-unstable} 以測試。
