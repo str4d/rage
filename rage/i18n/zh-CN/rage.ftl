@@ -94,7 +94,6 @@ rec-enc-missing-recipients = 您是否忘记指定 {-flag-recipient} 标记？
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} 和 {-flag-passphrase} 标记不可联用。
 err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 时， 必将要加密的文件传递为参数
-err-enc-unknown-alias = 未知的 {$alias}
 
 ## Decryption errors
 
@@ -132,6 +131,5 @@ err-mnt-unknown-type = 未知的文件系统类型 "{$fs_type}"
 
 ## Unstable features
 
-unstable-aliases = 别名不稳定。
 unstable-github = GitHub 查找不稳定， 将忽略接收方。
 test-unstable = 构建 {-rage} 时采用 {-flag-unstable} 以测试。

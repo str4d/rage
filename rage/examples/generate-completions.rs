@@ -58,9 +58,6 @@ fn rage_completions() {
                 .long("output"),
         );
 
-    #[cfg(feature = "unstable")]
-    let app = app.arg(Arg::new("aliases").long("aliases"));
-
     generate_completions(app, "rage");
 }
 

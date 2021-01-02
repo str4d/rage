@@ -11,11 +11,10 @@ use i18n_embed::{
     DesktopLanguageRequester,
 };
 use lazy_static::lazy_static;
-use log::{error, warn};
+use log::error;
 use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
-use std::collections::HashMap;
-use std::fs::{read_to_string, File};
+use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
 #[cfg(feature = "unstable")]
@@ -23,7 +22,6 @@ use age::plugin;
 
 mod error;
 
-const ALIAS_PREFIX: &str = "alias:";
 const GITHUB_PREFIX: &str = "github:";
 
 #[derive(RustEmbed)]
@@ -41,30 +39,6 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
     }};
-}
-
-/// Loads a map of aliases from the given file, if any.
-///
-/// Returns an error if a filename is given that does not exist.
-fn load_aliases(filename: Option<String>) -> io::Result<HashMap<String, Vec<String>>> {
-    let buf = filename
-        .map(read_to_string)
-        .transpose()?
-        .unwrap_or_default();
-
-    let mut aliases = HashMap::new();
-
-    for line in buf.lines() {
-        let parts: Vec<&str> = line.split(' ').collect();
-        if parts.len() > 1 && parts[0].ends_with(':') {
-            aliases.insert(
-                parts[0][..parts[0].len() - 1].to_owned(),
-                parts[1..].iter().map(|s| String::from(*s)).collect(),
-            );
-        }
-    }
-
-    Ok(aliases)
 }
 
 /// Reads file contents as a list of recipients
@@ -108,11 +82,7 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Bo
 /// - Path to a file containing a list of recipient keys
 fn read_recipients(
     mut arguments: Vec<String>,
-    aliases: Option<String>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
-    let mut aliases = load_aliases(aliases)?;
-    let mut seen_aliases: Vec<String> = vec![];
-
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     #[cfg(feature = "unstable")]
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
@@ -148,24 +118,6 @@ fn read_recipients(
             // Bind the value so it has a type.
             #[cfg(not(feature = "unstable"))]
             let _: () = recipient;
-        } else if arg.starts_with(ALIAS_PREFIX) {
-            #[cfg(not(feature = "unstable"))]
-            {
-                eprintln!("{}", fl!("unstable-aliases"));
-                eprintln!("{}", fl!("test-unstable"));
-            }
-
-            if seen_aliases.contains(&arg) {
-                warn!("Duplicate {}", arg);
-            } else {
-                // Replace the alias in the arguments list with its expansion
-                if let Some(new_arg) = aliases.remove(&arg[ALIAS_PREFIX.len()..]) {
-                    arguments.extend(new_arg);
-                    seen_aliases.push(arg);
-                } else {
-                    return Err(error::EncryptError::UnknownAlias(arg));
-                }
-            }
         } else if arg.starts_with(GITHUB_PREFIX) {
             #[cfg(not(feature = "unstable"))]
             {
@@ -264,10 +216,6 @@ struct AgeOptions {
 
     #[options(help = "Write the result to the file at path OUTPUT.")]
     output: Option<String>,
-
-    #[cfg(feature = "unstable")]
-    #[options(help = "Load the aliases list from ALIASES.", no_short)]
-    aliases: Option<String>,
 }
 
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
@@ -314,13 +262,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::MissingRecipients);
         }
 
-        #[cfg(feature = "unstable")]
-        let aliases = opts.aliases;
-
-        #[cfg(not(feature = "unstable"))]
-        let aliases = None;
-
-        age::Encryptor::with_recipients(read_recipients(opts.recipient, aliases)?)
+        age::Encryptor::with_recipients(read_recipients(opts.recipient)?)
     };
 
     let mut input = file_io::InputReader::new(opts.input)?;

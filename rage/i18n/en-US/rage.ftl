@@ -95,7 +95,6 @@ rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag-passphrase}
 err-enc-passphrase-without-file = File to encrypt must be passed as an argument when using {-flag-passphrase}
-err-enc-unknown-alias = Unknown {$alias}
 
 ## Decryption errors
 
@@ -134,6 +133,5 @@ err-mnt-unknown-type = Unknown filesystem type "{$fs_type}"
 
 ## Unstable features
 
-unstable-aliases = Aliases are unstable.
 unstable-github = GitHub lookups are unstable, ignoring recipient.
 test-unstable = To test this, build {-rage} with {-flag-unstable}.

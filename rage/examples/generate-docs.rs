@@ -109,11 +109,6 @@ fn rage_page() {
         );
     #[cfg(feature = "unstable")]
     let builder = builder
-        .option(
-            Opt::new("ALIASES")
-                .long("--aliases")
-                .help("Load the aliases list from ALIASES."),
-        )
         .example(
             Example::new()
                 .text(
@@ -121,11 +116,6 @@ fn rage_page() {
                      (equivalent to https://github.com/str4d.keys)",
                 )
                 .command("echo \"_o/\" | rage -r github:str4d | nc 192.0.2.0 1234"),
-        )
-        .example(
-            Example::new()
-                .text("Encryption to an alias")
-                .command("tar cv ~/xxx | rage --aliases aliases.txt -r alias:str4d > xxx.tar.age"),
         );
     let page = builder.render();
 

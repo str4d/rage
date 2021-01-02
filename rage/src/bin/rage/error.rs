@@ -29,7 +29,6 @@ pub(crate) enum EncryptError {
     MixedRecipientAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
-    UnknownAlias(String),
 }
 
 impl From<age::EncryptError> for EncryptError {
@@ -109,15 +108,6 @@ impl fmt::Display for EncryptError {
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }
-            EncryptError::UnknownAlias(alias) => write!(
-                f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-enc-unknown-alias",
-                    alias = alias.as_str()
-                )
-            ),
         }
     }
 }

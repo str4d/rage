@@ -97,7 +97,6 @@ rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}
 err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}
-err-enc-unknown-alias = {$alias} sconosciuto
 
 ## Decryption errors
 
@@ -136,6 +135,5 @@ err-mnt-unknown-type = Tipo di filesystem sconosciuto "{$fs_type}"
 
 ## Unstable features
 
-unstable-aliases = Gli alias sono instabili.
 unstable-github = Le ricerche con GitHub sono instabili, ignoro il destinatario.
 test-unstable = Per testare questo esegui la build di {-rage} con {-flag-unstable}.

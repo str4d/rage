@@ -15,6 +15,9 @@ to 1.0.0 are beta releases.
   This should only affect a small fraction of files (if grease that triggers the
   change is added, which has a 3% chance per file).
 
+### Removed
+- The unstable aliases feature.
+
 ### Fixed
 - Log output is now disabled by default, to prevent non-fatal error messages
   (such as an unset or invalid `LANG` variable) being printed to stderr while
