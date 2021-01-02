@@ -43,7 +43,7 @@ rage-usage =
     {-recipient} può essere:
     - Una chiave pubblica {-age}, come generata da {$keygen_name} ("age1...").
     - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
-    - Il percorso o un URL HTTPS ad un file contenente dei destinatari {-age},
+    - Il percorso ad un file contenente dei destinatari {-age},
       uno per riga (ignorando i commenti prefissati da "#" e le righe vuote).
 
     {-identity} è il percorso ad un file contenente identità {-age}, una per

@@ -98,8 +98,7 @@ fn rage_page() {
             Example::new()
                 .text("Encryption to a list of recipients at an HTTPS URL")
                 .command(
-                    "echo \"_o/\" | rage -o hello.age \
-                     -r https://github.com/str4d.keys > hello.age",
+                    "echo \"_o/\" | rage -o hello.age -r <(curl https://github.com/str4d.keys)",
                 ),
         )
         .example(

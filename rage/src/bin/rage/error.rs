@@ -24,7 +24,6 @@ pub(crate) enum EncryptError {
     IdentityFlag,
     InvalidRecipient(String),
     Io(io::Error),
-    Minreq(minreq::Error),
     MissingRecipients,
     MixedRecipientAndPassphrase,
     PassphraseTimedOut,
@@ -44,12 +43,6 @@ impl From<age::EncryptError> for EncryptError {
 impl From<io::Error> for EncryptError {
     fn from(e: io::Error) -> Self {
         EncryptError::Io(e)
-    }
-}
-
-impl From<minreq::Error> for EncryptError {
-    fn from(e: minreq::Error) -> Self {
-        EncryptError::Minreq(e)
     }
 }
 
@@ -96,7 +89,6 @@ impl fmt::Display for EncryptError {
                 )
             ),
             EncryptError::Io(e) => write!(f, "{}", e),
-            EncryptError::Minreq(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
                 wlnfl!(f, "err-enc-missing-recipients")?;
                 wfl!(f, "rec-enc-missing-recipients")

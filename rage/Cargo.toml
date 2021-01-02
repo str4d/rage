@@ -52,7 +52,6 @@ i18n-embed = { version = "0.9", features = ["desktop-requester", "fluent-system"
 i18n-embed-fl = "0.2"
 lazy_static = "1"
 log = "0.4"
-minreq = { version = "2", features = ["https"] }
 pinentry = "0.2"
 rust-embed = "5"
 secrecy = "0.7"

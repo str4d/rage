@@ -16,6 +16,11 @@ to 1.0.0 are beta releases.
   change is added, which has a 3% chance per file).
 
 ### Removed
+- HTTPS support. This added otherwise-unnecessary networking dependencies to
+  `rage`, and there are many decisions that need to be made when downloading a
+  file (e.g. what roots to trust?) that go beyond the APIs we want to focus on
+  here. Users should use a tool like `curl` or `wget` to download a recipients
+  file, and then pass it to `rage`.
 - The unstable GitHub feature (which relied on HTTPS support).
 - The unstable aliases feature.
 

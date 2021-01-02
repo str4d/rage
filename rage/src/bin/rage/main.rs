@@ -116,26 +116,6 @@ fn read_recipients(
             // Bind the value so it has a type.
             #[cfg(not(feature = "unstable"))]
             let _: () = recipient;
-        } else if arg.starts_with("https://") {
-            let response = minreq::get(&arg).send()?;
-            match response.status_code {
-                200 => recipients.extend(read_recipients_list(
-                    &arg,
-                    BufReader::new(response.as_bytes()),
-                )?),
-                404 => {
-                    return Err(error::EncryptError::Io(io::Error::new(
-                        io::ErrorKind::NotFound,
-                        format!("{} not found", arg),
-                    )))
-                }
-                code => {
-                    return Err(error::EncryptError::Io(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("{} returned an unexpected code ({})", arg, code),
-                    )))
-                }
-            }
         } else if let Ok(f) = File::open(&arg) {
             let buf = BufReader::new(f);
             recipients.extend(read_recipients_list(&arg, buf)?);
