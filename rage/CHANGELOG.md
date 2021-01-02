@@ -29,6 +29,8 @@ to 1.0.0 are beta releases.
   (such as an unset or invalid `LANG` variable) being printed to stderr while
   the program succeeds (which is confusing for users). The previous behaviour
   can be configured by setting the environment variable `RUST_LOG=error`.
+- Output files are now opened lazily, which avoids leaving behind an empty file
+  when an error occurs before we write the header.
 
 ## [0.5.0] - 2020-11-22
 ### Added
