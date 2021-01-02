@@ -5,9 +5,9 @@ use age_core::{
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
     branch::alt,
-    bytes::streaming::tag,
-    combinator::{map, map_opt},
-    sequence::{pair, preceded},
+    bytes::streaming::{is_not, tag},
+    combinator::map_opt,
+    sequence::{pair, preceded, separated_pair},
     IResult,
 };
 use rand::rngs::OsRng;
@@ -36,7 +36,7 @@ pub enum Recipient {
 }
 
 /// Error conditions when parsing an SSH recipient.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseRecipientKeyError {
     /// The string is a parseable value that should be ignored. This case is for handling
     /// SSH recipient types that may occur in files we want to be able to parse, but that
@@ -159,10 +159,15 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
 }
 
 fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
-    // Key types we want to ignore in SSH pubkey files
-    preceded(
-        pair(tag("ecdsa-sha2-nistp256"), tag(" ")),
-        map(str_while_encoded(base64::STANDARD_NO_PAD), |_| None),
+    // We rely on the invariant that SSH public keys are always of the form
+    // `key_type Base64(string(key_type) || ...)` to detect valid pubkeys.
+    map_opt(
+        separated_pair(
+            is_not(" "),
+            tag(" "),
+            str_while_encoded(base64::STANDARD_NO_PAD),
+        ),
+        |(key_type, ssh_key)| read_ssh::string_tag(key_type)(&ssh_key).map(|_| None).ok(),
     )(input)
 }
 
@@ -172,10 +177,12 @@ pub(crate) fn ssh_recipient(input: &str) -> IResult<&str, Option<Recipient>> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::Recipient;
+    use super::{ParseRecipientKeyError, Recipient};
 
     pub(crate) const TEST_SSH_RSA_PK: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE7nIXTGNuaRBN9toI/wNALuQec8mvlt0iJ7o3OaD2UvoKHJ7S8rmIn4FiQDUed/Vac3OhUibei1k+TBmm16u2Rj3klgWZOIDgi8d4vXKI5N3YBhxr3jsQ+kz1c+iZ4z/tTtz306+4K46XViVMWwyyg9j82Jn41mOAy9vdeDIfQ5fLeaGqn5KwlT61GNkZ+ozWK/ZNlQIlNCcoXxhJULIs9XrtczWyVBAea1nlDo0WHODePxoJjmsNHrpQXn5mf9O83xs10qfTUjnRUt48jRmedFy4tcra3QGmSTQ3KZne+wXXSb0cIpXLGvZjQSPHgG1hc4r3uBpiSzvesGLv79XL alice@rust";
     pub(crate) const TEST_SSH_ED25519_PK: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
+    const TEST_SSH_IGNORE_PK: &str = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+    const TEST_SSH_INVALID_PK: &str = "ecdsa-sha2-nistp256 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
 
     #[test]
     fn ssh_rsa_encoding() {
@@ -187,5 +194,20 @@ pub(crate) mod tests {
     fn ssh_ed25519_encoding() {
         let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
         assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_ED25519_PK);
+    }
+
+    #[test]
+    fn ssh_ignore_encoding() {
+        let pk: Result<Recipient, ParseRecipientKeyError> = TEST_SSH_IGNORE_PK.parse();
+        assert_eq!(pk.unwrap_err(), ParseRecipientKeyError::Ignore);
+    }
+
+    #[test]
+    fn ssh_invalid_encoding() {
+        let pk: Result<Recipient, ParseRecipientKeyError> = TEST_SSH_INVALID_PK.parse();
+        assert_eq!(
+            pk.unwrap_err(),
+            ParseRecipientKeyError::Invalid("invalid SSH recipient")
+        );
     }
 }

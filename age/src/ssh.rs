@@ -295,7 +295,7 @@ mod read_ssh {
     }
 
     /// Recognizes an SSH `string` matching a tag.
-    pub fn string_tag(value: &'static str) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
+    pub fn string_tag<'a>(value: &'a str) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> {
         move |input: &[u8]| length_value(be_u32, tag(value))(input)
     }
 
