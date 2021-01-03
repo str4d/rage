@@ -26,6 +26,7 @@ pub(crate) enum EncryptError {
     Io(io::Error),
     MissingRecipients,
     MixedRecipientAndPassphrase,
+    MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
 }
@@ -96,6 +97,9 @@ impl fmt::Display for EncryptError {
             EncryptError::MixedRecipientAndPassphrase => {
                 wfl!(f, "err-enc-mixed-recipient-passphrase")
             }
+            EncryptError::MixedRecipientsFileAndPassphrase => {
+                wfl!(f, "err-enc-mixed-recipients-file-passphrase")
+            }
             EncryptError::PassphraseTimedOut => wfl!(f, "err-passphrase-timed-out"),
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
@@ -115,6 +119,7 @@ pub(crate) enum DecryptError {
     #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
     RecipientFlag,
+    RecipientsFileFlag,
     #[cfg(feature = "ssh")]
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
@@ -178,6 +183,10 @@ impl fmt::Display for DecryptError {
             }
             DecryptError::RecipientFlag => {
                 wlnfl!(f, "err-dec-recipient-flag")?;
+                wfl!(f, "rec-dec-recipient-flag")
+            }
+            DecryptError::RecipientsFileFlag => {
+                wlnfl!(f, "err-dec-recipients-file-flag")?;
                 wfl!(f, "rec-dec-recipient-flag")
             }
             #[cfg(feature = "ssh")]

@@ -17,6 +17,7 @@
 -flag-decrypt = -d/--decrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
+-flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
@@ -27,6 +28,7 @@
 -output = OUTPUT
 -identity = IDENTITY
 -recipient = RECIPIENT
+-recipients-file = PATH
 
 usage-header = Usage:
 
@@ -43,8 +45,9 @@ rage-usage =
     {-recipient} può essere:
     - Una chiave pubblica {-age}, come generata da {$keygen_name} ("age1...").
     - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
-    - Il percorso ad un file contenente dei destinatari {-age},
-      uno per riga (ignorando i commenti prefissati da "#" e le righe vuote).
+
+    {-recipients-file} è il percorso ad un file contenente dei destinatari {-age}, uno per riga
+    (ignorando i commenti prefissati da "#" e le righe vuote).
 
     {-identity} è il percorso ad un file contenente identità {-age}, una per
     riga (ignorando i commenti prefissati da "#" e le righe vuote), o ad un file
@@ -96,6 +99,7 @@ err-enc-missing-recipients = Destinatari mancanti.
 rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} non può essere usato assieme a {-flag-passphrase}
 err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}
 
 ## Decryption errors
@@ -119,6 +123,7 @@ err-dec-passphrase-without-file-win =
     posizionale quando si decifra con la passphrase.
 
 err-dec-recipient-flag = {-flag-recipient} non può essere usato assieme a {-flag-decrypt}.
+err-dec-recipients-file-flag = {-flag-recipients-file} non può essere usato assieme a {-flag-decrypt}.
 rec-dec-recipient-flag = Intendevi usare {-flag-identity} per specificare una chiave privata?
 
 ## rage-mount strings

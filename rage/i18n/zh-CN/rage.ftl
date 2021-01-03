@@ -17,6 +17,7 @@
 -flag-decrypt = -d/--decrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
+-flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
@@ -27,6 +28,7 @@
 -output = OUTPUT
 -identity = IDENTITY
 -recipient = RECIPIENT
+-recipients-file = PATH
 
 usage-header = Usage:
 
@@ -42,8 +44,9 @@ rage-usage =
     {-recipient} 可为：
     - 一把以 {$keygen_name} 生成的 {-age} 公钥 ("age1...")。
     - 一把 SSH 公钥 ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...")。
-    - 一个文件的路径。该文件应含有 {-age} 接收方, 每行一个
-      （前缀为 "#" 的注释以及空行将被忽略）。
+
+    {-recipients-file} 是一个文件路径。该文件应含有 {-age} 接收方, 每行一个
+    （前缀为 "#" 的注释以及空行将被忽略）。
 
     {-identity} 是一个文件路径。该文件或含 {-age} 身份, 每行一个（前缀为 "#" 的注释以及空行将被忽略），
     亦或为 SSH 密钥文件。您可提供多份身份, 未使用的身份将被忽略。
@@ -93,6 +96,7 @@ err-enc-missing-recipients = 缺少接收方。
 rec-enc-missing-recipients = 您是否忘记指定 {-flag-recipient} 标记？
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} 和 {-flag-passphrase} 标记不可联用。
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} 和 {-flag-passphrase} 标记不可联用。
 err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 时， 必将要加密的文件传递为参数
 
 ## Decryption errors
@@ -115,6 +119,7 @@ err-dec-passphrase-without-file-win =
     必将解密的文件传递为位置参数。
 
 err-dec-recipient-flag = {-flag-recipient} 和 {-flag-decrypt} 不可联用。
+err-dec-recipients-file-flag = {-flag-recipients-file} 和 {-flag-decrypt} 不可联用。
 rec-dec-recipient-flag = 您是不是要用 {-flag-identity} 标记来指定私钥？
 
 ## rage-mount strings

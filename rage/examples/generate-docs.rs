@@ -55,6 +55,12 @@ fn rage_page() {
                 .help("Encrypt to the specified RECIPIENT. May be repeated."),
         )
         .option(
+            Opt::new("PATH")
+                .short("-R")
+                .long("--recipients-file")
+                .help("Encrypt to the recipients listed at PATH. May be repeated."),
+        )
+        .option(
             Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
@@ -92,13 +98,13 @@ fn rage_page() {
         .example(
             Example::new()
                 .text("Encryption to a list of recipients in a file")
-                .command("tar cv ~/xxx | rage -r recipients.txt > xxx.tar.age"),
+                .command("tar cv ~/xxx | rage -R recipients.txt > xxx.tar.age"),
         )
         .example(
             Example::new()
                 .text("Encryption to a list of recipients at an HTTPS URL")
                 .command(
-                    "echo \"_o/\" | rage -o hello.age -r <(curl https://github.com/str4d.keys)",
+                    "echo \"_o/\" | rage -o hello.age -R <(curl https://github.com/str4d.keys)",
                 ),
         )
         .example(
