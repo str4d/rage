@@ -168,10 +168,51 @@ impl Write for StdoutWriter {
     }
 }
 
+/// A lazy [`File`] that is not opened until the first call to [`Write::write`] or
+/// [`Write::flush`].
+pub struct LazyFile {
+    filename: String,
+    #[cfg(unix)]
+    mode: u32,
+    file: Option<io::Result<File>>,
+}
+
+impl LazyFile {
+    fn get_file(&mut self) -> io::Result<&mut File> {
+        let filename = &self.filename;
+
+        if self.file.is_none() {
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+
+            #[cfg(unix)]
+            options.mode(self.mode);
+
+            self.file = Some(options.open(filename));
+        }
+
+        self.file
+            .as_mut()
+            .unwrap()
+            .as_mut()
+            .map_err(|e| io::Error::new(e.kind(), format!("Failed to open file '{}'", filename)))
+    }
+}
+
+impl io::Write for LazyFile {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.get_file()?.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.get_file()?.flush()
+    }
+}
+
 /// Wrapper around either a file or standard output.
 pub enum OutputWriter {
     /// Wrapper around a file.
-    File(File),
+    File(LazyFile),
     /// Wrapper around standard output.
     Stdout(StdoutWriter),
 }
@@ -184,13 +225,12 @@ impl OutputWriter {
             // Respect the Unix convention that "-" as an output filename
             // parameter is an explicit request to use standard output.
             if filename != "-" {
-                let mut options = OpenOptions::new();
-                options.write(true).create_new(true);
-
-                #[cfg(unix)]
-                options.mode(_mode);
-
-                return Ok(OutputWriter::File(options.open(filename)?));
+                return Ok(OutputWriter::File(LazyFile {
+                    filename,
+                    #[cfg(unix)]
+                    mode: _mode,
+                    file: None,
+                }));
             } else {
                 // User explicitly requested stdout; force the format to binary so that we
                 // don't try to parse it as UTF-8 in StdoutWriter and perhaps reject it.
