@@ -74,19 +74,15 @@ fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Bo
 }
 
 /// Reads recipients from the provided arguments.
-///
-/// Supported arguments:
-/// - Recipient keys
-/// - Path to a file containing a list of recipient keys
 fn read_recipients(
-    mut arguments: Vec<String>,
+    recipient_strings: Vec<String>,
+    recipients_file_strings: Vec<String>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     #[cfg(feature = "unstable")]
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
-    while !arguments.is_empty() {
-        let arg = arguments.pop().expect("arguments is not empty");
 
+    for arg in recipient_strings {
         if let Ok(pk) = arg.parse::<age::x25519::Recipient>() {
             recipients.push(Box::new(pk));
         } else if let Some(pk) = {
@@ -116,12 +112,15 @@ fn read_recipients(
             // Bind the value so it has a type.
             #[cfg(not(feature = "unstable"))]
             let _: () = recipient;
-        } else if let Ok(f) = File::open(&arg) {
-            let buf = BufReader::new(f);
-            recipients.extend(read_recipients_list(&arg, buf)?);
         } else {
             return Err(error::EncryptError::InvalidRecipient(arg));
         }
+    }
+
+    for arg in recipients_file_strings {
+        let f = File::open(&arg)?;
+        let buf = BufReader::new(f);
+        recipients.extend(read_recipients_list(&arg, buf)?);
     }
 
     #[cfg(feature = "unstable")]
@@ -176,6 +175,12 @@ struct AgeOptions {
     #[options(help = "Encrypt to the specified RECIPIENT. May be repeated.")]
     recipient: Vec<String>,
 
+    #[options(
+        help = "Encrypt to the recipients listed at PATH. May be repeated.",
+        meta = "PATH"
+    )]
+    recipients_file: Vec<String>,
+
     #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 
@@ -191,6 +196,9 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     let encryptor = if opts.passphrase {
         if !opts.recipient.is_empty() {
             return Err(error::EncryptError::MixedRecipientAndPassphrase);
+        }
+        if !opts.recipients_file.is_empty() {
+            return Err(error::EncryptError::MixedRecipientsFileAndPassphrase);
         }
 
         if opts.input.is_none() {
@@ -223,11 +231,11 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             Err(pinentry::Error::Io(e)) => return Err(error::EncryptError::Io(e)),
         }
     } else {
-        if opts.recipient.is_empty() {
+        if opts.recipient.is_empty() && opts.recipients_file.is_empty() {
             return Err(error::EncryptError::MissingRecipients);
         }
 
-        age::Encryptor::with_recipients(read_recipients(opts.recipient)?)
+        age::Encryptor::with_recipients(read_recipients(opts.recipient, opts.recipients_file)?)
     };
 
     let mut input = file_io::InputReader::new(opts.input)?;
@@ -286,6 +294,9 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     if !opts.recipient.is_empty() {
         return Err(error::DecryptError::RecipientFlag);
+    }
+    if !opts.recipients_file.is_empty() {
+        return Err(error::DecryptError::RecipientsFileFlag);
     }
 
     let output = opts.output;

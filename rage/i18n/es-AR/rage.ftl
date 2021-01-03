@@ -17,6 +17,7 @@
 -flag-decrypt = -d/--decrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
+-flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
@@ -27,6 +28,7 @@
 -output = OUTPUT
 -identity = IDENTITY
 -recipient = RECIPIENT
+-recipients-file = PATH
 
 usage-header = Usage:
 
@@ -42,8 +44,9 @@ rage-usage =
     {-recipient} puede ser:
     - Una clave pública {-age}, como es generada por {$keygen_name} ("age1...").
     - Una clave pública SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
-    - Una ruta a un archivo que contenga un destinatario {-age} por
-      línea (ignorando comentarios con el prefijo "#" y líneas vacías).
+
+    {-recipients-file} es una ruta a un archivo que contenga un destinatario {-age} por línea
+    (ignorando comentarios con el prefijo "#" y líneas vacías).
 
     {-identity} es una ruta a una archivo con una identidad {-age} por línea
     (ignorando comentarios con el prefijo "#" y líneas vacías), o a un archivo
@@ -95,6 +98,7 @@ err-enc-missing-recipients = No se encontraron destinatarios.
 rec-enc-missing-recipients = ¿Te olvidaste de especificar {-flag-recipient}?
 
 err-enc-mixed-recipient-passphrase = {-flag-recipient} no puede ser usado con {-flag-passphrase}
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} no puede ser usado con {-flag-passphrase}
 err-enc-passphrase-without-file = El archivo a encriptar debe ser pasado como argumento cuando se utiliza {-flag-passphrase}
 
 ## Decryption errors
@@ -118,6 +122,7 @@ err-dec-passphrase-without-file-win =
     como argumentos cuando se desencripta con una frase contraseña.
 
 err-dec-recipient-flag = {-flag-recipient} no puede ser usado con {-flag-decrypt}.
+err-dec-recipients-file-flag = {-flag-recipients-file} no puede ser usado con {-flag-decrypt}.
 rec-dec-recipient-flag = ¿Tenías la intención de utilizar {-flag-identity} para especificar una clave privada?
 
 ## rage-mount strings

@@ -45,6 +45,13 @@ fn rage_completions() {
                 .long("recipient"),
         )
         .arg(
+            Arg::new("recipients-file")
+                .takes_value(true)
+                .multiple(true)
+                .short('R')
+                .long("recipients-file"),
+        )
+        .arg(
             Arg::new("identity")
                 .takes_value(true)
                 .multiple(true)

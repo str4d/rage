@@ -9,13 +9,21 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- The `-R/--recipients-file` flag, which accepts a path to a file containing age
+  recipients, one per line (ignoring "#" prefixed comments and empty lines).
+
 ### Changed
 - Files encrypted with this version of `rage` might not decrypt with previous
   beta versions, due to changes in how stanza bodies are canonically encoded.
   This should only affect a small fraction of files (if grease that triggers the
   change is added, which has a 3% chance per file).
+- `-r/--recipient` now has the specific type "recipient" which better reflects
+  its name, rather than the ambiguous "source of recipients" it was previously.
 
 ### Removed
+- Recipients file support from `-r/--recipient` (use `-R/--recipients-file`
+  instead).
 - HTTPS support. This added otherwise-unnecessary networking dependencies to
   `rage`, and there are many decisions that need to be made when downloading a
   file (e.g. what roots to trust?) that go beyond the APIs we want to focus on
