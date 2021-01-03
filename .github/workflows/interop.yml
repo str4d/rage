@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Create FiloSottile/age status
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
@@ -30,7 +30,7 @@ jobs:
           path: target/release/rage
 
       - name: Update FiloSottile/age status with result
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: Create FiloSottile/age status
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
@@ -79,7 +79,7 @@ jobs:
           path: go-age/age/age
 
       - name: Update FiloSottile/age status with result
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
@@ -99,7 +99,7 @@ jobs:
 
     steps:
       - name: Create FiloSottile/age status
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
@@ -198,7 +198,7 @@ jobs:
           path: test4.age
 
       - name: Update FiloSottile/age status with result
-        if: github.event.action == 'age-interop-request'
+        if: always() && github.event.action == 'age-interop-request'
         run: |
           curl -X POST https://api.github.com/repos/FiloSottile/age/statuses/${{ github.event.client_payload.sha }} \
           -H 'Accept: application/vnd.github.everest-preview+json' \
