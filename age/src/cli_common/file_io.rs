@@ -183,7 +183,7 @@ impl LazyFile {
 
         if self.file.is_none() {
             let mut options = OpenOptions::new();
-            options.write(true).create_new(true);
+            options.write(true).create(true).truncate(true);
 
             #[cfg(unix)]
             options.mode(self.mode);
@@ -268,5 +268,20 @@ impl Write for OutputWriter {
             OutputWriter::File(f) => f.flush(),
             OutputWriter::Stdout(handle) => handle.flush(),
         }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::{OutputFormat, OutputWriter};
+    use std::io::Write;
+
+    #[cfg(unix)]
+    #[test]
+    fn lazy_existing_file() {
+        OutputWriter::new(Some("/dev/null".to_string()), OutputFormat::Text, 0o600)
+            .unwrap()
+            .flush()
+            .unwrap();
     }
 }
