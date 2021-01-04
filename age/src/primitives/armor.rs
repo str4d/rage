@@ -37,6 +37,11 @@ struct EncodedLine {
     offset: usize,
 }
 
+struct EncodedBytes {
+    offset: usize,
+    end: usize,
+}
+
 #[pin_project(project = LineEndingWriterProj)]
 pub(crate) struct LineEndingWriter<W> {
     #[pin]
@@ -246,7 +251,7 @@ enum ArmorIs<W> {
         byte_buf: Option<Vec<u8>>,
         encoded_buf: [u8; ARMORED_COLUMNS_PER_LINE],
         #[cfg(feature = "async")]
-        encoded_line: Option<EncodedLine>,
+        encoded_line: Option<EncodedBytes>,
     },
 
     Disabled {
@@ -374,14 +379,16 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
         match self.project().0.project() {
             ArmorIsProj::Enabled {
                 mut inner,
+                encoded_buf,
                 encoded_line,
                 ..
             } => {
                 if let Some(line) = encoded_line {
                     loop {
-                        line.offset +=
-                            ready!(inner.as_mut().poll_write(cx, &line.bytes[line.offset..]))?;
-                        if line.offset == line.bytes.len() {
+                        line.offset += ready!(inner
+                            .as_mut()
+                            .poll_write(cx, &encoded_buf[line.offset..line.end]))?;
+                        if line.offset == line.end {
                             break;
                         }
                     }
@@ -407,6 +414,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
         match self.project().0.project() {
             ArmorIsProj::Enabled {
                 byte_buf,
+                encoded_buf,
                 encoded_line,
                 ..
             } => {
@@ -425,9 +433,13 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                     // Only encode the line if we have more data to write, as the last
                     // line must be written in poll_close().
                     if !buf.is_empty() {
-                        *encoded_line = Some(EncodedLine {
-                            bytes: base64::encode_config(&byte_buf, base64::STANDARD).into_bytes(),
+                        assert_eq!(
+                            base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf),
+                            ARMORED_COLUMNS_PER_LINE
+                        );
+                        *encoded_line = Some(EncodedBytes {
                             offset: 0,
+                            end: ARMORED_COLUMNS_PER_LINE,
                         });
                         byte_buf.clear();
                     }
@@ -459,15 +471,18 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
         match self.as_mut().project().0.project() {
             ArmorIsProj::Enabled {
                 byte_buf,
+                encoded_buf,
                 encoded_line,
                 ..
             } => {
                 if let Some(byte_buf) = byte_buf {
                     // Finish the armored format with a partial line (if necessary) and the end
                     // marker.
-                    *encoded_line = Some(EncodedLine {
-                        bytes: base64::encode_config(&byte_buf, base64::STANDARD).into_bytes(),
+                    let encoded =
+                        base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf);
+                    *encoded_line = Some(EncodedBytes {
                         offset: 0,
+                        end: encoded,
                     });
                 }
                 *byte_buf = None;
