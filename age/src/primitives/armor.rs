@@ -244,6 +244,7 @@ enum ArmorIs<W> {
         #[pin]
         inner: LineEndingWriter<W>,
         byte_buf: Option<Vec<u8>>,
+        encoded_buf: [u8; ARMORED_COLUMNS_PER_LINE],
         #[cfg(feature = "async")]
         encoded_line: Option<EncodedLine>,
     },
@@ -266,6 +267,7 @@ impl<W: Write> ArmoredWriter<W> {
                 ArmoredWriter(ArmorIs::Enabled {
                     inner: w,
                     byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
+                    encoded_buf: [0; ARMORED_COLUMNS_PER_LINE],
                     #[cfg(feature = "async")]
                     encoded_line: None,
                 })
@@ -284,10 +286,13 @@ impl<W: Write> ArmoredWriter<W> {
             ArmorIs::Enabled {
                 mut inner,
                 byte_buf,
+                mut encoded_buf,
                 ..
             } => {
                 let byte_buf = byte_buf.unwrap();
-                inner.write_all(base64::encode_config(&byte_buf, base64::STANDARD).as_bytes())?;
+                let encoded =
+                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf);
+                inner.write_all(&encoded_buf[..encoded])?;
                 inner.finish()
             }
             ArmorIs::Disabled { inner } => Ok(inner),
@@ -299,7 +304,10 @@ impl<W: Write> Write for ArmoredWriter<W> {
     fn write(&mut self, mut buf: &[u8]) -> io::Result<usize> {
         match &mut self.0 {
             ArmorIs::Enabled {
-                inner, byte_buf, ..
+                inner,
+                byte_buf,
+                encoded_buf,
+                ..
             } => {
                 // Guaranteed to be Some (as long as async and sync writing isn't mixed),
                 // because ArmoredWriter::finish consumes self.
@@ -324,9 +332,11 @@ impl<W: Write> Write for ArmoredWriter<W> {
                     if buf.is_empty() {
                         break;
                     } else {
-                        inner.write_all(
-                            base64::encode_config(&byte_buf, base64::STANDARD).as_bytes(),
-                        )?;
+                        assert_eq!(
+                            base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf),
+                            ARMORED_COLUMNS_PER_LINE
+                        );
+                        inner.write_all(encoded_buf)?;
                         byte_buf.clear();
                     };
                 }
@@ -353,6 +363,7 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
             Format::AsciiArmor => ArmoredWriter(ArmorIs::Enabled {
                 inner: LineEndingWriter::new_async(output),
                 byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
+                encoded_buf: [0; ARMORED_COLUMNS_PER_LINE],
                 encoded_line: None,
             }),
             Format::Binary => ArmoredWriter(ArmorIs::Disabled { inner: output }),
