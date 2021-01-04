@@ -23,6 +23,9 @@ const ARMORED_END_MARKER: &str = "-----END AGE ENCRYPTED FILE-----";
 
 const MIN_ARMOR_LEN: usize = 36; // ARMORED_BEGIN_MARKER.len() + 2
 
+const BASE64_CHUNK_SIZE_COLUMNS: usize = 8 * 1024;
+const BASE64_CHUNK_SIZE_BYTES: usize = BASE64_CHUNK_SIZE_COLUMNS / 4 * 3;
+
 /// Specifies the format that [`ArmoredWriter`] should apply to its output.
 pub enum Format {
     /// age binary format.
@@ -249,7 +252,7 @@ enum ArmorIs<W> {
         #[pin]
         inner: LineEndingWriter<W>,
         byte_buf: Option<Vec<u8>>,
-        encoded_buf: [u8; ARMORED_COLUMNS_PER_LINE],
+        encoded_buf: [u8; BASE64_CHUNK_SIZE_COLUMNS],
         #[cfg(feature = "async")]
         encoded_line: Option<EncodedBytes>,
     },
@@ -271,8 +274,8 @@ impl<W: Write> ArmoredWriter<W> {
             Format::AsciiArmor => LineEndingWriter::new(output).map(|w| {
                 ArmoredWriter(ArmorIs::Enabled {
                     inner: w,
-                    byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
-                    encoded_buf: [0; ARMORED_COLUMNS_PER_LINE],
+                    byte_buf: Some(Vec::with_capacity(BASE64_CHUNK_SIZE_BYTES)),
+                    encoded_buf: [0; BASE64_CHUNK_SIZE_COLUMNS],
                     #[cfg(feature = "async")]
                     encoded_line: None,
                 })
@@ -320,7 +323,7 @@ impl<W: Write> Write for ArmoredWriter<W> {
 
                 let mut written = 0;
                 loop {
-                    let mut to_write = ARMORED_BYTES_PER_LINE - byte_buf.len();
+                    let mut to_write = BASE64_CHUNK_SIZE_BYTES - byte_buf.len();
                     if to_write > buf.len() {
                         to_write = buf.len()
                     }
@@ -330,7 +333,7 @@ impl<W: Write> Write for ArmoredWriter<W> {
                     written += to_write;
 
                     // At this point, either buf is empty, or we have a full line.
-                    assert!(buf.is_empty() || byte_buf.len() == ARMORED_BYTES_PER_LINE);
+                    assert!(buf.is_empty() || byte_buf.len() == BASE64_CHUNK_SIZE_BYTES);
 
                     // Only encode the line if we have more data to write, as the last
                     // (possibly-partial) line must be written in finish().
@@ -339,7 +342,7 @@ impl<W: Write> Write for ArmoredWriter<W> {
                     } else {
                         assert_eq!(
                             base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf),
-                            ARMORED_COLUMNS_PER_LINE
+                            BASE64_CHUNK_SIZE_COLUMNS
                         );
                         inner.write_all(encoded_buf)?;
                         byte_buf.clear();
@@ -367,8 +370,8 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
         match format {
             Format::AsciiArmor => ArmoredWriter(ArmorIs::Enabled {
                 inner: LineEndingWriter::new_async(output),
-                byte_buf: Some(Vec::with_capacity(ARMORED_BYTES_PER_LINE)),
-                encoded_buf: [0; ARMORED_COLUMNS_PER_LINE],
+                byte_buf: Some(Vec::with_capacity(BASE64_CHUNK_SIZE_BYTES)),
+                encoded_buf: [0; BASE64_CHUNK_SIZE_COLUMNS],
                 encoded_line: None,
             }),
             Format::Binary => ArmoredWriter(ArmorIs::Disabled { inner: output }),
@@ -419,7 +422,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                 ..
             } => {
                 if let Some(byte_buf) = byte_buf {
-                    let mut to_write = ARMORED_BYTES_PER_LINE - byte_buf.len();
+                    let mut to_write = BASE64_CHUNK_SIZE_BYTES - byte_buf.len();
                     if to_write > buf.len() {
                         to_write = buf.len()
                     }
@@ -428,7 +431,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                     buf = &buf[to_write..];
 
                     // At this point, either buf is empty, or we have a full line.
-                    assert!(buf.is_empty() || byte_buf.len() == ARMORED_BYTES_PER_LINE);
+                    assert!(buf.is_empty() || byte_buf.len() == BASE64_CHUNK_SIZE_BYTES);
 
                     // Only encode the line if we have more data to write, as the last
                     // line must be written in poll_close().
