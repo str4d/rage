@@ -9,6 +9,15 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- Plugin support, enabled by the `plugin` feature flag:
+  - `age::plugin::{Identity, Recipient}` structs for parsing plugin recipients
+    and identities from strings.
+  - `age::plugin::RecipientPluginV1`, which implements `age::Recipient` and runs
+    the V1 recipient plugin protocol.
+  - `age::plugin::IdentityPluginV1`, which implements `age::Identity` and runs
+    the V1 identity plugin protocol.
+
 ### Changed
 - Files encrypted with this version of `age` might not decrypt with previous
   beta versions, due to changes in how stanza bodies are canonically encoded.
