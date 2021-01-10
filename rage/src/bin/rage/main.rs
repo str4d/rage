@@ -11,7 +11,6 @@ use i18n_embed::{
     DesktopLanguageRequester,
 };
 use lazy_static::lazy_static;
-use log::error;
 use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
 use std::fs::File;
@@ -36,38 +35,61 @@ macro_rules! fl {
     }};
 }
 
-/// Reads file contents as a list of recipients
-fn read_recipients_list<R: BufRead>(filename: &str, buf: R) -> io::Result<Vec<Box<dyn Recipient>>> {
-    let mut recipients: Vec<Box<dyn Recipient>> = vec![];
+/// Parses a recipient from a string.
+fn parse_recipient(
+    s: String,
+    recipients: &mut Vec<Box<dyn Recipient>>,
+    plugin_recipients: &mut Vec<plugin::Recipient>,
+) -> Result<(), error::EncryptError> {
+    if let Ok(pk) = s.parse::<age::x25519::Recipient>() {
+        recipients.push(Box::new(pk));
+    } else if let Some(pk) = {
+        #[cfg(feature = "ssh")]
+        {
+            s.parse::<age::ssh::Recipient>().ok().map(Box::new)
+        }
 
-    for line in buf.lines() {
+        #[cfg(not(feature = "ssh"))]
+        None
+    } {
+        recipients.push(pk);
+    } else if let Ok(recipient) = s.parse::<plugin::Recipient>() {
+        plugin_recipients.push(recipient);
+    } else {
+        return Err(error::EncryptError::InvalidRecipient(s));
+    }
+
+    Ok(())
+}
+
+/// Reads file contents as a list of recipients
+fn read_recipients_list<R: BufRead>(
+    filename: &str,
+    buf: R,
+    recipients: &mut Vec<Box<dyn Recipient>>,
+    plugin_recipients: &mut Vec<plugin::Recipient>,
+) -> io::Result<()> {
+    for (line_number, line) in buf.lines().enumerate() {
         let line = line?;
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
-            match line.parse::<age::x25519::Recipient>() {
-                Ok(key) => recipients.push(Box::new(key)),
-                Err(_e) => {
-                    #[cfg(feature = "ssh")]
-                    let _e = match line.parse::<age::ssh::Recipient>() {
-                        Ok(key) => {
-                            recipients.push(Box::new(key));
-                            continue;
-                        }
-                        Err(e) => e,
-                    };
-
-                    error!("{:?}", _e);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("recipients file {} contains non-recipient data", filename),
-                    ));
-                }
+            if parse_recipient(line, recipients, plugin_recipients).is_err() {
+                // Return a line number in place of the line, so we don't leak the file
+                // contents in error messages.
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "recipients file {} contains non-recipient data on line {}",
+                        filename,
+                        line_number + 1
+                    ),
+                ));
             }
         }
     }
 
-    Ok(recipients)
+    Ok(())
 }
 
 /// Reads recipients from the provided arguments.
@@ -79,29 +101,13 @@ fn read_recipients(
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
 
     for arg in recipient_strings {
-        if let Ok(pk) = arg.parse::<age::x25519::Recipient>() {
-            recipients.push(Box::new(pk));
-        } else if let Some(pk) = {
-            #[cfg(feature = "ssh")]
-            {
-                arg.parse::<age::ssh::Recipient>().ok().map(Box::new)
-            }
-
-            #[cfg(not(feature = "ssh"))]
-            None
-        } {
-            recipients.push(pk);
-        } else if let Ok(recipient) = arg.parse::<plugin::Recipient>() {
-            plugin_recipients.push(recipient);
-        } else {
-            return Err(error::EncryptError::InvalidRecipient(arg));
-        }
+        parse_recipient(arg, &mut recipients, &mut plugin_recipients)?;
     }
 
     for arg in recipients_file_strings {
         let f = File::open(&arg)?;
         let buf = BufReader::new(f);
-        recipients.extend(read_recipients_list(&arg, buf)?);
+        read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
     }
 
     // Collect the names of the required plugins.
