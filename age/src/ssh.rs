@@ -295,6 +295,7 @@ mod read_ssh {
     }
 
     /// Recognizes an SSH `string` matching a tag.
+    #[allow(clippy::needless_lifetimes)] // false positive
     pub fn string_tag<'a>(value: &'a str) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> {
         move |input: &[u8]| length_value(be_u32, tag(value))(input)
     }
