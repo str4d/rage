@@ -1,4 +1,4 @@
-//! This is a helper crate for implementing age plugins.
+//! This crate provides an API for building age plugins.
 //!
 //! # Introduction
 //!

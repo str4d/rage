@@ -3,7 +3,7 @@
 use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase},
-    Recipient,
+    plugin, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -16,9 +16,6 @@ use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-
-#[cfg(feature = "unstable")]
-use age::plugin;
 
 mod error;
 
@@ -79,7 +76,6 @@ fn read_recipients(
     recipients_file_strings: Vec<String>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
-    #[cfg(feature = "unstable")]
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
 
     for arg in recipient_strings {
@@ -95,23 +91,8 @@ fn read_recipients(
             None
         } {
             recipients.push(pk);
-        } else if let Some(recipient) = {
-            #[cfg(feature = "unstable")]
-            {
-                arg.parse::<plugin::Recipient>().ok()
-            }
-
-            #[cfg(not(feature = "unstable"))]
-            None
-        } {
-            #[cfg(feature = "unstable")]
-            {
-                plugin_recipients.push(recipient);
-            }
-
-            // Bind the value so it has a type.
-            #[cfg(not(feature = "unstable"))]
-            let _: () = recipient;
+        } else if let Ok(recipient) = arg.parse::<plugin::Recipient>() {
+            plugin_recipients.push(recipient);
         } else {
             return Err(error::EncryptError::InvalidRecipient(arg));
         }
@@ -123,23 +104,20 @@ fn read_recipients(
         recipients.extend(read_recipients_list(&arg, buf)?);
     }
 
-    #[cfg(feature = "unstable")]
-    {
-        // Collect the names of the required plugins.
-        let mut plugin_names = plugin_recipients
-            .iter()
-            .map(|r| r.plugin())
-            .collect::<Vec<_>>();
-        plugin_names.sort();
-        plugin_names.dedup();
+    // Collect the names of the required plugins.
+    let mut plugin_names = plugin_recipients
+        .iter()
+        .map(|r| r.plugin())
+        .collect::<Vec<_>>();
+    plugin_names.sort();
+    plugin_names.dedup();
 
-        // Find the required plugins.
-        for plugin_name in plugin_names {
-            recipients.push(Box::new(plugin::RecipientPluginV1::new(
-                plugin_name,
-                &plugin_recipients,
-            )?))
-        }
+    // Find the required plugins.
+    for plugin_name in plugin_names {
+        recipients.push(Box::new(plugin::RecipientPluginV1::new(
+            plugin_name,
+            &plugin_recipients,
+        )?))
     }
 
     Ok(recipients)

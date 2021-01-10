@@ -10,6 +10,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Plugin support!
+  - The new [`age-plugin`](https://crates.io/crates/age-plugin) crate provides
+    a Rust API for building age plugins.
+  - See https://hackmd.io/@str4d/age-plugin-spec for the beta specification.
 - The `-R/--recipients-file` flag, which accepts a path to a file containing age
   recipients, one per line (ignoring "#" prefixed comments and empty lines).
 
