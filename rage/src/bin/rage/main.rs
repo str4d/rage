@@ -73,19 +73,19 @@ fn read_recipients_list<R: BufRead>(
         let line = line?;
 
         // Skip empty lines and comments
-        if !(line.is_empty() || line.find('#') == Some(0)) {
-            if parse_recipient(line, recipients, plugin_recipients).is_err() {
-                // Return a line number in place of the line, so we don't leak the file
-                // contents in error messages.
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "recipients file {} contains non-recipient data on line {}",
-                        filename,
-                        line_number + 1
-                    ),
-                ));
-            }
+        if line.is_empty() || line.find('#') == Some(0) {
+            continue;
+        } else if parse_recipient(line, recipients, plugin_recipients).is_err() {
+            // Return a line number in place of the line, so we don't leak the file
+            // contents in error messages.
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "recipients file {} contains non-recipient data on line {}",
+                    filename,
+                    line_number + 1
+                ),
+            ));
         }
     }
 
@@ -115,7 +115,7 @@ fn read_recipients(
         .iter()
         .map(|r| r.plugin())
         .collect::<Vec<_>>();
-    plugin_names.sort();
+    plugin_names.sort_unstable();
     plugin_names.dedup();
 
     // Find the required plugins.

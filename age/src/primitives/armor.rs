@@ -123,7 +123,11 @@ impl<W: Write> Write for LineEndingWriter<W> {
         if self.buf.len() + 1024 > self.buf.capacity() {
             let inner_written = self.inner.write(&self.buf)?;
             let mut i = 0;
-            self.buf.retain(|_| (i >= inner_written, i += 1).0);
+            self.buf.retain(|_| {
+                let b = i >= inner_written;
+                i += 1;
+                b
+            });
         }
 
         // We always return the number of bytes we consumed, not how many we actually
@@ -207,10 +211,10 @@ impl<W: AsyncWrite> AsyncWrite for LineEndingWriter<W> {
 
             Poll::Ready(Ok(to_write))
         } else {
-            return Poll::Ready(Err(io::Error::new(
+            Poll::Ready(Err(io::Error::new(
                 io::ErrorKind::WriteZero,
                 "AsyncWrite::poll_closed has been called",
-            )));
+            )))
         }
     }
 
@@ -379,26 +383,24 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
     }
 
     fn poll_flush_line(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
-        match self.project().0.project() {
-            ArmorIsProj::Enabled {
-                mut inner,
-                encoded_buf,
-                encoded_line,
-                ..
-            } => {
-                if let Some(line) = encoded_line {
-                    loop {
-                        line.offset += ready!(inner
-                            .as_mut()
-                            .poll_write(cx, &encoded_buf[line.offset..line.end]))?;
-                        if line.offset == line.end {
-                            break;
-                        }
+        if let ArmorIsProj::Enabled {
+            mut inner,
+            encoded_buf,
+            encoded_line,
+            ..
+        } = self.project().0.project()
+        {
+            if let Some(line) = encoded_line {
+                loop {
+                    line.offset += ready!(inner
+                        .as_mut()
+                        .poll_write(cx, &encoded_buf[line.offset..line.end]))?;
+                    if line.offset == line.end {
+                        break;
                     }
                 }
-                *encoded_line = None;
             }
-            _ => (),
+            *encoded_line = None;
         }
 
         Poll::Ready(Ok(()))
@@ -449,10 +451,10 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
 
                     Poll::Ready(Ok(to_write))
                 } else {
-                    return Poll::Ready(Err(io::Error::new(
+                    Poll::Ready(Err(io::Error::new(
                         io::ErrorKind::WriteZero,
                         "AsyncWrite::poll_closed has been called",
-                    )));
+                    )))
                 }
             }
             ArmorIsProj::Disabled { inner } => inner.poll_write(cx, buf),
@@ -471,26 +473,23 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
         // Flush any remaining encoded line bytes.
         ready!(self.as_mut().poll_flush_line(cx))?;
 
-        match self.as_mut().project().0.project() {
-            ArmorIsProj::Enabled {
-                byte_buf,
-                encoded_buf,
-                encoded_line,
-                ..
-            } => {
-                if let Some(byte_buf) = byte_buf {
-                    // Finish the armored format with a partial line (if necessary) and the end
-                    // marker.
-                    let encoded =
-                        base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf);
-                    *encoded_line = Some(EncodedBytes {
-                        offset: 0,
-                        end: encoded,
-                    });
-                }
-                *byte_buf = None;
+        if let ArmorIsProj::Enabled {
+            byte_buf,
+            encoded_buf,
+            encoded_line,
+            ..
+        } = self.as_mut().project().0.project()
+        {
+            if let Some(byte_buf) = byte_buf {
+                // Finish the armored format with a partial line (if necessary) and the end
+                // marker.
+                let encoded = base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf);
+                *encoded_line = Some(EncodedBytes {
+                    offset: 0,
+                    end: encoded,
+                });
             }
-            _ => (),
+            *byte_buf = None;
         }
 
         // Flush the final chunk (if we didn't in the first call).
@@ -942,7 +941,7 @@ impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
                         SeekFrom::Start(offset) => offset,
                         SeekFrom::Current(offset) => {
                             let res = (self.data_read as i64) + offset;
-                            if res >= 0 as i64 {
+                            if res >= 0_i64 {
                                 res as u64
                             } else {
                                 return Err(io::Error::new(
@@ -1070,7 +1069,7 @@ mod tests {
 
                 let mut tmp = &data[..];
                 loop {
-                    match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                    match w.as_mut().poll_write(&mut cx, &tmp) {
                         Poll::Ready(Ok(0)) => break,
                         Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                         Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
