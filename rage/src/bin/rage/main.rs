@@ -69,15 +69,21 @@ fn read_recipients_list<R: BufRead>(
     recipients: &mut Vec<Box<dyn Recipient>>,
     plugin_recipients: &mut Vec<plugin::Recipient>,
 ) -> io::Result<()> {
-    for line in buf.lines() {
+    for (line_number, line) in buf.lines().enumerate() {
         let line = line?;
 
         // Skip empty lines and comments
         if !(line.is_empty() || line.find('#') == Some(0)) {
             if parse_recipient(line, recipients, plugin_recipients).is_err() {
+                // Return a line number in place of the line, so we don't leak the file
+                // contents in error messages.
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("recipients file {} contains non-recipient data", filename),
+                    format!(
+                        "recipients file {} contains non-recipient data on line {}",
+                        filename,
+                        line_number + 1
+                    ),
                 ));
             }
         }
