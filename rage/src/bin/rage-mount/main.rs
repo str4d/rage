@@ -263,12 +263,12 @@ fn main() -> Result<(), Error> {
         age::Decryptor::Recipients(decryptor) => {
             let identities = read_identities(
                 opts.identity,
-                |filename| Error::IdentityNotFound(filename),
+                Error::IdentityNotFound,
                 Error::UnsupportedKey,
             )?;
 
             if identities.is_empty() {
-                Err(Error::MissingIdentities)?;
+                return Err(Error::MissingIdentities);
             }
 
             decryptor

@@ -82,7 +82,7 @@ where
             .iter()
             .map(|r| r.plugin())
             .collect::<Vec<_>>();
-        plugin_names.sort();
+        plugin_names.sort_unstable();
         plugin_names.dedup();
 
         // Find the required plugins.

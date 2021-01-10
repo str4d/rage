@@ -281,7 +281,7 @@ mod tests {
 
             let mut tmp = &test_msg[..];
             loop {
-                match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                match w.as_mut().poll_write(&mut cx, &tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                     Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),

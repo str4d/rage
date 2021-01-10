@@ -67,9 +67,8 @@ impl Header {
         loop {
             match read::header(&data) {
                 Ok((_, mut header)) => {
-                    match &mut header {
-                        Header::V1(h) => h.encoded_bytes = Some(data),
-                        _ => (),
+                    if let Header::V1(h) = &mut header {
+                        h.encoded_bytes = Some(data);
                     }
                     break Ok(header);
                 }
@@ -96,9 +95,8 @@ impl Header {
         loop {
             match read::header(&data) {
                 Ok((_, mut header)) => {
-                    match &mut header {
-                        Header::V1(h) => h.encoded_bytes = Some(data),
-                        _ => (),
+                    if let Header::V1(h) = &mut header {
+                        h.encoded_bytes = Some(data);
                     }
                     break Ok(header);
                 }

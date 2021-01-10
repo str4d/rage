@@ -350,8 +350,8 @@ mod tests {
             buffer: String::new(),
         };
         let mut plugin_conn = Connection {
-            input: BufReader::new(PipeReader::new(client_to_plugin.clone())),
-            output: PipeWriter::new(plugin_to_client.clone()),
+            input: BufReader::new(PipeReader::new(client_to_plugin)),
+            output: PipeWriter::new(plugin_to_client),
             buffer: String::new(),
         };
 

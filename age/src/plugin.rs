@@ -100,7 +100,7 @@ impl std::str::FromStr for Identity {
                         name: hrp
                             .split_at(PLUGIN_IDENTITY_PREFIX.len())
                             .1
-                            .trim_end_matches("-")
+                            .trim_end_matches('-')
                             .to_owned(),
                         identity: s.to_owned(),
                     })

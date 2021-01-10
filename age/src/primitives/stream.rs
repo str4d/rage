@@ -672,17 +672,17 @@ mod tests {
 
     #[test]
     fn stream_round_trip_short() {
-        stream_round_trip(&vec![42; 1024]);
+        stream_round_trip(&[42; 1024]);
     }
 
     #[test]
     fn stream_round_trip_chunk() {
-        stream_round_trip(&vec![42; CHUNK_SIZE]);
+        stream_round_trip(&[42; CHUNK_SIZE]);
     }
 
     #[test]
     fn stream_round_trip_long() {
-        stream_round_trip(&vec![42; 100 * 1024]);
+        stream_round_trip(&[42; 100 * 1024]);
     }
 
     #[cfg(feature = "async")]
@@ -696,7 +696,7 @@ mod tests {
 
             let mut tmp = data;
             loop {
-                match w.as_mut().poll_write(&mut cx, &mut tmp) {
+                match w.as_mut().poll_write(&mut cx, &tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                     Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
@@ -736,19 +736,19 @@ mod tests {
     #[cfg(feature = "async")]
     #[test]
     fn stream_async_round_trip_short() {
-        stream_async_round_trip(&vec![42; 1024]);
+        stream_async_round_trip(&[42; 1024]);
     }
 
     #[cfg(feature = "async")]
     #[test]
     fn stream_async_round_trip_chunk() {
-        stream_async_round_trip(&vec![42; CHUNK_SIZE]);
+        stream_async_round_trip(&[42; CHUNK_SIZE]);
     }
 
     #[cfg(feature = "async")]
     #[test]
     fn stream_async_round_trip_long() {
-        stream_async_round_trip(&vec![42; 100 * 1024]);
+        stream_async_round_trip(&[42; 100 * 1024]);
     }
 
     #[test]
