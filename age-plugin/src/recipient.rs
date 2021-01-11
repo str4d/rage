@@ -1,7 +1,7 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{FileKey, Stanza},
+    format::{FileKey, Stanza, FILE_KEY_BYTES},
     plugin::{Connection, UnidirSend},
 };
 use std::convert::TryInto;
@@ -83,47 +83,39 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 1: collect recipients, and file keys to be wrapped
     let (recipients, file_keys) = {
-        let (recipients, file_keys) = conn
-            .unidir_receive(&[ADD_RECIPIENT, WRAP_FILE_KEY])?
-            .into_iter()
-            .partition::<Vec<_>, _>(|s| s.tag == ADD_RECIPIENT);
+        let (recipients, file_keys) = conn.unidir_receive(
+            (ADD_RECIPIENT, |s| {
+                if s.args.len() == 1 && s.body.is_empty() {
+                    Ok(s)
+                } else {
+                    Err(Error::Internal {
+                        message: format!(
+                            "{} command must have exactly one metadata argument and no data",
+                            ADD_RECIPIENT
+                        ),
+                    })
+                }
+            }),
+            (WRAP_FILE_KEY, |s| {
+                // TODO: Should we ignore file key commands with unexpected metadata args?
+                TryInto::<[u8; FILE_KEY_BYTES]>::try_into(&s.body[..])
+                    .map_err(|_| Error::Internal {
+                        message: "invalid file key length".to_owned(),
+                    })
+                    .map(FileKey::from)
+            }),
+        )?;
         (
-            match recipients
-                .into_iter()
-                .map(|s| {
-                    if s.args.len() == 1 && s.body.is_empty() {
-                        Ok(s)
-                    } else {
-                        Err(Error::Internal {
-                            message: format!(
-                                "{} command must have exactly one metadata argument and no data",
-                                ADD_RECIPIENT
-                            ),
-                        })
-                    }
-                })
-                .collect::<Result<Vec<_>, _>>()
-            {
-                Ok(r) if r.is_empty() => Err(Error::Internal {
+            match recipients {
+                Ok(r) if r.is_empty() => Err(vec![Error::Internal {
                     message: format!("Need at least one {} command", ADD_RECIPIENT),
-                }),
+                }]),
                 r => r,
             },
-            match file_keys
-                .into_iter()
-                .map(|s| {
-                    // TODO: Should we ignore file key commands with unexpected metadata args?
-                    TryInto::<[u8; 16]>::try_into(&s.body[..])
-                        .map_err(|_| Error::Internal {
-                            message: "invalid file key length".to_owned(),
-                        })
-                        .map(FileKey::from)
-                })
-                .collect::<Result<Vec<_>, _>>()
-            {
-                Ok(f) if f.is_empty() => Err(Error::Internal {
+            match file_keys {
+                Ok(f) if f.is_empty() => Err(vec![Error::Internal {
                     message: format!("Need at least one {} command", WRAP_FILE_KEY),
-                }),
+                }]),
                 r => r,
             },
         )
@@ -133,7 +125,18 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     conn.unidir_send(|mut phase| {
         let (recipients, file_keys) = match (recipients, file_keys) {
             (Ok(recipients), Ok(file_keys)) => (recipients, file_keys),
-            (Err(error), _) | (_, Err(error)) => return error.send(&mut phase),
+            (Err(errors1), Err(errors2)) => {
+                for error in errors1.into_iter().chain(errors2.into_iter()) {
+                    error.send(&mut phase)?;
+                }
+                return Ok(());
+            }
+            (Err(errors), _) | (_, Err(errors)) => {
+                for error in errors {
+                    error.send(&mut phase)?;
+                }
+                return Ok(());
+            }
         };
 
         if let Err(errors) =

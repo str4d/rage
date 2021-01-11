@@ -185,26 +185,6 @@ impl RecipientPluginV1 {
 
 impl crate::Recipient for RecipientPluginV1 {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
-        let parse_errors = |errors: Vec<Stanza>| {
-            Err(EncryptError::Plugin(
-                errors
-                    .into_iter()
-                    .map(|s| {
-                        if s.args.len() == 2 && s.args[0] == "recipient" {
-                            let index: usize = s.args[1].parse().unwrap();
-                            PluginError::Recipient {
-                                binary_name: binary_name(&self.recipients[index].name),
-                                recipient: self.recipients[index].recipient.clone(),
-                                message: String::from_utf8_lossy(&s.body).to_string(),
-                            }
-                        } else {
-                            PluginError::from(s)
-                        }
-                    })
-                    .collect(),
-            ))
-        };
-
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
@@ -217,40 +197,71 @@ impl crate::Recipient for RecipientPluginV1 {
         })?;
 
         // Phase 2: collect either stanzas or errors
-        let (stanzas, mut errors) = conn
-            .unidir_receive(&[CMD_RECIPIENT_STANZA, CMD_ERROR])?
-            .into_iter()
-            .partition::<Vec<_>, _>(|s| s.tag == CMD_RECIPIENT_STANZA);
-        match (stanzas.is_empty(), errors.is_empty()) {
-            (false, true) => Ok(stanzas
-                .into_iter()
-                .map(|mut s| {
-                    // We only requested one file key be wrapped.
-                    assert_eq!(s.args.remove(0), "0");
-                    s.tag = s.args.remove(0);
-                    s
-                })
-                .collect()),
-            (a, b) => {
+        let (stanzas, mut errors) = {
+            let (stanzas, errors) = conn.unidir_receive(
+                (CMD_RECIPIENT_STANZA, |mut s| {
+                    if s.args.len() >= 2 {
+                        // We only requested one file key be wrapped.
+                        if s.args.remove(0) == "0" {
+                            s.tag = s.args.remove(0);
+                            Ok(s)
+                        } else {
+                            Err(PluginError::Other {
+                                kind: "internal".to_owned(),
+                                metadata: vec![],
+                                message: "plugin wrapped file key to a file we didn't provide"
+                                    .to_owned(),
+                            })
+                        }
+                    } else {
+                        Err(PluginError::Other {
+                            kind: "internal".to_owned(),
+                            metadata: vec![],
+                            message: format!(
+                                "{} command must have at least two metadata arguments",
+                                CMD_RECIPIENT_STANZA
+                            ),
+                        })
+                    }
+                }),
+                (CMD_ERROR, |s| {
+                    // Here, errors are are okay!
+                    if s.args.len() == 2 && s.args[0] == "recipient" {
+                        let index: usize = s.args[1].parse().unwrap();
+                        Ok(PluginError::Recipient {
+                            binary_name: binary_name(&self.recipients[index].name),
+                            recipient: self.recipients[index].recipient.clone(),
+                            message: String::from_utf8_lossy(&s.body).to_string(),
+                        })
+                    } else {
+                        Ok(PluginError::from(s))
+                    }
+                }),
+            )?;
+            (stanzas, errors.expect("All Ok"))
+        };
+        match (stanzas, errors.is_empty()) {
+            (Ok(stanzas), true) if !stanzas.is_empty() => Ok(stanzas),
+            (Ok(stanzas), b) => {
+                let a = stanzas.is_empty();
                 if a & b {
-                    errors.push(Stanza {
-                        tag: "internal".to_owned(),
-                        args: vec![],
-                        body: "Plugin returned neither stanzas nor errors"
-                            .as_bytes()
-                            .to_owned(),
+                    errors.push(PluginError::Other {
+                        kind: "internal".to_owned(),
+                        metadata: vec![],
+                        message: "Plugin returned neither stanzas nor errors".to_owned(),
                     });
                 } else if !a & !b {
-                    errors.push(Stanza {
-                        tag: "internal".to_owned(),
-                        args: vec![],
-                        body: "Plugin returned both stanzas and errors"
-                            .as_bytes()
-                            .to_owned(),
+                    errors.push(PluginError::Other {
+                        kind: "internal".to_owned(),
+                        metadata: vec![],
+                        message: "Plugin returned both stanzas and errors".to_owned(),
                     });
                 }
-                parse_errors(errors)
+                Err(EncryptError::Plugin(errors))
             }
+            (Err(errs), _) => Err(EncryptError::Plugin(
+                errors.into_iter().chain(errs.into_iter()).collect(),
+            )),
         }
     }
 }

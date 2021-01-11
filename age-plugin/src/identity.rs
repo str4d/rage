@@ -180,14 +180,8 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 1: receive identities and stanzas
     let (identities, recipient_stanzas) = {
-        let (identities, rest) = conn
-            .unidir_receive(&[ADD_IDENTITY, RECIPIENT_STANZA])?
-            .into_iter()
-            .partition::<Vec<_>, _>(|s| s.tag == ADD_IDENTITY);
-
-        let identities = identities
-            .into_iter()
-            .map(|s| {
+        let (identities, stanzas) = conn.unidir_receive(
+            (ADD_IDENTITY, |s| {
                 if s.args.len() == 1 && s.body.is_empty() {
                     Ok(s)
                 } else {
@@ -198,12 +192,8 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                         ),
                     })
                 }
-            })
-            .collect::<Result<Vec<_>, _>>();
-
-        let stanzas = rest
-            .into_iter()
-            .map(|mut s| {
+            }),
+            (RECIPIENT_STANZA, |mut s| {
                 if s.args.len() >= 2 {
                     let file_index = s.args.remove(0);
                     s.tag = s.args.remove(0);
@@ -224,26 +214,32 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                         ),
                     })
                 }
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .and_then(|recipient_stanzas| {
-                let mut stanzas: Vec<Vec<Stanza>> = Vec::new();
-                for (file_index, stanza) in recipient_stanzas {
-                    if let Some(file) = stanzas.get_mut(file_index) {
-                        file.push(stanza);
-                    } else if stanzas.len() == file_index {
-                        stanzas.push(vec![stanza]);
-                    } else {
-                        return Err(Error::Internal {
-                            message: format!(
-                                "{} file indices are not ordered and monotonically increasing",
-                                RECIPIENT_STANZA
-                            ),
-                        });
-                    }
+            }),
+        )?;
+
+        let stanzas = stanzas.and_then(|recipient_stanzas| {
+            let mut stanzas: Vec<Vec<Stanza>> = Vec::new();
+            let mut errors: Vec<Error> = vec![];
+            for (file_index, stanza) in recipient_stanzas {
+                if let Some(file) = stanzas.get_mut(file_index) {
+                    file.push(stanza);
+                } else if stanzas.len() == file_index {
+                    stanzas.push(vec![stanza]);
+                } else {
+                    errors.push(Error::Internal {
+                        message: format!(
+                            "{} file indices are not ordered and monotonically increasing",
+                            RECIPIENT_STANZA
+                        ),
+                    });
                 }
+            }
+            if errors.is_empty() {
                 Ok(stanzas)
-            });
+            } else {
+                Err(errors)
+            }
+        });
 
         (identities, stanzas)
     };
@@ -252,7 +248,18 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
     conn.bidir_send(|mut phase| {
         let (identities, stanzas) = match (identities, recipient_stanzas) {
             (Ok(identities), Ok(stanzas)) => (identities, stanzas),
-            (Err(error), _) | (_, Err(error)) => return error.send(&mut phase),
+            (Err(errors1), Err(errors2)) => {
+                for error in errors1.into_iter().chain(errors2.into_iter()) {
+                    error.send(&mut phase)?;
+                }
+                return Ok(());
+            }
+            (Err(errors), _) | (_, Err(errors)) => {
+                for error in errors {
+                    error.send(&mut phase)?;
+                }
+                return Ok(());
+            }
         };
 
         if let Err(errors) =

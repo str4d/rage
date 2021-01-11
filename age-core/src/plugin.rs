@@ -23,6 +23,11 @@ const RESPONSE_UNSUPPORTED: &str = "unsupported";
 ///   should explicitly handle.
 pub type Result<T, E> = io::Result<std::result::Result<T, E>>;
 
+type UnidirResult<A, B, E> = io::Result<(
+    std::result::Result<Vec<A>, Vec<E>>,
+    std::result::Result<Vec<B>, Vec<E>>,
+)>;
+
 /// A connection to a plugin binary.
 pub struct Connection<R: Read, W: Write> {
     input: BufReader<R>,
@@ -156,19 +161,52 @@ impl<R: Read, W: Write> Connection<R, W> {
     ///
     /// # Arguments
     ///
-    /// - `commands` - The known commands that are expected to be received. All other
-    ///   received commands (including grease) will be ignored.
-    pub fn unidir_receive(&mut self, commands: &[&str]) -> io::Result<Vec<Stanza>> {
-        iter::repeat_with(|| self.receive())
-            .take_while(|res| match res {
-                Ok(stanza) => stanza.tag != COMMAND_DONE,
-                _ => true,
-            })
-            .filter(|res| match res {
-                Ok(stanza) => commands.contains(&stanza.tag.as_str()),
-                _ => true,
-            })
-            .collect()
+    /// `command_a` and `command_b` are the known commands that are expected to be
+    /// received. All other received commands (including grease) will be ignored.
+    pub fn unidir_receive<A, B, E, F, G>(
+        &mut self,
+        command_a: (&str, F),
+        command_b: (&str, G),
+    ) -> UnidirResult<A, B, E>
+    where
+        F: Fn(Stanza) -> std::result::Result<A, E>,
+        G: Fn(Stanza) -> std::result::Result<B, E>,
+    {
+        let mut res_a = Ok(vec![]);
+        let mut res_b = Ok(vec![]);
+
+        for stanza in iter::repeat_with(|| self.receive()).take_while(|res| match res {
+            Ok(stanza) => stanza.tag != COMMAND_DONE,
+            _ => true,
+        }) {
+            let stanza = stanza?;
+
+            fn validate<T, E>(
+                val: std::result::Result<T, E>,
+                res: &mut std::result::Result<Vec<T>, Vec<E>>,
+            ) {
+                // Structurally validate the stanza against this command.
+                match val {
+                    Ok(a) => {
+                        if let Ok(stanzas) = res {
+                            stanzas.push(a)
+                        }
+                    }
+                    Err(e) => match res {
+                        Ok(_) => *res = Err(vec![e]),
+                        Err(errors) => errors.push(e),
+                    },
+                }
+            }
+
+            if stanza.tag.as_str() == command_a.0 {
+                validate(command_a.1(stanza), &mut res_a)
+            } else if stanza.tag.as_str() == command_b.0 {
+                validate(command_b.1(stanza), &mut res_b)
+            }
+        }
+
+        Ok((res_a, res_b))
     }
 
     /// Runs a bidirectional phase as the controller.
@@ -359,18 +397,18 @@ mod tests {
             .unidir_send(|mut phase| phase.send("test", &["foo"], b"bar"))
             .unwrap();
         let stanza = plugin_conn
-            .unidir_receive(&["test"])
-            .unwrap()
-            .into_iter()
-            .find(|s| s.tag == "test")
+            .unidir_receive::<_, (), _, _, _>(("test", |s| Ok(s)), ("other", |_| Err(())))
             .unwrap();
         assert_eq!(
             stanza,
-            Stanza {
-                tag: "test".to_owned(),
-                args: vec!["foo".to_owned()],
-                body: b"bar"[..].to_owned()
-            }
+            (
+                Ok(vec![Stanza {
+                    tag: "test".to_owned(),
+                    args: vec!["foo".to_owned()],
+                    body: b"bar"[..].to_owned()
+                }]),
+                Ok(vec![])
+            )
         );
     }
 }
