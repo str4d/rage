@@ -52,7 +52,7 @@ i18n-embed = { version = "0.10.2", features = ["desktop-requester", "fluent-syst
 i18n-embed-fl = "0.3"
 lazy_static = "1"
 log = "0.4"
-pinentry = "0.2"
+pinentry = "0.3"
 rust-embed = "5"
 secrecy = "0.7"
 

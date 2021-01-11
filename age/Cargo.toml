@@ -58,7 +58,7 @@ block-modes = { version = "0.7", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = "5"
+nom = { version = "6", default-features = false, features = ["alloc"] }
 
 # Secret management
 secrecy = "0.7"
@@ -77,7 +77,7 @@ rust-embed = "5"
 
 # Common CLI dependencies
 console = { version = "0.13", optional = true }
-pinentry = { version = "0.2", optional = true }
+pinentry = { version = "0.3", optional = true }
 rpassword = { version = "5", optional = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
