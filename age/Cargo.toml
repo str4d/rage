@@ -112,6 +112,10 @@ unstable = ["age-core/unstable"]
 [lib]
 bench = false
 
+[[test]]
+name = "test_vectors"
+required-features = ["ssh"]
+
 [[bench]]
 name = "throughput"
 harness = false

@@ -16,19 +16,23 @@ pub struct IdentityFile {
 impl IdentityFile {
     /// Parses one or more identities from a file containing valid UTF-8.
     pub fn from_file(filename: String) -> io::Result<Self> {
-        File::open(filename)
+        File::open(&filename)
             .map(io::BufReader::new)
-            .and_then(IdentityFile::from_buffer)
+            .and_then(|data| IdentityFile::parse_identities(Some(filename), data))
     }
 
     /// Parses one or more identities from a buffered input containing valid UTF-8.
     pub fn from_buffer<R: io::BufRead>(data: R) -> io::Result<Self> {
+        Self::parse_identities(None, data)
+    }
+
+    fn parse_identities<R: io::BufRead>(filename: Option<String>, data: R) -> io::Result<Self> {
         let mut identities = vec![];
 
         #[cfg(feature = "plugin")]
         let mut plugin_identities = vec![];
 
-        for line in data.lines() {
+        for (line_number, line) in data.lines().enumerate() {
             let line = line?;
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -54,9 +58,22 @@ impl IdentityFile {
                 #[cfg(not(feature = "plugin"))]
                 let _: () = identity;
             } else {
+                // Return a line number in place of the line, so we don't leak the file
+                // contents in error messages.
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "invalid identity file",
+                    if let Some(filename) = filename {
+                        format!(
+                            "identity file {} contains non-identity data on line {}",
+                            filename,
+                            line_number + 1
+                        )
+                    } else {
+                        format!(
+                            "identity file contains non-identity data on line {}",
+                            line_number + 1
+                        )
+                    },
                 ));
             }
         }
