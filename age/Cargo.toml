@@ -89,8 +89,8 @@ wsl = { version = "0.1", optional = true }
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
 futures-test = "0.3"
-quickcheck = "0.9"
-quickcheck_macros = "0.9"
+quickcheck = "1"
+quickcheck_macros = "1"
 
 [features]
 default = []
