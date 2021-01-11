@@ -217,10 +217,11 @@ impl crate::Recipient for RecipientPluginV1 {
         })?;
 
         // Phase 2: collect either stanzas or errors
-        let (stanzas, mut errors) = conn
-            .unidir_receive(&[CMD_RECIPIENT_STANZA, CMD_ERROR])?
-            .into_iter()
-            .partition::<Vec<_>, _>(|s| s.tag == CMD_RECIPIENT_STANZA);
+        let (stanzas, mut errors) = {
+            let (stanzas, errors) =
+                conn.unidir_receive::<_, _, (), _, _>((CMD_RECIPIENT_STANZA, Ok), (CMD_ERROR, Ok))?;
+            (stanzas.expect("No errors"), errors.expect("No errors"))
+        };
         match (stanzas.is_empty(), errors.is_empty()) {
             (false, true) => Ok(stanzas
                 .into_iter()
