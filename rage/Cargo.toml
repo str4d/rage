@@ -45,7 +45,7 @@ maintenance = { status = "experimental" }
 # rage and rage-keygen dependencies
 age = { version = "0.5.0", path = "../age", features = ["armor", "cli-common", "plugin"] }
 chrono = "0.4"
-console = "0.13"
+console = "0.14"
 env_logger = "0.8"
 gumdrop = "0.8"
 i18n-embed = { version = "0.10.2", features = ["desktop-requester", "fluent-system"] }
