@@ -75,7 +75,7 @@ dependencies = [
  "aes",
  "aes-ctr",
  "age-core",
- "base64 0.12.3",
+ "base64",
  "bcrypt-pbkdf",
  "bech32",
  "block-modes",
@@ -117,7 +117,7 @@ dependencies = [
 name = "age-core"
 version = "0.5.0"
 dependencies = [
- "base64 0.12.3",
+ "base64",
  "c2-chacha",
  "chacha20poly1305",
  "cookie-factory",
@@ -176,12 +176,6 @@ name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
-
-[[package]]
-name = "base64"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
 
 [[package]]
 name = "base64"
@@ -1432,7 +1426,7 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4c220d01f863d13d96ca82359d1e81e64a7c6bf0637bcde7b2349630addf0c6"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "once_cell",
  "regex",
 ]
