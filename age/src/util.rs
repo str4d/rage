@@ -70,12 +70,12 @@ pub(crate) mod read {
     pub(crate) fn wrapped_str_while_encoded(
         config: base64::Config,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
-        use nom::{bytes::streaming::take_while1, character::streaming::newline};
+        use nom::{bytes::streaming::take_while1, character::streaming::line_ending};
 
         move |input: &str| {
             map_res(
                 separated_nonempty_list(
-                    newline,
+                    line_ending,
                     take_while1(|c| {
                         let c = c as u8;
                         // Substitute the character in twice after AA, so that padding

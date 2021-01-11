@@ -6,7 +6,7 @@ use i18n_embed_fl::fl;
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
-    character::streaming::newline,
+    character::streaming::{line_ending, newline},
     combinator::{map_opt, opt},
     sequence::{pair, preceded, terminated, tuple},
     IResult,
@@ -299,11 +299,11 @@ fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
 
 fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
-        pair(tag("-----BEGIN RSA PRIVATE KEY-----"), newline),
+        pair(tag("-----BEGIN RSA PRIVATE KEY-----"), line_ending),
         terminated(
             map_opt(
                 pair(
-                    opt(terminated(rsa_pem_encryption_header, newline)),
+                    opt(terminated(rsa_pem_encryption_header, line_ending)),
                     wrapped_str_while_encoded(base64::STANDARD),
                 ),
                 |(enc_header, privkey)| {
@@ -322,19 +322,19 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                     }
                 },
             ),
-            pair(newline, tag("-----END RSA PRIVATE KEY-----")),
+            pair(line_ending, tag("-----END RSA PRIVATE KEY-----")),
         ),
     )(input)
 }
 
 fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
-        pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), newline),
+        pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), line_ending),
         terminated(
             map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
                 read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
             }),
-            pair(newline, tag("-----END OPENSSH PRIVATE KEY-----")),
+            pair(line_ending, tag("-----END OPENSSH PRIVATE KEY-----")),
         ),
     )(input)
 }

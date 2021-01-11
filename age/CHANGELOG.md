@@ -27,6 +27,10 @@ to 1.0.0 are beta releases.
   (instead of wrapping `std::io::File` directly), which does not open the file
   until it is first written to.
 
+### Fixed
+- `age::cli_common::read_identities` now allows either kind of line ending in
+  SSH identity files.
+
 ## [0.5.0] - 2020-11-22
 ### Added
 - Italian, Spanish, and Chinese translations!
