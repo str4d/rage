@@ -18,7 +18,7 @@ age-core = { version = "0.5.0", path = "../age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
-base64 = "0.12"
+base64 = "0.13"
 
 # - ChaCha20-Poly1305 from RFC 7539
 c2-chacha = "0.3"
@@ -58,7 +58,7 @@ block-modes = { version = "0.7", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = "5"
+nom = { version = "6", default-features = false, features = ["alloc"] }
 
 # Secret management
 secrecy = "0.7"
@@ -76,8 +76,8 @@ lazy_static = "1"
 rust-embed = "5"
 
 # Common CLI dependencies
-console = { version = "0.13", optional = true }
-pinentry = { version = "0.2", optional = true }
+console = { version = "0.14", optional = true }
+pinentry = { version = "0.3", optional = true }
 rpassword = { version = "5", optional = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
@@ -89,8 +89,8 @@ wsl = { version = "0.1", optional = true }
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
 futures-test = "0.3"
-quickcheck = "0.9"
-quickcheck_macros = "0.9"
+quickcheck = "1"
+quickcheck_macros = "1"
 
 [features]
 default = []

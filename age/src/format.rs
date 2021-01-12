@@ -77,8 +77,9 @@ impl Header {
                     // parser is constructed, because if we read more than we need, the
                     // remainder of the input will be truncated.
                     let m = data.len();
-                    data.resize(m + n, 0);
-                    input.read_exact(&mut data[m..m + n])?;
+                    let new_len = m + n.get();
+                    data.resize(new_len, 0);
+                    input.read_exact(&mut data[m..new_len])?;
                 }
                 Err(_) => {
                     break Err(DecryptError::InvalidHeader);
@@ -105,8 +106,9 @@ impl Header {
                     // parser is constructed, because if we read more than we need, the
                     // remainder of the input will be truncated.
                     let m = data.len();
-                    data.resize(m + n, 0);
-                    input.read_exact(&mut data[m..m + n]).await?;
+                    let new_len = m + n.get();
+                    data.resize(new_len, 0);
+                    input.read_exact(&mut data[m..new_len]).await?;
                 }
                 Err(_) => {
                     break Err(DecryptError::InvalidHeader);

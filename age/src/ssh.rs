@@ -103,7 +103,7 @@ impl EncryptedKey {
             .cipher
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
 
-        let parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
+        let mut parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
         parser(&decrypted)
             .map(|(_, sk)| sk)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
@@ -450,7 +450,7 @@ mod read_ssh {
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &[u8],
-    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], UnencryptedKey> {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], UnencryptedKey> {
         // We need to own, move, and clone these in order to keep them alive.
         let ssh_key_rsa = ssh_key.to_vec();
         let ssh_key_ed25519 = ssh_key.to_vec();

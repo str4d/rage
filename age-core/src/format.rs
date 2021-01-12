@@ -108,7 +108,7 @@ pub mod read {
         bytes::streaming::{tag, take_while, take_while1},
         character::streaming::newline,
         combinator::{map, map_opt, opt, verify},
-        multi::{many0, separated_nonempty_list},
+        multi::{many0, separated_list1},
         sequence::{pair, preceded, terminated},
         IResult,
     };
@@ -189,7 +189,7 @@ pub mod read {
     }
 
     fn legacy_wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
-        map_opt(separated_nonempty_list(newline, take_b64_line1), |chunks| {
+        map_opt(separated_list1(newline, take_b64_line1), |chunks| {
             // Enforce that the only chunk allowed to be shorter than 64 characters
             // is the last chunk.
             if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
@@ -218,7 +218,7 @@ pub mod read {
             pair(
                 preceded(
                     tag(STANZA_TAG),
-                    terminated(separated_nonempty_list(tag(" "), arbitrary_string), newline),
+                    terminated(separated_list1(tag(" "), arbitrary_string), newline),
                 ),
                 wrapped_encoded_data,
             ),
@@ -232,10 +232,7 @@ pub mod read {
     fn legacy_age_stanza_inner<'a>(input: &'a [u8]) -> IResult<&'a [u8], AgeStanza<'a>> {
         map(
             pair(
-                preceded(
-                    tag(STANZA_TAG),
-                    separated_nonempty_list(tag(" "), arbitrary_string),
-                ),
+                preceded(tag(STANZA_TAG), separated_list1(tag(" "), arbitrary_string)),
                 terminated(opt(preceded(newline, legacy_wrapped_encoded_data)), newline),
             ),
             |(mut args, body)| {

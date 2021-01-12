@@ -16,7 +16,7 @@ pub(crate) mod read {
     use nom::{
         combinator::map_res,
         error::{make_error, ErrorKind},
-        multi::separated_nonempty_list,
+        multi::separated_list1,
         IResult,
     };
 
@@ -31,15 +31,7 @@ pub(crate) mod read {
         let encoded_count = ((4 * count) + 2) / 3;
 
         move |input: &str| {
-            // take() returns the total number of bytes it needs, not the
-            // additional number of bytes like other APIs.
-            let (i, data) = take(encoded_count)(input).map_err(|e| match e {
-                nom::Err::Incomplete(nom::Needed::Size(n)) if n == encoded_count => {
-                    nom::Err::Incomplete(nom::Needed::Size(encoded_count - input.len()))
-                }
-                e => e,
-            })?;
-
+            let (i, data) = take(encoded_count)(input)?;
             match base64::decode_config(data, config) {
                 Ok(decoded) => Ok((i, decoded)),
                 Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
@@ -74,7 +66,7 @@ pub(crate) mod read {
 
         move |input: &str| {
             map_res(
-                separated_nonempty_list(
+                separated_list1(
                     line_ending,
                     take_while1(|c| {
                         let c = c as u8;
