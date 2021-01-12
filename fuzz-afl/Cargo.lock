@@ -401,9 +401,9 @@ dependencies = [
 
 [[package]]
 name = "i18n-embed"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1677788294a1cd0f0b9ffe078b433a800e65c5ad5fe2573ba38e154dd8d24ed"
+checksum = "820f9b2730acafbe8aa8998781f31136d9d3611daf81dc95490a61831756e0ac"
 dependencies = [
  "fluent",
  "fluent-langneg",
