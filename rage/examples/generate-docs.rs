@@ -176,7 +176,7 @@ fn rage_mount_page() {
             Flag::new()
                 .short("-t")
                 .long("--types")
-                .help("The type of the filesystem (one of \"tar\", \"zip\")."),
+                .help("The type of the filesystem (one of \"file\", \"tar\", \"zip\")."),
         )
         .option(
             Opt::new("IDENTITY")
@@ -186,6 +186,11 @@ fn rage_mount_page() {
         )
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
+        .example(
+            Example::new()
+                .text("Mounting an encrypted file to a recipient")
+                .command("rage-mount -t file -i key.txt encrypted.txt.age decrypted.txt"),
+        )
         .example(
             Example::new()
                 .text("Mounting an archive encrypted to a recipient")

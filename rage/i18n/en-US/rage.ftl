@@ -134,6 +134,7 @@ info-mounting-as-fuse = Mounting as FUSE filesystem
 err-mnt-missing-filename = Missing filename.
 err-mnt-missing-mountpoint = Missing mountpoint.
 err-mnt-missing-types = Missing {-flag-mnt-types}.
+err-mnt-must-be-file = Mountpoint must be a file.
 err-mnt-unknown-type = Unknown filesystem type "{$fs_type}"
 
 ## Unstable features
