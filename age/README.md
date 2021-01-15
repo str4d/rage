@@ -41,6 +41,9 @@ See the [documentation](https://docs.rs/age) for examples.
 - `ssh` enables the `age::ssh` module, which allows for reusing existing SSH key
   files for age encryption.
 
+- `web-sys` enables calculating scrypt work factor with web Performance timer when
+  compiled to WebAssembly via the `web-sys` crate.
+
 - `unstable` enables in-development functionality. Anything behind this feature
   flag has no stability or interoperability guarantees.
 

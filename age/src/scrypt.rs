@@ -38,8 +38,24 @@ fn target_scrypt_work_factor() -> u8 {
             SystemTime::now().duration_since(start).ok()
         }
 
+        // Platforms that can use Performance timer
+        #[cfg(all(target_arch = "wasm32", feature = "web-sys"))]
+        {
+            web_sys::window().and_then(|window| {
+                { window.performance() }.map(|performance| {
+                    let start = performance.now();
+                    scrypt(&[], log_n, "").expect("log_n < 64");
+                    Duration::from_secs_f64((performance.now() - start) / 1_000e0)
+                })
+            })
+        }
+
         // Platforms where SystemTime::now() panics:
-        #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+        #[cfg(all(
+            target_arch = "wasm32",
+            not(feature = "web-sys"),
+            not(target_os = "wasi")
+        ))]
         {
             None
         }
