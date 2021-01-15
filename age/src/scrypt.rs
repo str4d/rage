@@ -39,7 +39,11 @@ fn target_scrypt_work_factor() -> u8 {
         }
 
         // Platforms that can use Performance timer
-        #[cfg(all(target_arch = "wasm32", feature = "web-sys"))]
+        #[cfg(all(
+            target_arch = "wasm32",
+            not(target_os = "wasi"),
+            feature = "web-sys"
+        ))]
         {
             web_sys::window().and_then(|window| {
                 { window.performance() }.map(|performance| {
@@ -53,8 +57,8 @@ fn target_scrypt_work_factor() -> u8 {
         // Platforms where SystemTime::now() panics:
         #[cfg(all(
             target_arch = "wasm32",
-            not(feature = "web-sys"),
-            not(target_os = "wasi")
+            not(target_os = "wasi"),
+            not(feature = "web-sys")
         ))]
         {
             None

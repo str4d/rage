@@ -41,8 +41,11 @@ See the [documentation](https://docs.rs/age) for examples.
 - `ssh` enables the `age::ssh` module, which allows for reusing existing SSH key
   files for age encryption.
 
-- `web-sys` enables calculating scrypt work factor with web Performance timer when
-  compiled to WebAssembly via the `web-sys` crate.
+- `web-sys` enables calculating the work factor for passphrase encryption with the
+  [Performance timer](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
+  via the `web-sys` crate, when compiling for a WebAssembly target such as
+  `wasm32-unknown-unknown`. This feature is ignored for the `wasm32-wasi` target,
+  which supports [`std::time::SystemTime`](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html#underlying-system-calls).
 
 - `unstable` enables in-development functionality. Anything behind this feature
   flag has no stability or interoperability guarantees.
@@ -63,4 +66,3 @@ Unless you explicitly state otherwise, any contribution intentionally
 submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any additional terms or
 conditions.
-
