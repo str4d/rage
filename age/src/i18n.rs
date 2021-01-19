@@ -1,6 +1,7 @@
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
-    DefaultLocalizer, Localizer,
+    unic_langid::LanguageIdentifier,
+    DefaultLocalizer, LanguageLoader, Localizer,
 };
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
@@ -12,7 +13,14 @@ struct Translations;
 const TRANSLATIONS: Translations = Translations {};
 
 lazy_static! {
-    pub(crate) static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+    pub(crate) static ref LANGUAGE_LOADER: FluentLanguageLoader = {
+        let language_loader = fluent_language_loader!();
+        // Ensure that the fallback language is always loaded, even if the library user
+        // doesn't call `localizer().select(languages)`.
+        let fallback: LanguageIdentifier = "en-US".parse().unwrap();
+        language_loader.load_languages(&TRANSLATIONS, &[&fallback]).unwrap();
+        language_loader
+    };
 }
 
 /// Loads a localized age string.

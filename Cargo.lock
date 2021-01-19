@@ -107,6 +107,7 @@ dependencies = [
  "secrecy",
  "sha2",
  "subtle",
+ "web-sys",
  "which",
  "wsl",
  "x25519-dalek",
