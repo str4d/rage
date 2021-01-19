@@ -17,6 +17,13 @@ to 1.0.0 are beta releases.
     the V1 recipient plugin protocol.
   - `age::plugin::IdentityPluginV1`, which implements `age::Identity` and runs
     the V1 identity plugin protocol.
+- The `web-sys` feature flag, which enables calculating the work factor for
+  passphrase encryption with the
+  [Performance timer](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
+  via the `web-sys` crate, when compiling for a WebAssembly target such as
+  `wasm32-unknown-unknown`. This feature is ignored for the `wasm32-wasi`
+  target, which supports
+  [`std::time::SystemTime`](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html#underlying-system-calls).
 
 ### Changed
 - Files encrypted with this version of `age` might not decrypt with previous
@@ -30,6 +37,8 @@ to 1.0.0 are beta releases.
 ### Fixed
 - `age::cli_common::read_identities` now allows either kind of line ending in
   SSH identity files.
+- Default `en-US` language strings are now always loaded, even if translations
+  are not loaded by calling `age::localizer().select(&requested_languages)`.
 
 ## [0.5.0] - 2020-11-22
 ### Added
