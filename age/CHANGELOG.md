@@ -39,6 +39,8 @@ to 1.0.0 are beta releases.
   SSH identity files.
 - Default `en-US` language strings are now always loaded, even if translations
   are not loaded by calling `age::localizer().select(&requested_languages)`.
+- `StreamReader::seek(SeekFrom::End(0))` now seeks to the correct position when
+  the plaintext is an exact multiple of the chunk size.
 
 ## [0.5.0] - 2020-11-22
 ### Added

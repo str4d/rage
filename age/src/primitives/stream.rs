@@ -149,6 +149,7 @@ impl Stream {
             encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
+            plaintext_len: None,
             cur_plaintext_pos: 0,
             chunk: None,
         }
@@ -169,6 +170,7 @@ impl Stream {
             encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
+            plaintext_len: None,
             cur_plaintext_pos: 0,
             chunk: None,
         }
@@ -375,6 +377,7 @@ pub struct StreamReader<R> {
     encrypted_chunk: Vec<u8>,
     encrypted_pos: usize,
     start: StartPos,
+    plaintext_len: Option<u64>,
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
 }
@@ -507,6 +510,36 @@ impl<R: Read + Seek> StreamReader<R> {
             StartPos::Explicit(start) => Ok(start),
         }
     }
+
+    /// Returns the length of the plaintext
+    fn len(&mut self) -> io::Result<u64> {
+        match self.plaintext_len {
+            None => {
+                // Cache the current position, and then grab the start and end ciphertext
+                // positions.
+                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
+                let ct_start = self.start()?;
+                let ct_end = self.inner.seek(SeekFrom::End(0))?;
+                let ct_len = ct_end - ct_start;
+
+                // Use ceiling division to determine the number of chunks.
+                let num_chunks =
+                    (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
+
+                let total_tag_size = num_chunks * TAG_SIZE as u64;
+                let pt_len = ct_len - total_tag_size;
+
+                // Return to the original position.
+                self.inner.seek(SeekFrom::Start(cur_pos))?;
+
+                // Cache the length for future calls.
+                self.plaintext_len = Some(pt_len);
+
+                Ok(pt_len)
+            }
+            Some(pt_len) => Ok(pt_len),
+        }
+    }
 }
 
 impl<R: Read + Seek> Seek for StreamReader<R> {
@@ -527,15 +560,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
                 }
             }
             SeekFrom::End(offset) => {
-                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
-                let ct_end = self.inner.seek(SeekFrom::End(0))?;
-                self.inner.seek(SeekFrom::Start(cur_pos))?;
-
-                let num_chunks = (ct_end / ENCRYPTED_CHUNK_SIZE as u64) + 1;
-                let total_tag_size = num_chunks * TAG_SIZE as u64;
-                let pt_end = ct_end - start - total_tag_size;
-
-                let res = (pt_end as i64) + offset;
+                let res = (self.len()? as i64) + offset;
                 if res >= 0 {
                     res as u64
                 } else {
@@ -570,6 +595,21 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
             if target_chunk_offset > 0 {
                 let mut to_drop = vec![0; target_chunk_offset as usize];
                 self.read_exact(&mut to_drop)?;
+            }
+            // We need to handle the edge case where the last chunk is not short, and
+            // `target_pos == self.len()` (so `target_chunk_index` points to the chunk
+            // after the last chunk). The next read would return no bytes, but because
+            // `target_chunk_offset == 0` we weren't forced to read past any in-chunk
+            // bytes, and thus have not set the `last` flag on the nonce.
+            //
+            // To handle this edge case, when `target_pos` is a multiple of the chunk
+            // size (i.e. this conditional branch), we compute the length of the
+            // plaintext. This is cached, so the overhead should be minimal.
+            else if target_pos == self.len()? {
+                self.stream
+                    .nonce
+                    .set_last(true)
+                    .expect("We unset the last chunk flag earlier");
             }
         }
 
