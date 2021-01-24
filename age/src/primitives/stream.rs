@@ -854,4 +854,26 @@ mod tests {
             Ok(_) => panic!("This is a security issue."),
         }
     }
+
+    #[test]
+    fn seek_from_end_with_exact_chunk() {
+        let plaintext: Vec<u8> = vec![42; 65536];
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+
+        // Seek to the end of the plaintext before decrypting.
+        let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(&encrypted));
+        reader.seek(SeekFrom::End(0)).unwrap();
+
+        // Reading should return no bytes, because we're already at EOF.
+        let mut buf = Vec::new();
+        reader.read_to_end(&mut buf).unwrap();
+        assert_eq!(buf.len(), 0);
+    }
 }
