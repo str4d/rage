@@ -9,6 +9,17 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Security
+- `StreamReader::seek(SeekFrom::End(offset))` did not previously authenticate
+  the ciphertext length; if the ciphertext had been truncated or extended by
+  `adversary_offset`, it would instead seek to `offset + adversary_offset`. This
+  allowed an adversary with temporary control of an encrypted age file to
+  control the location of a plaintext read following a seek-from-end. `age` now
+  returns an error if the last chunk is invalid.
+  - `rage` was not affected by this security issue, as it does not use `Seek`.
+  - `rage-mount` may have been affected; it does not use `SeekFrom::End`
+    directly, but the `tar` or `zip` crates might do so.
+
 ### Added
 - Plugin support, enabled by the `plugin` feature flag:
   - `age::plugin::{Identity, Recipient}` structs for parsing plugin recipients

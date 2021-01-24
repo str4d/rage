@@ -515,9 +515,10 @@ impl<R: Read + Seek> StreamReader<R> {
     fn len(&mut self) -> io::Result<u64> {
         match self.plaintext_len {
             None => {
-                // Cache the current position, and then grab the start and end ciphertext
-                // positions.
+                // Cache the current position and nonce, and then grab the start and end
+                // ciphertext positions.
                 let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
+                let cur_nonce = self.stream.nonce.0;
                 let ct_start = self.start()?;
                 let ct_end = self.inner.seek(SeekFrom::End(0))?;
                 let ct_len = ct_end - ct_start;
@@ -526,11 +527,28 @@ impl<R: Read + Seek> StreamReader<R> {
                 let num_chunks =
                     (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
 
+                // Authenticate the ciphertext length by checking that we can successfully
+                // decrypt the last chunk _as_ a last chunk.
+                let last_chunk_start = ct_start + ((num_chunks - 1) * ENCRYPTED_CHUNK_SIZE as u64);
+                let mut last_chunk = Vec::with_capacity((ct_end - last_chunk_start) as usize);
+                self.inner.seek(SeekFrom::Start(last_chunk_start))?;
+                self.inner.read_to_end(&mut last_chunk)?;
+                self.stream.nonce.set_counter(num_chunks - 1);
+                self.stream.decrypt_chunk(&last_chunk, true).map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Last chunk is invalid, stream might be truncated",
+                    )
+                })?;
+
+                // Now that we have authenticated the ciphertext length, we can use it to
+                // calculate the plaintext length.
                 let total_tag_size = num_chunks * TAG_SIZE as u64;
                 let pt_len = ct_len - total_tag_size;
 
-                // Return to the original position.
+                // Return to the original position and restore the nonce.
                 self.inner.seek(SeekFrom::Start(cur_pos))?;
+                self.stream.nonce = Nonce(cur_nonce);
 
                 // Cache the length for future calls.
                 self.plaintext_len = Some(pt_len);
