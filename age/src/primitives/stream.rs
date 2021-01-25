@@ -149,6 +149,7 @@ impl Stream {
             encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
+            plaintext_len: None,
             cur_plaintext_pos: 0,
             chunk: None,
         }
@@ -169,6 +170,7 @@ impl Stream {
             encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
+            plaintext_len: None,
             cur_plaintext_pos: 0,
             chunk: None,
         }
@@ -375,6 +377,7 @@ pub struct StreamReader<R> {
     encrypted_chunk: Vec<u8>,
     encrypted_pos: usize,
     start: StartPos,
+    plaintext_len: Option<u64>,
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
 }
@@ -507,6 +510,54 @@ impl<R: Read + Seek> StreamReader<R> {
             StartPos::Explicit(start) => Ok(start),
         }
     }
+
+    /// Returns the length of the plaintext
+    fn len(&mut self) -> io::Result<u64> {
+        match self.plaintext_len {
+            None => {
+                // Cache the current position and nonce, and then grab the start and end
+                // ciphertext positions.
+                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
+                let cur_nonce = self.stream.nonce.0;
+                let ct_start = self.start()?;
+                let ct_end = self.inner.seek(SeekFrom::End(0))?;
+                let ct_len = ct_end - ct_start;
+
+                // Use ceiling division to determine the number of chunks.
+                let num_chunks =
+                    (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
+
+                // Authenticate the ciphertext length by checking that we can successfully
+                // decrypt the last chunk _as_ a last chunk.
+                let last_chunk_start = ct_start + ((num_chunks - 1) * ENCRYPTED_CHUNK_SIZE as u64);
+                let mut last_chunk = Vec::with_capacity((ct_end - last_chunk_start) as usize);
+                self.inner.seek(SeekFrom::Start(last_chunk_start))?;
+                self.inner.read_to_end(&mut last_chunk)?;
+                self.stream.nonce.set_counter(num_chunks - 1);
+                self.stream.decrypt_chunk(&last_chunk, true).map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Last chunk is invalid, stream might be truncated",
+                    )
+                })?;
+
+                // Now that we have authenticated the ciphertext length, we can use it to
+                // calculate the plaintext length.
+                let total_tag_size = num_chunks * TAG_SIZE as u64;
+                let pt_len = ct_len - total_tag_size;
+
+                // Return to the original position and restore the nonce.
+                self.inner.seek(SeekFrom::Start(cur_pos))?;
+                self.stream.nonce = Nonce(cur_nonce);
+
+                // Cache the length for future calls.
+                self.plaintext_len = Some(pt_len);
+
+                Ok(pt_len)
+            }
+            Some(pt_len) => Ok(pt_len),
+        }
+    }
 }
 
 impl<R: Read + Seek> Seek for StreamReader<R> {
@@ -527,15 +578,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
                 }
             }
             SeekFrom::End(offset) => {
-                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
-                let ct_end = self.inner.seek(SeekFrom::End(0))?;
-                self.inner.seek(SeekFrom::Start(cur_pos))?;
-
-                let num_chunks = (ct_end / ENCRYPTED_CHUNK_SIZE as u64) + 1;
-                let total_tag_size = num_chunks * TAG_SIZE as u64;
-                let pt_end = ct_end - start - total_tag_size;
-
-                let res = (pt_end as i64) + offset;
+                let res = (self.len()? as i64) + offset;
                 if res >= 0 {
                     res as u64
                 } else {
@@ -570,6 +613,21 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
             if target_chunk_offset > 0 {
                 let mut to_drop = vec![0; target_chunk_offset as usize];
                 self.read_exact(&mut to_drop)?;
+            }
+            // We need to handle the edge case where the last chunk is not short, and
+            // `target_pos == self.len()` (so `target_chunk_index` points to the chunk
+            // after the last chunk). The next read would return no bytes, but because
+            // `target_chunk_offset == 0` we weren't forced to read past any in-chunk
+            // bytes, and thus have not set the `last` flag on the nonce.
+            //
+            // To handle this edge case, when `target_pos` is a multiple of the chunk
+            // size (i.e. this conditional branch), we compute the length of the
+            // plaintext. This is cached, so the overhead should be minimal.
+            else if target_pos == self.len()? {
+                self.stream
+                    .nonce
+                    .set_last(true)
+                    .expect("We unset the last chunk flag earlier");
             }
         }
 
@@ -807,5 +865,73 @@ mod tests {
         r.seek(SeekFrom::End(-1337)).unwrap();
         r.read_exact(&mut buf).unwrap();
         assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
+    }
+
+    #[test]
+    fn seek_from_end_fails_on_truncation() {
+        // The plaintext is the string "hello" followed by 65536 zeros, just enough to
+        // give us some bytes to play with in the second chunk.
+        let mut plaintext: Vec<u8> = b"hello".to_vec();
+        plaintext.extend_from_slice(&[0; 65536]);
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+
+        // First check the correct behavior of seeks relative to EOF. Create a decrypting
+        // reader, and move it one byte forward from the start, using SeekFrom::End.
+        // Confirm that reading 4 bytes from that point gives us "ello", as it should.
+        let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(&encrypted));
+        let eof_relative_offset = 1 as i64 - plaintext.len() as i64;
+        reader.seek(SeekFrom::End(eof_relative_offset)).unwrap();
+        let mut buf = [0; 4];
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"ello", "This is correct.");
+
+        // Do the same thing again, except this time truncate the ciphertext by one byte
+        // first. This should cause some sort of error, instead of a successful read that
+        // returns the wrong plaintext.
+        let truncated_ciphertext = &encrypted[..encrypted.len() - 1];
+        let mut truncated_reader = Stream::decrypt(
+            PayloadKey([7; 32].into()),
+            Cursor::new(truncated_ciphertext),
+        );
+        // Use the same seek target as above.
+        match truncated_reader.seek(SeekFrom::End(eof_relative_offset)) {
+            Err(e) => {
+                assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+                assert_eq!(
+                    &e.to_string(),
+                    "Last chunk is invalid, stream might be truncated",
+                );
+            }
+            Ok(_) => panic!("This is a security issue."),
+        }
+    }
+
+    #[test]
+    fn seek_from_end_with_exact_chunk() {
+        let plaintext: Vec<u8> = vec![42; 65536];
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+
+        // Seek to the end of the plaintext before decrypting.
+        let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(&encrypted));
+        reader.seek(SeekFrom::End(0)).unwrap();
+
+        // Reading should return no bytes, because we're already at EOF.
+        let mut buf = Vec::new();
+        reader.read_to_end(&mut buf).unwrap();
+        assert_eq!(buf.len(), 0);
     }
 }
