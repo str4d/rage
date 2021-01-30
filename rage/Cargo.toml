@@ -57,9 +57,12 @@ rust-embed = "5"
 secrecy = "0.7"
 
 # rage-mount dependencies
+ctrlc = { version = "3.1.7", optional = true }
 fuse_mt = { version = "0.5.1", optional = true }
 libc = { version = "0.2", optional = true }
+nix = { version = "0.18", optional = true }
 tar = { version = "0.4", optional = true }
+tempfile = { version = "3.2", optional = true }
 time = { version = "0.1", optional = true }
 zip = { version = "0.5.9", optional = true }
 
@@ -71,7 +74,7 @@ man = "0.3"
 
 [features]
 default = ["ssh"]
-mount = ["fuse_mt", "libc", "tar", "time", "zip"]
+mount = ["ctrlc", "fuse_mt", "libc", "nix", "tar", "tempfile", "time", "zip"]
 ssh = ["age/ssh"]
 unstable = ["age/unstable"]
 

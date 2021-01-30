@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use age::{
     armor::ArmoredReader,
     cli_common::{read_identities, read_secret},
@@ -16,9 +14,16 @@ use log::{error, info};
 use rust_embed::RustEmbed;
 use std::ffi::OsStr;
 use std::fmt;
-use std::fs::File;
+use std::fs::{File, Metadata};
 use std::io;
+use std::path::PathBuf;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::thread;
 
+mod file;
 mod tar;
 mod zip;
 
@@ -58,6 +63,8 @@ enum Error {
     MissingIdentities,
     MissingMountpoint,
     MissingType,
+    MountpointMustBeFile,
+    Nix(nix::Error),
     UnknownType(String),
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
@@ -71,6 +78,12 @@ impl From<age::DecryptError> for Error {
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e)
+    }
+}
+
+impl From<nix::Error> for Error {
+    fn from(e: nix::Error) -> Self {
+        Error::Nix(e)
     }
 }
 
@@ -111,6 +124,8 @@ impl fmt::Debug for Error {
             }
             Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
             Error::MissingType => wfl!(f, "err-mnt-missing-types"),
+            Error::MountpointMustBeFile => wfl!(f, "err-mnt-must-be-file"),
+            Error::Nix(e) => write!(f, "{}", e),
             Error::UnknownType(t) => write!(
                 f,
                 "{}",
@@ -135,10 +150,10 @@ impl fmt::Debug for Error {
 
 #[derive(Debug, Options)]
 struct AgeMountOptions {
-    #[options(free, help = "The encrypted filesystem to mount.")]
+    #[options(free, help = "The encrypted file to mount.")]
     filename: String,
 
-    #[options(free, help = "The directory to mount the filesystem at.")]
+    #[options(free, help = "The path to mount at.")]
     mountpoint: String,
 
     #[options(help = "Print this help message and exit.")]
@@ -147,7 +162,7 @@ struct AgeMountOptions {
     #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
 
-    #[options(help = "Indicates the filesystem type (one of \"tar\", \"zip\").")]
+    #[options(help = "Indicates the mount type (one of \"file\", \"tar\", \"zip\").")]
     types: String,
 
     #[options(
@@ -159,6 +174,46 @@ struct AgeMountOptions {
 
     #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
+}
+
+fn mount_file(
+    stream: StreamReader<ArmoredReader<io::BufReader<File>>>,
+    metadata: Metadata,
+    mountpoint: String,
+) -> Result<(), Error> {
+    let mountpoint = PathBuf::from(mountpoint);
+    let file_name = mountpoint.file_name().ok_or(Error::MountpointMustBeFile)?;
+
+    // Create a temporary directory for the single-file filesystem.
+    let tmp_dir = tempfile::tempdir()?;
+
+    info!("{}", fl!("info-mounting-as-fuse"));
+    let filesystem = crate::file::AgeFileFs::open(stream, metadata, file_name.to_os_string())
+        .map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
+    let options: &[&OsStr] = &[&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
+    // I don't understand why this is unsafe, given that this seems to be the only way to
+    // safely unmount the FUSE filesystem on interrupt.
+    let _session = unsafe { fuse_mt::spawn_mount(filesystem, &tmp_dir.path(), options)? };
+
+    // Now that FUSE is set up, link the plaintext file to the target.
+    let _link = crate::file::AgeFileLink::new(&tmp_dir.path().join(file_name), mountpoint);
+
+    // Set up Ctrl+C handling.
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    let t = thread::current();
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+        t.unpark();
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    // Wait for shutdown.
+    while running.load(Ordering::SeqCst) {
+        thread::park();
+    }
+
+    Ok(())
 }
 
 fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: String)
@@ -182,10 +237,12 @@ where
 
 fn mount_stream(
     stream: StreamReader<ArmoredReader<io::BufReader<File>>>,
+    metadata: Metadata,
     types: String,
     mountpoint: String,
 ) -> Result<(), Error> {
     match types.as_str() {
+        "file" => mount_file(stream, metadata, mountpoint)?,
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), mountpoint),
         "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), mountpoint),
         _ => {
@@ -246,6 +303,7 @@ fn main() -> Result<(), Error> {
         )
     );
     let file = File::open(opts.filename)?;
+    let metadata = file.metadata()?;
 
     let types = opts.types;
     let mountpoint = opts.mountpoint;
@@ -256,7 +314,7 @@ fn main() -> Result<(), Error> {
                 Ok(passphrase) => decryptor
                     .decrypt(&passphrase, opts.max_work_factor)
                     .map_err(|e| e.into())
-                    .and_then(|stream| mount_stream(stream, types, mountpoint)),
+                    .and_then(|stream| mount_stream(stream, metadata, types, mountpoint)),
                 Err(_) => Ok(()),
             }
         }
@@ -274,7 +332,7 @@ fn main() -> Result<(), Error> {
             decryptor
                 .decrypt(identities.into_iter())
                 .map_err(|e| e.into())
-                .and_then(|stream| mount_stream(stream, types, mountpoint))
+                .and_then(|stream| mount_stream(stream, metadata, types, mountpoint))
         }
     }
 }
