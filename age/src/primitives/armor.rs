@@ -40,6 +40,7 @@ struct EncodedLine {
     offset: usize,
 }
 
+#[cfg(feature = "async")]
 struct EncodedBytes {
     offset: usize,
     end: usize,
