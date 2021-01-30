@@ -12,7 +12,7 @@ use i18n_embed::{
     DesktopLanguageRequester,
 };
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::info;
 use rust_embed::RustEmbed;
 use std::ffi::OsStr;
 use std::fmt;
@@ -161,23 +161,19 @@ struct AgeMountOptions {
     identity: Vec<String>,
 }
 
-fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: String)
+fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
+    open: F,
+    mountpoint: String,
+) -> Result<(), Error>
 where
     F: FnOnce() -> io::Result<T>,
 {
     let fuse_args: Vec<&OsStr> = vec![&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
 
-    match open().map(|fs| fuse_mt::FuseMT::new(fs, 1)) {
-        Ok(fs) => {
-            info!("{}", fl!("info-mounting-as-fuse"));
-            if let Err(e) = fuse_mt::mount(fs, &mountpoint, &fuse_args) {
-                error!("{}", e);
-            }
-        }
-        Err(e) => {
-            error!("{}", e);
-        }
-    }
+    let fs = open().map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
+    info!("{}", fl!("info-mounting-as-fuse"));
+    fuse_mt::mount(fs, &mountpoint, &fuse_args)?;
+    Ok(())
 }
 
 fn mount_stream(
@@ -188,12 +184,8 @@ fn mount_stream(
     match types.as_str() {
         "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), mountpoint),
         "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), mountpoint),
-        _ => {
-            return Err(Error::UnknownType(types));
-        }
-    };
-
-    Ok(())
+        _ => Err(Error::UnknownType(types)),
+    }
 }
 
 fn main() -> Result<(), Error> {
