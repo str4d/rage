@@ -5,7 +5,7 @@ use age::{
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
     },
-    plugin, Recipient,
+    plugin, IdentityFile, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -15,6 +15,7 @@ use i18n_embed::{
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
@@ -99,9 +100,11 @@ fn read_recipients_list<R: BufRead>(
 fn read_recipients(
     recipient_strings: Vec<String>,
     recipients_file_strings: Vec<String>,
+    identity_strings: Vec<String>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
+    let mut plugin_identities: Vec<plugin::Identity> = vec![];
 
     for arg in recipient_strings {
         parse_recipient(arg, &mut recipients, &mut plugin_recipients)?;
@@ -113,10 +116,43 @@ fn read_recipients(
         read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
     }
 
+    for filename in identity_strings {
+        // Try parsing as a single multi-line SSH identity.
+        #[cfg(feature = "ssh")]
+        match age::ssh::Identity::from_buffer(
+            BufReader::new(File::open(&filename)?),
+            Some(filename.clone()),
+        ) {
+            Ok(age::ssh::Identity::Unsupported(k)) => {
+                return Err(error::EncryptError::UnsupportedKey(filename, k))
+            }
+            Ok(identity) => {
+                if let Ok(recipient) = age::ssh::Recipient::try_from(identity) {
+                    recipients.push(Box::new(recipient));
+                    continue;
+                }
+            }
+            Err(_) => (),
+        }
+
+        // Try parsing as multiple single-line age identities.
+        let identity_file =
+            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
+                io::ErrorKind::NotFound => error::EncryptError::IdentityNotFound(filename),
+                _ => e.into(),
+            })?;
+        let (new_ids, new_plugin_ids) = identity_file.split_into();
+        for identity in new_ids {
+            recipients.push(Box::new(identity.to_public()));
+        }
+        plugin_identities.extend(new_plugin_ids);
+    }
+
     // Collect the names of the required plugins.
     let mut plugin_names = plugin_recipients
         .iter()
         .map(|r| r.plugin())
+        .chain(plugin_identities.iter().map(|i| i.plugin()))
         .collect::<Vec<_>>();
     plugin_names.sort_unstable();
     plugin_names.dedup();
@@ -126,7 +162,7 @@ fn read_recipients(
         recipients.push(Box::new(plugin::RecipientPluginV1::new(
             plugin_name,
             &plugin_recipients,
-            &[],
+            &plugin_identities,
             UiCallbacks,
         )?))
     }
@@ -144,6 +180,9 @@ struct AgeOptions {
 
     #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
+
+    #[options(help = "Encrypt the input (the default).")]
+    encrypt: bool,
 
     #[options(help = "Decrypt the input.")]
     decrypt: bool,
@@ -170,7 +209,7 @@ struct AgeOptions {
     )]
     recipients_file: Vec<String>,
 
-    #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
+    #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 
     #[options(help = "Write the result to the file at path OUTPUT.")]
@@ -178,11 +217,10 @@ struct AgeOptions {
 }
 
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
-    if !opts.identity.is_empty() {
-        return Err(error::EncryptError::IdentityFlag);
-    }
-
     let encryptor = if opts.passphrase {
+        if !opts.identity.is_empty() {
+            return Err(error::EncryptError::MixedIdentityAndPassphrase);
+        }
         if !opts.recipient.is_empty() {
             return Err(error::EncryptError::MixedRecipientAndPassphrase);
         }
@@ -220,11 +258,16 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             Err(pinentry::Error::Io(e)) => return Err(error::EncryptError::Io(e)),
         }
     } else {
-        if opts.recipient.is_empty() && opts.recipients_file.is_empty() {
+        if opts.recipient.is_empty() && opts.recipients_file.is_empty() && opts.identity.is_empty()
+        {
             return Err(error::EncryptError::MissingRecipients);
         }
 
-        age::Encryptor::with_recipients(read_recipients(opts.recipient, opts.recipients_file)?)
+        age::Encryptor::with_recipients(read_recipients(
+            opts.recipient,
+            opts.recipients_file,
+            opts.identity,
+        )?)
     };
 
     let mut input = file_io::InputReader::new(opts.input)?;
@@ -373,7 +416,10 @@ fn main() -> Result<(), error::Error> {
     if (console::user_attended() && args.len() == 1) || opts.help_requested() {
         let binary_name = args[0].as_str();
         let keygen_name = format!("{}-keygen", binary_name);
-        let usage_a = format!("{} -r RECIPIENT [-a] [-o OUTPUT] [INPUT]", binary_name);
+        let usage_a = format!(
+            "{} [--encrypt] -r RECIPIENT [-i IDENTITY] [-a] [-o OUTPUT] [INPUT]",
+            binary_name
+        );
         let usage_b = format!(
             "{} --decrypt [-i IDENTITY] [-o OUTPUT] [INPUT]",
             binary_name
@@ -412,6 +458,13 @@ fn main() -> Result<(), error::Error> {
         println!("rage {}", env!("CARGO_PKG_VERSION"));
         Ok(())
     } else {
+        if opts.encrypt && opts.decrypt {
+            return Err(error::Error::MixedEncryptAndDecrypt);
+        }
+        if !(opts.identity.is_empty() || opts.encrypt || opts.decrypt) {
+            return Err(error::Error::IdentityFlagAmbiguous);
+        }
+
         if let (Some(in_file), Some(out_file)) = (&opts.input, &opts.output) {
             // Check that the given filenames do not correspond to the same file.
             let in_path = Path::new(&in_file);

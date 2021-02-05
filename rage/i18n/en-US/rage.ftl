@@ -15,6 +15,7 @@
 
 -flag-armor = -a/--armor
 -flag-decrypt = -d/--decrypt
+-flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
@@ -74,6 +75,8 @@ prompt-passphrase = Passphrase
 
 err-failed-to-open-output = Failed to open output: {$err}
 err-failed-to-write-output = Failed to write to output: {$err}
+err-identity-ambiguous = {-flag-identity} requires either {-flag-encrypt} or {-flag-decrypt}.
+err-mixed-encrypt-decrypt = {-flag-encrypt} can't be used with {-flag-decrypt}.
 err-passphrase-timed-out = Timed out waiting for passphrase input.
 err-same-input-and-output = Input and output are the same file '{$filename}'.
 
@@ -89,14 +92,12 @@ rec-enc-broken-stdout = Are you piping to a program that isn't reading from stdi
 
 err-enc-broken-file = Could not write to file: {$err}
 
-err-enc-identity = {-flag-identity} can't be used in encryption mode.
-rec-enc-identity = Did you forget to specify {-flag-decrypt}?
-
 err-enc-invalid-recipient = Invalid recipient '{$recipient}'
 
 err-enc-missing-recipients = Missing recipients.
 rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
 
+err-enc-mixed-identity-passphrase = {-flag-identity} can't be used with {-flag-passphrase}.
 err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag-passphrase}
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} can't be used with {-flag-passphrase}
 err-enc-passphrase-without-file = File to encrypt must be passed as an argument when using {-flag-passphrase}

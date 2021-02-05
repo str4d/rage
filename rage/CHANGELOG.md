@@ -16,6 +16,8 @@ to 1.0.0 are beta releases.
   - See https://hackmd.io/@str4d/age-plugin-spec for the beta specification.
 - The `-R/--recipients-file` flag, which accepts a path to a file containing age
   recipients, one per line (ignoring "#" prefixed comments and empty lines).
+- The `-e/--encrypt` flag, to allow encryption to be an explicit choice (instead
+  of relying on `-d/--decrypt` not being present).
 
 ### Changed
 - Files encrypted with this version of `rage` might not decrypt with previous
@@ -24,6 +26,9 @@ to 1.0.0 are beta releases.
   change is added, which has a 3% chance per file).
 - `-r/--recipient` now has the specific type "recipient" which better reflects
   its name, rather than the ambiguous "source of recipients" it was previously.
+- `-i/--identity` can now be used when encrypting files. This requires the
+  `-e/--encrypt` flag (to prevent ambiguity, e.g. if the user wants to decrypt
+  but forgets the `-d/--decrypt` flag).
 
 ### Removed
 - Recipients file support from `-r/--recipient` (use `-R/--recipients-file`

@@ -32,6 +32,12 @@ fn rage_page() {
         )
         .flag(
             Flag::new()
+                .short("-e")
+                .long("--encrypt")
+                .help("Encrypt the input. By default, the input is encrypted."),
+        )
+        .flag(
+            Flag::new()
                 .short("-d")
                 .long("--decrypt")
                 .help("Decrypt the input. By default, the input is encrypted."),
@@ -64,7 +70,7 @@ fn rage_page() {
             Opt::new("IDENTITY")
                 .short("-i")
                 .long("--identity")
-                .help("Use the private key file at IDENTITY. May be repeated."),
+                .help("Use the identity file at IDENTITY. May be repeated."),
         )
         .option(
             Opt::new("OUTPUT")
@@ -99,6 +105,11 @@ fn rage_page() {
             Example::new()
                 .text("Encryption to a list of recipients in a file")
                 .command("tar cv ~/xxx | rage -R recipients.txt > xxx.tar.age"),
+        )
+        .example(
+            Example::new()
+                .text("Encryption to several identities")
+                .command("tar cv ~/xxx | rage -e -i keyA.txt -i keyB.txt > xxx.tar.age"),
         )
         .example(
             Example::new()

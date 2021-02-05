@@ -14,11 +14,13 @@ use rand::rngs::OsRng;
 use rsa::{padding::PaddingScheme, PublicKey};
 use secrecy::ExposeSecret;
 use sha2::Sha256;
+use std::convert::TryFrom;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 use super::{
-    read_ssh, ssh_tag, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    identity::{Identity, UnencryptedKey},
+    read_ssh, ssh_tag, EncryptedKey, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
 };
 use crate::{
@@ -68,6 +70,27 @@ impl fmt::Display for Recipient {
             Recipient::SshEd25519(ssh_key, _) => {
                 write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(&ssh_key))
             }
+        }
+    }
+}
+
+impl TryFrom<Identity> for Recipient {
+    type Error = ParseRecipientKeyError;
+
+    fn try_from(identity: Identity) -> Result<Self, Self::Error> {
+        match identity {
+            Identity::Unencrypted(UnencryptedKey::SshRsa(ssh_key, _))
+            | Identity::Unencrypted(UnencryptedKey::SshEd25519(ssh_key, _))
+            | Identity::Encrypted(EncryptedKey { ssh_key, .. }) => {
+                if let Ok((_, pk)) = read_ssh::rsa_pubkey(&ssh_key) {
+                    Ok(Recipient::SshRsa(ssh_key, pk))
+                } else if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
+                    Ok(Recipient::SshEd25519(ssh_key, pk))
+                } else {
+                    Err(ParseRecipientKeyError::Ignore)
+                }
+            }
+            Identity::Unsupported(_) => Err(ParseRecipientKeyError::Ignore),
         }
     }
 }

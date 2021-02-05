@@ -18,7 +18,7 @@ The reference interoperable Golang implementation is available at
 
 ```
 Usage:
-  rage -r RECIPIENT [-a] [-o OUTPUT] [INPUT]
+  rage [--encrypt] -r RECIPIENT [-i IDENTITY] [-a] [-o OUTPUT] [INPUT]
   rage --decrypt [-i IDENTITY] [-o OUTPUT] [INPUT]
 
 Positional arguments:
@@ -27,13 +27,14 @@ Positional arguments:
 Optional arguments:
   -h, --help                  Print this help message and exit.
   -V, --version               Print version info and exit.
+  -e, --encrypt               Encrypt the input (the default).
   -d, --decrypt               Decrypt the input.
   -p, --passphrase            Encrypt with a passphrase instead of recipients.
   --max-work-factor WF        Maximum work factor to allow for passphrase decryption.
   -a, --armor                 Encrypt to a PEM encoded format.
   -r, --recipient RECIPIENT   Encrypt to the specified RECIPIENT. May be repeated.
   -R, --recipients-file PATH  Encrypt to the recipients listed at PATH. May be repeated.
-  -i, --identity IDENTITY     Use the private key file at IDENTITY. May be repeated.
+  -i, --identity IDENTITY     Use the identity file at IDENTITY. May be repeated.
   -o, --output OUTPUT         Write the result to the file at path OUTPUT.
 
 INPUT defaults to standard input, and OUTPUT defaults to standard output.
