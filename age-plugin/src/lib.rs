@@ -97,11 +97,11 @@
 //!         todo!()
 //!     }
 //!
-//!     fn wrap_file_key(
+//!     fn wrap_file_keys(
 //!         &mut self,
-//!         file_key: &FileKey,
+//!         file_keys: Vec<FileKey>,
 //!         mut callbacks: impl Callbacks<recipient::Error>,
-//!     ) -> io::Result<Result<Vec<Stanza>, Vec<recipient::Error>>> {
+//!     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<recipient::Error>>> {
 //!         todo!()
 //!     }
 //! }

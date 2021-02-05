@@ -39,19 +39,19 @@ pub trait RecipientPluginV1 {
         identities: I,
     ) -> Result<(), Vec<Error>>;
 
-    /// Wraps `file_key` to all recipients and identities previously added via
+    /// Wraps each `file_key` to all recipients and identities previously added via
     /// `add_recipients` and `add_identities`.
     ///
-    /// Returns either one stanza per recipient and identity, or any errors if one or more
-    /// recipients or identities could not be wrapped to.
+    /// Returns either one stanza per recipient and identity for each file key, or any
+    /// errors if one or more recipients or identities could not be wrapped to.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
-    fn wrap_file_key(
+    fn wrap_file_keys(
         &mut self,
-        file_key: &FileKey,
+        file_keys: Vec<FileKey>,
         callbacks: impl Callbacks<Error>,
-    ) -> io::Result<Result<Vec<Stanza>, Vec<Error>>>;
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>>;
 }
 
 /// The interface that age plugins can use to interact with an age implementation.
@@ -254,11 +254,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 error.send(&mut phase)?;
             }
         } else {
-            match file_keys
-                .into_iter()
-                .map(|file_key| plugin.wrap_file_key(&file_key, BidirCallbacks(&mut phase)))
-                .collect::<Result<Result<Vec<_>, _>, _>>()?
-            {
+            match plugin.wrap_file_keys(file_keys, BidirCallbacks(&mut phase))? {
                 Ok(files) => {
                     for (file_index, stanzas) in files.into_iter().enumerate() {
                         // The plugin MUST generate an error if one or more recipients or

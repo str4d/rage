@@ -67,19 +67,25 @@ impl RecipientPluginV1 for RecipientPlugin {
         }
     }
 
-    fn wrap_file_key(
+    fn wrap_file_keys(
         &mut self,
-        file_key: &FileKey,
+        file_keys: Vec<FileKey>,
         mut callbacks: impl Callbacks<recipient::Error>,
-    ) -> io::Result<Result<Vec<Stanza>, Vec<recipient::Error>>> {
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<recipient::Error>>> {
         // A real plugin would wrap the file key here.
         let _ = callbacks
             .message("This plugin doesn't have any recipient-specific logic. It's unencrypted!")?;
-        Ok(Ok(vec![Stanza {
-            tag: RECIPIENT_TAG.to_owned(),
-            args: vec!["does".to_owned(), "nothing".to_owned()],
-            body: file_key.expose_secret().to_vec(),
-        }]))
+        Ok(Ok(file_keys
+            .into_iter()
+            .map(|file_key| {
+                // TODO: This should return one stanza per recipient and identity.
+                vec![Stanza {
+                    tag: RECIPIENT_TAG.to_owned(),
+                    args: vec!["does".to_owned(), "nothing".to_owned()],
+                    body: file_key.expose_secret().to_vec(),
+                }]
+            })
+            .collect()))
     }
 }
 
