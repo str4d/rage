@@ -273,7 +273,9 @@ impl Write for OutputWriter {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[cfg(unix)]
     use super::{OutputFormat, OutputWriter};
+    #[cfg(unix)]
     use std::io::Write;
 
     #[cfg(unix)]
