@@ -239,6 +239,11 @@ pub trait Callbacks {
     /// inserting a hardware key.
     fn prompt(&self, message: &str);
 
+    /// Requests non-private input from the user.
+    ///
+    /// To request private inputs, use [`Callbacks::request_passphrase`].
+    fn request_public_string(&self, description: &str) -> Option<String>;
+
     /// Requests a passphrase to decrypt a key.
     fn request_passphrase(&self, description: &str) -> Option<SecretString>;
 }

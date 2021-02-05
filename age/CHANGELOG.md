@@ -35,6 +35,9 @@ to 1.0.0 are beta releases.
   `wasm32-unknown-unknown`. This feature is ignored for the `wasm32-wasi`
   target, which supports
   [`std::time::SystemTime`](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html#underlying-system-calls).
+- `age::Callbacks::request_public_string` to request non-private input from the
+  user (which will not trigger any OS-level passphrase-style prompt, unlike
+  `Callbacks::request_passphrase`).
 
 ### Changed
 - Files encrypted with this version of `age` might not decrypt with previous

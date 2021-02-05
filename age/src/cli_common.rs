@@ -174,6 +174,13 @@ impl Callbacks for UiCallbacks {
         eprintln!("{}", message);
     }
 
+    fn request_public_string(&self, description: &str) -> Option<String> {
+        let term = console::Term::stderr();
+        term.read_line_initial_text(description)
+            .ok()
+            .filter(|s| !s.is_empty())
+    }
+
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {
         read_secret(description, &fl!("cli-passphrase-prompt"), None).ok()
     }
