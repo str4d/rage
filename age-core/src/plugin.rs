@@ -289,6 +289,29 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
             )),
         }
     }
+
+    /// Send an entire stanza.
+    pub fn send_stanza(
+        &mut self,
+        command: &str,
+        metadata: &[&str],
+        stanza: &Stanza,
+    ) -> Result<Stanza, ()> {
+        for grease in self.0.grease_gun() {
+            self.0.send(&grease.tag, &grease.args, &grease.body)?;
+            self.0.receive()?;
+        }
+        self.0.send_stanza(command, metadata, stanza)?;
+        let s = self.0.receive()?;
+        match s.tag.as_ref() {
+            RESPONSE_OK => Ok(Ok(s)),
+            RESPONSE_FAIL => Ok(Err(())),
+            tag => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("unexpected response: {}", tag),
+            )),
+        }
+    }
 }
 
 /// The possible replies to a bidirectional command.

@@ -8,29 +8,10 @@ use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::io;
 
+use crate::Callbacks;
+
 const ADD_IDENTITY: &str = "add-identity";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
-
-/// The interface that age plugins can use to interact with an age implementation.
-pub trait Callbacks {
-    /// Shows a message to the user.
-    ///
-    /// This can be used to prompt the user to take some physical action, such as
-    /// inserting a hardware key.
-    fn message(&mut self, message: &str) -> plugin::Result<(), ()>;
-
-    /// Requests a secret value from the user, such as a passphrase.
-    ///
-    /// `message` will be displayed to the user, providing context for the request.
-    fn request_secret(&mut self, message: &str) -> plugin::Result<SecretString, ()>;
-
-    /// Sends an error.
-    ///
-    /// Note: This API may be removed in a subsequent API refactor, after we've figured
-    /// out how errors should be handled overall, and how to distinguish between hard and
-    /// soft errors.
-    fn error(&mut self, error: Error) -> plugin::Result<(), ()>;
-}
 
 /// The interface that age implementations will use to interact with an age plugin.
 pub trait IdentityPluginV1 {
@@ -66,14 +47,14 @@ pub trait IdentityPluginV1 {
     fn unwrap_file_keys(
         &mut self,
         files: Vec<Vec<Stanza>>,
-        callbacks: impl Callbacks,
+        callbacks: impl Callbacks<Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<Error>>>>;
 }
 
 /// The interface that age plugins can use to interact with an age implementation.
 struct BidirCallbacks<'a, 'b, R: io::Read, W: io::Write>(&'b mut BidirSend<'a, R, W>);
 
-impl<'a, 'b, R: io::Read, W: io::Write> Callbacks for BidirCallbacks<'a, 'b, R, W> {
+impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 'b, R, W> {
     /// Shows a message to the user.
     ///
     /// This can be used to prompt the user to take some physical action, such as

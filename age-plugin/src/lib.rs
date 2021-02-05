@@ -71,10 +71,10 @@
 //! ```
 //! use age_core::format::{FileKey, Stanza};
 //! use age_plugin::{
-//!     identity::{self, Callbacks, IdentityPluginV1},
+//!     identity::{self, IdentityPluginV1},
 //!     print_new_identity,
 //!     recipient::{self, RecipientPluginV1},
-//!     run_state_machine,
+//!     Callbacks, run_state_machine,
 //! };
 //! use gumdrop::Options;
 //! use std::collections::HashMap;
@@ -93,7 +93,8 @@
 //!     fn wrap_file_key(
 //!         &mut self,
 //!         file_key: &FileKey,
-//!     ) -> Result<Vec<Stanza>, Vec<recipient::Error>> {
+//!         mut callbacks: impl Callbacks<recipient::Error>,
+//!     ) -> io::Result<Result<Vec<Stanza>, Vec<recipient::Error>>> {
 //!         todo!()
 //!     }
 //! }
@@ -111,7 +112,7 @@
 //!     fn unwrap_file_keys(
 //!         &mut self,
 //!         files: Vec<Vec<Stanza>>,
-//!         mut callbacks: impl Callbacks,
+//!         mut callbacks: impl Callbacks<identity::Error>,
 //!     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<identity::Error>>>> {
 //!         todo!()
 //!     }
@@ -151,6 +152,7 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
+use secrecy::SecretString;
 use std::io;
 
 pub mod identity;
@@ -208,4 +210,25 @@ pub fn run_state_machine<R: recipient::RecipientPluginV1, I: identity::IdentityP
             "unknown plugin state machine",
         )),
     }
+}
+
+/// The interface that age plugins can use to interact with an age implementation.
+pub trait Callbacks<E> {
+    /// Shows a message to the user.
+    ///
+    /// This can be used to prompt the user to take some physical action, such as
+    /// inserting a hardware key.
+    fn message(&mut self, message: &str) -> age_core::plugin::Result<(), ()>;
+
+    /// Requests a secret value from the user, such as a passphrase.
+    ///
+    /// `message` will be displayed to the user, providing context for the request.
+    fn request_secret(&mut self, message: &str) -> age_core::plugin::Result<SecretString, ()>;
+
+    /// Sends an error.
+    ///
+    /// Note: This API may be removed in a subsequent API refactor, after we've figured
+    /// out how errors should be handled overall, and how to distinguish between hard and
+    /// soft errors.
+    fn error(&mut self, error: E) -> age_core::plugin::Result<(), ()>;
 }

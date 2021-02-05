@@ -1,9 +1,9 @@
 use age_core::format::{FileKey, Stanza};
 use age_plugin::{
-    identity::{self, Callbacks, IdentityPluginV1},
+    identity::{self, IdentityPluginV1},
     print_new_identity,
     recipient::{self, RecipientPluginV1},
-    run_state_machine,
+    run_state_machine, Callbacks,
 };
 use gumdrop::Options;
 use secrecy::ExposeSecret;
@@ -42,13 +42,19 @@ impl RecipientPluginV1 for RecipientPlugin {
         }
     }
 
-    fn wrap_file_key(&mut self, file_key: &FileKey) -> Result<Vec<Stanza>, Vec<recipient::Error>> {
+    fn wrap_file_key(
+        &mut self,
+        file_key: &FileKey,
+        mut callbacks: impl Callbacks<recipient::Error>,
+    ) -> io::Result<Result<Vec<Stanza>, Vec<recipient::Error>>> {
         // A real plugin would wrap the file key here.
-        Ok(vec![Stanza {
+        let _ = callbacks
+            .message("This plugin doesn't have any recipient-specific logic. It's unencrypted!")?;
+        Ok(Ok(vec![Stanza {
             tag: RECIPIENT_TAG.to_owned(),
             args: vec!["does".to_owned(), "nothing".to_owned()],
             body: file_key.expose_secret().to_vec(),
-        }])
+        }]))
     }
 }
 
@@ -83,7 +89,7 @@ impl IdentityPluginV1 for IdentityPlugin {
     fn unwrap_file_keys(
         &mut self,
         files: Vec<Vec<Stanza>>,
-        mut callbacks: impl Callbacks,
+        mut callbacks: impl Callbacks<identity::Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<identity::Error>>>> {
         let mut file_keys = HashMap::with_capacity(files.len());
         for (file_index, stanzas) in files.into_iter().enumerate() {

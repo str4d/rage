@@ -157,19 +157,24 @@ impl Plugin {
 ///
 /// This struct implements [`Recipient`], enabling the plugin to encrypt a file to the
 /// entire set of recipients.
-pub struct RecipientPluginV1 {
+pub struct RecipientPluginV1<C: Callbacks> {
     plugin: Plugin,
     recipients: Vec<Recipient>,
+    callbacks: C,
 }
 
-impl RecipientPluginV1 {
+impl<C: Callbacks> RecipientPluginV1<C> {
     /// Creates an age plugin from a plugin name and a list of recipients.
     ///
     /// The list of recipients will be filtered by the plugin name; recipients that don't
     /// match will be ignored.
     ///
     /// Returns an error if the plugin's binary cannot be found in `$PATH`.
-    pub fn new(plugin_name: &str, recipients: &[Recipient]) -> Result<Self, EncryptError> {
+    pub fn new(
+        plugin_name: &str,
+        recipients: &[Recipient],
+        callbacks: C,
+    ) -> Result<Self, EncryptError> {
         Plugin::new(plugin_name)
             .map_err(|binary_name| EncryptError::MissingPlugin { binary_name })
             .map(|plugin| RecipientPluginV1 {
@@ -179,11 +184,12 @@ impl RecipientPluginV1 {
                     .filter(|r| r.name == plugin_name)
                     .cloned()
                     .collect(),
+                callbacks,
             })
     }
 }
 
-impl crate::Recipient for RecipientPluginV1 {
+impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
@@ -197,53 +203,73 @@ impl crate::Recipient for RecipientPluginV1 {
         })?;
 
         // Phase 2: collect either stanzas or errors
-        let (stanzas, mut errors) = {
-            let (stanzas, errors) = conn.unidir_receive(
-                (CMD_RECIPIENT_STANZA, |mut s| {
-                    if s.args.len() >= 2 {
+        let mut stanzas = vec![];
+        let mut errors = vec![];
+        if let Err(e) = conn.bidir_receive(
+            &[CMD_MSG, CMD_REQUEST_SECRET, CMD_RECIPIENT_STANZA, CMD_ERROR],
+            |mut command, reply| match command.tag.as_str() {
+                CMD_MSG => {
+                    self.callbacks
+                        .prompt(&String::from_utf8_lossy(&command.body));
+                    reply.ok(None)
+                }
+                CMD_REQUEST_SECRET => {
+                    if let Some(secret) = self
+                        .callbacks
+                        .request_passphrase(&String::from_utf8_lossy(&command.body))
+                    {
+                        reply.ok(Some(secret.expose_secret().as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
+                }
+                CMD_RECIPIENT_STANZA => {
+                    if command.args.len() >= 2 {
                         // We only requested one file key be wrapped.
-                        if s.args.remove(0) == "0" {
-                            s.tag = s.args.remove(0);
-                            Ok(s)
+                        if command.args.remove(0) == "0" {
+                            command.tag = command.args.remove(0);
+                            stanzas.push(command);
                         } else {
-                            Err(PluginError::Other {
+                            errors.push(PluginError::Other {
                                 kind: "internal".to_owned(),
                                 metadata: vec![],
                                 message: "plugin wrapped file key to a file we didn't provide"
                                     .to_owned(),
-                            })
+                            });
                         }
                     } else {
-                        Err(PluginError::Other {
+                        errors.push(PluginError::Other {
                             kind: "internal".to_owned(),
                             metadata: vec![],
                             message: format!(
                                 "{} command must have at least two metadata arguments",
                                 CMD_RECIPIENT_STANZA
                             ),
-                        })
+                        });
                     }
-                }),
-                (CMD_ERROR, |s| {
-                    // Here, errors are are okay!
-                    if s.args.len() == 2 && s.args[0] == "recipient" {
-                        let index: usize = s.args[1].parse().unwrap();
-                        Ok(PluginError::Recipient {
+                    reply.ok(None)
+                }
+                CMD_ERROR => {
+                    if command.args.len() == 2 && command.args[0] == "recipient" {
+                        let index: usize = command.args[1].parse().unwrap();
+                        errors.push(PluginError::Recipient {
                             binary_name: binary_name(&self.recipients[index].name),
                             recipient: self.recipients[index].recipient.clone(),
-                            message: String::from_utf8_lossy(&s.body).to_string(),
-                        })
+                            message: String::from_utf8_lossy(&command.body).to_string(),
+                        });
                     } else {
-                        Ok(PluginError::from(s))
+                        errors.push(PluginError::from(command));
                     }
-                }),
-            )?;
-            (stanzas, errors.expect("All Ok"))
+                    reply.ok(None)
+                }
+                _ => unreachable!(),
+            },
+        ) {
+            return Err(e.into());
         };
-        match (stanzas, errors.is_empty()) {
-            (Ok(stanzas), true) if !stanzas.is_empty() => Ok(stanzas),
-            (Ok(stanzas), b) => {
-                let a = stanzas.is_empty();
+        match (stanzas.is_empty(), errors.is_empty()) {
+            (false, true) => Ok(stanzas),
+            (a, b) => {
                 if a & b {
                     errors.push(PluginError::Other {
                         kind: "internal".to_owned(),
@@ -259,9 +285,6 @@ impl crate::Recipient for RecipientPluginV1 {
                 }
                 Err(EncryptError::Plugin(errors))
             }
-            (Err(errs), _) => Err(EncryptError::Plugin(
-                errors.into_iter().chain(errs.into_iter()).collect(),
-            )),
         }
     }
 }

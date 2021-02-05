@@ -2,10 +2,13 @@
 
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
-    plugin::{Connection, UnidirSend},
+    plugin::{self, BidirSend, Connection},
 };
+use secrecy::SecretString;
 use std::convert::TryInto;
 use std::io;
+
+use crate::Callbacks;
 
 const ADD_RECIPIENT: &str = "add-recipient";
 const WRAP_FILE_KEY: &str = "wrap-file-key";
@@ -28,7 +31,47 @@ pub trait RecipientPluginV1 {
     ///
     /// Returns either one stanza per recipient, or any errors if one or more recipients
     /// could not be wrapped to.
-    fn wrap_file_key(&mut self, file_key: &FileKey) -> Result<Vec<Stanza>, Vec<Error>>;
+    ///
+    /// `callbacks` can be used to interact with the user, to have them take some physical
+    /// action or request a secret value.
+    fn wrap_file_key(
+        &mut self,
+        file_key: &FileKey,
+        callbacks: impl Callbacks<Error>,
+    ) -> io::Result<Result<Vec<Stanza>, Vec<Error>>>;
+}
+
+/// The interface that age plugins can use to interact with an age implementation.
+struct BidirCallbacks<'a, 'b, R: io::Read, W: io::Write>(&'b mut BidirSend<'a, R, W>);
+
+impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 'b, R, W> {
+    /// Shows a message to the user.
+    ///
+    /// This can be used to prompt the user to take some physical action, such as
+    /// inserting a hardware key.
+    fn message(&mut self, message: &str) -> plugin::Result<(), ()> {
+        self.0
+            .send("msg", &[], message.as_bytes())
+            .map(|res| res.map(|_| ()))
+    }
+
+    /// Requests a secret value from the user, such as a passphrase.
+    ///
+    /// `message` will be displayed to the user, providing context for the request.
+    fn request_secret(&mut self, message: &str) -> plugin::Result<SecretString, ()> {
+        self.0
+            .send("request-secret", &[], message.as_bytes())
+            .and_then(|res| match res {
+                Ok(s) => String::from_utf8(s.body)
+                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
+                    .map(|s| Ok(SecretString::new(s))),
+                Err(()) => Ok(Err(())),
+            })
+    }
+
+    fn error(&mut self, error: Error) -> plugin::Result<(), ()> {
+        error.send(self.0).map(|()| Ok(()))
+    }
 }
 
 /// The kinds of errors that can occur within the recipient plugin state machine.
@@ -62,7 +105,7 @@ impl Error {
         }
     }
 
-    fn send<R: io::Read, W: io::Write>(self, phase: &mut UnidirSend<R, W>) -> io::Result<()> {
+    fn send<R: io::Read, W: io::Write>(self, phase: &mut BidirSend<R, W>) -> io::Result<()> {
         let index = match self {
             Error::Recipient { index, .. } => Some(index.to_string()),
             Error::Internal { .. } => None,
@@ -73,7 +116,11 @@ impl Error {
             None => vec![self.kind()],
         };
 
-        phase.send("error", &metadata, self.message().as_bytes())
+        phase
+            .send("error", &metadata, self.message().as_bytes())?
+            .unwrap();
+
+        Ok(())
     }
 }
 
@@ -122,7 +169,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     };
 
     // Phase 2: wrap the file keys or return errors
-    conn.unidir_send(|mut phase| {
+    conn.bidir_send(|mut phase| {
         let (recipients, file_keys) = match (recipients, file_keys) {
             (Ok(recipients), Ok(file_keys)) => (recipients, file_keys),
             (Err(errors1), Err(errors2)) => {
@@ -148,8 +195,8 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
         } else {
             match file_keys
                 .into_iter()
-                .map(|file_key| plugin.wrap_file_key(&file_key))
-                .collect::<Result<Vec<_>, _>>()
+                .map(|file_key| plugin.wrap_file_key(&file_key, BidirCallbacks(&mut phase)))
+                .collect::<Result<Result<Vec<_>, _>, _>>()?
             {
                 Ok(files) => {
                     for (file_index, stanzas) in files.into_iter().enumerate() {
@@ -159,11 +206,9 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                         assert_eq!(stanzas.len(), recipients.len());
 
                         for stanza in stanzas {
-                            phase.send_stanza(
-                                RECIPIENT_STANZA,
-                                &[&file_index.to_string()],
-                                &stanza,
-                            )?;
+                            phase
+                                .send_stanza(RECIPIENT_STANZA, &[&file_index.to_string()], &stanza)?
+                                .unwrap();
                         }
                     }
                 }

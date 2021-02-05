@@ -2,7 +2,9 @@
 
 use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
-    cli_common::{file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase},
+    cli_common::{
+        file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
+    },
     plugin, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
@@ -123,6 +125,7 @@ fn read_recipients(
         recipients.push(Box::new(plugin::RecipientPluginV1::new(
             plugin_name,
             &plugin_recipients,
+            UiCallbacks,
         )?))
     }
 
