@@ -44,6 +44,8 @@ to 1.0.0 are beta releases.
 - `age::cli_common::file_io::OutputWriter::File` now wraps a `LazyFile` struct
   (instead of wrapping `std::io::File` directly), which does not open the file
   until it is first written to.
+- `age::decryptor::Callbacks` has been moved to `age::Callbacks`, as it is no
+  longer decryption-specific.
 
 ### Fixed
 - `age::cli_common::read_identities` now allows either kind of line ending in

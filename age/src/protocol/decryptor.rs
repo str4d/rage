@@ -149,15 +149,3 @@ impl<R: AsyncRead + Unpin> PassphraseDecryptor<R> {
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
     }
 }
-
-/// Callbacks that might be triggered during decryption.
-pub trait Callbacks {
-    /// Shows a message to the user.
-    ///
-    /// This can be used to prompt the user to take some physical action, such as
-    /// inserting a hardware key.
-    fn prompt(&self, message: &str);
-
-    /// Requests a passphrase to decrypt a key.
-    fn request_passphrase(&self, description: &str) -> Option<SecretString>;
-}

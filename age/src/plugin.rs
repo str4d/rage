@@ -14,8 +14,8 @@ use std::process::{ChildStdin, ChildStdout};
 
 use crate::{
     error::{DecryptError, EncryptError, PluginError},
-    protocol::decryptor::Callbacks,
     util::parse_bech32,
+    Callbacks,
 };
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-

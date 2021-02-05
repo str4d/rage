@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{fl, identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
+use crate::{fl, identity::IdentityFile, Callbacks, Identity};
 
 #[cfg(feature = "plugin")]
 use crate::plugin;

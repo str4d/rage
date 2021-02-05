@@ -27,8 +27,8 @@ use super::{
 };
 use crate::{
     error::DecryptError,
-    protocol::decryptor::Callbacks,
     util::read::{base64_arg, wrapped_str_while_encoded},
+    Callbacks,
 };
 
 /// An SSH private key for decrypting an age file.
