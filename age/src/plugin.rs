@@ -25,6 +25,7 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 const CMD_ERROR: &str = "error";
 const CMD_RECIPIENT_STANZA: &str = "recipient-stanza";
 const CMD_MSG: &str = "msg";
+const CMD_REQUEST_PUBLIC: &str = "request-public";
 const CMD_REQUEST_SECRET: &str = "request-secret";
 const CMD_FILE_KEY: &str = "file-key";
 
@@ -216,12 +217,28 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
         let mut stanzas = vec![];
         let mut errors = vec![];
         if let Err(e) = conn.bidir_receive(
-            &[CMD_MSG, CMD_REQUEST_SECRET, CMD_RECIPIENT_STANZA, CMD_ERROR],
+            &[
+                CMD_MSG,
+                CMD_REQUEST_PUBLIC,
+                CMD_REQUEST_SECRET,
+                CMD_RECIPIENT_STANZA,
+                CMD_ERROR,
+            ],
             |mut command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
                         .prompt(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
+                }
+                CMD_REQUEST_PUBLIC => {
+                    if let Some(value) = self
+                        .callbacks
+                        .request_public_string(&String::from_utf8_lossy(&command.body))
+                    {
+                        reply.ok(Some(value.as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_REQUEST_SECRET => {
                     if let Some(secret) = self
@@ -365,12 +382,28 @@ impl<C: Callbacks> IdentityPluginV1<C> {
         let mut file_key = None;
         let mut errors = vec![];
         if let Err(e) = conn.bidir_receive(
-            &[CMD_MSG, CMD_REQUEST_SECRET, CMD_FILE_KEY, CMD_ERROR],
+            &[
+                CMD_MSG,
+                CMD_REQUEST_PUBLIC,
+                CMD_REQUEST_SECRET,
+                CMD_FILE_KEY,
+                CMD_ERROR,
+            ],
             |command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
                         .prompt(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
+                }
+                CMD_REQUEST_PUBLIC => {
+                    if let Some(value) = self
+                        .callbacks
+                        .request_public_string(&String::from_utf8_lossy(&command.body))
+                    {
+                        reply.ok(Some(value.as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_REQUEST_SECRET => {
                     if let Some(secret) = self

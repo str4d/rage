@@ -68,6 +68,19 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .map(|res| res.map(|_| ()))
     }
 
+    fn request_public(&mut self, message: &str) -> plugin::Result<String, ()> {
+        self.0
+            .send("request-public", &[], message.as_bytes())
+            .and_then(|res| match res {
+                Ok(s) => String::from_utf8(s.body)
+                    .map_err(|_| {
+                        io::Error::new(io::ErrorKind::InvalidData, "response is not UTF-8")
+                    })
+                    .map(Ok),
+                Err(()) => Ok(Err(())),
+            })
+    }
+
     /// Requests a secret value from the user, such as a passphrase.
     ///
     /// `message` will be displayed to the user, providing context for the request.

@@ -227,6 +227,13 @@ pub trait Callbacks<E> {
     /// inserting a hardware key.
     fn message(&mut self, message: &str) -> age_core::plugin::Result<(), ()>;
 
+    /// Requests a non-secret value from the user.
+    ///
+    /// `message` will be displayed to the user, providing context for the request.
+    ///
+    /// To request secrets, use [`Callbacks::request_secret`].
+    fn request_public(&mut self, message: &str) -> age_core::plugin::Result<String, ()>;
+
     /// Requests a secret value from the user, such as a passphrase.
     ///
     /// `message` will be displayed to the user, providing context for the request.
