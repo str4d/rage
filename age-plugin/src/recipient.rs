@@ -11,6 +11,7 @@ use std::io;
 use crate::Callbacks;
 
 const ADD_RECIPIENT: &str = "add-recipient";
+const ADD_IDENTITY: &str = "add-identity";
 const WRAP_FILE_KEY: &str = "wrap-file-key";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
 
@@ -27,10 +28,22 @@ pub trait RecipientPluginV1 {
         recipients: I,
     ) -> Result<(), Vec<Error>>;
 
-    /// Wraps `file_key` to all recipients previously added via `add_recipients`.
+    /// Stores identities that the user would like to encrypt age files to.
     ///
-    /// Returns either one stanza per recipient, or any errors if one or more recipients
-    /// could not be wrapped to.
+    /// Each identity string is Bech32-encoded with an HRP of `AGE-PLUGIN-NAME-` where
+    /// `NAME` is the name of the plugin that resolved to this binary.
+    ///
+    /// Returns a list of errors if any of the identities are unknown or invalid.
+    fn add_identities<'a, I: Iterator<Item = &'a str>>(
+        &mut self,
+        identities: I,
+    ) -> Result<(), Vec<Error>>;
+
+    /// Wraps `file_key` to all recipients and identities previously added via
+    /// `add_recipients` and `add_identities`.
+    ///
+    /// Returns either one stanza per recipient and identity, or any errors if one or more
+    /// recipients or identities could not be wrapped to.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
@@ -83,6 +96,13 @@ pub enum Error {
         /// The error message.
         message: String,
     },
+    /// An error caused by a specific identity.
+    Identity {
+        /// The index of the identity.
+        index: usize,
+        /// The error message.
+        message: String,
+    },
     /// A general error that occured inside the state machine.
     Internal {
         /// The error message.
@@ -94,6 +114,7 @@ impl Error {
     fn kind(&self) -> &str {
         match self {
             Error::Recipient { .. } => "recipient",
+            Error::Identity { .. } => "identity",
             Error::Internal { .. } => "internal",
         }
     }
@@ -101,13 +122,16 @@ impl Error {
     fn message(&self) -> &str {
         match self {
             Error::Recipient { message, .. } => &message,
+            Error::Identity { message, .. } => &message,
             Error::Internal { message } => &message,
         }
     }
 
     fn send<R: io::Read, W: io::Write>(self, phase: &mut BidirSend<R, W>) -> io::Result<()> {
         let index = match self {
-            Error::Recipient { index, .. } => Some(index.to_string()),
+            Error::Recipient { index, .. } | Error::Identity { index, .. } => {
+                Some(index.to_string())
+            }
             Error::Internal { .. } => None,
         };
 
@@ -129,8 +153,8 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     let mut conn = Connection::accept();
 
     // Phase 1: collect recipients, and file keys to be wrapped
-    let (recipients, file_keys) = {
-        let (recipients, file_keys) = conn.unidir_receive(
+    let ((recipients, identities), file_keys) = {
+        let (recipients, identities, file_keys) = conn.unidir_receive(
             (ADD_RECIPIENT, |s| {
                 if s.args.len() == 1 && s.body.is_empty() {
                     Ok(s)
@@ -143,7 +167,19 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                     })
                 }
             }),
-            (WRAP_FILE_KEY, |s| {
+            (ADD_IDENTITY, |s| {
+                if s.args.len() == 1 && s.body.is_empty() {
+                    Ok(s)
+                } else {
+                    Err(Error::Internal {
+                        message: format!(
+                            "{} command must have exactly one metadata argument and no data",
+                            ADD_IDENTITY
+                        ),
+                    })
+                }
+            }),
+            (Some(WRAP_FILE_KEY), |s| {
                 // TODO: Should we ignore file key commands with unexpected metadata args?
                 TryInto::<[u8; FILE_KEY_BYTES]>::try_into(&s.body[..])
                     .map_err(|_| Error::Internal {
@@ -153,13 +189,19 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             }),
         )?;
         (
-            match recipients {
-                Ok(r) if r.is_empty() => Err(vec![Error::Internal {
-                    message: format!("Need at least one {} command", ADD_RECIPIENT),
-                }]),
+            match (recipients, identities) {
+                (Ok(r), Ok(i)) if r.is_empty() && i.is_empty() => (
+                    Err(vec![Error::Internal {
+                        message: format!(
+                            "Need at least one {} or {} command",
+                            ADD_RECIPIENT, ADD_IDENTITY
+                        ),
+                    }]),
+                    Err(vec![]),
+                ),
                 r => r,
             },
-            match file_keys {
+            match file_keys.unwrap() {
                 Ok(f) if f.is_empty() => Err(vec![Error::Internal {
                     message: format!("Need at least one {} command", WRAP_FILE_KEY),
                 }]),
@@ -170,16 +212,16 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 2: wrap the file keys or return errors
     conn.bidir_send(|mut phase| {
-        let (recipients, file_keys) = match (recipients, file_keys) {
-            (Ok(recipients), Ok(file_keys)) => (recipients, file_keys),
-            (Err(errors1), Err(errors2)) => {
-                for error in errors1.into_iter().chain(errors2.into_iter()) {
-                    error.send(&mut phase)?;
-                }
-                return Ok(());
-            }
-            (Err(errors), _) | (_, Err(errors)) => {
-                for error in errors {
+        let (recipients, identities, file_keys) = match (recipients, identities, file_keys) {
+            (Ok(recipients), Ok(identities), Ok(file_keys)) => (recipients, identities, file_keys),
+            (recipients, identities, file_keys) => {
+                for error in recipients
+                    .err()
+                    .into_iter()
+                    .chain(identities.err())
+                    .chain(file_keys.err())
+                    .flatten()
+                {
                     error.send(&mut phase)?;
                 }
                 return Ok(());
@@ -192,6 +234,12 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             for error in errors {
                 error.send(&mut phase)?;
             }
+        } else if let Err(errors) =
+            plugin.add_identities(identities.iter().map(|s| s.args.first().unwrap().as_str()))
+        {
+            for error in errors {
+                error.send(&mut phase)?;
+            }
         } else {
             match file_keys
                 .into_iter()
@@ -200,10 +248,10 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             {
                 Ok(files) => {
                     for (file_index, stanzas) in files.into_iter().enumerate() {
-                        // The plugin MUST generate an error if one or more
-                        // recipients cannot be wrapped to. And it's a programming
-                        // error to return more stanzas than recipients.
-                        assert_eq!(stanzas.len(), recipients.len());
+                        // The plugin MUST generate an error if one or more recipients or
+                        // identities cannot be wrapped to. And it's a programming error
+                        // to return more stanzas than recipients and identities.
+                        assert_eq!(stanzas.len(), recipients.len() + identities.len());
 
                         for stanza in stanzas {
                             phase

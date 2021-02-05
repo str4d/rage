@@ -90,6 +90,13 @@
 //!         todo!()
 //!     }
 //!
+//!     fn add_identities<'a, I: Iterator<Item = &'a str>>(
+//!         &mut self,
+//!         identities: I,
+//!     ) -> Result<(), Vec<recipient::Error>> {
+//!         todo!()
+//!     }
+//!
 //!     fn wrap_file_key(
 //!         &mut self,
 //!         file_key: &FileKey,

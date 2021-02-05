@@ -161,7 +161,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 1: receive identities and stanzas
     let (identities, recipient_stanzas) = {
-        let (identities, stanzas) = conn.unidir_receive(
+        let (identities, stanzas, _) = conn.unidir_receive(
             (ADD_IDENTITY, |s| {
                 if s.args.len() == 1 && s.body.is_empty() {
                     Ok(s)
@@ -196,6 +196,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                     })
                 }
             }),
+            (None, |_| Ok(())),
         )?;
 
         let stanzas = stanzas.and_then(|recipient_stanzas| {

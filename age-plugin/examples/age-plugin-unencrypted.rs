@@ -42,6 +42,31 @@ impl RecipientPluginV1 for RecipientPlugin {
         }
     }
 
+    fn add_identities<'a, I: Iterator<Item = &'a str>>(
+        &mut self,
+        identities: I,
+    ) -> Result<(), Vec<recipient::Error>> {
+        let errors = identities
+            .enumerate()
+            .filter_map(|(index, identity)| {
+                if identity.contains(&PLUGIN_NAME.to_uppercase()) {
+                    // A real plugin would store the identity.
+                    None
+                } else {
+                    Some(recipient::Error::Identity {
+                        index,
+                        message: "invalid identity".to_owned(),
+                    })
+                }
+            })
+            .collect::<Vec<_>>();
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
     fn wrap_file_key(
         &mut self,
         file_key: &FileKey,

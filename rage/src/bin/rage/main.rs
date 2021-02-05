@@ -125,6 +125,7 @@ fn read_recipients(
         recipients.push(Box::new(plugin::RecipientPluginV1::new(
             plugin_name,
             &plugin_recipients,
+            &[],
             UiCallbacks,
         )?))
     }

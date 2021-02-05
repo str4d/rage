@@ -160,19 +160,21 @@ impl Plugin {
 pub struct RecipientPluginV1<C: Callbacks> {
     plugin: Plugin,
     recipients: Vec<Recipient>,
+    identities: Vec<Identity>,
     callbacks: C,
 }
 
 impl<C: Callbacks> RecipientPluginV1<C> {
-    /// Creates an age plugin from a plugin name and a list of recipients.
+    /// Creates an age plugin from a plugin name and lists of recipients and identities.
     ///
-    /// The list of recipients will be filtered by the plugin name; recipients that don't
-    /// match will be ignored.
+    /// The lists of recipients and identities will be filtered by the plugin name;
+    /// recipients that don't match will be ignored.
     ///
     /// Returns an error if the plugin's binary cannot be found in `$PATH`.
     pub fn new(
         plugin_name: &str,
         recipients: &[Recipient],
+        identities: &[Identity],
         callbacks: C,
     ) -> Result<Self, EncryptError> {
         Plugin::new(plugin_name)
@@ -180,6 +182,11 @@ impl<C: Callbacks> RecipientPluginV1<C> {
             .map(|plugin| RecipientPluginV1 {
                 plugin,
                 recipients: recipients
+                    .iter()
+                    .filter(|r| r.name == plugin_name)
+                    .cloned()
+                    .collect(),
+                identities: identities
                     .iter()
                     .filter(|r| r.name == plugin_name)
                     .cloned()
@@ -194,10 +201,13 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
-        // Phase 1: add recipients, and file key to wrap
+        // Phase 1: add recipients, identities, and file key to wrap
         conn.unidir_send(|mut phase| {
             for recipient in &self.recipients {
                 phase.send("add-recipient", &[&recipient.recipient], &[])?;
+            }
+            for identity in &self.identities {
+                phase.send("add-identity", &[&identity.identity], &[])?;
             }
             phase.send("wrap-file-key", &[], file_key.expose_secret())
         })?;
@@ -255,6 +265,12 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                         errors.push(PluginError::Recipient {
                             binary_name: binary_name(&self.recipients[index].name),
                             recipient: self.recipients[index].recipient.clone(),
+                            message: String::from_utf8_lossy(&command.body).to_string(),
+                        });
+                    } else if command.args.len() == 2 && command.args[0] == "identity" {
+                        let index: usize = command.args[1].parse().unwrap();
+                        errors.push(PluginError::Identity {
+                            binary_name: binary_name(&self.identities[index].name),
                             message: String::from_utf8_lossy(&command.body).to_string(),
                         });
                     } else {
