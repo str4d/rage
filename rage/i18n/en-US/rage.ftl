@@ -75,6 +75,7 @@ prompt-passphrase = Passphrase
 err-failed-to-open-output = Failed to open output: {$err}
 err-failed-to-write-output = Failed to write to output: {$err}
 err-passphrase-timed-out = Timed out waiting for passphrase input.
+err-same-input-and-output = Input and output are the same file '{$filename}'.
 
 err-ux-A = Did {-rage} not do what you expected? Could an error be more useful?
 err-ux-B = Tell us
