@@ -192,6 +192,7 @@ impl fmt::Display for DecryptError {
 pub(crate) enum Error {
     Decryption(DecryptError),
     Encryption(EncryptError),
+    SameInputAndOutput(String),
 }
 
 impl From<DecryptError> for Error {
@@ -213,6 +214,15 @@ impl fmt::Debug for Error {
         match self {
             Error::Decryption(e) => writeln!(f, "{}", e)?,
             Error::Encryption(e) => writeln!(f, "{}", e)?,
+            Error::SameInputAndOutput(filename) => writeln!(
+                f,
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-same-input-and-output",
+                    filename = filename.as_str()
+                )
+            )?,
         }
         writeln!(f)?;
         writeln!(f, "[ {} ]", crate::fl!("err-ux-A"))?;

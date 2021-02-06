@@ -15,6 +15,7 @@ use rust_embed::RustEmbed;
 use secrecy::ExposeSecret;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use std::path::Path;
 
 mod error;
 
@@ -406,9 +407,23 @@ fn main() -> Result<(), error::Error> {
     if opts.version {
         println!("rage {}", env!("CARGO_PKG_VERSION"));
         Ok(())
-    } else if opts.decrypt {
-        decrypt(opts).map_err(error::Error::from)
     } else {
-        encrypt(opts).map_err(error::Error::from)
+        if let (Some(in_file), Some(out_file)) = (&opts.input, &opts.output) {
+            // Check that the given filenames do not correspond to the same file.
+            let in_path = Path::new(&in_file);
+            let out_path = Path::new(&out_file);
+            match (in_path.canonicalize(), out_path.canonicalize()) {
+                (Ok(in_abs), Ok(out_abs)) if in_abs == out_abs => {
+                    return Err(error::Error::SameInputAndOutput(out_file.clone()));
+                }
+                _ => (),
+            }
+        }
+
+        if opts.decrypt {
+            decrypt(opts).map_err(error::Error::from)
+        } else {
+            encrypt(opts).map_err(error::Error::from)
+        }
     }
 }
