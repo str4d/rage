@@ -23,9 +23,10 @@ const RESPONSE_UNSUPPORTED: &str = "unsupported";
 ///   should explicitly handle.
 pub type Result<T, E> = io::Result<std::result::Result<T, E>>;
 
-type UnidirResult<A, B, E> = io::Result<(
+type UnidirResult<A, B, C, E> = io::Result<(
     std::result::Result<Vec<A>, Vec<E>>,
     std::result::Result<Vec<B>, Vec<E>>,
+    Option<std::result::Result<Vec<C>, Vec<E>>>,
 )>;
 
 /// A connection to a plugin binary.
@@ -161,19 +162,23 @@ impl<R: Read, W: Write> Connection<R, W> {
     ///
     /// # Arguments
     ///
-    /// `command_a` and `command_b` are the known commands that are expected to be
-    /// received. All other received commands (including grease) will be ignored.
-    pub fn unidir_receive<A, B, E, F, G>(
+    /// `command_a`, `command_b`, and (optionally) `command_c` are the known commands that
+    /// are expected to be received. All other received commands (including grease) will
+    /// be ignored.
+    pub fn unidir_receive<A, B, C, E, F, G, H>(
         &mut self,
         command_a: (&str, F),
         command_b: (&str, G),
-    ) -> UnidirResult<A, B, E>
+        command_c: (Option<&str>, H),
+    ) -> UnidirResult<A, B, C, E>
     where
         F: Fn(Stanza) -> std::result::Result<A, E>,
         G: Fn(Stanza) -> std::result::Result<B, E>,
+        H: Fn(Stanza) -> std::result::Result<C, E>,
     {
         let mut res_a = Ok(vec![]);
         let mut res_b = Ok(vec![]);
+        let mut res_c = Ok(vec![]);
 
         for stanza in iter::repeat_with(|| self.receive()).take_while(|res| match res {
             Ok(stanza) => stanza.tag != COMMAND_DONE,
@@ -203,10 +208,14 @@ impl<R: Read, W: Write> Connection<R, W> {
                 validate(command_a.1(stanza), &mut res_a)
             } else if stanza.tag.as_str() == command_b.0 {
                 validate(command_b.1(stanza), &mut res_b)
+            } else if let Some(tag) = command_c.0 {
+                if stanza.tag.as_str() == tag {
+                    validate(command_c.1(stanza), &mut res_c)
+                }
             }
         }
 
-        Ok((res_a, res_b))
+        Ok((res_a, res_b, command_c.0.map(|_| res_c)))
     }
 
     /// Runs a bidirectional phase as the controller.
@@ -279,6 +288,29 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
             self.0.receive()?;
         }
         self.0.send(command, metadata, data)?;
+        let s = self.0.receive()?;
+        match s.tag.as_ref() {
+            RESPONSE_OK => Ok(Ok(s)),
+            RESPONSE_FAIL => Ok(Err(())),
+            tag => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("unexpected response: {}", tag),
+            )),
+        }
+    }
+
+    /// Send an entire stanza.
+    pub fn send_stanza(
+        &mut self,
+        command: &str,
+        metadata: &[&str],
+        stanza: &Stanza,
+    ) -> Result<Stanza, ()> {
+        for grease in self.0.grease_gun() {
+            self.0.send(&grease.tag, &grease.args, &grease.body)?;
+            self.0.receive()?;
+        }
+        self.0.send_stanza(command, metadata, stanza)?;
         let s = self.0.receive()?;
         match s.tag.as_ref() {
             RESPONSE_OK => Ok(Ok(s)),
@@ -397,7 +429,11 @@ mod tests {
             .unidir_send(|mut phase| phase.send("test", &["foo"], b"bar"))
             .unwrap();
         let stanza = plugin_conn
-            .unidir_receive::<_, (), _, _, _>(("test", |s| Ok(s)), ("other", |_| Err(())))
+            .unidir_receive::<_, (), (), _, _, _, _>(
+                ("test", |s| Ok(s)),
+                ("other", |_| Err(())),
+                (None, |_| Ok(())),
+            )
             .unwrap();
         assert_eq!(
             stanza,
@@ -407,7 +443,8 @@ mod tests {
                     args: vec!["foo".to_owned()],
                     body: b"bar"[..].to_owned()
                 }]),
-                Ok(vec![])
+                Ok(vec![]),
+                None
             )
         );
     }

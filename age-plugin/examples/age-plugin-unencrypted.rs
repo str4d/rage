@@ -1,9 +1,9 @@
 use age_core::format::{FileKey, Stanza};
 use age_plugin::{
-    identity::{self, Callbacks, IdentityPluginV1},
+    identity::{self, IdentityPluginV1},
     print_new_identity,
     recipient::{self, RecipientPluginV1},
-    run_state_machine,
+    run_state_machine, Callbacks,
 };
 use gumdrop::Options;
 use secrecy::ExposeSecret;
@@ -42,13 +42,50 @@ impl RecipientPluginV1 for RecipientPlugin {
         }
     }
 
-    fn wrap_file_key(&mut self, file_key: &FileKey) -> Result<Vec<Stanza>, Vec<recipient::Error>> {
+    fn add_identities<'a, I: Iterator<Item = &'a str>>(
+        &mut self,
+        identities: I,
+    ) -> Result<(), Vec<recipient::Error>> {
+        let errors = identities
+            .enumerate()
+            .filter_map(|(index, identity)| {
+                if identity.contains(&PLUGIN_NAME.to_uppercase()) {
+                    // A real plugin would store the identity.
+                    None
+                } else {
+                    Some(recipient::Error::Identity {
+                        index,
+                        message: "invalid identity".to_owned(),
+                    })
+                }
+            })
+            .collect::<Vec<_>>();
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    fn wrap_file_keys(
+        &mut self,
+        file_keys: Vec<FileKey>,
+        mut callbacks: impl Callbacks<recipient::Error>,
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<recipient::Error>>> {
         // A real plugin would wrap the file key here.
-        Ok(vec![Stanza {
-            tag: RECIPIENT_TAG.to_owned(),
-            args: vec!["does".to_owned(), "nothing".to_owned()],
-            body: file_key.expose_secret().to_vec(),
-        }])
+        let _ = callbacks
+            .message("This plugin doesn't have any recipient-specific logic. It's unencrypted!")?;
+        Ok(Ok(file_keys
+            .into_iter()
+            .map(|file_key| {
+                // TODO: This should return one stanza per recipient and identity.
+                vec![Stanza {
+                    tag: RECIPIENT_TAG.to_owned(),
+                    args: vec!["does".to_owned(), "nothing".to_owned()],
+                    body: file_key.expose_secret().to_vec(),
+                }]
+            })
+            .collect()))
     }
 }
 
@@ -83,7 +120,7 @@ impl IdentityPluginV1 for IdentityPlugin {
     fn unwrap_file_keys(
         &mut self,
         files: Vec<Vec<Stanza>>,
-        mut callbacks: impl Callbacks,
+        mut callbacks: impl Callbacks<identity::Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<identity::Error>>>> {
         let mut file_keys = HashMap::with_capacity(files.len());
         for (file_index, stanzas) in files.into_iter().enumerate() {

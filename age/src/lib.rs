@@ -173,6 +173,7 @@ pub mod plugin;
 pub mod ssh;
 
 use age_core::format::{FileKey, Stanza};
+use secrecy::SecretString;
 
 /// A private key or other value that can unwrap an opaque file key from a recipient
 /// stanza.
@@ -225,6 +226,26 @@ pub trait Recipient {
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError>;
+}
+
+/// Callbacks that might be triggered during encryption or decryption.
+///
+/// Structs that implement this trait should be given directly to the individual
+/// `Recipient` or `Identity` implementations that require them.
+pub trait Callbacks {
+    /// Shows a message to the user.
+    ///
+    /// This can be used to prompt the user to take some physical action, such as
+    /// inserting a hardware key.
+    fn prompt(&self, message: &str);
+
+    /// Requests non-private input from the user.
+    ///
+    /// To request private inputs, use [`Callbacks::request_passphrase`].
+    fn request_public_string(&self, description: &str) -> Option<String>;
+
+    /// Requests a passphrase to decrypt a key.
+    fn request_passphrase(&self, description: &str) -> Option<SecretString>;
 }
 
 /// Helper for fuzzing the Header parser and serializer.

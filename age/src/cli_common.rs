@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{fl, identity::IdentityFile, protocol::decryptor::Callbacks, Identity};
+use crate::{fl, identity::IdentityFile, Callbacks, Identity};
 
 #[cfg(feature = "plugin")]
 use crate::plugin;
@@ -172,6 +172,13 @@ impl Callbacks for UiCallbacks {
 
         // Fall back to CLI interface.
         eprintln!("{}", message);
+    }
+
+    fn request_public_string(&self, description: &str) -> Option<String> {
+        let term = console::Term::stderr();
+        term.read_line_initial_text(description)
+            .ok()
+            .filter(|s| !s.is_empty())
     }
 
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {

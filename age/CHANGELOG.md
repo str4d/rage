@@ -35,6 +35,9 @@ to 1.0.0 are beta releases.
   `wasm32-unknown-unknown`. This feature is ignored for the `wasm32-wasi`
   target, which supports
   [`std::time::SystemTime`](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html#underlying-system-calls).
+- `age::Callbacks::request_public_string` to request non-private input from the
+  user (which will not trigger any OS-level passphrase-style prompt, unlike
+  `Callbacks::request_passphrase`).
 
 ### Changed
 - Files encrypted with this version of `age` might not decrypt with previous
@@ -44,6 +47,8 @@ to 1.0.0 are beta releases.
 - `age::cli_common::file_io::OutputWriter::File` now wraps a `LazyFile` struct
   (instead of wrapping `std::io::File` directly), which does not open the file
   until it is first written to.
+- `age::decryptor::Callbacks` has been moved to `age::Callbacks`, as it is no
+  longer decryption-specific.
 
 ### Fixed
 - `age::cli_common::read_identities` now allows either kind of line ending in

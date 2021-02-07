@@ -9,6 +9,9 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age_core::format::FILE_KEY_BYTES` constant.
+- `age_core::plugin` module, which contains common backend logic used by both
+  the `age` library (to implement client support for plugins) and the
+  `age-plugin` library.
 
 ### Changed
 - The stanza prefix `-> ` and trailing newline are now formal parts of the age
