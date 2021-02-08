@@ -15,6 +15,7 @@
 
 -flag-armor = -a/--armor
 -flag-decrypt = -d/--decrypt
+-flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
@@ -73,6 +74,7 @@ prompt-passphrase = 密码短语
 
 err-failed-to-open-output = 未能打开出输： {$err}
 err-failed-to-write-output = 未能写入出输： {$err}
+err-enc-mixed-encrypt-decrypt = {-flag-encrypt} 和 {-flag-decrypt} 标记不可联用。
 err-passphrase-timed-out = 等待输入密码短语时超时了。
 
 err-ux-A = {-rage} 的行为与您的预期不符吗? 或是某个错误消息可包含更多信息?
@@ -87,14 +89,12 @@ rec-enc-broken-stdout = 您是否输出至非从 stdin 读取数据的程序？
 
 err-enc-broken-file = 未能写入文件： {$err}
 
-err-enc-identity = {-flag-identity} 不可在加密模式使用。
-rec-enc-identity = 您是否忘记指定 {-flag-decrypt} 标记？
-
 err-enc-invalid-recipient = 无效接收方 '{$recipient}'
 
 err-enc-missing-recipients = 缺少接收方。
 rec-enc-missing-recipients = 您是否忘记指定 {-flag-recipient} 标记？
 
+err-enc-mixed-identity-passphrase = {-flag-identity} 和 {-flag-passphrase} 标记不可联用。
 err-enc-mixed-recipient-passphrase = {-flag-recipient} 和 {-flag-passphrase} 标记不可联用。
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} 和 {-flag-passphrase} 标记不可联用。
 err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 时， 必将要加密的文件传递为参数

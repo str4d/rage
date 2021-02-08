@@ -16,15 +16,21 @@ macro_rules! wlnfl {
 
 pub(crate) enum EncryptError {
     Age(age::EncryptError),
-    BrokenPipe { is_stdout: bool, source: io::Error },
-    IdentityFlag,
+    BrokenPipe {
+        is_stdout: bool,
+        source: io::Error,
+    },
+    IdentityNotFound(String),
     InvalidRecipient(String),
     Io(io::Error),
     MissingRecipients,
+    MixedIdentityAndPassphrase,
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
+    #[cfg(feature = "ssh")]
+    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::EncryptError> for EncryptError {
@@ -70,10 +76,15 @@ impl fmt::Display for EncryptError {
                     )
                 }
             }
-            EncryptError::IdentityFlag => {
-                wlnfl!(f, "err-enc-identity")?;
-                wfl!(f, "rec-enc-identity")
-            }
+            EncryptError::IdentityNotFound(filename) => write!(
+                f,
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-dec-identity-not-found",
+                    filename = filename.as_str()
+                )
+            ),
             EncryptError::InvalidRecipient(recipient) => write!(
                 f,
                 "{}",
@@ -88,6 +99,9 @@ impl fmt::Display for EncryptError {
                 wlnfl!(f, "err-enc-missing-recipients")?;
                 wfl!(f, "rec-enc-missing-recipients")
             }
+            EncryptError::MixedIdentityAndPassphrase => {
+                wfl!(f, "err-enc-mixed-identity-passphrase")
+            }
             EncryptError::MixedRecipientAndPassphrase => {
                 wfl!(f, "err-enc-mixed-recipient-passphrase")
             }
@@ -98,6 +112,8 @@ impl fmt::Display for EncryptError {
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }
+            #[cfg(feature = "ssh")]
+            EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
     }
 }
@@ -192,6 +208,8 @@ impl fmt::Display for DecryptError {
 pub(crate) enum Error {
     Decryption(DecryptError),
     Encryption(EncryptError),
+    IdentityFlagAmbiguous,
+    MixedEncryptAndDecrypt,
     SameInputAndOutput(String),
 }
 
@@ -214,6 +232,8 @@ impl fmt::Debug for Error {
         match self {
             Error::Decryption(e) => writeln!(f, "{}", e)?,
             Error::Encryption(e) => writeln!(f, "{}", e)?,
+            Error::IdentityFlagAmbiguous => wlnfl!(f, "err-identity-ambiguous")?,
+            Error::MixedEncryptAndDecrypt => wlnfl!(f, "err-mixed-encrypt-decrypt")?,
             Error::SameInputAndOutput(filename) => writeln!(
                 f,
                 "{}",

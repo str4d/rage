@@ -15,6 +15,7 @@
 
 -flag-armor = -a/--armor
 -flag-decrypt = -d/--decrypt
+-flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
@@ -76,6 +77,7 @@ prompt-passphrase = Passphrase
 
 err-failed-to-open-output = Impossibile aprire l'output: {$err}
 err-failed-to-write-output = Impossibile scrivere sull'output: {$err}
+err-enc-mixed-encrypt-decrypt = {-flag-encrypt} non può essere usato assieme a {-flag-decrypt}.
 err-passphrase-timed-out = Tempo di attesa per l'inserimento della passphrase scaduto.
 
 err-ux-A = {-rage} non fa quello che ti aspetti? Potrebbe un errore essere più utile?
@@ -90,14 +92,12 @@ rec-enc-broken-stdout = Stai usando una pipe verso un programma che non sta legg
 
 err-enc-broken-file = Impossibile scrivere sul file: {$err}
 
-err-enc-identity = {-flag-identity} non può essere usato in modalità cifrazione.
-rec-enc-identity = Hai dimenticato di specificare {-flag-decrypt}?
-
 err-enc-invalid-recipient = Destinatario '{$recipient}' invalido
 
 err-enc-missing-recipients = Destinatari mancanti.
 rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
+err-enc-mixed-identity-passphrase = {-flag-identity} non può essere usato assieme a {-flag-passphrase}.
 err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} non può essere usato assieme a {-flag-passphrase}
 err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}

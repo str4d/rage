@@ -29,6 +29,7 @@ fn generate_completions(mut app: App, bin_name: &str) {
 fn rage_completions() {
     let app = App::new("rage")
         .arg(Arg::new("input"))
+        .arg(Arg::new("encrypt").short('e').long("encrypt"))
         .arg(Arg::new("decrypt").short('d').long("decrypt"))
         .arg(Arg::new("passphrase").short('p').long("passphrase"))
         .arg(
