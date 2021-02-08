@@ -1,6 +1,6 @@
 //! The "encrypted age identity file" identity type.
 
-use std::{cell::Cell, io};
+use std::{io, ops::DerefMut, sync::Mutex};
 
 use i18n_embed_fl::fl;
 
@@ -77,12 +77,12 @@ impl<R: io::Read> IdentityState<R> {
 
 /// An encrypted age identity file.
 pub struct Identity<R: io::Read, C: Callbacks> {
-    state: Cell<IdentityState<R>>,
+    state: Mutex<Option<IdentityState<R>>>,
     filename: Option<String>,
     callbacks: C,
 }
 
-impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
+impl<R: io::Read, C: Callbacks + Clone + Send + Sync + 'static> Identity<R, C> {
     /// Parses an encrypted identity from an input containing valid UTF-8.
     ///
     /// `filename` is the path to the file that the input is reading from, if any.
@@ -98,10 +98,10 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
         match Decryptor::new(data)? {
             Decryptor::Recipients(_) => Ok(None),
             Decryptor::Passphrase(decryptor) => Ok(Some(Identity {
-                state: Cell::new(IdentityState::Encrypted {
+                state: Mutex::new(Some(IdentityState::Encrypted {
                     decryptor,
                     max_work_factor,
-                }),
+                })),
                 filename,
                 callbacks,
             })),
@@ -113,9 +113,11 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
     /// If this encrypted identity has not been decrypted yet, calling this method will
     /// trigger a passphrase request.
     pub fn recipients(&self) -> Result<Vec<Box<dyn crate::Recipient>>, EncryptError> {
-        match self
-            .state
+        let mut state = self.state.lock().unwrap();
+        match state
+            .deref_mut()
             .take()
+            .expect("We never leave this set to None")
             .decrypt(self.filename.as_deref(), self.callbacks.clone())
         {
             Ok((identities, _)) => {
@@ -124,11 +126,11 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
                     .map(|entry| entry.to_recipient(self.callbacks.clone()))
                     .collect::<Result<Vec<_>, _>>();
 
-                self.state.set(IdentityState::Decrypted(identities));
+                *state = Some(IdentityState::Decrypted(identities));
                 recipients
             }
             Err(e) => {
-                self.state.set(IdentityState::Poisoned(Some(e.clone())));
+                *state = Some(IdentityState::Poisoned(Some(e.clone())));
                 Err(EncryptError::EncryptedIdentities(e))
             }
         }
@@ -151,12 +153,14 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
     ) -> Option<Result<age_core::format::FileKey, DecryptError>>
     where
         F: Fn(
-            Result<Box<dyn crate::Identity>, DecryptError>,
+            Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>,
         ) -> Option<Result<age_core::format::FileKey, DecryptError>>,
     {
-        match self
-            .state
+        let mut state = self.state.lock().unwrap();
+        match state
+            .deref_mut()
             .take()
+            .expect("We never leave this set to None")
             .decrypt(self.filename.as_deref(), self.callbacks.clone())
         {
             Ok((identities, requested_passphrase)) => {
@@ -175,18 +179,18 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
                     ));
                 }
 
-                self.state.set(IdentityState::Decrypted(identities));
+                *state = Some(IdentityState::Decrypted(identities));
                 result
             }
             Err(e) => {
-                self.state.set(IdentityState::Poisoned(Some(e.clone())));
+                *state = Some(IdentityState::Poisoned(Some(e.clone())));
                 Some(Err(e))
             }
         }
     }
 }
 
-impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R, C> {
+impl<R: io::Read, C: Callbacks + Clone + Send + Sync + 'static> crate::Identity for Identity<R, C> {
     fn unwrap_stanza(
         &self,
         stanza: &age_core::format::Stanza,
@@ -210,7 +214,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::Cell, io::BufReader};
+    use std::{io::BufReader, sync::Mutex};
 
     use secrecy::{ExposeSecret, SecretString};
 
@@ -235,12 +239,17 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
     const TEST_RECIPIENT: &str = "age1ysxuaeqlk7xd8uqsh8lsnfwt9jzzjlqf49ruhpjrrj5yatlcuf7qke4pqe";
 
-    #[derive(Clone)]
-    struct MockCallbacks(Cell<Option<&'static str>>);
+    struct MockCallbacks(Mutex<Option<&'static str>>);
+
+    impl Clone for MockCallbacks {
+        fn clone(&self) -> Self {
+            Self(Mutex::new(self.0.lock().unwrap().clone()))
+        }
+    }
 
     impl MockCallbacks {
         fn new(passphrase: &'static str) -> Self {
-            MockCallbacks(Cell::new(Some(passphrase)))
+            MockCallbacks(Mutex::new(Some(passphrase)))
         }
     }
 
@@ -255,7 +264,9 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<secrecy::SecretString> {
-            Some(SecretString::new(self.0.take().unwrap().to_owned()))
+            Some(SecretString::new(
+                self.0.lock().unwrap().take().unwrap().to_owned(),
+            ))
         }
     }
 

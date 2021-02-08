@@ -422,7 +422,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
                     &opts.plugin_name,
                     &[plugin::Identity::default_for_plugin(&opts.plugin_name)],
                     UiCallbacks,
-                )?) as Box<dyn Identity>]
+                )?) as Box<dyn Identity + Send + Sync>]
             };
 
             if identities.is_empty() {

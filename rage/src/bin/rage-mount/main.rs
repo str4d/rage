@@ -281,7 +281,7 @@ fn main() -> Result<(), Error> {
             }
 
             decryptor
-                .decrypt(identities.iter().map(|i| &**i))
+                .decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
                 .map_err(|e| e.into())
                 .and_then(|stream| mount_stream(stream, types, mountpoint))
         }
