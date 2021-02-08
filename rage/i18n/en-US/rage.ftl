@@ -142,9 +142,12 @@ rec-dec-recipient-flag = Did you mean to use {-flag-identity} to specify a priva
 info-decrypting = Decrypting {$filename}
 info-mounting-as-fuse = Mounting as FUSE filesystem
 
+err-mnt-missing-source = Missing source.
 err-mnt-missing-filename = Missing filename.
 err-mnt-missing-mountpoint = Missing mountpoint.
 err-mnt-missing-types = Missing {-flag-mnt-types}.
+err-mnt-must-be-dir = Mountpoint must be a directory.
+err-mnt-source-must-be-dir = Source must be a directory.
 err-mnt-unknown-type = Unknown filesystem type "{$fs_type}"
 
 ## Unstable features

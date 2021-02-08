@@ -1816,6 +1816,7 @@ dependencies = [
  "libc",
  "log 0.4.14",
  "man",
+ "nix",
  "pinentry",
  "rust-embed",
  "secrecy",
