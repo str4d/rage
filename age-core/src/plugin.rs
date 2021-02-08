@@ -34,13 +34,16 @@ pub struct Connection<R: Read, W: Write> {
     input: BufReader<R>,
     output: W,
     buffer: String,
+    _working_dir: Option<tempfile::TempDir>,
 }
 
 impl Connection<ChildStdout, ChildStdin> {
     /// Start a plugin binary with the given state machine.
     pub fn open(binary: &Path, state_machine: &str) -> io::Result<Self> {
-        let process = Command::new(binary)
+        let working_dir = tempfile::tempdir()?;
+        let process = Command::new(binary.canonicalize()?)
             .arg(format!("--age-plugin={}", state_machine))
+            .current_dir(working_dir.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -51,6 +54,7 @@ impl Connection<ChildStdout, ChildStdin> {
             input,
             output,
             buffer: String::new(),
+            _working_dir: Some(working_dir),
         })
     }
 }
@@ -62,6 +66,7 @@ impl Connection<io::Stdin, io::Stdout> {
             input: BufReader::new(io::stdin()),
             output: io::stdout(),
             buffer: String::new(),
+            _working_dir: None,
         }
     }
 }
@@ -418,11 +423,13 @@ mod tests {
             input: BufReader::new(PipeReader::new(plugin_to_client.clone())),
             output: PipeWriter::new(client_to_plugin.clone()),
             buffer: String::new(),
+            _working_dir: None,
         };
         let mut plugin_conn = Connection {
             input: BufReader::new(PipeReader::new(client_to_plugin)),
             output: PipeWriter::new(plugin_to_client),
             buffer: String::new(),
+            _working_dir: None,
         };
 
         client_conn
