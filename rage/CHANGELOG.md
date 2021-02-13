@@ -10,6 +10,12 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.5.1] - 2021-02-13
+### Fixed
+- Bumped dependencies to `i18n-embed-fl 0.3` and `i18n-embed 0.10.2` to fix a
+  transient dependency breakage, that broke `cargo install rage` because
+  [`cargo install` ignores `Cargo.lock`](https://github.com/rust-lang/cargo/issues/7169).
+
 ## [0.5.0] - 2020-11-22
 ### Added
 - Italian, Spanish, and Chinese translations!
