@@ -1,26 +1,40 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use age::Identity;
 use fuse_mt::*;
 use nix::{dir::Dir, fcntl::OFlag, libc, sys::stat::Mode, unistd::AccessFlags};
 use time::Timespec;
 
-use crate::util::*;
+use crate::{
+    reader::OpenedFile,
+    util::*,
+    wrapper::{check_file, AgeFile},
+};
 
 pub struct AgeOverlayFs {
     root: PathBuf,
+    identities: Vec<Box<dyn Identity + Send + Sync>>,
+    age_files: Mutex<HashMap<PathBuf, (PathBuf, Option<AgeFile>)>>,
     open_dirs: Mutex<HashMap<u64, Dir>>,
-    open_files: Mutex<HashMap<u64, File>>,
+    open_files: Mutex<HashMap<u64, OpenedFile>>,
 }
 
 impl AgeOverlayFs {
-    pub fn new(root: PathBuf) -> io::Result<Self> {
+    pub fn new(
+        root: PathBuf,
+        identities: Vec<Box<dyn Identity + Send + Sync>>,
+    ) -> io::Result<Self> {
+        // TODO: Scan the directory to find age-encrypted files, and trial-decrypt them.
+        // We'll do this manually in order to cache the unwrapped FileKeys for X? minutes.
+
         Ok(AgeOverlayFs {
             root,
+            identities,
+            age_files: Mutex::new(HashMap::new()),
             open_dirs: Mutex::new(HashMap::new()),
             open_files: Mutex::new(HashMap::new()),
         })
@@ -29,19 +43,38 @@ impl AgeOverlayFs {
     fn base_path(&self, path: &Path) -> PathBuf {
         self.root.join(path.strip_prefix("/").unwrap())
     }
+
+    fn age_stat(&self, f: &AgeFile, mut stat: FileAttr) -> FileAttr {
+        stat.size = f.size;
+        stat
+    }
 }
 
 const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
 
 impl FilesystemMT for AgeOverlayFs {
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
+        let age_files = self.age_files.lock().unwrap();
+        let base_path = self.base_path(path);
+        let (query_path, age_file) = match age_files.get(&base_path) {
+            Some((real_path, Some(f))) => (real_path, Some(f)),
+            _ => (&base_path, None),
+        };
+
         use std::os::unix::io::RawFd;
         nix_err(if let Some(fd) = fh {
             nix::sys::stat::fstat(fd as RawFd)
         } else {
-            nix::sys::stat::lstat(&self.base_path(path))
+            nix::sys::stat::lstat(query_path)
         })
         .map(nix_stat)
+        .map(|stat| {
+            if let Some(f) = age_file {
+                self.age_stat(f, stat)
+            } else {
+                stat
+            }
+        })
         .map(|stat| (TTL, stat))
     }
 
@@ -155,10 +188,14 @@ impl FilesystemMT for AgeOverlayFs {
     }
 
     fn open(&self, _req: RequestInfo, path: &Path, _flags: u32) -> ResultOpen {
-        use std::os::unix::io::AsRawFd;
-
-        let file = File::open(self.base_path(path)).map_err(|e| e.raw_os_error().unwrap_or(0))?;
-        let fh = file.as_raw_fd() as u64;
+        let age_files = self.age_files.lock().unwrap();
+        let base_path = self.base_path(path);
+        let file = match age_files.get(&base_path) {
+            Some((real_path, Some(f))) => OpenedFile::age(real_path, f),
+            _ => OpenedFile::normal(&base_path),
+        }
+        .map_err(|e| e.raw_os_error().unwrap_or(0))?;
+        let fh = file.handle();
 
         let mut open_files = self.open_files.lock().unwrap();
         open_files.insert(fh, file);
@@ -233,9 +270,10 @@ impl FilesystemMT for AgeOverlayFs {
         Ok((fh, 0))
     }
 
-    fn readdir(&self, _req: RequestInfo, _path: &Path, fh: u64) -> ResultReaddir {
+    fn readdir(&self, _req: RequestInfo, path: &Path, fh: u64) -> ResultReaddir {
         use std::os::unix::ffi::OsStrExt;
 
+        let mut age_files = self.age_files.lock().unwrap();
         let mut open_dirs = self.open_dirs.lock().unwrap();
         let dir = open_dirs.get_mut(&fh).ok_or(libc::EBADF)?;
 
@@ -254,7 +292,37 @@ impl FilesystemMT for AgeOverlayFs {
                                     .map(|stat| stat.kind),
                             )
                         })?;
-                    let name = OsStr::from_bytes(entry.file_name().to_bytes()).to_owned();
+                    let name = Path::new(OsStr::from_bytes(entry.file_name().to_bytes()));
+
+                    let name = match name.extension() {
+                        Some(ext) if ext == "age" => {
+                            let path = self.base_path(path).join(name);
+                            match age_files.get(&path.with_extension("")) {
+                                // We can decrypt this; remove the .age from the filename.
+                                Some((_, Some(_))) => name.to_owned().with_extension("").into(),
+                                // We can't decrypt this; leave the name as-is.
+                                Some((_, None)) => name.into(),
+                                // We haven't seen this .age file; test it!
+                                None => {
+                                    let (path, file) = check_file(path, &self.identities)
+                                        .map_err(|e| e.raw_os_error().unwrap_or(0))?;
+                                    let decrypted = file.is_some();
+
+                                    // Remember whether we can decrypt this file!
+                                    age_files.insert(path.with_extension(""), (path, file));
+
+                                    if decrypted {
+                                        // Remove the .age from the filename.
+                                        name.to_owned().with_extension("").into()
+                                    } else {
+                                        name.into()
+                                    }
+                                }
+                            }
+                        }
+                        _ => name.into(),
+                    };
+
                     Ok(DirectoryEntry { name, kind })
                 })
             })
