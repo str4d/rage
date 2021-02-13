@@ -1802,6 +1802,7 @@ name = "rage"
 version = "0.6.0"
 dependencies = [
  "age",
+ "age-core",
  "chrono",
  "clap 3.0.0-beta.2",
  "clap_generate",

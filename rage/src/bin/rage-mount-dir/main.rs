@@ -1,3 +1,4 @@
+use age::cli_common::read_identities;
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use i18n_embed::{
@@ -13,7 +14,9 @@ use std::io;
 use std::path::PathBuf;
 
 mod overlay;
+mod reader;
 mod util;
+mod wrapper;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
@@ -37,14 +40,24 @@ macro_rules! wfl {
     };
 }
 
+macro_rules! wlnfl {
+    ($f:ident, $message_id:literal) => {
+        writeln!($f, "{}", fl!($message_id))
+    };
+}
+
 enum Error {
     Age(age::DecryptError),
+    IdentityEncryptedWithoutPassphrase(String),
+    IdentityNotFound(String),
     Io(io::Error),
+    MissingIdentities,
     MissingMountpoint,
     MissingSource,
     MountpointMustBeDir,
     Nix(nix::Error),
     SourceMustBeDir,
+    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::DecryptError> for Error {
@@ -85,12 +98,37 @@ impl fmt::Debug for Error {
                 }
                 _ => write!(f, "{}", e),
             },
+            Error::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    i18n_embed_fl::fl!(
+                        LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
+            Error::IdentityNotFound(filename) => write!(
+                f,
+                "{}",
+                i18n_embed_fl::fl!(
+                    LANGUAGE_LOADER,
+                    "err-dec-identity-not-found",
+                    filename = filename.as_str()
+                )
+            ),
             Error::Io(e) => write!(f, "{}", e),
+            Error::MissingIdentities => {
+                wlnfl!(f, "err-dec-missing-identities")?;
+                wlnfl!(f, "rec-dec-missing-identities")
+            }
             Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
             Error::MissingSource => wfl!(f, "err-mnt-missing-source"),
             Error::MountpointMustBeDir => wfl!(f, "err-mnt-must-be-dir"),
             Error::Nix(e) => write!(f, "{}", e),
             Error::SourceMustBeDir => wfl!(f, "err-mnt-source-must-be-dir"),
+            Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }?;
         writeln!(f)?;
         writeln!(f, "[ {} ]", fl!("err-ux-A"))?;
@@ -116,6 +154,16 @@ struct AgeMountOptions {
 
     #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
+
+    #[options(
+        help = "Maximum work factor to allow for passphrase decryption.",
+        meta = "WF",
+        no_short
+    )]
+    max_work_factor: Option<u8>,
+
+    #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
+    identity: Vec<String>,
 }
 
 fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: PathBuf)
@@ -185,8 +233,20 @@ fn main() -> Result<(), Error> {
         return Err(Error::MountpointMustBeDir);
     }
 
+    let identities = read_identities(
+        opts.identity,
+        opts.max_work_factor,
+        Error::IdentityNotFound,
+        Error::IdentityEncryptedWithoutPassphrase,
+        Error::UnsupportedKey,
+    )?;
+
+    if identities.is_empty() {
+        return Err(Error::MissingIdentities);
+    }
+
     mount_fs(
-        || crate::overlay::AgeOverlayFs::new(directory.into()),
+        || crate::overlay::AgeOverlayFs::new(directory.into(), identities),
         mountpoint,
     );
     Ok(())
