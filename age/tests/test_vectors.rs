@@ -30,7 +30,7 @@ fn age_test_vectors() -> Result<(), age::DecryptError> {
                     |e| age::DecryptError::Io(io::Error::new(io::ErrorKind::NotFound, e)),
                     |_, _| age::DecryptError::DecryptionFailed,
                 )?;
-                d.decrypt(identities.into_iter())
+                d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
             }
             age::Decryptor::Passphrase(d) => {
                 let mut passphrase = String::new();

@@ -44,6 +44,9 @@ to 1.0.0 are beta releases.
   beta versions, due to changes in how stanza bodies are canonically encoded.
   This should only affect a small fraction of files (if grease that triggers the
   change is added, which has a 3% chance per file).
+- `age::decryptor::RecipientsDecryptor` now takes
+  `impl Iterator<Item = &'a dyn Identity>` in its decryption methods, to make
+  decrypting multiple files with the same identities easier.
 - `age::cli_common::file_io::OutputWriter::File` now wraps a `LazyFile` struct
   (instead of wrapping `std::io::File` directly), which does not open the file
   until it is first written to.
