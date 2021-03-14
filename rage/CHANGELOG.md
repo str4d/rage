@@ -21,6 +21,9 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.47.0.
+- `-o/--output` will now *overwrite* existing files instead of returning an
+  error. This makes the behaviour consistent with most UNIX tools, as well as
+  when using pipes.
 - Files encrypted with this version of `rage` might not decrypt with previous
   beta versions, due to changes in how stanza bodies are canonically encoded.
   This should only affect a small fraction of files (if grease that triggers the
