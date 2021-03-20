@@ -264,7 +264,7 @@ fn main() -> Result<(), Error> {
             }
 
             decryptor
-                .decrypt(identities.into_iter())
+                .decrypt(identities.iter().map(|i| &**i))
                 .map_err(|e| e.into())
                 .and_then(|stream| mount_stream(stream, types, mountpoint))
         }

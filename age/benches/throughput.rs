@@ -48,9 +48,7 @@ fn bench(c: &mut Criterion<CyclesPerByte>) {
                     _ => panic!(),
                 };
                 let mut input = decryptor
-                    .decrypt(iter::once(
-                        Box::new(identity.clone()) as Box<dyn age::Identity>
-                    ))
+                    .decrypt(iter::once(&identity as &dyn age::Identity))
                     .unwrap();
                 input.read_exact(&mut buf[..size]).unwrap();
             })
