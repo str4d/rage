@@ -691,9 +691,9 @@ dependencies = [
 
 [[package]]
 name = "fluent"
-version = "0.14.4"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "960ac6317b829b94c67f9a774e8b56db388405e174855a5a84d4b461ff85b281"
+checksum = "bc4d7142005e2066e4844caf9f271b93fc79836ee96ec85057b8c109687e629a"
 dependencies = [
  "fluent-bundle",
  "unic-langid",
@@ -701,9 +701,9 @@ dependencies = [
 
 [[package]]
 name = "fluent-bundle"
-version = "0.14.4"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba3cc2d1c59a0daaa93bb346db97e1ebad1067c5ffedc1af8b937a9d8caa6a77"
+checksum = "5b589dfaa7e69ddf497be48cd0d184d7ff6e2cbb8186d1bb01c26d5cf5449a17"
 dependencies = [
  "fluent-langneg",
  "fluent-syntax",
@@ -726,9 +726,12 @@ dependencies = [
 
 [[package]]
 name = "fluent-syntax"
-version = "0.10.3"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784f660373ea898f712a7e67b43f35bf79608d46112747c29767d087611d716b"
+checksum = "c0abed97648395c902868fee9026de96483933faa54ea3b40d652f7dfe61ca78"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "funty"
@@ -994,14 +997,15 @@ dependencies = [
 
 [[package]]
 name = "i18n-embed"
-version = "0.10.2"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "820f9b2730acafbe8aa8998781f31136d9d3611daf81dc95490a61831756e0ac"
+checksum = "76146ceb86e5b4128a7d4f8716508841b6156bb231bf138f45235fe985aa79e0"
 dependencies = [
  "fluent",
  "fluent-langneg",
  "fluent-syntax",
  "i18n-embed-impl",
+ "intl-memoizer",
  "lazy_static",
  "locale_config",
  "log 0.4.14",
@@ -1014,9 +1018,9 @@ dependencies = [
 
 [[package]]
 name = "i18n-embed-fl"
-version = "0.3.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8be988544c631312b138c18ee00f5a36db42cbd12017db67b53f807c078fd0b"
+checksum = "4d91f4951bd0bc19624a06781bf8cd05bdd59057622e5d4240823b42a5f102d2"
 dependencies = [
  "dashmap",
  "find-crate",
@@ -1035,9 +1039,9 @@ dependencies = [
 
 [[package]]
 name = "i18n-embed-impl"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea4dbd191f5a08e7f8dd3331c0a43340508a31e07b3c562151722e6eb65f9f86"
+checksum = "2757ae6d1dd47fba009e86795350186fc4740a6e53a1b4f336a8a6725d20eb53"
 dependencies = [
  "find-crate",
  "i18n-config",
