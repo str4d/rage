@@ -229,9 +229,9 @@ mod tests {
     #[cfg(feature = "async")]
     use futures_test::task::noop_context;
 
-    fn recipient_round_trip(
+    fn recipient_round_trip<'a>(
         recipients: Vec<Box<dyn Recipient>>,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
+        identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
 
@@ -255,9 +255,9 @@ mod tests {
     }
 
     #[cfg(feature = "async")]
-    fn recipient_async_round_trip(
+    fn recipient_async_round_trip<'a>(
         recipients: Vec<Box<dyn Recipient>>,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
+        identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
         let mut cx = noop_context();
@@ -339,9 +339,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             vec![Box::new(pk)],
-            f.into_identities()
-                .into_iter()
-                .map(|sk| Box::new(sk) as Box<dyn Identity>),
+            f.into_identities().iter().map(|sk| sk as &dyn Identity),
         );
     }
 
@@ -353,9 +351,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             vec![Box::new(pk)],
-            f.into_identities()
-                .into_iter()
-                .map(|sk| Box::new(sk) as Box<dyn Identity>),
+            f.into_identities().iter().map(|sk| sk as &dyn Identity),
         );
     }
 
@@ -392,10 +388,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_round_trip(
-            vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
-        );
+        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -406,10 +399,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(
-            vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
-        );
+        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(feature = "ssh")]
@@ -420,10 +410,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_round_trip(
-            vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
-        );
+        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -434,9 +421,6 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(
-            vec![Box::new(pk)],
-            iter::once(Box::new(sk) as Box<dyn Identity>),
-        );
+        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
     }
 }

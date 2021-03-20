@@ -61,8 +61,7 @@
 //!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(
-//!         iter::once(Box::new(key) as Box<dyn age::Identity>))?;
+//!     let mut reader = decryptor.decrypt(iter::once(&key as &dyn age::Identity))?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted

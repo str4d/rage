@@ -5,7 +5,7 @@ use age::{
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
     },
-    plugin, IdentityFile, Recipient,
+    plugin, Identity, IdentityFile, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -384,7 +384,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
 
             decryptor
-                .decrypt(identities.into_iter())
+                .decrypt(identities.iter().map(|i| i.as_ref() as &dyn Identity))
                 .map_err(|e| e.into())
                 .and_then(|input| write_output(input, output))
         }

@@ -51,9 +51,9 @@ impl<R> RecipientsDecryptor<R> {
         })
     }
 
-    fn obtain_payload_key(
+    fn obtain_payload_key<'a>(
         &self,
-        mut identities: impl Iterator<Item = Box<dyn Identity>>,
+        mut identities: impl Iterator<Item = &'a dyn Identity>,
     ) -> Result<PayloadKey, DecryptError> {
         self.0
             .obtain_payload_key(|r| identities.find_map(|key| key.unwrap_stanzas(r)))
@@ -64,9 +64,9 @@ impl<R: Read> RecipientsDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt(
+    pub fn decrypt<'a>(
         self,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
+        identities: impl Iterator<Item = &'a dyn Identity>,
     ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt(payload_key, self.0.input))
@@ -79,9 +79,9 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
     /// Attempts to decrypt the age file.
     ///
     /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_async(
+    pub fn decrypt_async<'a>(
         self,
-        identities: impl Iterator<Item = Box<dyn Identity>>,
+        identities: impl Iterator<Item = &'a dyn Identity>,
     ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(identities)
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
