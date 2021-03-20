@@ -1,4 +1,4 @@
-use bech32::FromBase32;
+use bech32::{FromBase32, Variant};
 
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
@@ -6,9 +6,13 @@ pub(crate) const LINE_ENDING: &str = "\r\n";
 pub(crate) const LINE_ENDING: &str = "\n";
 
 pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
-    bech32::decode(s)
-        .ok()
-        .and_then(|(hrp, data)| Vec::from_base32(&data).ok().map(|d| (hrp, d)))
+    bech32::decode(s).ok().and_then(|(hrp, data, variant)| {
+        if let Variant::Bech32 = variant {
+            Vec::from_base32(&data).ok().map(|d| (hrp, d))
+        } else {
+            None
+        }
+    })
 }
 
 pub(crate) mod read {

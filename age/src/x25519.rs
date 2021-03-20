@@ -4,7 +4,7 @@ use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
-use bech32::ToBase32;
+use bech32::{ToBase32, Variant};
 use rand::rngs::OsRng;
 use secrecy::ExposeSecret;
 use secrecy::SecretString;
@@ -64,7 +64,8 @@ impl Identity {
     pub fn to_string(&self) -> SecretString {
         let mut sk_bytes = self.0.to_bytes();
         let sk_base32 = sk_bytes.to_base32();
-        let mut encoded = bech32::encode(SECRET_KEY_PREFIX, sk_base32).expect("HRP is valid");
+        let mut encoded =
+            bech32::encode(SECRET_KEY_PREFIX, sk_base32, Variant::Bech32).expect("HRP is valid");
         let ret = SecretString::new(encoded.to_uppercase());
 
         // Clear intermediates
@@ -151,7 +152,12 @@ impl fmt::Display for Recipient {
         write!(
             f,
             "{}",
-            bech32::encode(PUBLIC_KEY_PREFIX, self.0.as_bytes().to_base32()).expect("HRP is valid")
+            bech32::encode(
+                PUBLIC_KEY_PREFIX,
+                self.0.as_bytes().to_base32(),
+                Variant::Bech32
+            )
+            .expect("HRP is valid")
         )
     }
 }
