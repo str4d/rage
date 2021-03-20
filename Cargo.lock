@@ -181,9 +181,9 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "bcrypt-pbkdf"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70d5bbe46c3d614969b18885d5d9dee18948c1af87bdcd48d0968d2d3e7a50b5"
+checksum = "ac3c57ebe4acbed200ea7079f70d873d87783af0a5057501323d0a391ae36309"
 dependencies = [
  "blowfish",
  "crypto-mac",
@@ -1415,9 +1415,9 @@ dependencies = [
 
 [[package]]
 name = "pbkdf2"
-version = "0.6.0"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3b8c0d71734018084da0c0354193a5edfb81b20d2d57a92c5b154aefc554a4a"
+checksum = "297e1dad0e9de7af53235b833761351bf6bda57d6acb4f263b61a2ddf674f1dc"
 dependencies = [
  "crypto-mac",
 ]
@@ -1919,9 +1919,9 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scrypt"
-version = "0.5.0"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da492dab03f925d977776a0b7233d7b934d6dc2b94faead48928e2e9bacedb9"
+checksum = "25cba843abb27147110e2e9aa82b3be81eb386a9c6e3b35504c8c2ee305fd643"
 dependencies = [
  "hmac",
  "pbkdf2",

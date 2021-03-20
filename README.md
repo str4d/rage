@@ -116,7 +116,7 @@ brew install rage
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
 
-If your system has Rust 1.45+ installed (either via `rustup` or a system
+If your system has Rust 1.47+ installed (either via `rustup` or a system
 package), you can build directly from source:
 
 ```
