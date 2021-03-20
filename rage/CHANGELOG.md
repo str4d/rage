@@ -20,6 +20,7 @@ to 1.0.0 are beta releases.
   of relying on `-d/--decrypt` not being present).
 
 ### Changed
+- MSRV is now 1.47.0.
 - Files encrypted with this version of `rage` might not decrypt with previous
   beta versions, due to changes in how stanza bodies are canonically encoded.
   This should only affect a small fraction of files (if grease that triggers the

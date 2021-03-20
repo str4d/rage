@@ -159,6 +159,7 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_docs)]
 
+use bech32::Variant;
 use secrecy::SecretString;
 use std::io;
 
@@ -184,6 +185,7 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
         bech32::encode(
             &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name),
             recipient.to_base32(),
+            Variant::Bech32
         )
         .expect("HRP is valid")
     );
@@ -192,6 +194,7 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
         bech32::encode(
             &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
             identity.to_base32(),
+            Variant::Bech32,
         )
         .expect("HRP is valid")
         .to_uppercase()

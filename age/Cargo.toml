@@ -34,13 +34,13 @@ hmac = "0.10"
 sha2 = "0.9"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.5", default-features = false }
+scrypt = { version = "0.6", default-features = false }
 
 # - CSPRNG
 rand = "0.7"
 
 # - Key encoding
-bech32 = "0.7.2"
+bech32 = "0.8"
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
@@ -53,7 +53,7 @@ curve25519-dalek = { version = "3", optional = true }
 # - Encrypted keys
 aes = { version = "0.6", optional = true }
 aes-ctr = { version = "0.6", optional = true }
-bcrypt-pbkdf = { version = "0.4", optional = true }
+bcrypt-pbkdf = { version = "0.5", optional = true }
 block-modes = { version = "0.7", optional = true }
 
 # Parsing
@@ -70,8 +70,8 @@ futures = { version = "0.3", optional = true }
 pin-project = "1"
 
 # Localization
-i18n-embed = { version = "0.10.2", features = ["fluent-system"] }
-i18n-embed-fl = "0.3"
+i18n-embed = { version = "0.12", features = ["fluent-system"] }
+i18n-embed-fl = "0.5"
 lazy_static = "1"
 rust-embed = "5"
 
