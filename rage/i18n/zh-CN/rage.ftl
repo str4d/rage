@@ -35,8 +35,8 @@ usage-header = Usage:
 
 rage-usage =
     {usage-header}
-      {$usage_a}
-      {$usage_b}
+    {"  "}{$usage_a}
+    {"  "}{$usage_b}
 
     {$flags}
 
