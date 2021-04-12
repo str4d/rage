@@ -76,28 +76,20 @@ impl RecipientPluginV1 for RecipientPlugin {
 struct IdentityPlugin;
 
 impl IdentityPluginV1 for IdentityPlugin {
-    fn add_identities<'a, I: Iterator<Item = &'a str>>(
+    fn add_identity(
         &mut self,
-        identities: I,
-    ) -> Result<(), Vec<identity::Error>> {
-        let errors = identities
-            .enumerate()
-            .filter_map(|(index, identity)| {
-                if identity.contains(&PLUGIN_NAME.to_uppercase()) {
-                    // A real plugin would store the identity.
-                    None
-                } else {
-                    Some(identity::Error::Identity {
-                        index,
-                        message: "invalid identity".to_owned(),
-                    })
-                }
-            })
-            .collect::<Vec<_>>();
-        if errors.is_empty() {
+        index: usize,
+        plugin_name: &str,
+        _bytes: &[u8],
+    ) -> Result<(), identity::Error> {
+        if plugin_name == PLUGIN_NAME {
+            // A real plugin would store the identity.
             Ok(())
         } else {
-            Err(errors)
+            Err(identity::Error::Identity {
+                index,
+                message: "invalid identity".to_owned(),
+            })
         }
     }
 
