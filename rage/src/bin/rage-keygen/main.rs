@@ -50,6 +50,9 @@ fn main() {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
     age::localizer().select(&requested_languages).unwrap();
+    // Unfortunately the common Windows terminals don't support Unicode Directionality
+    // Isolation Marks, so we disable them for now.
+    LANGUAGE_LOADER.set_use_isolating(false);
 
     let opts = AgeOptions::parse_args_default_or_exit();
 
