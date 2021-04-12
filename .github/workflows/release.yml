@@ -20,7 +20,7 @@ jobs:
         name: [linux, armv7, arm64, windows, macos]
         include:
           - name: linux
-            os: ubuntu-latest
+            os: ubuntu-16.04
             build_deps: >
               libfuse-dev
               libpcsclite-dev
@@ -29,7 +29,7 @@ jobs:
             asset_suffix: x86_64-linux.tar.gz
 
           - name: armv7
-            os: ubuntu-latest
+            os: ubuntu-16.04
             target: armv7-unknown-linux-gnueabihf
             build_deps: >
               gcc-arm-linux-gnueabihf
@@ -41,7 +41,7 @@ jobs:
             asset_suffix: armv7-linux.tar.gz
 
           - name: arm64
-            os: ubuntu-latest
+            os: ubuntu-16.04
             target: aarch64-unknown-linux-gnu
             build_deps: >
               gcc-aarch64-linux-gnu
@@ -116,7 +116,7 @@ jobs:
 
   deb:
     name: Debian ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         name: [linux, armv7, arm64]
