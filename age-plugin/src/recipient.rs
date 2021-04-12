@@ -4,11 +4,12 @@ use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     plugin::{self, BidirSend, Connection},
 };
+use bech32::FromBase32;
 use secrecy::SecretString;
 use std::convert::TryInto;
 use std::io;
 
-use crate::Callbacks;
+use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
 
 const ADD_RECIPIENT: &str = "add-recipient";
 const ADD_IDENTITY: &str = "add-identity";
@@ -17,30 +18,23 @@ const RECIPIENT_STANZA: &str = "recipient-stanza";
 
 /// The interface that age implementations will use to interact with an age plugin.
 pub trait RecipientPluginV1 {
-    /// Stores recipients that the user would like to encrypt age files to.
+    /// Stores a recipient that the user would like to encrypt age files to.
     ///
-    /// Each recipient string is Bech32-encoded with an HRP of `age1name` where `name` is
-    /// the name of the plugin that resolved to this binary.
+    /// `plugin_name` is the name of the binary that resolved to this plugin.
     ///
-    /// Returns a list of errors if any of the recipients are unknown or invalid.
-    fn add_recipients<'a, I: Iterator<Item = &'a str>>(
-        &mut self,
-        recipients: I,
-    ) -> Result<(), Vec<Error>>;
+    /// Returns an error if the recipient is unknown or invalid.
+    fn add_recipient(&mut self, index: usize, plugin_name: &str, bytes: &[u8])
+        -> Result<(), Error>;
 
-    /// Stores identities that the user would like to encrypt age files to.
+    /// Stores an identity that the user would like to encrypt age files to.
     ///
-    /// Each identity string is Bech32-encoded with an HRP of `AGE-PLUGIN-NAME-` where
-    /// `NAME` is the name of the plugin that resolved to this binary.
+    /// `plugin_name` is the name of the binary that resolved to this plugin.
     ///
-    /// Returns a list of errors if any of the identities are unknown or invalid.
-    fn add_identities<'a, I: Iterator<Item = &'a str>>(
-        &mut self,
-        identities: I,
-    ) -> Result<(), Vec<Error>>;
+    /// Returns an error if the identity is unknown or invalid.
+    fn add_identity(&mut self, index: usize, plugin_name: &str, bytes: &[u8]) -> Result<(), Error>;
 
     /// Wraps each `file_key` to all recipients and identities previously added via
-    /// `add_recipients` and `add_identities`.
+    /// `add_recipient` and `add_identity`.
     ///
     /// Returns either one stanza per recipient and identity for each file key, or any
     /// errors if one or more recipients or identities could not be wrapped to.
@@ -168,29 +162,23 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     // Phase 1: collect recipients, and file keys to be wrapped
     let ((recipients, identities), file_keys) = {
         let (recipients, identities, file_keys) = conn.unidir_receive(
-            (ADD_RECIPIENT, |s| {
-                if s.args.len() == 1 && s.body.is_empty() {
-                    Ok(s)
-                } else {
-                    Err(Error::Internal {
-                        message: format!(
-                            "{} command must have exactly one metadata argument and no data",
-                            ADD_RECIPIENT
-                        ),
-                    })
-                }
+            (ADD_RECIPIENT, |s| match (&s.args[..], &s.body[..]) {
+                ([recipient], []) => Ok(recipient.clone()),
+                _ => Err(Error::Internal {
+                    message: format!(
+                        "{} command must have exactly one metadata argument and no data",
+                        ADD_RECIPIENT
+                    ),
+                }),
             }),
-            (ADD_IDENTITY, |s| {
-                if s.args.len() == 1 && s.body.is_empty() {
-                    Ok(s)
-                } else {
-                    Err(Error::Internal {
-                        message: format!(
-                            "{} command must have exactly one metadata argument and no data",
-                            ADD_IDENTITY
-                        ),
-                    })
-                }
+            (ADD_IDENTITY, |s| match (&s.args[..], &s.body[..]) {
+                ([identity], []) => Ok(identity.clone()),
+                _ => Err(Error::Internal {
+                    message: format!(
+                        "{} command must have exactly one metadata argument and no data",
+                        ADD_IDENTITY
+                    ),
+                }),
             }),
             (Some(WRAP_FILE_KEY), |s| {
                 // TODO: Should we ignore file key commands with unexpected metadata args?
@@ -223,10 +211,77 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
         )
     };
 
+    // Now that we have the full list of recipients and identities, parse them as Bech32
+    // and add them to the plugin.
+    fn parse_and_add(
+        items: Result<Vec<String>, Vec<Error>>,
+        plugin_name: impl Fn(&str) -> Option<&str>,
+        error: impl Fn(usize) -> Error,
+        mut adder: impl FnMut(usize, &str, Vec<u8>) -> Result<(), Error>,
+    ) -> Result<usize, Vec<Error>> {
+        items.and_then(|items| {
+            let count = items.len();
+            let errors: Vec<_> = items
+                .into_iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    let decoded = bech32::decode(&item).ok();
+                    decoded
+                        .as_ref()
+                        .and_then(|(hrp, data, variant)| match (plugin_name(hrp), variant) {
+                            (Some(plugin_name), &bech32::Variant::Bech32) => {
+                                Vec::from_base32(&data).ok().map(|data| (plugin_name, data))
+                            }
+                            _ => None,
+                        })
+                        .ok_or_else(|| error(index))
+                        .and_then(|(plugin_name, bytes)| adder(index, plugin_name, bytes))
+                })
+                .filter_map(|res| res.err())
+                .collect();
+
+            if errors.is_empty() {
+                Ok(count)
+            } else {
+                Err(errors)
+            }
+        })
+    }
+    let recipients = parse_and_add(
+        recipients,
+        |hrp| {
+            if hrp.starts_with(PLUGIN_RECIPIENT_PREFIX) {
+                Some(&hrp[PLUGIN_RECIPIENT_PREFIX.len()..])
+            } else {
+                None
+            }
+        },
+        |index| Error::Recipient {
+            index,
+            message: "Invalid recipient encoding".to_owned(),
+        },
+        |index, plugin_name, bytes| plugin.add_recipient(index, &plugin_name, &bytes),
+    );
+    let identities = parse_and_add(
+        identities,
+        |hrp| {
+            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX) && hrp.ends_with('-') {
+                Some(&hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1])
+            } else {
+                None
+            }
+        },
+        |index| Error::Identity {
+            index,
+            message: "Invalid identity encoding".to_owned(),
+        },
+        |index, plugin_name, bytes| plugin.add_identity(index, &plugin_name, &bytes),
+    );
+
     // Phase 2: wrap the file keys or return errors
     conn.bidir_send(|mut phase| {
-        let (recipients, identities, file_keys) = match (recipients, identities, file_keys) {
-            (Ok(recipients), Ok(identities), Ok(file_keys)) => (recipients, identities, file_keys),
+        let (expected_stanzas, file_keys) = match (recipients, identities, file_keys) {
+            (Ok(recipients), Ok(identities), Ok(file_keys)) => (recipients + identities, file_keys),
             (recipients, identities, file_keys) => {
                 for error in recipients
                     .err()
@@ -241,38 +296,24 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             }
         };
 
-        if let Err(errors) =
-            plugin.add_recipients(recipients.iter().map(|s| s.args.first().unwrap().as_str()))
-        {
-            for error in errors {
-                error.send(&mut phase)?;
-            }
-        } else if let Err(errors) =
-            plugin.add_identities(identities.iter().map(|s| s.args.first().unwrap().as_str()))
-        {
-            for error in errors {
-                error.send(&mut phase)?;
-            }
-        } else {
-            match plugin.wrap_file_keys(file_keys, BidirCallbacks(&mut phase))? {
-                Ok(files) => {
-                    for (file_index, stanzas) in files.into_iter().enumerate() {
-                        // The plugin MUST generate an error if one or more recipients or
-                        // identities cannot be wrapped to. And it's a programming error
-                        // to return more stanzas than recipients and identities.
-                        assert_eq!(stanzas.len(), recipients.len() + identities.len());
+        match plugin.wrap_file_keys(file_keys, BidirCallbacks(&mut phase))? {
+            Ok(files) => {
+                for (file_index, stanzas) in files.into_iter().enumerate() {
+                    // The plugin MUST generate an error if one or more recipients or
+                    // identities cannot be wrapped to. And it's a programming error
+                    // to return more stanzas than recipients and identities.
+                    assert_eq!(stanzas.len(), expected_stanzas);
 
-                        for stanza in stanzas {
-                            phase
-                                .send_stanza(RECIPIENT_STANZA, &[&file_index.to_string()], &stanza)?
-                                .unwrap();
-                        }
+                    for stanza in stanzas {
+                        phase
+                            .send_stanza(RECIPIENT_STANZA, &[&file_index.to_string()], &stanza)?
+                            .unwrap();
                     }
                 }
-                Err(errors) => {
-                    for error in errors {
-                        error.send(&mut phase)?;
-                    }
+            }
+            Err(errors) => {
+                for error in errors {
+                    error.send(&mut phase)?;
                 }
             }
         }
