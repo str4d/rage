@@ -83,17 +83,21 @@
 //! struct RecipientPlugin;
 //!
 //! impl RecipientPluginV1 for RecipientPlugin {
-//!     fn add_recipients<'a, I: Iterator<Item = &'a str>>(
+//!     fn add_recipient(
 //!         &mut self,
-//!         recipients: I,
-//!     ) -> Result<(), Vec<recipient::Error>> {
+//!         index: usize,
+//!         plugin_name: &str,
+//!         bytes: &[u8],
+//!     ) -> Result<(), recipient::Error> {
 //!         todo!()
 //!     }
 //!
-//!     fn add_identities<'a, I: Iterator<Item = &'a str>>(
+//!     fn add_identity(
 //!         &mut self,
-//!         identities: I,
-//!     ) -> Result<(), Vec<recipient::Error>> {
+//!         index: usize,
+//!         plugin_name: &str,
+//!         bytes: &[u8]
+//!     ) -> Result<(), recipient::Error> {
 //!         todo!()
 //!     }
 //!
@@ -109,10 +113,12 @@
 //! struct IdentityPlugin;
 //!
 //! impl IdentityPluginV1 for IdentityPlugin {
-//!     fn add_identities<'a, I: Iterator<Item = &'a str>>(
+//!     fn add_identity(
 //!         &mut self,
-//!         identities: I,
-//!     ) -> Result<(), Vec<identity::Error>> {
+//!         index: usize,
+//!         plugin_name: &str,
+//!         bytes: &[u8]
+//!     ) -> Result<(), identity::Error> {
 //!         todo!()
 //!     }
 //!

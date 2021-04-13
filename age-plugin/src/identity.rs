@@ -4,11 +4,12 @@ use age_core::{
     format::{FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
 };
+use bech32::FromBase32;
 use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::io;
 
-use crate::Callbacks;
+use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX};
 
 const ADD_IDENTITY: &str = "add-identity";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
@@ -17,17 +18,13 @@ const RECIPIENT_STANZA: &str = "recipient-stanza";
 pub trait IdentityPluginV1 {
     /// Stores an identity that the user would like to use for decrypting age files.
     ///
-    /// Each identity string is Bech32-encoded with an HRP of `AGE-PLUGIN-NAME-` where
-    /// `NAME` is the name of the plugin that resolved to this binary.
+    /// `plugin_name` is the name of the binary that resolved to this plugin.
     ///
-    /// Returns a list of errors if any of the identities are unknown or invalid.
-    fn add_identities<'a, I: Iterator<Item = &'a str>>(
-        &mut self,
-        identities: I,
-    ) -> Result<(), Vec<Error>>;
+    /// Returns an error if the identity is unknown or invalid.
+    fn add_identity(&mut self, index: usize, plugin_name: &str, bytes: &[u8]) -> Result<(), Error>;
 
     /// Attempts to unwrap the file keys contained within the given age recipient stanzas,
-    /// using identities previously stored via [`add_identities`].
+    /// using identities previously stored via [`add_identity`].
     ///
     /// Returns a `HashMap` containing the unwrapping results for each file:
     ///
@@ -43,7 +40,7 @@ pub trait IdentityPluginV1 {
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
     ///
-    /// [`add_identities`]: IdentityPluginV1::add_identities
+    /// [`add_identity`]: IdentityPluginV1::add_identity
     fn unwrap_file_keys(
         &mut self,
         files: Vec<Vec<Stanza>>,
@@ -175,17 +172,14 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
     // Phase 1: receive identities and stanzas
     let (identities, recipient_stanzas) = {
         let (identities, stanzas, _) = conn.unidir_receive(
-            (ADD_IDENTITY, |s| {
-                if s.args.len() == 1 && s.body.is_empty() {
-                    Ok(s)
-                } else {
-                    Err(Error::Internal {
-                        message: format!(
-                            "{} command must have exactly one metadata argument and no data",
-                            ADD_IDENTITY
-                        ),
-                    })
-                }
+            (ADD_IDENTITY, |s| match (&s.args[..], &s.body[..]) {
+                ([identity], []) => Ok(identity.clone()),
+                _ => Err(Error::Internal {
+                    message: format!(
+                        "{} command must have exactly one metadata argument and no data",
+                        ADD_IDENTITY
+                    ),
+                }),
             }),
             (RECIPIENT_STANZA, |mut s| {
                 if s.args.len() >= 2 {
@@ -211,6 +205,47 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
             }),
             (None, |_| Ok(())),
         )?;
+
+        // Now that we have the full list of identities, parse them as Bech32 and add them
+        // to the plugin.
+        let identities = identities.and_then(|items| {
+            let errors: Vec<_> = items
+                .into_iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    bech32::decode(&item)
+                        .ok()
+                        .and_then(|(hrp, data, variant)| {
+                            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
+                                && hrp.ends_with('-')
+                                && variant == bech32::Variant::Bech32
+                            {
+                                Vec::from_base32(&data).ok().map(|data| (hrp, data))
+                            } else {
+                                None
+                            }
+                        })
+                        .ok_or_else(|| Error::Identity {
+                            index,
+                            message: "Invalid identity encoding".to_owned(),
+                        })
+                        .and_then(|(hrp, bytes)| {
+                            plugin.add_identity(
+                                index,
+                                &hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
+                                &bytes,
+                            )
+                        })
+                })
+                .filter_map(|res| res.err())
+                .collect();
+
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(errors)
+            }
+        });
 
         let stanzas = stanzas.and_then(|recipient_stanzas| {
             let mut stanzas: Vec<Vec<Stanza>> = Vec::new();
@@ -241,8 +276,8 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 2: interactively unwrap
     conn.bidir_send(|mut phase| {
-        let (identities, stanzas) = match (identities, recipient_stanzas) {
-            (Ok(identities), Ok(stanzas)) => (identities, stanzas),
+        let stanzas = match (identities, recipient_stanzas) {
+            (Ok(()), Ok(stanzas)) => stanzas,
             (Err(errors1), Err(errors2)) => {
                 for error in errors1.into_iter().chain(errors2.into_iter()) {
                     error.send(&mut phase)?;
@@ -257,30 +292,22 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
             }
         };
 
-        if let Err(errors) =
-            plugin.add_identities(identities.iter().map(|s| s.args.first().unwrap().as_str()))
-        {
-            for error in errors {
-                error.send(&mut phase)?;
-            }
-        } else {
-            let unwrapped = plugin.unwrap_file_keys(stanzas, BidirCallbacks(&mut phase))?;
+        let unwrapped = plugin.unwrap_file_keys(stanzas, BidirCallbacks(&mut phase))?;
 
-            for (file_index, file_key) in unwrapped {
-                match file_key {
-                    Ok(file_key) => {
-                        phase
-                            .send(
-                                "file-key",
-                                &[&format!("{}", file_index)],
-                                file_key.expose_secret(),
-                            )?
-                            .unwrap();
-                    }
-                    Err(errors) => {
-                        for error in errors {
-                            error.send(&mut phase)?;
-                        }
+        for (file_index, file_key) in unwrapped {
+            match file_key {
+                Ok(file_key) => {
+                    phase
+                        .send(
+                            "file-key",
+                            &[&format!("{}", file_index)],
+                            file_key.expose_secret(),
+                        )?
+                        .unwrap();
+                }
+                Err(errors) => {
+                    for error in errors {
+                        error.send(&mut phase)?;
                     }
                 }
             }
