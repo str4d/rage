@@ -21,7 +21,7 @@ c2-chacha = "0.3"
 chacha20poly1305 = { version = "0.7", default-features = false, features = ["alloc"] }
 
 # - HKDF from RFC 5869 with SHA-256
-hkdf = "0.10"
+hkdf = "0.11"
 sha2 = "0.9"
 
 # - CSPRNG
