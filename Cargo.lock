@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "age-plugin"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "age-core",
  "bech32",
