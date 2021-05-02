@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2021-05-02
 ### Security
 - `age_core::primitives::aead_decrypt` now takes a `size` argument, checked
   against the plaintext length. This is to mitigate multi-key attacks, where a

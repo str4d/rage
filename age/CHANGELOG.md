@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2021-05-02
 ### Security
 - `StreamReader::seek(SeekFrom::End(offset))` did not previously authenticate
   the ciphertext length; if the ciphertext had been truncated or extended by

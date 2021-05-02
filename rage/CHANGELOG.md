@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2021-05-02
 ### Added
 - Plugin support!
   - The new [`age-plugin`](https://crates.io/crates/age-plugin) crate provides
