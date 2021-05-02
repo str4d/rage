@@ -24,7 +24,7 @@ The reference interoperable Golang implementation is available at
 Add this line to your `Cargo.toml`:
 
 ```
-age = "0.5"
+age = "0.6"
 ```
 
 See the [documentation](https://docs.rs/age) for examples.

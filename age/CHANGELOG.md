@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2021-05-02
 ### Security
 - `StreamReader::seek(SeekFrom::End(offset))` did not previously authenticate
   the ciphertext length; if the ciphertext had been truncated or extended by
@@ -41,6 +43,9 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.47.0.
+- `age::cli_common::file_io::OutputWriter::File` will now *overwrite* the file
+  if it exists, instead of returning an error. This makes it consistent with
+  `age::cli_common::file_io::OutputWriter::Stdout`, as well as most UNIX tools.
 - Files encrypted with this version of `age` might not decrypt with previous
   beta versions, due to changes in how stanza bodies are canonically encoded.
   This should only affect a small fraction of files (if grease that triggers the

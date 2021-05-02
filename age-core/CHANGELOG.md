@@ -7,6 +7,16 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2021-05-02
+### Security
+- `age_core::primitives::aead_decrypt` now takes a `size` argument, checked
+  against the plaintext length. This is to mitigate multi-key attacks, where a
+  ciphertext can be crafted that decrypts successfully under multiple keys.
+  Short ciphertexts can only target two keys, which has limited impact. See
+  [this commit message](https://github.com/FiloSottile/age/commit/2194f6962c8bb3bca8a55f313d5b9302596b593b)
+  for more details.
+
 ### Added
 - `age_core::format::FILE_KEY_BYTES` constant.
 - `age_core::plugin` module, which contains common backend logic used by both
@@ -22,14 +32,6 @@ to 1.0.0 are beta releases.
   `age_core::format::read::age_stanza` accepts only the new encoding. The new
   API `age_core::format::read::legacy_age_stanza` accepts either kind of stanza
   body encoding (the legacy minimal encoding, and the new explicit encoding).
-
-### Security
-- `age_core::primitives::aead_decrypt` now takes a `size` argument, checked
-  against the plaintext length. This is to mitigate multi-key attacks, where a
-  ciphertext can be crafted that decrypts successfully under multiple keys.
-  Short ciphertexts can only target two keys, which has limited impact. See
-  [this commit message](https://github.com/FiloSottile/age/commit/2194f6962c8bb3bca8a55f313d5b9302596b593b)
-  for more details.
 
 ## [0.5.0] - 2020-11-22
 ### Added
