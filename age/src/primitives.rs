@@ -30,7 +30,7 @@ impl HmacWriter {
     /// Constructs a new writer to process input data.
     pub(crate) fn new(key: HmacKey) -> Self {
         HmacWriter {
-            inner: Hmac::new_varkey(key.0.expose_secret()).expect("key is the correct length"),
+            inner: Hmac::new_from_slice(key.0.expose_secret()).expect("key is the correct length"),
         }
     }
 
