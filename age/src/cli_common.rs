@@ -101,7 +101,10 @@ where
 /// Requests a secret from the user.
 ///
 /// If a `pinentry` binary is available on the system, it is used to request the secret.
-/// If not, we fall back to requesting directly in the CLI via stdin.
+/// If not, we fall back to requesting directly in the CLI via a TTY.
+///
+/// This API does not take the secret directly from stdin, because it is specifically
+/// intended to take the secret from a human.
 ///
 /// # Parameters
 ///
