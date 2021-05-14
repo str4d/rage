@@ -7,8 +7,7 @@
 //! Note that these recipient types are not anonymous: the encrypted message will include
 //! a short 32-bit ID of the public key.
 
-use aes::Aes256;
-use aes_ctr::{Aes128Ctr, Aes192Ctr, Aes256Ctr};
+use aes::{Aes128Ctr, Aes192Ctr, Aes256, Aes256Ctr};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
@@ -111,15 +110,16 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes::cipher::block::{BlockCipher, NewBlockCipher};
-    use aes_ctr::cipher::stream::{NewStreamCipher, StreamCipher};
+    use aes::cipher::{
+        BlockCipher, BlockDecrypt, BlockEncrypt, NewBlockCipher, NewCipher, StreamCipher,
+    };
     use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
     use secrecy::SecretString;
 
     use super::OpenSshKdf;
     use crate::error::DecryptError;
 
-    pub(super) fn aes_cbc<C: BlockCipher + NewBlockCipher>(
+    pub(super) fn aes_cbc<C: BlockCipher + BlockEncrypt + BlockDecrypt + NewBlockCipher>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
@@ -128,13 +128,14 @@ mod decrypt {
         let kdf_output = kdf.derive(passphrase, key_len + 16);
         let (key, iv) = kdf_output.split_at(key_len);
 
-        let cipher = Cbc::<C, NoPadding>::new_var(key, iv).expect("key and IV are correct length");
+        let cipher =
+            Cbc::<C, NoPadding>::new_from_slices(key, iv).expect("key and IV are correct length");
         cipher
             .decrypt_vec(&ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 
-    pub(super) fn aes_ctr<C: NewStreamCipher + StreamCipher>(
+    pub(super) fn aes_ctr<C: NewCipher + StreamCipher>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
@@ -143,10 +144,10 @@ mod decrypt {
         let kdf_output = kdf.derive(passphrase, key_len + 16);
         let (key, nonce) = kdf_output.split_at(key_len);
 
-        let mut cipher = C::new_var(key, nonce).expect("key and nonce are correct length");
+        let mut cipher = C::new_from_slices(key, nonce).expect("key and nonce are correct length");
 
         let mut plaintext = ciphertext.to_vec();
-        cipher.decrypt(&mut plaintext);
+        cipher.apply_keystream(&mut plaintext);
         plaintext
     }
 }
