@@ -51,10 +51,9 @@ rsa = { version = "0.3", optional = true }
 curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
-aes = { version = "0.6", optional = true }
-aes-ctr = { version = "0.6", optional = true }
+aes = { version = "0.7", optional = true, features = ["ctr"] }
 bcrypt-pbkdf = { version = "0.6", optional = true }
-block-modes = { version = "0.7", optional = true }
+block-modes = { version = "0.8", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
@@ -102,7 +101,6 @@ cli-common = ["console", "pinentry", "rpassword"]
 plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",
-    "aes-ctr",
     "bcrypt-pbkdf",
     "block-modes",
     "curve25519-dalek",
