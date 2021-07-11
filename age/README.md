@@ -16,7 +16,7 @@ age-dev@googlegroups.com. age was designed by
 [@Benjojo12](https://twitter.com/Benjojo12) and
 [@FiloSottile](https://twitter.com/FiloSottile).
 
-The reference interoperable Golang implementation is available at
+The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
 
 ## Usage
