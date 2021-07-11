@@ -1,6 +1,10 @@
 use age::{x25519, Decryptor, Encryptor};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use criterion_cycles_per_byte::CyclesPerByte;
+
+#[cfg(unix)]
+use pprof::criterion::{Output, PProfProfiler};
+
 use std::io::{self, Read, Write};
 use std::iter;
 
@@ -63,9 +67,19 @@ fn bench(c: &mut Criterion<CyclesPerByte>) {
     group.finish();
 }
 
+#[cfg(unix)]
 criterion_group!(
     name = benches;
-    config = Criterion::default().with_measurement(CyclesPerByte);
+    config = Criterion::default()
+        .with_measurement(CyclesPerByte)
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench
+);
+#[cfg(not(unix))]
+criterion_group!(
+    name = benches;
+    config = Criterion::default()
+        .with_measurement(CyclesPerByte);
     targets = bench
 );
 criterion_main!(benches);
