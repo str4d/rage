@@ -26,13 +26,13 @@ pub fn read_identities<E, G>(
     filenames: Vec<String>,
     file_not_found: G,
     #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
-) -> Result<Vec<Box<dyn Identity>>, E>
+) -> Result<Vec<Box<dyn Identity + Send + Sync>>, E>
 where
     E: From<crate::DecryptError>,
     E: From<io::Error>,
     G: Fn(String) -> E,
 {
-    let mut identities: Vec<Box<dyn Identity>> = vec![];
+    let mut identities: Vec<Box<dyn Identity + Send + Sync>> = vec![];
 
     #[cfg(feature = "plugin")]
     let mut plugin_identities: Vec<plugin::Identity> = vec![];
@@ -68,7 +68,7 @@ where
         identities.extend(
             new_ids
                 .into_iter()
-                .map(|i| Box::new(i) as Box<dyn Identity>),
+                .map(|i| Box::new(i) as Box<dyn Identity + Send + Sync>),
         );
 
         #[cfg(feature = "plugin")]
