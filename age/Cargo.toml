@@ -121,6 +121,10 @@ name = "test_vectors"
 required-features = ["ssh"]
 
 [[bench]]
+name = "parser"
+harness = false
+
+[[bench]]
 name = "throughput"
 harness = false
 
