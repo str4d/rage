@@ -13,7 +13,7 @@ const KB: usize = 1024;
 fn bench(c: &mut Criterion<CyclesPerByte>) {
     let identity = x25519::Identity::generate();
     let recipient = identity.to_public();
-    let mut group = c.benchmark_group("stream");
+    let mut group = c.benchmark_group("age");
 
     // Prepare buffers to use in the benchmarks.
     let pt_buf = vec![7u8; 1024 * KB];
