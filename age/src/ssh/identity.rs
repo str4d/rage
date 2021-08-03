@@ -34,7 +34,7 @@ use crate::{
 /// An SSH private key for decrypting an age file.
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
-    SshRsa(Vec<u8>, Box<rsa::RSAPrivateKey>),
+    SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, Secret<[u8; 64]>),
 }

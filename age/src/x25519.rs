@@ -5,7 +5,7 @@ use age_core::{
     primitives::{aead_decrypt, aead_encrypt, hkdf},
 };
 use bech32::{ToBase32, Variant};
-use rand::rngs::OsRng;
+use rand_7::rngs::OsRng;
 use secrecy::ExposeSecret;
 use secrecy::SecretString;
 use std::convert::TryInto;

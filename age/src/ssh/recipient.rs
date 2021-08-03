@@ -32,7 +32,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Recipient {
     /// An ssh-rsa public key.
-    SshRsa(Vec<u8>, rsa::RSAPublicKey),
+    SshRsa(Vec<u8>, rsa::RsaPublicKey),
     /// An ssh-ed25519 public key.
     SshEd25519(Vec<u8>, EdwardsPoint),
 }
@@ -121,7 +121,7 @@ impl crate::Recipient for Recipient {
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
-                let mut rng = OsRng;
+                let mut rng = rand_7::rngs::OsRng;
                 let esk = EphemeralSecret::new(&mut rng);
                 let epk: X25519PublicKey = (&esk).into();
 
