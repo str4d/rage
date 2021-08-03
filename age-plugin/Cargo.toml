@@ -12,7 +12,7 @@ edition = "2018"
 age-core = { version = "0.6.0", path = "../age-core", features = ["plugin"] }
 bech32 = "0.8"
 chrono = "0.4"
-secrecy = "0.7"
+secrecy = "0.8"
 
 [dev-dependencies]
 gumdrop = "0.8"

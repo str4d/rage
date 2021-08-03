@@ -52,9 +52,9 @@ i18n-embed = { version = "0.12", features = ["desktop-requester", "fluent-system
 i18n-embed-fl = "0.5"
 lazy_static = "1"
 log = "0.4"
-pinentry = "0.3"
+pinentry = "0.4"
 rust-embed = "5"
-secrecy = "0.7"
+secrecy = "0.8"
 
 # rage-mount dependencies
 fuse_mt = { version = "0.5.1", optional = true }
