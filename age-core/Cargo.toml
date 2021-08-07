@@ -25,14 +25,14 @@ hkdf = "0.11"
 sha2 = "0.9"
 
 # - CSPRNG
-rand = "0.7"
+rand = "0.8"
 
 # Parsing
 cookie-factory = "0.3.1"
 nom = { version = "6", default-features = false, features = ["alloc"] }
 
 # Secret management
-secrecy = "0.7"
+secrecy = "0.8"
 
 # Plugin backend
 tempfile = { version = "3.2.0", optional = true }

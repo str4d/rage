@@ -138,7 +138,7 @@ impl<R: Read, W: Write> Connection<R, W> {
         let mut rng = thread_rng();
         (0..2)
             .map(move |_| {
-                if rng.gen_range(0, 100) < 5 {
+                if rng.gen_range(0..100) < 5 {
                     Some(grease_the_joint())
                 } else {
                     None

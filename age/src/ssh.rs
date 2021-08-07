@@ -245,7 +245,7 @@ mod read_asn1 {
     ///
     /// We only support the two-prime encoding, where `version = 0` and `otherPrimeInfos`
     /// is omitted.
-    pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
+    pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
         preceded(
             // Type: Universal | Constructed | SEQUENCE
             der_type(0, 1, 16),
@@ -257,7 +257,7 @@ mod read_asn1 {
                         map(
                             tuple((integer, integer, integer, integer, integer)),
                             |(n, e, d, p, q)| {
-                                rsa::RSAPrivateKey::from_components(n, e, d, vec![p, q])
+                                rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q])
                             },
                         ),
                         // d mod (p-1), d mod (q-1), iqmp
@@ -396,12 +396,12 @@ mod read_ssh {
     /// Internal OpenSSH encoding of an RSA private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
-    fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPrivateKey> {
+    fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
         preceded(
             string_tag(SSH_RSA_KEY_PREFIX),
             map(
                 tuple((mpint, mpint, mpint, mpint, mpint, mpint)),
-                |(n, e, d, _iqmp, p, q)| rsa::RSAPrivateKey::from_components(n, e, d, vec![p, q]),
+                |(n, e, d, _iqmp, p, q)| rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]),
             ),
         )(input)
     }
@@ -534,11 +534,11 @@ mod read_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
-    pub(super) fn rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RSAPublicKey> {
+    pub(super) fn rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPublicKey> {
         preceded(
             string_tag(SSH_RSA_KEY_PREFIX),
             map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
-                rsa::RSAPublicKey::new(modulus, exponent)
+                rsa::RsaPublicKey::new(modulus, exponent)
             }),
         )(input)
     }
@@ -604,7 +604,7 @@ mod write_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
-    pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::RSAPublicKey) -> impl SerializeFn<W> {
+    pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::RsaPublicKey) -> impl SerializeFn<W> {
         tuple((
             string(SSH_RSA_KEY_PREFIX),
             mpint(pubkey.e()),
