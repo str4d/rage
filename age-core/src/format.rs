@@ -142,6 +142,16 @@ pub mod read {
         })(input)
     }
 
+    fn concatenate_chunks(full_chunks: &[&[u8]], partial_chunk: &[u8]) -> Vec<u8> {
+        // This is faster than collecting from a flattened iterator.
+        let mut data = vec![0; full_chunks.len() * 64 + partial_chunk.len()];
+        for (i, chunk) in full_chunks.iter().enumerate() {
+            data[i * 64..(i + 1) * 64].copy_from_slice(chunk);
+        }
+        data[full_chunks.len() * 64..].copy_from_slice(partial_chunk);
+        data
+    }
+
     fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
         map_opt(
             many_till(
@@ -151,12 +161,7 @@ pub mod read {
                 terminated(take_while_m_n(0, 63, |c| c != b'\n'), newline),
             ),
             |(full_chunks, partial_chunk)| {
-                let data: Vec<u8> = full_chunks
-                    .into_iter()
-                    .chain(Some(partial_chunk))
-                    .flatten()
-                    .cloned()
-                    .collect();
+                let data = concatenate_chunks(&full_chunks, partial_chunk);
                 if data.contains(&b'=') {
                     None
                 } else {
@@ -170,12 +175,11 @@ pub mod read {
         map_opt(separated_list1(newline, take_b64_line1), |chunks| {
             // Enforce that the only chunk allowed to be shorter than 64 characters
             // is the last chunk.
-            if chunks.iter().rev().skip(1).any(|s| s.len() != 64)
-                || chunks.last().map(|s| s.len() > 64) == Some(true)
-            {
+            let (partial_chunk, full_chunks) = chunks.split_last().unwrap();
+            if full_chunks.iter().any(|s| s.len() != 64) || partial_chunk.len() > 64 {
                 None
             } else {
-                let data: Vec<u8> = chunks.into_iter().flatten().cloned().collect();
+                let data = concatenate_chunks(full_chunks, partial_chunk);
                 base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
             }
         })(input)
