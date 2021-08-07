@@ -105,10 +105,10 @@ pub fn grease_the_joint() -> Stanza {
 pub mod read {
     use nom::{
         branch::alt,
-        bytes::streaming::{tag, take_while, take_while1},
+        bytes::streaming::{tag, take, take_while1, take_while_m_n},
         character::streaming::newline,
         combinator::{map, map_opt, opt, verify},
-        multi::{many0, separated_list1},
+        multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
         IResult,
     };
@@ -131,21 +131,6 @@ pub mod read {
     ///
     /// # Errors
     ///
-    /// - Returns Incomplete(1) if a LF is not found.
-    fn take_b64_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
-        verify(take_while(|c| c != b'\n'), |bytes: &[u8]| {
-            // STANDARD_NO_PAD only differs from STANDARD during serialization; the base64
-            // crate always allows padding during parsing. We require canonical
-            // serialization, so we explicitly reject padding characters here.
-            base64::decode_config(bytes, base64::STANDARD_NO_PAD).is_ok() && !bytes.contains(&b'=')
-        })(input)
-    }
-
-    /// Returns the slice of input up to (but not including) the first LF
-    /// character, if that slice is entirely Base64 characters
-    ///
-    /// # Errors
-    ///
     /// - Returns Failure on an empty slice.
     /// - Returns Incomplete(1) if a LF is not found.
     fn take_b64_line1(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -159,23 +144,11 @@ pub mod read {
 
     fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
         map_opt(
-            pair(
+            many_till(
                 // Any body lines before the last MUST be full-length.
-                many0(map_opt(terminated(take_b64_line, newline), |chunk| {
-                    if chunk.len() != 64 {
-                        None
-                    } else {
-                        Some(chunk)
-                    }
-                })),
+                terminated(take(64usize), newline),
                 // Last body line MUST be short (empty if necessary).
-                map_opt(terminated(take_b64_line, newline), |chunk| {
-                    if chunk.len() < 64 {
-                        Some(chunk)
-                    } else {
-                        None
-                    }
-                }),
+                terminated(take_while_m_n(0, 63, |c| c != b'\n'), newline),
             ),
             |(full_chunks, partial_chunk)| {
                 let data: Vec<u8> = full_chunks
@@ -184,7 +157,11 @@ pub mod read {
                     .flatten()
                     .cloned()
                     .collect();
-                base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
+                if data.contains(&b'=') {
+                    None
+                } else {
+                    base64::decode_config(&data, base64::STANDARD_NO_PAD).ok()
+                }
             },
         )(input)
     }
@@ -277,8 +254,11 @@ pub mod read {
 
         #[test]
         fn base64_padding_rejected() {
-            assert!(take_b64_line(b"Tm8gcGFkZGluZyE\n").is_ok());
-            assert!(take_b64_line(b"Tm8gcGFkZGluZyE=\n").is_err());
+            assert!(wrapped_encoded_data(b"Tm8gcGFkZGluZyE\n").is_ok());
+            assert!(wrapped_encoded_data(b"Tm8gcGFkZGluZyE=\n").is_err());
+            // Internal padding is also rejected.
+            assert!(wrapped_encoded_data(b"SW50ZXJuYWwUGFk\n").is_ok());
+            assert!(wrapped_encoded_data(b"SW50ZXJuYWw=UGFk\n").is_err());
         }
     }
 }
