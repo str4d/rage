@@ -94,6 +94,9 @@ futures-test = "0.3"
 quickcheck = "1"
 quickcheck_macros = "1"
 
+[target.'cfg(unix)'.dev-dependencies]
+pprof = { version = "0.4.2", features = ["criterion", "flamegraph"] }
+
 [features]
 default = []
 armor = []
@@ -116,6 +119,10 @@ bench = false
 [[test]]
 name = "test_vectors"
 required-features = ["ssh"]
+
+[[bench]]
+name = "parser"
+harness = false
 
 [[bench]]
 name = "throughput"
