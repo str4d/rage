@@ -9,6 +9,9 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Changed
 - MSRV is now 1.51.0.
+- The `body` property of `age_core::format::AgeStanza` has been replaced by the
+  `AgeStanza::body` method, to enable enclosing parsers to defer Base64 decoding
+  until the very end.
 
 ## [0.6.0] - 2021-05-02
 ### Security
