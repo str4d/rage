@@ -165,16 +165,12 @@ mod read {
     use super::*;
     use crate::util::read::base64_arg;
 
-    fn recipient_stanza(input: &[u8]) -> IResult<&[u8], Stanza> {
-        map(legacy_age_stanza, Stanza::from)(input)
-    }
-
     fn header_v1(input: &[u8]) -> IResult<&[u8], HeaderV1> {
         preceded(
             pair(tag(V1_MAGIC), newline),
             map(
                 pair(
-                    many1(recipient_stanza),
+                    many1(legacy_age_stanza),
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
@@ -184,7 +180,7 @@ mod read {
                     ),
                 ),
                 |(recipients, mac)| HeaderV1 {
-                    recipients,
+                    recipients: recipients.into_iter().map(Stanza::from).collect(),
                     mac,
                     encoded_bytes: None,
                 },
