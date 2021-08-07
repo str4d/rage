@@ -393,4 +393,30 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
             .unwrap();
         assert_eq!(buf, test_stanza.as_bytes());
     }
+
+    #[test]
+    fn age_stanza_with_legacy_full_body() {
+        let test_tag = "full-body";
+        let test_args = &["some", "arguments"];
+        let test_body = base64::decode_config(
+            "xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA",
+            base64::STANDARD_NO_PAD,
+        )
+        .unwrap();
+
+        // The body fills a complete line, but lacks a trailing empty line.
+        let test_stanza = "-> full-body some arguments
+xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
+--- header end
+";
+
+        // The normal parser returns an error.
+        assert!(read::age_stanza(test_stanza.as_bytes()).is_err());
+
+        // We can parse with the legacy parser
+        let (_, stanza) = read::legacy_age_stanza(test_stanza.as_bytes()).unwrap();
+        assert_eq!(stanza.tag, test_tag);
+        assert_eq!(stanza.args, test_args);
+        assert_eq!(stanza.body, test_body);
+    }
 }
