@@ -120,8 +120,9 @@ pub mod read {
     /// ... an arbitrary string is a sequence of ASCII characters with values 33 to 126.
     /// ```
     pub fn arbitrary_string(input: &[u8]) -> IResult<&[u8], &str> {
-        map(take_while1(|c| c >= 33 && c <= 126), |bytes| {
-            std::str::from_utf8(bytes).expect("ASCII is valid UTF-8")
+        map(take_while1(|c| (33..=126).contains(&c)), |bytes| {
+            // Safety: ASCII bytes are valid UTF-8
+            unsafe { std::str::from_utf8_unchecked(bytes) }
         })(input)
     }
 
