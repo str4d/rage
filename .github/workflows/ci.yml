@@ -62,7 +62,6 @@ jobs:
     strategy:
       matrix:
         target:
-          - wasm32-unknown-unknown
           - wasm32-wasi
 
     steps:
