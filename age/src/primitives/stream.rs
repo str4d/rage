@@ -1,10 +1,12 @@
 //! I/O helper structs for age file encryption and decryption.
 
 use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, NewAead},
+    aead::{generic_array::GenericArray, AeadInPlace, NewAead},
     ChaChaPoly1305,
 };
+use lazy_static::lazy_static;
 use pin_project::pin_project;
+use rayon::prelude::*;
 use secrecy::{ExposeSecret, SecretVec};
 use std::cmp;
 use std::convert::TryInto;
@@ -23,6 +25,11 @@ use std::pin::Pin;
 const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
+
+lazy_static! {
+    static ref CHUNKS_SIZE: usize = num_cpus::get() * CHUNK_SIZE;
+    static ref ENCRYPTED_CHUNKS_SIZE: usize = num_cpus::get() * ENCRYPTED_CHUNK_SIZE;
+}
 
 pub(crate) struct PayloadKey(
     pub(crate) GenericArray<u8, <ChaChaPoly1305<c2_chacha::Ietf> as NewAead>::KeySize>,
@@ -47,9 +54,9 @@ impl Nonce {
         self.0 = u128::from(val) << 8;
     }
 
-    fn increment_counter(&mut self) {
+    fn increment_counter(&mut self, by: usize) {
         // Increment the 11-byte counter
-        self.0 += 1 << 8;
+        self.0 += (by as u128) << 8;
         if self.0 >> (8 * 12) != 0 {
             panic!("We overflowed the nonce!");
         }
@@ -76,7 +83,7 @@ impl Nonce {
 }
 
 #[cfg(feature = "async")]
-struct EncryptedChunk {
+struct EncryptedChunks {
     bytes: Vec<u8>,
     offset: usize,
 }
@@ -112,9 +119,9 @@ impl Stream {
         StreamWriter {
             stream: Self::new(key),
             inner,
-            chunk: Vec::with_capacity(CHUNK_SIZE),
+            chunks: Vec::with_capacity(*CHUNKS_SIZE),
             #[cfg(feature = "async")]
-            encrypted_chunk: None,
+            encrypted_chunks: None,
         }
     }
 
@@ -130,8 +137,8 @@ impl Stream {
         StreamWriter {
             stream: Self::new(key),
             inner,
-            chunk: Vec::with_capacity(CHUNK_SIZE),
-            encrypted_chunk: None,
+            chunks: Vec::with_capacity(*CHUNKS_SIZE),
+            encrypted_chunks: None,
         }
     }
 
@@ -146,12 +153,12 @@ impl Stream {
         StreamReader {
             stream: Self::new(key),
             inner,
-            encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
+            encrypted_chunks: vec![0; *ENCRYPTED_CHUNKS_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
             plaintext_len: None,
             cur_plaintext_pos: 0,
-            chunk: None,
+            chunks: None,
         }
     }
 
@@ -167,49 +174,90 @@ impl Stream {
         StreamReader {
             stream: Self::new(key),
             inner,
-            encrypted_chunk: vec![0; ENCRYPTED_CHUNK_SIZE],
+            encrypted_chunks: vec![0; *ENCRYPTED_CHUNKS_SIZE],
             encrypted_pos: 0,
             start: StartPos::Implicit(0),
             plaintext_len: None,
             cur_plaintext_pos: 0,
-            chunk: None,
+            chunks: None,
         }
     }
 
-    fn encrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<Vec<u8>> {
-        assert!(chunk.len() <= CHUNK_SIZE);
+    fn encrypt_chunks(&mut self, chunks: &[u8], last: bool) -> io::Result<Vec<u8>> {
+        if self.nonce.is_last() {
+            Err(io::Error::new(
+                io::ErrorKind::WriteZero,
+                "last chunk has been processed",
+            ))?;
+        };
 
-        self.nonce.set_last(last).map_err(|_| {
-            io::Error::new(io::ErrorKind::WriteZero, "last chunk has been processed")
-        })?;
+        // Allocate an output buffer of the correct length.
+        let chunks_len = chunks.len();
+        let chunks = chunks.chunks(CHUNK_SIZE);
+        let num_chunks = chunks.len();
+        let mut encrypted = vec![0; chunks_len + TAG_SIZE * num_chunks];
 
-        let encrypted = self
-            .aead
-            .encrypt(&self.nonce.to_bytes().into(), chunk)
-            .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size");
-        self.nonce.increment_counter();
+        encrypted
+            .chunks_mut(ENCRYPTED_CHUNK_SIZE)
+            .zip(chunks)
+            .enumerate()
+            .par_bridge()
+            .for_each_with(self.nonce, |nonce, (i, (encrypted, chunk))| {
+                nonce.increment_counter(i);
+                if i + 1 == num_chunks {
+                    nonce.set_last(last).unwrap();
+                }
+
+                let (buffer, tag) = encrypted.split_at_mut(chunk.len());
+                buffer.copy_from_slice(chunk);
+                tag.copy_from_slice(
+                    self.aead
+                        .encrypt_in_place_detached(&nonce.to_bytes().into(), &[], buffer)
+                        .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size")
+                        .as_slice(),
+                );
+            });
+
+        self.nonce.increment_counter(num_chunks);
+        self.nonce.set_last(last).unwrap();
 
         Ok(encrypted)
     }
 
-    fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
-        assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
-
-        self.nonce.set_last(last).map_err(|_| {
-            io::Error::new(
+    fn decrypt_chunks(&mut self, chunks: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
+        if self.nonce.is_last() {
+            Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "last chunk has been processed",
-            )
-        })?;
+            ))?;
+        };
 
-        let decrypted = self
-            .aead
-            .decrypt(&self.nonce.to_bytes().into(), chunk)
-            .map(SecretVec::new)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
-        self.nonce.increment_counter();
+        // Allocate an output buffer of the correct length.
+        let chunks_len = chunks.len();
+        let chunks = chunks.chunks(ENCRYPTED_CHUNK_SIZE);
+        let num_chunks = chunks.len();
+        let mut decrypted = vec![0; chunks_len - TAG_SIZE * num_chunks];
 
-        Ok(decrypted)
+        for (i, (decrypted, chunk)) in decrypted.chunks_mut(CHUNK_SIZE).zip(chunks).enumerate() {
+            if i + 1 == num_chunks {
+                self.nonce.set_last(last).unwrap();
+            }
+
+            let (chunk, tag) = chunk.split_at(decrypted.len());
+            decrypted.copy_from_slice(chunk);
+            self.aead
+                .decrypt_in_place_detached(
+                    &self.nonce.to_bytes().into(),
+                    &[],
+                    decrypted,
+                    tag.into(),
+                )
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
+
+            self.nonce.increment_counter(1);
+        }
+
+        Ok(SecretVec::new(decrypted))
     }
 
     fn is_complete(&self) -> bool {
@@ -223,9 +271,9 @@ pub struct StreamWriter<W> {
     stream: Stream,
     #[pin]
     inner: W,
-    chunk: Vec<u8>,
+    chunks: Vec<u8>,
     #[cfg(feature = "async")]
-    encrypted_chunk: Option<EncryptedChunk>,
+    encrypted_chunks: Option<EncryptedChunks>,
 }
 
 impl<W: Write> StreamWriter<W> {
@@ -235,7 +283,7 @@ impl<W: Write> StreamWriter<W> {
     /// encryption process. Failing to call `finish` will result in a truncated file that
     /// that will fail to decrypt.
     pub fn finish(mut self) -> io::Result<W> {
-        let encrypted = self.stream.encrypt_chunk(&self.chunk, true)?;
+        let encrypted = self.stream.encrypt_chunks(&self.chunks, true)?;
         self.inner.write_all(&encrypted)?;
         Ok(self.inner)
     }
@@ -246,20 +294,20 @@ impl<W: Write> Write for StreamWriter<W> {
         let mut bytes_written = 0;
 
         while !buf.is_empty() {
-            let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
-            self.chunk.extend_from_slice(&buf[..to_write]);
+            let to_write = cmp::min(*CHUNKS_SIZE - self.chunks.len(), buf.len());
+            self.chunks.extend_from_slice(&buf[..to_write]);
             bytes_written += to_write;
             buf = &buf[to_write..];
 
-            // At this point, either buf is empty, or we have a full chunk.
-            assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
+            // At this point, either buf is empty, or we have a full set of chunks.
+            assert!(buf.is_empty() || self.chunks.len() == *CHUNKS_SIZE);
 
             // Only encrypt the chunk if we have more data to write, as the last
             // chunk must be written in finish().
             if !buf.is_empty() {
-                let encrypted = self.stream.encrypt_chunk(&self.chunk, false)?;
+                let encrypted = self.stream.encrypt_chunks(&self.chunks, false)?;
                 self.inner.write_all(&encrypted)?;
-                self.chunk.clear();
+                self.chunks.clear();
             }
         }
 
@@ -276,11 +324,11 @@ impl<W: AsyncWrite> StreamWriter<W> {
     fn poll_flush_chunk(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         let StreamWriterProj {
             mut inner,
-            encrypted_chunk,
+            encrypted_chunks,
             ..
         } = self.project();
 
-        if let Some(chunk) = encrypted_chunk {
+        if let Some(chunk) = encrypted_chunks {
             loop {
                 chunk.offset +=
                     ready!(inner.as_mut().poll_write(cx, &chunk.bytes[chunk.offset..]))?;
@@ -289,7 +337,7 @@ impl<W: AsyncWrite> StreamWriter<W> {
                 }
             }
         }
-        *encrypted_chunk = None;
+        *encrypted_chunks = None;
 
         Poll::Ready(Ok(()))
     }
@@ -304,26 +352,26 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
     ) -> Poll<io::Result<usize>> {
         ready!(self.as_mut().poll_flush_chunk(cx))?;
 
-        let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
+        let to_write = cmp::min(*CHUNKS_SIZE - self.chunks.len(), buf.len());
 
         self.as_mut()
             .project()
-            .chunk
+            .chunks
             .extend_from_slice(&buf[..to_write]);
         buf = &buf[to_write..];
 
-        // At this point, either buf is empty, or we have a full chunk.
-        assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
+        // At this point, either buf is empty, or we have a full set of chunks.
+        assert!(buf.is_empty() || self.chunks.len() == *CHUNKS_SIZE);
 
         // Only encrypt the chunk if we have more data to write, as the last
         // chunk must be written in poll_close().
         if !buf.is_empty() {
             let this = self.as_mut().project();
-            *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, false)?,
+            *this.encrypted_chunks = Some(EncryptedChunks {
+                bytes: this.stream.encrypt_chunks(&this.chunks, false)?,
                 offset: 0,
             });
-            this.chunk.clear();
+            this.chunks.clear();
         }
 
         Poll::Ready(Ok(to_write))
@@ -341,8 +389,8 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
         if !self.stream.is_complete() {
             // Finish the stream.
             let this = self.as_mut().project();
-            *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, true)?,
+            *this.encrypted_chunks = Some(EncryptedChunks {
+                bytes: this.stream.encrypt_chunks(&this.chunks, true)?,
                 offset: 0,
             });
         }
@@ -374,12 +422,12 @@ pub struct StreamReader<R> {
     stream: Stream,
     #[pin]
     inner: R,
-    encrypted_chunk: Vec<u8>,
+    encrypted_chunks: Vec<u8>,
     encrypted_pos: usize,
     start: StartPos,
     plaintext_len: Option<u64>,
     cur_plaintext_pos: u64,
-    chunk: Option<SecretVec<u8>>,
+    chunks: Option<SecretVec<u8>>,
 }
 
 impl<R> StreamReader<R> {
@@ -390,11 +438,11 @@ impl<R> StreamReader<R> {
         }
     }
 
-    fn decrypt_chunk(&mut self) -> io::Result<()> {
+    fn decrypt_chunks(&mut self) -> io::Result<()> {
         self.count_bytes(self.encrypted_pos);
-        let chunk = &self.encrypted_chunk[..self.encrypted_pos];
+        let chunks = &self.encrypted_chunks[..self.encrypted_pos];
 
-        if chunk.is_empty() {
+        if chunks.is_empty() {
             if !self.stream.is_complete() {
                 // Stream has ended before seeing the last chunk.
                 return Err(io::Error::new(
@@ -406,37 +454,39 @@ impl<R> StreamReader<R> {
             // This check works for all cases except when the age file is an integer
             // multiple of the chunk size. In that case, we try decrypting twice on a
             // decryption failure.
-            let last = chunk.len() < ENCRYPTED_CHUNK_SIZE;
+            // TODO: Generalise to multiple chunks.
+            let last = chunks.len() < *ENCRYPTED_CHUNKS_SIZE;
 
-            self.chunk = match (self.stream.decrypt_chunk(chunk, last), last) {
+            self.chunks = match (self.stream.decrypt_chunks(chunks, last), last) {
                 (Ok(chunk), _) => Some(chunk),
-                (Err(_), false) => Some(self.stream.decrypt_chunk(chunk, true)?),
+                (Err(_), false) => Some(self.stream.decrypt_chunks(chunks, true)?),
                 (Err(e), true) => return Err(e),
             };
         }
 
-        // We've finished with this encrypted chunk.
+        // We've finished with these encrypted chunks.
         self.encrypted_pos = 0;
 
         Ok(())
     }
 
-    fn read_from_chunk(&mut self, buf: &mut [u8]) -> usize {
-        if self.chunk.is_none() {
+    fn read_from_chunks(&mut self, buf: &mut [u8]) -> usize {
+        if self.chunks.is_none() {
             return 0;
         }
 
-        let chunk = self.chunk.as_ref().unwrap();
-        let cur_chunk_offset = self.cur_plaintext_pos as usize % CHUNK_SIZE;
+        let chunks = self.chunks.as_ref().unwrap();
+        let cur_chunks_offset = self.cur_plaintext_pos as usize % *CHUNKS_SIZE;
 
-        let to_read = cmp::min(chunk.expose_secret().len() - cur_chunk_offset, buf.len());
+        let to_read = cmp::min(chunks.expose_secret().len() - cur_chunks_offset, buf.len());
 
-        buf[..to_read]
-            .copy_from_slice(&chunk.expose_secret()[cur_chunk_offset..cur_chunk_offset + to_read]);
+        buf[..to_read].copy_from_slice(
+            &chunks.expose_secret()[cur_chunks_offset..cur_chunks_offset + to_read],
+        );
         self.cur_plaintext_pos += to_read as u64;
-        if self.cur_plaintext_pos % CHUNK_SIZE as u64 == 0 {
-            // We've finished with the current chunk.
-            self.chunk = None;
+        if self.cur_plaintext_pos % *CHUNKS_SIZE as u64 == 0 {
+            // We've finished with the current chunks.
+            self.chunks = None;
         }
 
         to_read
@@ -445,11 +495,11 @@ impl<R> StreamReader<R> {
 
 impl<R: Read> Read for StreamReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.chunk.is_none() {
-            while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
+        if self.chunks.is_none() {
+            while self.encrypted_pos < *ENCRYPTED_CHUNKS_SIZE {
                 match self
                     .inner
-                    .read(&mut self.encrypted_chunk[self.encrypted_pos..])
+                    .read(&mut self.encrypted_chunks[self.encrypted_pos..])
                 {
                     Ok(0) => break,
                     Ok(n) => self.encrypted_pos += n,
@@ -459,10 +509,10 @@ impl<R: Read> Read for StreamReader<R> {
                     },
                 }
             }
-            self.decrypt_chunk()?;
+            self.decrypt_chunks()?;
         }
 
-        Ok(self.read_from_chunk(buf))
+        Ok(self.read_from_chunks(buf))
     }
 }
 
@@ -473,12 +523,12 @@ impl<R: AsyncRead + Unpin> AsyncRead for StreamReader<R> {
         cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Error>> {
-        if self.chunk.is_none() {
-            while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
+        if self.chunks.is_none() {
+            while self.encrypted_pos < *ENCRYPTED_CHUNKS_SIZE {
                 let this = self.as_mut().project();
                 match ready!(this
                     .inner
-                    .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..]))
+                    .poll_read(cx, &mut this.encrypted_chunks[*this.encrypted_pos..]))
                 {
                     Ok(0) => break,
                     Ok(n) => self.encrypted_pos += n,
@@ -488,10 +538,10 @@ impl<R: AsyncRead + Unpin> AsyncRead for StreamReader<R> {
                     },
                 }
             }
-            self.decrypt_chunk()?;
+            self.decrypt_chunks()?;
         }
 
-        Poll::Ready(Ok(self.read_from_chunk(buf)))
+        Poll::Ready(Ok(self.read_from_chunks(buf)))
     }
 }
 
@@ -534,7 +584,7 @@ impl<R: Read + Seek> StreamReader<R> {
                 self.inner.seek(SeekFrom::Start(last_chunk_start))?;
                 self.inner.read_to_end(&mut last_chunk)?;
                 self.stream.nonce.set_counter(num_chunks - 1);
-                self.stream.decrypt_chunk(&last_chunk, true).map_err(|_| {
+                self.stream.decrypt_chunks(&last_chunk, true).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
                         "Last chunk is invalid, stream might be truncated",
@@ -590,24 +640,24 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
             }
         };
 
-        let cur_chunk_index = self.cur_plaintext_pos / CHUNK_SIZE as u64;
+        let cur_chunk_index = self.cur_plaintext_pos / *CHUNKS_SIZE as u64;
 
-        let target_chunk_index = target_pos / CHUNK_SIZE as u64;
-        let target_chunk_offset = target_pos % CHUNK_SIZE as u64;
+        let target_chunk_index = target_pos / *CHUNKS_SIZE as u64;
+        let target_chunk_offset = target_pos % *CHUNKS_SIZE as u64;
 
         if target_chunk_index == cur_chunk_index {
             // We just need to reposition ourselves within the current chunk.
             self.cur_plaintext_pos = target_pos;
         } else {
             // Clear the current chunk
-            self.chunk = None;
+            self.chunks = None;
 
             // Seek to the beginning of the target chunk
             self.inner.seek(SeekFrom::Start(
-                start + (target_chunk_index * ENCRYPTED_CHUNK_SIZE as u64),
+                start + (target_chunk_index * *ENCRYPTED_CHUNKS_SIZE as u64),
             ))?;
             self.stream.nonce.set_counter(target_chunk_index);
-            self.cur_plaintext_pos = target_chunk_index * CHUNK_SIZE as u64;
+            self.cur_plaintext_pos = target_chunk_index * *CHUNKS_SIZE as u64;
 
             // Read and drop bytes from the chunk to reach the target position.
             if target_chunk_offset > 0 {
@@ -658,12 +708,12 @@ mod tests {
 
         let encrypted = {
             let mut s = Stream::new(PayloadKey([7; 32].into()));
-            s.encrypt_chunk(&data, false).unwrap()
+            s.encrypt_chunks(&data, false).unwrap()
         };
 
         let decrypted = {
             let mut s = Stream::new(PayloadKey([7; 32].into()));
-            s.decrypt_chunk(&encrypted, false).unwrap()
+            s.decrypt_chunks(&encrypted, false).unwrap()
         };
 
         assert_eq!(decrypted.expose_secret(), &data);
@@ -675,15 +725,15 @@ mod tests {
 
         let encrypted = {
             let mut s = Stream::new(PayloadKey([7; 32].into()));
-            let res = s.encrypt_chunk(&data, true).unwrap();
+            let res = s.encrypt_chunks(&data, true).unwrap();
 
             // Further calls return an error
             assert_eq!(
-                s.encrypt_chunk(&data, false).unwrap_err().kind(),
+                s.encrypt_chunks(&data, false).unwrap_err().kind(),
                 io::ErrorKind::WriteZero
             );
             assert_eq!(
-                s.encrypt_chunk(&data, true).unwrap_err().kind(),
+                s.encrypt_chunks(&data, true).unwrap_err().kind(),
                 io::ErrorKind::WriteZero
             );
 
@@ -692,14 +742,14 @@ mod tests {
 
         let decrypted = {
             let mut s = Stream::new(PayloadKey([7; 32].into()));
-            let res = s.decrypt_chunk(&encrypted, true).unwrap();
+            let res = s.decrypt_chunks(&encrypted, true).unwrap();
 
             // Further calls return an error
-            match s.decrypt_chunk(&encrypted, false) {
+            match s.decrypt_chunks(&encrypted, false) {
                 Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
                 _ => panic!("Expected error"),
             }
-            match s.decrypt_chunk(&encrypted, true) {
+            match s.decrypt_chunks(&encrypted, true) {
                 Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
                 _ => panic!("Expected error"),
             }
