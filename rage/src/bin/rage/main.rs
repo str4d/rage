@@ -5,7 +5,7 @@ use age::{
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
     },
-    plugin, Identity, IdentityFile, Recipient,
+    plugin, Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -141,11 +141,12 @@ fn read_recipients(
                 io::ErrorKind::NotFound => error::EncryptError::IdentityNotFound(filename),
                 _ => e.into(),
             })?;
-        let (new_ids, new_plugin_ids) = identity_file.split_into();
-        for identity in new_ids {
-            recipients.push(Box::new(identity.to_public()));
+        for entry in identity_file.into_identities() {
+            match entry {
+                IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
+            }
         }
-        plugin_identities.extend(new_plugin_ids);
     }
 
     // Collect the names of the required plugins.

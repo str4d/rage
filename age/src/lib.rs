@@ -149,7 +149,7 @@ mod util;
 pub mod x25519;
 
 pub use error::{DecryptError, EncryptError};
-pub use identity::IdentityFile;
+pub use identity::{IdentityFile, IdentityFileEntry};
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
 

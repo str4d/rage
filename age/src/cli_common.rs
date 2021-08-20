@@ -11,10 +11,11 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{fl, identity::IdentityFile, Callbacks, Identity};
-
-#[cfg(feature = "plugin")]
-use crate::plugin;
+use crate::{
+    fl,
+    identity::{IdentityFile, IdentityFileEntry},
+    Callbacks, Identity,
+};
 
 pub mod file_io;
 
@@ -33,9 +34,6 @@ where
     G: Fn(String) -> E,
 {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
-
-    #[cfg(feature = "plugin")]
-    let mut plugin_identities: Vec<plugin::Identity> = vec![];
 
     for filename in filenames {
         // Try parsing as a single multi-line SSH identity.
@@ -59,39 +57,16 @@ where
                 _ => e.into(),
             })?;
 
-        #[cfg(feature = "plugin")]
-        let (new_ids, mut new_plugin_ids) = identity_file.split_into();
-
-        #[cfg(not(feature = "plugin"))]
-        let new_ids = identity_file.into_identities();
-
-        identities.extend(
-            new_ids
-                .into_iter()
-                .map(|i| Box::new(i) as Box<dyn Identity>),
-        );
-
-        #[cfg(feature = "plugin")]
-        plugin_identities.append(&mut new_plugin_ids);
-    }
-
-    #[cfg(feature = "plugin")]
-    {
-        // Collect the names of the required plugins.
-        let mut plugin_names = plugin_identities
-            .iter()
-            .map(|r| r.plugin())
-            .collect::<Vec<_>>();
-        plugin_names.sort_unstable();
-        plugin_names.dedup();
-
-        // Find the required plugins.
-        for plugin_name in plugin_names {
-            identities.push(Box::new(crate::plugin::IdentityPluginV1::new(
-                plugin_name,
-                &plugin_identities,
-                UiCallbacks,
-            )?))
+        for entry in identity_file.into_identities() {
+            identities.push(match entry {
+                IdentityFileEntry::Native(i) => Box::new(i),
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(i) => Box::new(crate::plugin::IdentityPluginV1::new(
+                    &i.plugin().to_owned(),
+                    &[i],
+                    UiCallbacks,
+                )?),
+            });
         }
     }
 

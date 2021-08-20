@@ -9,8 +9,19 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::IdentityFileEntry` enum, representing the possible kinds of entries
+  within an age identity file.
+
 ### Changed
 - MSRV is now 1.51.0.
+- `age::IdentityFile::into_identities` now returns `Vec<IdentityFileEntry>`.
+- `age::cli_common::read_identities` now returns identities in the same order as
+  `filenames` (and top-to-bottom from within each file). Plugin identities are
+  no longer coalesced; there is one `Box<dyn Identity>` per plugin identity.
+
+### Removed
+- `IdentityFile::split_into` (replaced by `IdentityFileEntry::Plugin`).
 
 ## [0.6.0] - 2021-05-02
 ### Security
