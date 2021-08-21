@@ -30,6 +30,7 @@ pub(crate) enum EncryptError {
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
+    PluginNameFlag,
     #[cfg(feature = "ssh")]
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
@@ -124,6 +125,9 @@ impl fmt::Display for EncryptError {
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }
+            EncryptError::PluginNameFlag => {
+                wfl!(f, "err-enc-plugin-name-flag")
+            }
             #[cfg(feature = "ssh")]
             EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
@@ -137,6 +141,7 @@ pub(crate) enum DecryptError {
     IdentityNotFound(String),
     Io(io::Error),
     MissingIdentities,
+    MixedIdentityAndPluginName,
     PassphraseFlag,
     PassphraseTimedOut,
     #[cfg(not(unix))]
@@ -205,6 +210,9 @@ impl fmt::Display for DecryptError {
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 wlnfl!(f, "rec-dec-missing-identities")
+            }
+            DecryptError::MixedIdentityAndPluginName => {
+                wfl!(f, "err-mixed-identity-and-plugin-name")
             }
             DecryptError::PassphraseFlag => {
                 wlnfl!(f, "err-dec-passphrase-flag")?;

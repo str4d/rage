@@ -231,11 +231,22 @@ struct AgeOptions {
     #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 
+    #[options(
+        help = "Use the plugin NAME in its default mode as an identity.",
+        no_long,
+        short = "j"
+    )]
+    plugin_name: String,
+
     #[options(help = "Write the result to the file at path OUTPUT.")]
     output: Option<String>,
 }
 
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
+    if !opts.plugin_name.is_empty() {
+        return Err(error::EncryptError::PluginNameFlag);
+    }
+
     let encryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
             return Err(error::EncryptError::MixedIdentityAndPassphrase);
@@ -351,6 +362,10 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         return Err(error::DecryptError::RecipientsFileFlag);
     }
 
+    if !(opts.identity.is_empty() || opts.plugin_name.is_empty()) {
+        return Err(error::DecryptError::MixedIdentityAndPluginName);
+    }
+
     let output = opts.output;
 
     #[cfg(not(unix))]
@@ -392,14 +407,23 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(
-                opts.identity,
-                opts.max_work_factor,
-                error::DecryptError::IdentityNotFound,
-                error::DecryptError::IdentityEncryptedWithoutPassphrase,
-                #[cfg(feature = "ssh")]
-                error::DecryptError::UnsupportedKey,
-            )?;
+            let identities = if opts.plugin_name.is_empty() {
+                read_identities(
+                    opts.identity,
+                    opts.max_work_factor,
+                    error::DecryptError::IdentityNotFound,
+                    error::DecryptError::IdentityEncryptedWithoutPassphrase,
+                    #[cfg(feature = "ssh")]
+                    error::DecryptError::UnsupportedKey,
+                )?
+            } else {
+                // Construct the default plugin.
+                vec![Box::new(plugin::IdentityPluginV1::new(
+                    &opts.plugin_name,
+                    &[plugin::Identity::default_for_plugin(&opts.plugin_name)],
+                    UiCallbacks,
+                )?) as Box<dyn Identity>]
+            };
 
             if identities.is_empty() {
                 return Err(error::DecryptError::MissingIdentities);

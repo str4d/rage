@@ -20,6 +20,7 @@
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
+-flag-plugin-name = -j
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
 
@@ -103,6 +104,8 @@ err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} can't be used with {-flag-passphrase}
 err-enc-passphrase-without-file = File to encrypt must be passed as an argument when using {-flag-passphrase}
 
+err-enc-plugin-name-flag = {-flag-plugin-name} can't be used with {-flag-encrypt}.
+
 ## Decryption errors
 
 rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
@@ -117,6 +120,8 @@ err-dec-identity-not-found = Identity file not found: {$filename}
 
 err-dec-missing-identities = Missing identities.
 rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
+
+err-mixed-identity-and-plugin-name = {-flag-identity} can't be used with {-flag-plugin-name}.
 
 err-dec-passphrase-flag = {-flag-passphrase} can't be used with {-flag-decrypt}.
 rec-dec-passphrase-flag = Note that passphrase-encrypted files are detected automatically.

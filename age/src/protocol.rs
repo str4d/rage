@@ -214,6 +214,8 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
 mod tests {
     use secrecy::SecretString;
     use std::io::{BufReader, Read, Write};
+
+    #[cfg(feature = "ssh")]
     use std::iter;
 
     use super::{Decryptor, Encryptor};
