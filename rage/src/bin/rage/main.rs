@@ -101,6 +101,7 @@ fn read_recipients(
     recipient_strings: Vec<String>,
     recipients_file_strings: Vec<String>,
     identity_strings: Vec<String>,
+    max_work_factor: Option<u8>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
@@ -117,6 +118,23 @@ fn read_recipients(
     }
 
     for filename in identity_strings {
+        // Try parsing as an encrypted age identity.
+        if let Ok(identity) = age::encrypted::Identity::from_buffer(
+            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            Some(filename.clone()),
+            UiCallbacks,
+            max_work_factor,
+        ) {
+            if let Some(identity) = identity {
+                recipients.extend(identity.recipients()?);
+                continue;
+            } else {
+                return Err(error::EncryptError::IdentityEncryptedWithoutPassphrase(
+                    filename,
+                ));
+            }
+        }
+
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
         match age::ssh::Identity::from_buffer(
@@ -268,6 +286,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             opts.recipient,
             opts.recipients_file,
             opts.identity,
+            opts.max_work_factor,
         )?)
     };
 
@@ -375,7 +394,9 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         age::Decryptor::Recipients(decryptor) => {
             let identities = read_identities(
                 opts.identity,
+                opts.max_work_factor,
                 error::DecryptError::IdentityNotFound,
+                error::DecryptError::IdentityEncryptedWithoutPassphrase,
                 #[cfg(feature = "ssh")]
                 error::DecryptError::UnsupportedKey,
             )?;

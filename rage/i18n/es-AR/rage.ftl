@@ -51,7 +51,9 @@ rage-usage =
 
     {-identity} es una ruta a una archivo con una identidad {-age} por línea
     (ignorando comentarios con el prefijo "#" y líneas vacías), o a un archivo
-    de claves SSH. Pueden proveerse múltiples idendidades, cualquiera que no sea
+    de claves SSH.
+    Passphrase-encrypted {-age} identity files can be used as identity files.
+    Pueden proveerse múltiples idendidades, cualquiera que no sea
     utilizada será ignorada.
 
     Ejemplo:

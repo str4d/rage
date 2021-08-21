@@ -51,6 +51,7 @@ rage-usage =
 
     {-identity} is a path to a file with {-age} identities, one per line
     (ignoring "#" prefixed comments and empty lines), or to an SSH key file.
+    Passphrase-encrypted {-age} identity files can be used as identity files.
     Multiple identities may be provided, and any unused ones will be ignored.
 
     Example:
@@ -108,6 +109,9 @@ rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
 
 err-dec-armor-flag = {-flag-armor} can't be used with {-flag-decrypt}.
 rec-dec-armor-flag = Note that armored files are detected automatically.
+
+err-dec-identity-encrypted-without-passphrase =
+    Identity file '{$filename}' is encrypted with age but not with a passphrase.
 
 err-dec-identity-not-found = Identity file not found: {$filename}
 

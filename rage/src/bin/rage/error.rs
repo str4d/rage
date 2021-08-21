@@ -20,6 +20,7 @@ pub(crate) enum EncryptError {
         is_stdout: bool,
         source: io::Error,
     },
+    IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     InvalidRecipient(String),
     Io(io::Error),
@@ -76,6 +77,17 @@ impl fmt::Display for EncryptError {
                     )
                 }
             }
+            EncryptError::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
             EncryptError::IdentityNotFound(filename) => write!(
                 f,
                 "{}",
@@ -121,6 +133,7 @@ impl fmt::Display for EncryptError {
 pub(crate) enum DecryptError {
     Age(age::DecryptError),
     ArmorFlag,
+    IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     Io(io::Error),
     MissingIdentities,
@@ -167,6 +180,17 @@ impl fmt::Display for DecryptError {
             DecryptError::ArmorFlag => {
                 wlnfl!(f, "err-dec-armor-flag")?;
                 wfl!(f, "rec-dec-armor-flag")
+            }
+            DecryptError::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
             }
             DecryptError::IdentityNotFound(filename) => write!(
                 f,

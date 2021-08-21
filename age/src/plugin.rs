@@ -227,7 +227,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             |mut command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
-                        .prompt(&String::from_utf8_lossy(&command.body));
+                        .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
                 CMD_REQUEST_PUBLIC => {
@@ -392,7 +392,7 @@ impl<C: Callbacks> IdentityPluginV1<C> {
             |command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
-                        .prompt(&String::from_utf8_lossy(&command.body));
+                        .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
                 CMD_REQUEST_PUBLIC => {

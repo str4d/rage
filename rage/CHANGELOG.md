@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `-i/--identity` now accepts passphrase-encrypted age identity files.
+
 ### Changed
 - MSRV is now 1.51.0.
 

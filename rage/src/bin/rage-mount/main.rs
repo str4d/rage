@@ -52,6 +52,7 @@ macro_rules! wlnfl {
 
 enum Error {
     Age(age::DecryptError),
+    IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     Io(io::Error),
     MissingFilename,
@@ -94,6 +95,17 @@ impl fmt::Debug for Error {
                 }
                 _ => write!(f, "{}", e),
             },
+            Error::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    i18n_embed_fl::fl!(
+                        LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
             Error::IdentityNotFound(filename) => write!(
                 f,
                 "{}",
@@ -258,7 +270,9 @@ fn main() -> Result<(), Error> {
         age::Decryptor::Recipients(decryptor) => {
             let identities = read_identities(
                 opts.identity,
+                opts.max_work_factor,
                 Error::IdentityNotFound,
+                Error::IdentityEncryptedWithoutPassphrase,
                 Error::UnsupportedKey,
             )?;
 

@@ -11,7 +11,7 @@ use age_core::format::Stanza;
 
 /// Errors returned by a plugin.
 #[cfg(feature = "plugin")]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PluginError {
     /// An error caused by a specific identity.
     Identity {
@@ -107,7 +107,9 @@ impl fmt::Display for PluginError {
 /// The various errors that can be returned during the encryption process.
 #[derive(Debug)]
 pub enum EncryptError {
-    /// An I/O error occurred during decryption.
+    /// An error occured while decrypting passphrase-encrypted identities.
+    EncryptedIdentities(DecryptError),
+    /// An I/O error occurred during encryption.
     Io(io::Error),
     /// A required plugin could not be found.
     #[cfg(feature = "plugin")]
@@ -126,9 +128,25 @@ impl From<io::Error> for EncryptError {
     }
 }
 
+impl Clone for EncryptError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::EncryptedIdentities(e) => Self::EncryptedIdentities(e.clone()),
+            Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
+            #[cfg(feature = "plugin")]
+            Self::MissingPlugin { binary_name } => Self::MissingPlugin {
+                binary_name: binary_name.clone(),
+            },
+            #[cfg(feature = "plugin")]
+            Self::Plugin(e) => Self::Plugin(e.clone()),
+        }
+    }
+}
+
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EncryptError::EncryptedIdentities(e) => e.fmt(f),
             EncryptError::Io(e) => e.fmt(f),
             #[cfg(feature = "plugin")]
             EncryptError::MissingPlugin { binary_name } => {
@@ -162,6 +180,7 @@ impl fmt::Display for EncryptError {
 impl std::error::Error for EncryptError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            EncryptError::EncryptedIdentities(inner) => Some(inner),
             EncryptError::Io(inner) => Some(inner),
             #[cfg(feature = "plugin")]
             _ => None,
@@ -202,6 +221,30 @@ pub enum DecryptError {
     Plugin(Vec<PluginError>),
     /// An unknown age format, probably from a newer version.
     UnknownFormat,
+}
+
+impl Clone for DecryptError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::DecryptionFailed => Self::DecryptionFailed,
+            Self::ExcessiveWork { required, target } => Self::ExcessiveWork {
+                required: *required,
+                target: *target,
+            },
+            Self::InvalidHeader => Self::InvalidHeader,
+            Self::InvalidMac => Self::InvalidMac,
+            Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
+            Self::KeyDecryptionFailed => Self::KeyDecryptionFailed,
+            #[cfg(feature = "plugin")]
+            Self::MissingPlugin { binary_name } => Self::MissingPlugin {
+                binary_name: binary_name.clone(),
+            },
+            Self::NoMatchingKeys => Self::NoMatchingKeys,
+            #[cfg(feature = "plugin")]
+            Self::Plugin(e) => Self::Plugin(e.clone()),
+            Self::UnknownFormat => Self::UnknownFormat,
+        }
+    }
 }
 
 impl fmt::Display for DecryptError {
