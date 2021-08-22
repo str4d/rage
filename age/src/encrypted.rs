@@ -210,7 +210,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R
 
 #[cfg(test)]
 mod tests {
-    use std::io::BufReader;
+    use std::{cell::Cell, io::BufReader};
 
     use secrecy::{ExposeSecret, SecretString};
 
@@ -236,7 +236,13 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     const TEST_RECIPIENT: &str = "age1ysxuaeqlk7xd8uqsh8lsnfwt9jzzjlqf49ruhpjrrj5yatlcuf7qke4pqe";
 
     #[derive(Clone)]
-    struct MockCallbacks(&'static str);
+    struct MockCallbacks(Cell<Option<&'static str>>);
+
+    impl MockCallbacks {
+        fn new(passphrase: &'static str) -> Self {
+            MockCallbacks(Cell::new(Some(passphrase)))
+        }
+    }
 
     impl Callbacks for MockCallbacks {
         fn display_message(&self, _: &str) {
@@ -247,8 +253,9 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
             unimplemented!()
         }
 
+        /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<secrecy::SecretString> {
-            Some(SecretString::new(self.0.to_owned()))
+            Some(SecretString::new(self.0.take().unwrap().to_owned()))
         }
     }
 
@@ -262,7 +269,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
         {
             let buf = ArmoredReader::new(BufReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes()));
             let identity =
-                Identity::from_buffer(buf, None, MockCallbacks("wrong passphrase"), None)
+                Identity::from_buffer(buf, None, MockCallbacks::new("wrong passphrase"), None)
                     .unwrap()
                     .unwrap();
 
@@ -277,7 +284,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
         let identity = Identity::from_buffer(
             buf,
             None,
-            MockCallbacks(TEST_ENCRYPTED_IDENTITY_PASSPHRASE),
+            MockCallbacks::new(TEST_ENCRYPTED_IDENTITY_PASSPHRASE),
             None,
         )
         .unwrap()
@@ -287,5 +294,8 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
             unwrapped.unwrap().unwrap().expose_secret(),
             file_key.expose_secret()
         );
+
+        // Unwrapping a second time doesn't re-decrypt.
+        identity.unwrap_stanzas(&wrapped);
     }
 }
