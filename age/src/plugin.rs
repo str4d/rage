@@ -4,6 +4,7 @@ use age_core::{
     format::{FileKey, Stanza},
     plugin::{Connection, IDENTITY_V1, RECIPIENT_V1},
 };
+use bech32::Variant;
 use secrecy::ExposeSecret;
 use std::convert::TryInto;
 use std::fmt;
@@ -119,6 +120,19 @@ impl fmt::Display for Identity {
 }
 
 impl Identity {
+    /// Returns the identity corresponding to the given plugin name in its default mode.
+    pub fn default_for_plugin(plugin_name: &str) -> Self {
+        bech32::encode(
+            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
+            &[],
+            Variant::Bech32,
+        )
+        .expect("HRP is valid")
+        .to_uppercase()
+        .parse()
+        .unwrap()
+    }
+
     /// Returns the plugin name for this identity.
     pub fn plugin(&self) -> &str {
         &self.name
@@ -227,7 +241,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             |mut command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
-                        .prompt(&String::from_utf8_lossy(&command.body));
+                        .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
                 CMD_REQUEST_PUBLIC => {
@@ -392,7 +406,7 @@ impl<C: Callbacks> IdentityPluginV1<C> {
             |command, reply| match command.tag.as_str() {
                 CMD_MSG => {
                     self.callbacks
-                        .prompt(&String::from_utf8_lossy(&command.body));
+                        .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
                 CMD_REQUEST_PUBLIC => {
@@ -459,5 +473,18 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 
     fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
         self.unwrap_stanzas(stanzas.iter())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Identity;
+
+    #[test]
+    fn default_for_plugin() {
+        assert_eq!(
+            Identity::default_for_plugin("foobar").to_string(),
+            "AGE-PLUGIN-FOOBAR-1QVHULF",
+        );
     }
 }

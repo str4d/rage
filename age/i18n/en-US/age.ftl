@@ -57,6 +57,12 @@ err-plugin-identity = '{$plugin_name}' couldn't use an identity: {$message}
 err-plugin-recipient = '{$plugin_name}' couldn't use recipient {$recipient}: {$message}
 err-plugin-multiple = Plugin returned multiple errors:
 
+## Encrypted identities
+
+encrypted-passphrase-prompt = Type passphrase for encrypted identity '{$filename}'
+
+encrypted-warn-no-match = Warning: encrypted identity file '{$filename}' didn't match file's recipients
+
 ## SSH identities
 
 ssh-passphrase-prompt = Type passphrase for OpenSSH key '{$filename}'

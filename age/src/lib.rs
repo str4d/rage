@@ -144,12 +144,10 @@ mod identity;
 mod keys;
 mod primitives;
 mod protocol;
-mod scrypt;
 mod util;
-pub mod x25519;
 
 pub use error::{DecryptError, EncryptError};
-pub use identity::IdentityFile;
+pub use identity::{IdentityFile, IdentityFileEntry};
 pub use primitives::stream;
 pub use protocol::{decryptor, Decryptor, Encryptor};
 
@@ -162,6 +160,14 @@ pub mod cli_common;
 
 mod i18n;
 pub use i18n::localizer;
+
+//
+// Identity types
+//
+
+pub mod encrypted;
+mod scrypt;
+pub mod x25519;
 
 #[cfg(feature = "plugin")]
 #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
@@ -236,7 +242,7 @@ pub trait Callbacks {
     ///
     /// This can be used to prompt the user to take some physical action, such as
     /// inserting a hardware key.
-    fn prompt(&self, message: &str);
+    fn display_message(&self, message: &str);
 
     /// Requests non-private input from the user.
     ///

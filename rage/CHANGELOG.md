@@ -9,6 +9,13 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `-i/--identity` now accepts passphrase-encrypted age identity files.
+- The `-j PLUGIN_NAME` flag, which allows decrypting with a plugin using its
+  "default mode" (in which no identity-specific information is required). This
+  flag is equivalent to using `-i/--identity` with an identity file containing
+  the default plugin identity (containing no data).
+
 ### Changed
 - MSRV is now 1.51.0.
 

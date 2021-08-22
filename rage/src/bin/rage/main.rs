@@ -5,7 +5,7 @@ use age::{
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
     },
-    plugin, Identity, IdentityFile, Recipient,
+    plugin, Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -101,6 +101,7 @@ fn read_recipients(
     recipient_strings: Vec<String>,
     recipients_file_strings: Vec<String>,
     identity_strings: Vec<String>,
+    max_work_factor: Option<u8>,
 ) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
     let mut recipients: Vec<Box<dyn Recipient>> = vec![];
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
@@ -117,6 +118,23 @@ fn read_recipients(
     }
 
     for filename in identity_strings {
+        // Try parsing as an encrypted age identity.
+        if let Ok(identity) = age::encrypted::Identity::from_buffer(
+            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            Some(filename.clone()),
+            UiCallbacks,
+            max_work_factor,
+        ) {
+            if let Some(identity) = identity {
+                recipients.extend(identity.recipients()?);
+                continue;
+            } else {
+                return Err(error::EncryptError::IdentityEncryptedWithoutPassphrase(
+                    filename,
+                ));
+            }
+        }
+
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
         match age::ssh::Identity::from_buffer(
@@ -141,11 +159,12 @@ fn read_recipients(
                 io::ErrorKind::NotFound => error::EncryptError::IdentityNotFound(filename),
                 _ => e.into(),
             })?;
-        let (new_ids, new_plugin_ids) = identity_file.split_into();
-        for identity in new_ids {
-            recipients.push(Box::new(identity.to_public()));
+        for entry in identity_file.into_identities() {
+            match entry {
+                IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
+            }
         }
-        plugin_identities.extend(new_plugin_ids);
     }
 
     // Collect the names of the required plugins.
@@ -212,11 +231,22 @@ struct AgeOptions {
     #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 
+    #[options(
+        help = "Use the plugin NAME in its default mode as an identity.",
+        no_long,
+        short = "j"
+    )]
+    plugin_name: String,
+
     #[options(help = "Write the result to the file at path OUTPUT.")]
     output: Option<String>,
 }
 
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
+    if !opts.plugin_name.is_empty() {
+        return Err(error::EncryptError::PluginNameFlag);
+    }
+
     let encryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
             return Err(error::EncryptError::MixedIdentityAndPassphrase);
@@ -267,6 +297,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             opts.recipient,
             opts.recipients_file,
             opts.identity,
+            opts.max_work_factor,
         )?)
     };
 
@@ -331,6 +362,10 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         return Err(error::DecryptError::RecipientsFileFlag);
     }
 
+    if !(opts.identity.is_empty() || opts.plugin_name.is_empty()) {
+        return Err(error::DecryptError::MixedIdentityAndPluginName);
+    }
+
     let output = opts.output;
 
     #[cfg(not(unix))]
@@ -372,12 +407,23 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(
-                opts.identity,
-                error::DecryptError::IdentityNotFound,
-                #[cfg(feature = "ssh")]
-                error::DecryptError::UnsupportedKey,
-            )?;
+            let identities = if opts.plugin_name.is_empty() {
+                read_identities(
+                    opts.identity,
+                    opts.max_work_factor,
+                    error::DecryptError::IdentityNotFound,
+                    error::DecryptError::IdentityEncryptedWithoutPassphrase,
+                    #[cfg(feature = "ssh")]
+                    error::DecryptError::UnsupportedKey,
+                )?
+            } else {
+                // Construct the default plugin.
+                vec![Box::new(plugin::IdentityPluginV1::new(
+                    &opts.plugin_name,
+                    &[plugin::Identity::default_for_plugin(&opts.plugin_name)],
+                    UiCallbacks,
+                )?) as Box<dyn Identity>]
+            };
 
             if identities.is_empty() {
                 return Err(error::DecryptError::MissingIdentities);

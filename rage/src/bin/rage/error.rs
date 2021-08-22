@@ -20,6 +20,7 @@ pub(crate) enum EncryptError {
         is_stdout: bool,
         source: io::Error,
     },
+    IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     InvalidRecipient(String),
     Io(io::Error),
@@ -29,6 +30,7 @@ pub(crate) enum EncryptError {
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
+    PluginNameFlag,
     #[cfg(feature = "ssh")]
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
@@ -76,6 +78,17 @@ impl fmt::Display for EncryptError {
                     )
                 }
             }
+            EncryptError::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
             EncryptError::IdentityNotFound(filename) => write!(
                 f,
                 "{}",
@@ -112,6 +125,9 @@ impl fmt::Display for EncryptError {
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }
+            EncryptError::PluginNameFlag => {
+                wfl!(f, "err-enc-plugin-name-flag")
+            }
             #[cfg(feature = "ssh")]
             EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
@@ -121,9 +137,11 @@ impl fmt::Display for EncryptError {
 pub(crate) enum DecryptError {
     Age(age::DecryptError),
     ArmorFlag,
+    IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     Io(io::Error),
     MissingIdentities,
+    MixedIdentityAndPluginName,
     PassphraseFlag,
     PassphraseTimedOut,
     #[cfg(not(unix))]
@@ -168,6 +186,17 @@ impl fmt::Display for DecryptError {
                 wlnfl!(f, "err-dec-armor-flag")?;
                 wfl!(f, "rec-dec-armor-flag")
             }
+            DecryptError::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    fl!(
+                        crate::LANGUAGE_LOADER,
+                        "err-dec-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
             DecryptError::IdentityNotFound(filename) => write!(
                 f,
                 "{}",
@@ -181,6 +210,9 @@ impl fmt::Display for DecryptError {
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 wlnfl!(f, "rec-dec-missing-identities")
+            }
+            DecryptError::MixedIdentityAndPluginName => {
+                wfl!(f, "err-mixed-identity-and-plugin-name")
             }
             DecryptError::PassphraseFlag => {
                 wlnfl!(f, "err-dec-passphrase-flag")?;

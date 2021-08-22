@@ -27,7 +27,9 @@ fn age_test_vectors() -> Result<(), age::DecryptError> {
                         path.parent().unwrap().to_str().unwrap(),
                         name
                     )],
+                    None,
                     |e| age::DecryptError::Io(io::Error::new(io::ErrorKind::NotFound, e)),
+                    |e| age::DecryptError::Io(io::Error::new(io::ErrorKind::Other, e)),
                     |_, _| age::DecryptError::DecryptionFailed,
                 )?;
                 d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))

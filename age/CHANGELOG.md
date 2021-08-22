@@ -9,8 +9,34 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::encrypted::Identity`, for decrypting files with passphrase-encrypted
+  age identity files.
+- `age::IdentityFileEntry` enum, representing the possible kinds of entries
+  within an age identity file.
+- `age::{DecryptError, EncryptError, PluginError}: Clone` bounds.
+- `age::cli_common::UiCallbacks: Clone + Copy` bounds.
+
 ### Changed
 - MSRV is now 1.51.0.
+- `age::IdentityFile::into_identities` now returns `Vec<IdentityFileEntry>`.
+- `age::cli_common::read_identities`:
+  - Encrypted age files will now be parsed and assumed to be encrypted age
+    identities. This assumption is checked at file-decryption time.
+  - New `max_work_factor` parameter for controlling the work factor when
+    decrypting encrypted identities.
+  - New `identity_encrypted_without_passphrase` parameter for customising the
+    error when an invalid encrypted identity is found.
+  - Identities are now returned in the same order as `filenames` (and
+    top-to-bottom from within each file). Plugin identities are no longer
+    coalesced; there is one `Box<dyn Identity>` per plugin identity.
+- `age::Callbacks::prompt` has been renamed to `Callbacks::display_message`.
+  - `age::cli_common::UiCallbacks::display_message` no longer uses `pinentry`
+    (which displays a temporary prompt that can be dismissed), so the message is
+    now part of the visible CLI output.
+
+### Removed
+- `IdentityFile::split_into` (replaced by `IdentityFileEntry::Plugin`).
 
 ## [0.6.0] - 2021-05-02
 ### Security

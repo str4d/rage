@@ -1,16 +1,57 @@
 use std::fs::File;
 use std::io;
 
-use crate::x25519;
+use crate::{x25519, Callbacks, DecryptError, EncryptError};
 
 #[cfg(feature = "plugin")]
 use crate::plugin;
 
+/// The supported kinds of identities within an [`IdentityFile`].
+#[derive(Clone)]
+pub enum IdentityFileEntry {
+    /// The standard age identity type.
+    Native(x25519::Identity),
+    /// A plugin-compatible identity.
+    #[cfg(feature = "plugin")]
+    Plugin(plugin::Identity),
+}
+
+impl IdentityFileEntry {
+    pub(crate) fn into_identity(
+        self,
+        callbacks: impl Callbacks + 'static,
+    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+        match self {
+            IdentityFileEntry::Native(i) => Ok(Box::new(i)),
+            #[cfg(feature = "plugin")]
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::IdentityPluginV1::new(
+                &i.plugin().to_owned(),
+                &[i],
+                callbacks,
+            )?)),
+        }
+    }
+
+    pub(crate) fn to_recipient(
+        &self,
+        callbacks: impl Callbacks + 'static,
+    ) -> Result<Box<dyn crate::Recipient>, EncryptError> {
+        match self {
+            IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
+            #[cfg(feature = "plugin")]
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::RecipientPluginV1::new(
+                &i.plugin().to_owned(),
+                &[],
+                &[i.clone()],
+                callbacks,
+            )?)),
+        }
+    }
+}
+
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile {
-    identities: Vec<x25519::Identity>,
-    #[cfg(feature = "plugin")]
-    plugin_identities: Vec<plugin::Identity>,
+    identities: Vec<IdentityFileEntry>,
 }
 
 impl IdentityFile {
@@ -29,9 +70,6 @@ impl IdentityFile {
     fn parse_identities<R: io::BufRead>(filename: Option<String>, data: R) -> io::Result<Self> {
         let mut identities = vec![];
 
-        #[cfg(feature = "plugin")]
-        let mut plugin_identities = vec![];
-
         for (line_number, line) in data.lines().enumerate() {
             let line = line?;
             if line.is_empty() || line.starts_with('#') {
@@ -39,7 +77,7 @@ impl IdentityFile {
             }
 
             if let Ok(identity) = line.parse::<x25519::Identity>() {
-                identities.push(identity);
+                identities.push(IdentityFileEntry::Native(identity));
             } else if let Some(identity) = {
                 #[cfg(feature = "plugin")]
                 {
@@ -51,7 +89,7 @@ impl IdentityFile {
             } {
                 #[cfg(feature = "plugin")]
                 {
-                    plugin_identities.push(identity);
+                    identities.push(IdentityFileEntry::Plugin(identity));
                 }
 
                 // Add a binding to provide a type when plugins are disabled.
@@ -78,23 +116,12 @@ impl IdentityFile {
             }
         }
 
-        Ok(IdentityFile {
-            identities,
-            #[cfg(feature = "plugin")]
-            plugin_identities,
-        })
+        Ok(IdentityFile { identities })
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Vec<x25519::Identity> {
+    pub fn into_identities(self) -> Vec<IdentityFileEntry> {
         self.identities
-    }
-
-    /// Splits this file into native and plugin identities.
-    #[cfg(feature = "plugin")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
-    pub fn split_into(self) -> (Vec<x25519::Identity>, Vec<plugin::Identity>) {
-        (self.identities, self.plugin_identities)
     }
 }
 
@@ -103,7 +130,7 @@ pub(crate) mod tests {
     use secrecy::ExposeSecret;
     use std::io::BufReader;
 
-    use super::IdentityFile;
+    use super::{IdentityFile, IdentityFileEntry};
 
     pub(crate) const TEST_SK: &str =
         "AGE-SECRET-KEY-1GQ9778VQXMMJVE8SK7J6VT8UJ4HDQAJUVSFCWCM02D8GEWQ72PVQ2Y5J33";
@@ -112,7 +139,13 @@ pub(crate) mod tests {
         let buf = BufReader::new(keydata.as_bytes());
         let f = IdentityFile::from_buffer(buf).unwrap();
         assert_eq!(f.identities.len(), num_keys);
-        assert_eq!(f.identities[0].to_string().expose_secret(), TEST_SK);
+        match &f.identities[0] {
+            IdentityFileEntry::Native(identity) => {
+                assert_eq!(identity.to_string().expose_secret(), TEST_SK)
+            }
+            #[cfg(feature = "plugin")]
+            IdentityFileEntry::Plugin(_) => panic!(),
+        }
     }
 
     #[test]

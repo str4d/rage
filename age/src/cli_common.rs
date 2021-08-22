@@ -1,6 +1,6 @@
 //! Common helpers for CLI binaries.
 
-use pinentry::{MessageDialog, PassphraseInput};
+use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
@@ -11,10 +11,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{fl, identity::IdentityFile, Callbacks, Identity};
-
-#[cfg(feature = "plugin")]
-use crate::plugin;
+use crate::{armor::ArmoredReader, fl, identity::IdentityFile, Callbacks, Identity};
 
 pub mod file_io;
 
@@ -22,22 +19,37 @@ const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
 /// Reads identities from the provided files if given, or the default system
 /// locations if no files are given.
-pub fn read_identities<E, G>(
+pub fn read_identities<E, G, H>(
     filenames: Vec<String>,
+    max_work_factor: Option<u8>,
     file_not_found: G,
+    identity_encrypted_without_passphrase: H,
     #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
 ) -> Result<Vec<Box<dyn Identity>>, E>
 where
     E: From<crate::DecryptError>,
     E: From<io::Error>,
     G: Fn(String) -> E,
+    H: Fn(String) -> E,
 {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
-    #[cfg(feature = "plugin")]
-    let mut plugin_identities: Vec<plugin::Identity> = vec![];
-
     for filename in filenames {
+        // Try parsing as an encrypted age identity.
+        if let Ok(identity) = crate::encrypted::Identity::from_buffer(
+            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            Some(filename.clone()),
+            UiCallbacks,
+            max_work_factor,
+        ) {
+            if let Some(identity) = identity {
+                identities.push(Box::new(identity));
+                continue;
+            } else {
+                return Err(identity_encrypted_without_passphrase(filename));
+            }
+        }
+
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
         match crate::ssh::Identity::from_buffer(
@@ -59,39 +71,8 @@ where
                 _ => e.into(),
             })?;
 
-        #[cfg(feature = "plugin")]
-        let (new_ids, mut new_plugin_ids) = identity_file.split_into();
-
-        #[cfg(not(feature = "plugin"))]
-        let new_ids = identity_file.into_identities();
-
-        identities.extend(
-            new_ids
-                .into_iter()
-                .map(|i| Box::new(i) as Box<dyn Identity>),
-        );
-
-        #[cfg(feature = "plugin")]
-        plugin_identities.append(&mut new_plugin_ids);
-    }
-
-    #[cfg(feature = "plugin")]
-    {
-        // Collect the names of the required plugins.
-        let mut plugin_names = plugin_identities
-            .iter()
-            .map(|r| r.plugin())
-            .collect::<Vec<_>>();
-        plugin_names.sort_unstable();
-        plugin_names.dedup();
-
-        // Find the required plugins.
-        for plugin_name in plugin_names {
-            identities.push(Box::new(crate::plugin::IdentityPluginV1::new(
-                plugin_name,
-                &plugin_identities,
-                UiCallbacks,
-            )?))
+        for entry in identity_file.into_identities() {
+            identities.push(entry.into_identity(UiCallbacks)?);
         }
     }
 
@@ -162,18 +143,11 @@ pub fn read_secret(
 }
 
 /// Implementation of age callbacks that makes requests to the user via the UI.
+#[derive(Clone, Copy)]
 pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
-    fn prompt(&self, message: &str) {
-        if let Some(dialog) = MessageDialog::with_default_binary() {
-            // pinentry binary is available!
-            if dialog.show_message(message).is_ok() {
-                return;
-            }
-        }
-
-        // Fall back to CLI interface.
+    fn display_message(&self, message: &str) {
         eprintln!("{}", message);
     }
 

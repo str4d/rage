@@ -50,7 +50,9 @@ rage-usage =
     （前缀为 "#" 的注释以及空行将被忽略）。
 
     {-identity} 是一个文件路径。该文件或含 {-age} 身份, 每行一个（前缀为 "#" 的注释以及空行将被忽略），
-    亦或为 SSH 密钥文件。您可提供多份身份, 未使用的身份将被忽略。
+    亦或为 SSH 密钥文件。
+    Passphrase-encrypted {-age} identity files can be used as identity files.
+    您可提供多份身份, 未使用的身份将被忽略。
 
     Example:
     {"  "}{$example_a}
