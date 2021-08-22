@@ -11,12 +11,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{
-    armor::ArmoredReader,
-    fl,
-    identity::{IdentityFile, IdentityFileEntry},
-    Callbacks, Identity,
-};
+use crate::{armor::ArmoredReader, fl, identity::IdentityFile, Callbacks, Identity};
 
 pub mod file_io;
 
@@ -77,15 +72,7 @@ where
             })?;
 
         for entry in identity_file.into_identities() {
-            identities.push(match entry {
-                IdentityFileEntry::Native(i) => Box::new(i),
-                #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(i) => Box::new(crate::plugin::IdentityPluginV1::new(
-                    &i.plugin().to_owned(),
-                    &[i],
-                    UiCallbacks,
-                )?),
-            });
+            identities.push(entry.into_identity(UiCallbacks)?);
         }
     }
 

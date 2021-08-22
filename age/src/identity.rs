@@ -1,18 +1,52 @@
 use std::fs::File;
 use std::io;
 
-use crate::x25519;
+use crate::{x25519, Callbacks, DecryptError, EncryptError};
 
 #[cfg(feature = "plugin")]
 use crate::plugin;
 
 /// The supported kinds of identities within an [`IdentityFile`].
+#[derive(Clone)]
 pub enum IdentityFileEntry {
     /// The standard age identity type.
     Native(x25519::Identity),
     /// A plugin-compatible identity.
     #[cfg(feature = "plugin")]
     Plugin(plugin::Identity),
+}
+
+impl IdentityFileEntry {
+    pub(crate) fn into_identity(
+        self,
+        callbacks: impl Callbacks + 'static,
+    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+        match self {
+            IdentityFileEntry::Native(i) => Ok(Box::new(i)),
+            #[cfg(feature = "plugin")]
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::IdentityPluginV1::new(
+                &i.plugin().to_owned(),
+                &[i],
+                callbacks,
+            )?)),
+        }
+    }
+
+    pub(crate) fn to_recipient(
+        &self,
+        callbacks: impl Callbacks + 'static,
+    ) -> Result<Box<dyn crate::Recipient>, EncryptError> {
+        match self {
+            IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
+            #[cfg(feature = "plugin")]
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::RecipientPluginV1::new(
+                &i.plugin().to_owned(),
+                &[],
+                &[i.clone()],
+                callbacks,
+            )?)),
+        }
+    }
 }
 
 /// A list of identities that has been parsed from some input file.

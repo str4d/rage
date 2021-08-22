@@ -121,19 +121,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
             Ok((identities, _)) => {
                 let recipients = identities
                     .iter()
-                    .map::<Result<_, EncryptError>, _>(|entry| match entry {
-                        IdentityFileEntry::Native(i) => {
-                            Ok(Box::new(i.to_public()) as Box<dyn crate::Recipient>)
-                        }
-                        #[cfg(feature = "plugin")]
-                        IdentityFileEntry::Plugin(i) => crate::plugin::RecipientPluginV1::new(
-                            &i.plugin().to_owned(),
-                            &[],
-                            &[i.clone()],
-                            self.callbacks.clone(),
-                        )
-                        .map(|i| Box::new(i) as Box<dyn crate::Recipient>),
-                    })
+                    .map(|entry| entry.to_recipient(self.callbacks.clone()))
                     .collect::<Result<Vec<_>, _>>()?;
 
                 self.state.set(IdentityState::Decrypted(identities));
@@ -174,18 +162,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
             Ok((identities, requested_passphrase)) => {
                 let result = identities
                     .iter()
-                    .map(|entry| match entry {
-                        IdentityFileEntry::Native(i) => {
-                            Ok(Box::new(i.clone()) as Box<dyn crate::Identity>)
-                        }
-                        #[cfg(feature = "plugin")]
-                        IdentityFileEntry::Plugin(i) => crate::plugin::IdentityPluginV1::new(
-                            &i.plugin().to_owned(),
-                            &[i.clone()],
-                            self.callbacks.clone(),
-                        )
-                        .map(|i| Box::new(i) as Box<dyn crate::Identity>),
-                    })
+                    .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
                     .find_map(filter);
 
                 // If we requested a passphrase to decrypt, and none of the identities
