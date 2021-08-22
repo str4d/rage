@@ -122,10 +122,10 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
                 let recipients = identities
                     .iter()
                     .map(|entry| entry.to_recipient(self.callbacks.clone()))
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<Result<Vec<_>, _>>();
 
                 self.state.set(IdentityState::Decrypted(identities));
-                Ok(recipients)
+                recipients
             }
             Err(e) => {
                 self.state.set(IdentityState::Poisoned(Some(e.clone())));
