@@ -70,10 +70,10 @@ futures = { version = "0.3", optional = true }
 pin-project = "1"
 
 # Localization
-i18n-embed = { version = "0.12", features = ["fluent-system"] }
-i18n-embed-fl = "0.5"
+i18n-embed = { version = "0.13", features = ["fluent-system"] }
+i18n-embed-fl = "0.6"
 lazy_static = "1"
-rust-embed = "5"
+rust-embed = "6"
 
 # Common CLI dependencies
 console = { version = "0.14", optional = true }
