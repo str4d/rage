@@ -58,7 +58,7 @@ block-modes = { version = "0.8", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = { version = "6", default-features = false, features = ["alloc"] }
+nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
 secrecy = "0.8"
@@ -77,7 +77,7 @@ rust-embed = "5"
 
 # Common CLI dependencies
 console = { version = "0.14", optional = true }
-pinentry = { version = "0.4", optional = true }
+pinentry = { version = "0.5", optional = true }
 rpassword = { version = "5", optional = true }
 
 web-sys = { version = "0.3", optional = true, features = ["Window", "Performance"]}

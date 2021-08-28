@@ -29,7 +29,7 @@ rand = "0.8"
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = { version = "6", default-features = false, features = ["alloc"] }
+nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
 secrecy = "0.8"
