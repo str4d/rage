@@ -48,12 +48,12 @@ chrono = "0.4"
 console = "0.14"
 env_logger = "0.9"
 gumdrop = "0.8"
-i18n-embed = { version = "0.12", features = ["desktop-requester", "fluent-system"] }
-i18n-embed-fl = "0.5"
+i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
+i18n-embed-fl = "0.6"
 lazy_static = "1"
 log = "0.4"
-pinentry = "0.4"
-rust-embed = "5"
+pinentry = "0.5"
+rust-embed = "6"
 secrecy = "0.8"
 
 # rage-mount dependencies

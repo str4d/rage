@@ -34,7 +34,7 @@ hmac = "0.11"
 sha2 = "0.9"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.7", default-features = false }
+scrypt = { version = "0.8", default-features = false }
 
 # - CSPRNG
 rand = "0.8"
@@ -53,12 +53,12 @@ curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
 aes = { version = "0.7", optional = true, features = ["ctr"] }
-bcrypt-pbkdf = { version = "0.6", optional = true }
+bcrypt-pbkdf = { version = "0.7", optional = true }
 block-modes = { version = "0.8", optional = true }
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = { version = "6", default-features = false, features = ["alloc"] }
+nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
 secrecy = "0.8"
@@ -70,14 +70,14 @@ futures = { version = "0.3", optional = true }
 pin-project = "1"
 
 # Localization
-i18n-embed = { version = "0.12", features = ["fluent-system"] }
-i18n-embed-fl = "0.5"
+i18n-embed = { version = "0.13", features = ["fluent-system"] }
+i18n-embed-fl = "0.6"
 lazy_static = "1"
-rust-embed = "5"
+rust-embed = "6"
 
 # Common CLI dependencies
 console = { version = "0.14", optional = true }
-pinentry = { version = "0.4", optional = true }
+pinentry = { version = "0.5", optional = true }
 rpassword = { version = "5", optional = true }
 
 web-sys = { version = "0.3", optional = true, features = ["Window", "Performance"]}
@@ -95,7 +95,7 @@ quickcheck = "1"
 quickcheck_macros = "1"
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.4.2", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.5", features = ["criterion", "flamegraph"] }
 
 [features]
 default = []
