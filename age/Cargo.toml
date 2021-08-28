@@ -34,7 +34,7 @@ hmac = "0.11"
 sha2 = "0.9"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.7", default-features = false }
+scrypt = { version = "0.8", default-features = false }
 
 # - CSPRNG
 rand = "0.8"
@@ -53,7 +53,7 @@ curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
 aes = { version = "0.7", optional = true, features = ["ctr"] }
-bcrypt-pbkdf = { version = "0.6", optional = true }
+bcrypt-pbkdf = { version = "0.7", optional = true }
 block-modes = { version = "0.8", optional = true }
 
 # Parsing
