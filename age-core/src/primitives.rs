@@ -1,8 +1,8 @@
 //! Primitive cryptographic operations used across various `age` components.
 
 use chacha20poly1305::{
-    aead::{self, generic_array::typenum::Unsigned, Aead, NewAead},
-    ChaChaPoly1305,
+    aead::{self, generic_array::typenum::Unsigned, Aead, AeadCore, NewAead},
+    ChaCha20Poly1305,
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -13,7 +13,7 @@ use sha2::Sha256;
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
 pub fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
-    let c = ChaChaPoly1305::<c2_chacha::Ietf>::new(key.into());
+    let c = ChaCha20Poly1305::new(key.into());
     c.encrypt(&[0; 12].into(), plaintext)
         .expect("we won't overflow the ChaCha20 block counter")
 }
@@ -32,11 +32,11 @@ pub fn aead_decrypt(
     size: usize,
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, aead::Error> {
-    if ciphertext.len() != size + <ChaChaPoly1305<c2_chacha::Ietf> as Aead>::TagSize::to_usize() {
+    if ciphertext.len() != size + <ChaCha20Poly1305 as AeadCore>::TagSize::to_usize() {
         return Err(aead::Error);
     }
 
-    let c = ChaChaPoly1305::<c2_chacha::Ietf>::new(key.into());
+    let c = ChaCha20Poly1305::new(key.into());
     c.decrypt(&[0; 12].into(), ciphertext)
 }
 

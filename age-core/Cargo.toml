@@ -17,8 +17,7 @@ maintenance = { status = "experimental" }
 base64 = "0.13"
 
 # - ChaCha20-Poly1305 from RFC 7539
-c2-chacha = "0.3"
-chacha20poly1305 = { version = "0.7", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.9", default-features = false, features = ["alloc"] }
 
 # - HKDF from RFC 5869 with SHA-256
 hkdf = "0.11"

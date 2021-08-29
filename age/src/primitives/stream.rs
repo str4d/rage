@@ -2,7 +2,7 @@
 
 use chacha20poly1305::{
     aead::{generic_array::GenericArray, Aead, NewAead},
-    ChaChaPoly1305,
+    ChaCha20Poly1305,
 };
 use pin_project::pin_project;
 use secrecy::{ExposeSecret, SecretVec};
@@ -24,9 +24,7 @@ const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
-pub(crate) struct PayloadKey(
-    pub(crate) GenericArray<u8, <ChaChaPoly1305<c2_chacha::Ietf> as NewAead>::KeySize>,
-);
+pub(crate) struct PayloadKey(pub(crate) GenericArray<u8, <ChaCha20Poly1305 as NewAead>::KeySize>);
 
 impl Drop for PayloadKey {
     fn drop(&mut self) {
@@ -89,14 +87,14 @@ struct EncryptedChunk {
 ///
 /// [STREAM]: https://eprint.iacr.org/2015/189.pdf
 pub(crate) struct Stream {
-    aead: ChaChaPoly1305<c2_chacha::Ietf>,
+    aead: ChaCha20Poly1305,
     nonce: Nonce,
 }
 
 impl Stream {
     fn new(key: PayloadKey) -> Self {
         Stream {
-            aead: ChaChaPoly1305::new(&key.0),
+            aead: ChaCha20Poly1305::new(&key.0),
             nonce: Nonce::default(),
         }
     }
