@@ -121,25 +121,26 @@ jobs:
       matrix:
         name: [linux, armv7, arm64]
         include:
-          - name: linux
-            target: x86_64-unknown-linux-gnu
-            build_deps: >
-              libfuse-dev
-              libpcsclite-dev
-            build_flags: --features mount
 
-          - name: armv7
-            target: armv7-unknown-linux-gnueabihf
+          - name: linux-musl
+            target: x86_64-unknown-linux-musl
+            build_deps: >
+              musl-tools
+
+          - name: armv7-musl
+            target: armv7-unknown-linux-musleabihf
             build_deps: >
               gcc-arm-linux-gnueabihf
+              musl-tools
             cargo_config: |
               [target.armv7-unknown-linux-gnueabihf]
               linker = "arm-linux-gnueabihf-gcc"
 
-          - name: arm64
-            target: aarch64-unknown-linux-gnu
+          - name: arm64-musl
+            target: aarch64-unknown-linux-musl
             build_deps: >
               gcc-aarch64-linux-gnu
+              musl-tools
             cargo_config: |
               [target.aarch64-unknown-linux-gnu]
               linker = "aarch64-linux-gnu-gcc"
@@ -186,7 +187,6 @@ jobs:
 
       - name: Update Debian package config for cross-compile
         run: sed -i '/\/rage-mount/d' rage/Cargo.toml
-        if: matrix.name != 'linux'
 
       - name: cargo deb
         uses: actions-rs/cargo@v1
