@@ -90,6 +90,7 @@ wsl = { version = "0.1", optional = true }
 criterion = "0.3"
 criterion-cycles-per-byte = "0.1"
 futures-test = "0.3"
+i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
 quickcheck = "1"
 quickcheck_macros = "1"
 
