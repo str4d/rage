@@ -89,6 +89,7 @@ impl Header {
     }
 
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub(crate) async fn read_async<R: AsyncRead + Unpin>(
         mut input: R,
     ) -> Result<Self, DecryptError> {
@@ -129,6 +130,7 @@ impl Header {
     }
 
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub(crate) async fn write_async<W: AsyncWrite + Unpin>(&self, mut output: W) -> io::Result<()> {
         let mut buf = vec![];
         cookie_factory::gen(write::header(self), &mut buf)

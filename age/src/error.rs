@@ -11,6 +11,7 @@ use age_core::format::Stanza;
 
 /// Errors returned by a plugin.
 #[cfg(feature = "plugin")]
+#[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
 #[derive(Clone, Debug)]
 pub enum PluginError {
     /// An error caused by a specific identity.
@@ -113,12 +114,14 @@ pub enum EncryptError {
     Io(io::Error),
     /// A required plugin could not be found.
     #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     MissingPlugin {
         /// The plugin's binary name.
         binary_name: String,
     },
     /// Errors from a plugin.
     #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     Plugin(Vec<PluginError>),
 }
 
@@ -210,6 +213,7 @@ pub enum DecryptError {
     KeyDecryptionFailed,
     /// A required plugin could not be found.
     #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     MissingPlugin {
         /// The plugin's binary name.
         binary_name: String,
@@ -218,6 +222,7 @@ pub enum DecryptError {
     NoMatchingKeys,
     /// Errors from a plugin.
     #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     Plugin(Vec<PluginError>),
     /// An unknown age format, probably from a newer version.
     UnknownFormat,
@@ -320,6 +325,7 @@ impl From<hmac::crypto_mac::MacError> for DecryptError {
 }
 
 #[cfg(feature = "ssh")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 impl From<rsa::errors::Error> for DecryptError {
     fn from(_: rsa::errors::Error) -> Self {
         DecryptError::DecryptionFailed
