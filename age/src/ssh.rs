@@ -155,7 +155,7 @@ mod decrypt {
 mod read_asn1 {
     use nom::{
         bytes::complete::{tag, take},
-        combinator::{map, map_opt},
+        combinator::{map, map_opt, map_parser},
         error::{make_error, ErrorKind},
         multi::{length_data, length_value},
         sequence::{preceded, terminated, tuple},
@@ -225,6 +225,92 @@ mod read_asn1 {
         }
     }
 
+    fn octet_string(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        preceded(
+            // Type: Universal | Primitive | OCTET_STRING
+            der_type(0, 0, 4),
+            length_data(der_length),
+        )(input)
+    }
+
+    fn object_identifier<'a>(
+        encoded_oid: &'a [u8],
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> {
+        move |input: &[u8]| {
+            preceded(
+                // Type: Universal | Primitive | OBJECT_IDENTIFIER
+                der_type(0, 0, 6),
+                length_value(der_length, tag(encoded_oid)),
+            )(input)
+        }
+    }
+
+    fn null(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        tag(b"\x05\x00")(input)
+    }
+
+    fn sequence_tag(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        // Type: Universal | Constructed | SEQUENCE
+        der_type(0, 1, 16)(input)
+    }
+
+    fn basic_algorithm_identifier<'a>(
+        encoded_oid: &'a [u8],
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], ()> {
+        move |input: &[u8]| {
+            preceded(
+                sequence_tag,
+                length_value(
+                    der_length,
+                    map(tuple((object_identifier(encoded_oid), null)), |_| ()),
+                ),
+            )(input)
+        }
+    }
+
+    /// A PKCS#8-encoded private key
+    ///
+    /// FROM [RFC 5208](https://datatracker.ietf.org/doc/html/rfc5208#section-5)
+    /// ```text
+    /// PrivateKeyInfo ::= SEQUENCE {
+    ///   version                   Version,
+    ///   privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
+    ///   privateKey                PrivateKey,
+    ///   attributes           [0]  IMPLICIT Attributes OPTIONAL }
+    ///
+    /// Version ::= INTEGER
+    ///
+    /// PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+    ///
+    /// PrivateKey ::= OCTET STRING
+    ///
+    /// Attributes ::= SET OF Attribute
+    /// ```
+    fn pkcs8_nocrypt_privkey<'a>(
+        encoded_oid: &'a [u8],
+    ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> {
+        move |input: &[u8]| {
+            preceded(
+                sequence_tag,
+                length_value(
+                    der_length,
+                    preceded(
+                        tuple((tag_version(0), basic_algorithm_identifier(encoded_oid))),
+                        octet_string,
+                    ),
+                ),
+            )(input)
+        }
+    }
+
+    // https://datatracker.ietf.org/doc/html/rfc3447#appendix-A.1
+    // rsa oid : OID([1, 2, 840, 113549, 1, 1, 1])
+    const RAW_OID_FOR_PKCS1_RSA: &'static [u8] = &[42, 134, 72, 134, 247, 13, 1, 1, 1];
+
+    pub(super) fn pkcs8_nocrypt_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
+        map_parser(pkcs8_nocrypt_privkey(RAW_OID_FOR_PKCS1_RSA), rsa_privkey)(input)
+    }
+
     /// A PKCS#1-encoded RSA private key.
     ///
     /// From [RFC 8017](https://tools.ietf.org/html/rfc8017#appendix-A.1.2):
@@ -247,8 +333,7 @@ mod read_asn1 {
     /// is omitted.
     pub(super) fn rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
         preceded(
-            // Type: Universal | Constructed | SEQUENCE
-            der_type(0, 1, 16),
+            sequence_tag,
             length_value(
                 der_length,
                 preceded(
@@ -266,6 +351,69 @@ mod read_asn1 {
                 ),
             ),
         )(input)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        const TEST_SSH_RSA_SK_PKCS8_NOCRYPT: &str =
+            "MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBAK3hEofgOaip2fRN
+oaZtpR0W4Qd+tixoJTqOgzBRzP+g7qpJt7k9Lw9PAGrZKVOGLVOGqIGvKCFAULBz
+dEhi6gf77EvkxKAheYdDk6S9CL8AALUhaVvwrlplP0rvFPIq6NEpaZ0raQhhGpsv
+ks3cEVQU4udDvGBTRfvjqmmsTHFLAgMBAAECgYBgo17xNaXWH9CK/zqAjR/fcv/O
+cpY9SASo7tvq1wvgZ0k+S4pY4bBuCbJpsBhP25sFeSneKcNb96rg5soSESeQLb8D
+rvE/RI3saF6G9Y/UzkDlpTggYlN6eIQuuVvzbERwVYHIbqR6qeyxzTZY/fKd/jjn
+49k3OC5EoDrfjpLvwQJBANrDcET6cs0bf9b76w50U0h8DM76LSgw2WDAjAXYxAkH
+6Ro8cU8ysmUwYh5XBxt4zUgt++ni1DjXZHPCd+KdPA8CQQDLedBzDg4jo3ZQrwIE
+VXyKxyVwh/7cXgogVjYvYxyWjMJRSLykEELg0XT91ZGk6CwLPQ6vI0uLk+RsB6hm
+4GsFAkBo3tHeL1WDX9BsBf4LwtX95IHbYvDs2GYMzKETWHO5hJJJYnpLJhmBCq2u
+r7eXgtSd6nVeDMABs7fTCoGgIBIfAkB6LynnDRecevn/NTgm1ha1VyS6UE/QkH/Q
+LzTWe9Oc6+V73gu5ETK3wc9Y5bhRqEFadk2tCarBpAtUe7y6GiTpAkBNsaLPpj/Z
+oIJeSeAt8h1XIeRq/FYv7LryWbOL3i5zt/7YbfKy5i1+aMFNdTDIZrNQIzd8O+l/
+BcNKngSAsLkz";
+
+        #[test]
+        fn dump_pkcs8_nocrypt_rsa_asn1() {
+            use simple_asn1::ASN1Block;
+
+            let bytes = base64::decode(
+                TEST_SSH_RSA_SK_PKCS8_NOCRYPT
+                    .split('\n')
+                    .collect::<Vec<&str>>()
+                    .join(""),
+            )
+            .unwrap();
+            let asn1 = &simple_asn1::from_der(&bytes).unwrap()[0];
+
+            if let ASN1Block::Sequence(_, v) = asn1 {
+                if let ASN1Block::Integer(_, i) = &v[0] {
+                    assert_eq!(i, &simple_asn1::BigInt::from(0));
+                } else {
+                    panic!("expected Integer")
+                }
+
+                if let ASN1Block::Sequence(_, alg) = &v[1] {
+                    if let ASN1Block::ObjectIdentifier(_, rsa_oid) = &alg[0] {
+                        assert_eq!(RAW_OID_FOR_PKCS1_RSA, rsa_oid.as_raw().unwrap());
+                    } else {
+                        panic!("expected OID")
+                    }
+                } else {
+                    panic!("expected Sequence");
+                }
+
+                if let ASN1Block::OctetString(_, key_bytes) = &v[2] {
+                    &simple_asn1::from_der(&key_bytes).unwrap()[0];
+
+                    rsa_privkey(&key_bytes).unwrap();
+                } else {
+                    panic!("expected octet string");
+                }
+            } else {
+                panic!("expected Sequence")
+            }
+        }
     }
 }
 

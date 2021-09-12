@@ -92,6 +92,7 @@ criterion-cycles-per-byte = "0.1"
 futures-test = "0.3"
 quickcheck = "1"
 quickcheck_macros = "1"
+simple_asn1 = "0.5.4"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.5", features = ["criterion", "flamegraph"] }

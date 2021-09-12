@@ -100,3 +100,9 @@ ssh-unsupported-cipher =
     If you would like support for this key type, please open an issue here:
 
     {$new_issue}
+
+ssh-unsupported-key-format-encrypted-pkcs8 =
+    Unsupported Key Format (PKCS#8)
+    ----------------------------------------
+    See
+    - https://github.com/str4d/rage/issues/15

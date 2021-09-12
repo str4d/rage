@@ -7,7 +7,7 @@ use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
     character::streaming::{line_ending, newline},
-    combinator::{map_opt, opt},
+    combinator::{map, map_opt, opt},
     sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
@@ -134,6 +134,8 @@ pub enum UnsupportedKey {
     EncryptedPem,
     /// An encrypted SSH key using a specific cipher.
     EncryptedSsh(String),
+    /// A PKCS8 key
+    EncryptedPkcs8,
 }
 
 impl UnsupportedKey {
@@ -178,6 +180,14 @@ impl UnsupportedKey {
                     )
                 )?;
             }
+            UnsupportedKey::EncryptedPkcs8 => writeln!(
+                f,
+                "{}",
+                fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "ssh-unsupported-key-format-encrypted-pkcs8"
+                )
+            )?,
         }
         Ok(())
     }
@@ -297,6 +307,16 @@ fn rsa_pem_encryption_header(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
+fn rsa_to_ssh_rsa(privkey: rsa::RsaPrivateKey) -> Identity {
+    let mut ssh_key = vec![];
+    cookie_factory::gen(
+        write_ssh::rsa_pubkey(&privkey.to_public_key()),
+        &mut ssh_key,
+    )
+    .expect("can write into a Vec");
+    UnencryptedKey::SshRsa(ssh_key, Box::new(privkey)).into()
+}
+
 fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN RSA PRIVATE KEY-----"), line_ending),
@@ -310,19 +330,39 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                     if enc_header.is_some() {
                         Some(UnsupportedKey::EncryptedPem.into())
                     } else {
-                        read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
-                            let mut ssh_key = vec![];
-                            cookie_factory::gen(
-                                write_ssh::rsa_pubkey(&privkey.to_public_key()),
-                                &mut ssh_key,
-                            )
-                            .expect("can write into a Vec");
-                            UnencryptedKey::SshRsa(ssh_key, Box::new(privkey)).into()
-                        })
+                        read_asn1::rsa_privkey(&privkey)
+                            .ok()
+                            .map(|(_, privkey)| rsa_to_ssh_rsa(privkey))
                     }
                 },
             ),
             pair(line_ending, tag("-----END RSA PRIVATE KEY-----")),
+        ),
+    )(input)
+}
+
+fn pkcs8_nocrypt_rsa_privkey(input: &str) -> IResult<&str, Identity> {
+    preceded(
+        pair(tag("-----BEGIN PRIVATE KEY-----"), line_ending),
+        terminated(
+            map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
+                read_asn1::pkcs8_nocrypt_rsa_privkey(&privkey)
+                    .ok()
+                    .map(|(_, privkey)| rsa_to_ssh_rsa(privkey))
+            }),
+            pair(line_ending, tag("-----END PRIVATE KEY-----")),
+        ),
+    )(input)
+}
+
+fn pkcs8_crypt_privkey(input: &str) -> IResult<&str, Identity> {
+    preceded(
+        pair(tag("-----BEGIN ENCRYPTED PRIVATE KEY-----"), line_ending),
+        terminated(
+            map(wrapped_str_while_encoded(base64::STANDARD), |_| {
+                UnsupportedKey::EncryptedPkcs8.into()
+            }),
+            pair(line_ending, tag("-----END ENCRYPTED PRIVATE KEY-----")),
         ),
     )(input)
 }
@@ -340,7 +380,12 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
 }
 
 pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
-    alt((rsa_privkey, openssh_privkey))(input)
+    alt((
+        openssh_privkey,
+        rsa_privkey,
+        pkcs8_nocrypt_rsa_privkey,
+        pkcs8_crypt_privkey,
+    ))(input)
 }
 
 #[cfg(test)]
@@ -348,7 +393,7 @@ pub(crate) mod tests {
     use secrecy::ExposeSecret;
     use std::io::BufReader;
 
-    use super::Identity;
+    use super::{Identity, UnencryptedKey, UnsupportedKey};
     use crate::{
         ssh::recipient::{
             tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
@@ -356,6 +401,118 @@ pub(crate) mod tests {
         },
         Identity as _, Recipient as _,
     };
+
+    const TEST_SSH_RSA_SK_PEM_NOCRYPT: &str = "-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCuq2kJbMlNZd6nSs3vHp+3XKe5jS0jp/+vKWcP7UOOkMeEKdto
+WnVc+wQ/faYJLY0K3Kg+A7sCQKtM81q/4fYdPMPZ+Z696LgbTKLeoNZoAck72bCN
+YQXm+FEiu1fOtfUjpm1nF6YS63ac6wq/xm/ZlALWZudaWo6fOEZ2Ie7WzwIDAQAB
+AoGAPD0tamy0OBcr5LItt4vuNUSlK57+tE9aJMS4oIuJQv+3b2MoIiMgWsLPQj5J
+Jt0oyVg0Rb7vneVDrrQ21fpN8FE5kOwJwbPY5GA8oNxt06rFP06aB7Ip62c6AGXN
+jn39hcdcMJSUdB+/pfhLQfu+EbkRJNT4k/sdvbWCT6VqamECQQDh7LuE8il9HEVC
+HNvBp9ggqylI8tNZZD++LEx807qM7NWVA7Avqn3N7q6XsuthRZzavfumX3NkqW9c
+mvYhH8OpAkEAxev1O2ZndXqIqzYlvsfOu/qkfzFSJD8SqBuNsHXZcv5uUNGUGkh1
+VMLgfD2A/6grpzo7QIDqEUNYdePwF7XRtwJAaSqUw7ciPv3o83SRi10BS3vBdRar
+8WGsFm9yj2zT2wPoDDyySA36D+F6Xl1IGniYIm7rdK/b/FCu6RGtXw/1OQJBALcH
+tCsQUlDD1itu0Y0SPc58xS6Sr8GxSlGH2Yn8EfFT9TRr+6gqpcaSyQJb5jWGkYf+
+Q9ks3kjEnMO43MkwbRUCQQDU5RaNyBswzVOHyz6IHliPOiNfc6dOzdZq2cUulfb6
+YrYCLhMm3ZxkMsNDh8OvevSILBfPxAl9h+MapsXWkQuZ
+-----END RSA PRIVATE KEY-----";
+
+    #[test]
+    fn ssh_rsa_pem_no_crypt_supported() {
+        let buf = BufReader::new(TEST_SSH_RSA_SK_PEM_NOCRYPT.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        match &identity {
+            Identity::Unencrypted(UnencryptedKey::SshRsa(_, _)) => (),
+            _ => panic!("key should be unencrypted PKCS#1 RSA"),
+        };
+    }
+
+    // pasword = "password"
+    const TEST_SSH_RSA_SK_PEM_CRYPT: &str = "-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-128-CBC,CA81334B10BAAC55755CAA561D135ECA
+
+KNlXRnKp7F/oHnrTyosL6SgP+naMzpucaGDdvrzbKeLeaj1sp83hFEN59bvVhSaO
+6elpaaFQw8Tii7M45pQVEAycfngc3ZzSvROWmbRkQjQFrWxLd3JghZbym8sueDBP
+nksxu0F3AR3orBhu/BEM1mKvU6m+O71RlfS5IFsSRrj1VobGIzfX98mQhx0tx9hC
+JTh6NPsh6FWmw6c1tk8wGnwovcTWQMY32reLZWqvept74/Bfi8QB1sORaOglHGZK
+UKXNCyqRV4aroB9yto3xn1W917qU+A4tUmXT211InNSG2poufhnhPS13AqEenMTD
+itSHwGCMcvMzbDHq3c9tzPyfcwDLuKgc91H5nlTOh8wI2pQb8btdVrYAPvNRoyMw
+P9rWftAFX7sd0wRuJysuYkzmZdJdzVM7VdjQ79pGiSfr92va7TrICFQduGKLh+KY
+WS0h8B2Jjf4Xjfrt+gtDZqIDEUAbpz3w+YAMs4nMC2Azx9AY4vPGvssHQm7Uos21
+Aje/zZyH/P10XUbNkrSN7crPcXBI/lnrsXNHrWRL6w8rXcQYbPHb1Qvc3/cAMNJd
+/ZLcNLN9L0UrO/vfkbhv86Cdp+eyy15djHW+u8YnxunCyVO1idr+y8Zi4FQMZkJI
+vigpkXTKd35VjLpGirKu/qgul8FHuo9r6lDncnrsUUGU45+gBh8mwWwJF5zNu6pd
+KtOA2JTtKUxFcApyu50FVpMyziPchFegfW6Dg0Vv+6uod2r4i+x2dfMhThazLqQ9
+2Jt+X4pN9Hl4BOzO1slITA58vHC6M3ltJU0ycVFb9+rgZb/POPVHigCTXU5UiGXE
+-----END RSA PRIVATE KEY-----";
+
+    #[test]
+    fn ssh_rsa_pem_crypt_unsupported() {
+        let buf = BufReader::new(TEST_SSH_RSA_SK_PEM_CRYPT.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        match &identity {
+            Identity::Unsupported(UnsupportedKey::EncryptedPem) => (),
+            _ => panic!("key should be Unsupported Encrypted PEM"),
+        };
+    }
+
+    const TEST_SSH_RSA_SK_PKCS8_NOCRYPT: &str = "-----BEGIN PRIVATE KEY-----
+MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBAK3hEofgOaip2fRN
+oaZtpR0W4Qd+tixoJTqOgzBRzP+g7qpJt7k9Lw9PAGrZKVOGLVOGqIGvKCFAULBz
+dEhi6gf77EvkxKAheYdDk6S9CL8AALUhaVvwrlplP0rvFPIq6NEpaZ0raQhhGpsv
+ks3cEVQU4udDvGBTRfvjqmmsTHFLAgMBAAECgYBgo17xNaXWH9CK/zqAjR/fcv/O
+cpY9SASo7tvq1wvgZ0k+S4pY4bBuCbJpsBhP25sFeSneKcNb96rg5soSESeQLb8D
+rvE/RI3saF6G9Y/UzkDlpTggYlN6eIQuuVvzbERwVYHIbqR6qeyxzTZY/fKd/jjn
+49k3OC5EoDrfjpLvwQJBANrDcET6cs0bf9b76w50U0h8DM76LSgw2WDAjAXYxAkH
+6Ro8cU8ysmUwYh5XBxt4zUgt++ni1DjXZHPCd+KdPA8CQQDLedBzDg4jo3ZQrwIE
+VXyKxyVwh/7cXgogVjYvYxyWjMJRSLykEELg0XT91ZGk6CwLPQ6vI0uLk+RsB6hm
+4GsFAkBo3tHeL1WDX9BsBf4LwtX95IHbYvDs2GYMzKETWHO5hJJJYnpLJhmBCq2u
+r7eXgtSd6nVeDMABs7fTCoGgIBIfAkB6LynnDRecevn/NTgm1ha1VyS6UE/QkH/Q
+LzTWe9Oc6+V73gu5ETK3wc9Y5bhRqEFadk2tCarBpAtUe7y6GiTpAkBNsaLPpj/Z
+oIJeSeAt8h1XIeRq/FYv7LryWbOL3i5zt/7YbfKy5i1+aMFNdTDIZrNQIzd8O+l/
+BcNKngSAsLkz
+-----END PRIVATE KEY-----";
+
+    #[test]
+    fn ssh_rsa_pkcs8_nocrypt_supported() {
+        let buf = BufReader::new(TEST_SSH_RSA_SK_PKCS8_NOCRYPT.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        match &identity {
+            Identity::Unencrypted(UnencryptedKey::SshRsa(_, _)) => (),
+            _ => panic!("key should be PKCS#8 wrapped unencrypted PKCS#1 RSA"),
+        };
+    }
+
+    const TEST_SSH_RSA_SK_PKCS8_CRYPT: &str = "-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIICzzBJBgkqhkiG9w0BBQ0wPDAbBgkqhkiG9w0BBQwwDgQIgt2MgEs6uh0CAggA
+MB0GCWCGSAFlAwQBAgQQUYBD8DvxvAz3LPU/T2zk/gSCAoBUc6LX5Hdh+3EshB5n
+tvb1LDfOgDJ6WdycS4gUnj8XVvs2nIbSGHT0ExQ/tUWW3cSw7QhUGXUhFZTaTBB1
+LXG5ordigxHBwaijEpXuTf8fATRjrBGro7XqsDzrFCU02IVtAQf4dDXdbTK3Wz85
+HcNAE9gQcqVCv3rhXq7wfJean3W9klsdlxExj3I2dTy3l1mxvXWDU2FrE13bzOeg
+wHBwsgh4djFFQaKsOHicviuWQcqw25mTt9PvB+kwQEOtL3pfUVrQ8D0AU/igO9GH
+wIJt8mfJMsVdmjAIqyu20lGCHSqvm/B0AvGplpXdL1IofdNPemuYnFiSu00R3Izf
+HYuL+dVpRjrUneTjXkCkOspMWs7sIkKm6WkeEibtHoGwPkCRQDGBKjEFaT3Z1OoA
+3XTVYGPoiCmaxT9yzt/oQqztp8u3WY2EJ6k1P+xh29BEGQOz3qwFDykugOOttgvo
+i+ZIdZHZMdSEk+FzyGMECusNakKcjY+AQWSXNRyVoaO1d9FTYFOlvTZOWhG++9GV
+6rGqT9qMC9PaVByMelDiAFXpM+v9ObRoKQDTCeOKBrC+AwGSClSAE541ozGA2Tny
+10bx3p7H8UKHPw2rGmFSh6wysFUsKJzJI0u5JyTQtQksziwo0NdWSy3dL8RE4WMl
+d4S0vUxfwhhNg9qse6BgMpsVn/RnTBXSOg1Hosf3dJbORMV0qIk3c8qqWSoLpIWZ
+R6SwH5EmvkOlZEYsYDApTNGJ5BhZOENQerJZWAQFjXOlUL2isNKrxtycO7unqG5b
+0FMDbhbvftMOz+92TGoU0okScuweiXGvCLhX/nj6ZKANcEiMp2eW4n74H6dCgG1P
+gqMV
+-----END ENCRYPTED PRIVATE KEY-----";
+
+    #[test]
+    fn ssh_rsa_pkcs8_crypt_unsupported() {
+        let buf = BufReader::new(TEST_SSH_RSA_SK_PKCS8_CRYPT.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        match &identity {
+            Identity::Unsupported(UnsupportedKey::EncryptedPkcs8) => (),
+            _ => panic!("key should be unsupported PKCS#8 encrypted PKCS#1 RSA"),
+        };
+    }
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEAxO5yF0xjbmkQTfbaCP8DQC7kHnPJr5bdIie6Nzmg9lL6Chye
