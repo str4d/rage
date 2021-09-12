@@ -57,8 +57,10 @@ rust-embed = "6"
 secrecy = "0.8"
 
 # rage-mount dependencies
+age-core = { version = "0.6.0", path = "../age-core", optional = true }
 fuse_mt = { version = "0.5.1", optional = true }
 libc = { version = "0.2", optional = true }
+nix = { version = "0.20", optional = true }
 tar = { version = "0.4", optional = true }
 time = { version = "0.1", optional = true }
 zip = { version = "0.5.9", optional = true }
@@ -71,7 +73,7 @@ man = "0.3"
 
 [features]
 default = ["ssh"]
-mount = ["fuse_mt", "libc", "tar", "time", "zip"]
+mount = ["age-core", "fuse_mt", "libc", "nix", "tar", "time", "zip"]
 ssh = ["age/ssh"]
 unstable = ["age/unstable"]
 
@@ -85,5 +87,10 @@ bench = false
 
 [[bin]]
 name = "rage-mount"
+required-features = ["mount"]
+bench = false
+
+[[bin]]
+name = "rage-mount-dir"
 required-features = ["mount"]
 bench = false

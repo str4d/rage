@@ -1,10 +1,4 @@
-#![forbid(unsafe_code)]
-
-use age::{
-    armor::ArmoredReader,
-    cli_common::{read_identities, read_secret},
-    stream::StreamReader,
-};
+use age::cli_common::read_identities;
 use fuse_mt::FilesystemMT;
 use gumdrop::Options;
 use i18n_embed::{
@@ -12,15 +6,17 @@ use i18n_embed::{
     DesktopLanguageRequester,
 };
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use rust_embed::RustEmbed;
 use std::ffi::OsStr;
 use std::fmt;
-use std::fs::File;
 use std::io;
+use std::path::PathBuf;
 
-mod tar;
-mod zip;
+mod overlay;
+mod reader;
+mod util;
+mod wrapper;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
@@ -55,11 +51,12 @@ enum Error {
     IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     Io(io::Error),
-    MissingFilename,
     MissingIdentities,
     MissingMountpoint,
-    MissingType,
-    UnknownType(String),
+    MissingSource,
+    MountpointMustBeDir,
+    Nix(nix::Error),
+    SourceMustBeDir,
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
@@ -72,6 +69,12 @@ impl From<age::DecryptError> for Error {
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e)
+    }
+}
+
+impl From<nix::Error> for Error {
+    fn from(e: nix::Error) -> Self {
+        Error::Nix(e)
     }
 }
 
@@ -116,22 +119,15 @@ impl fmt::Debug for Error {
                 )
             ),
             Error::Io(e) => write!(f, "{}", e),
-            Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
             Error::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 wlnfl!(f, "rec-dec-missing-identities")
             }
             Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
-            Error::MissingType => wfl!(f, "err-mnt-missing-types"),
-            Error::UnknownType(t) => write!(
-                f,
-                "{}",
-                i18n_embed_fl::fl!(
-                    LANGUAGE_LOADER,
-                    "err-mnt-unknown-type",
-                    fs_type = t.as_str()
-                )
-            ),
+            Error::MissingSource => wfl!(f, "err-mnt-missing-source"),
+            Error::MountpointMustBeDir => wfl!(f, "err-mnt-must-be-dir"),
+            Error::Nix(e) => write!(f, "{}", e),
+            Error::SourceMustBeDir => wfl!(f, "err-mnt-source-must-be-dir"),
             Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }?;
         writeln!(f)?;
@@ -147,10 +143,10 @@ impl fmt::Debug for Error {
 
 #[derive(Debug, Options)]
 struct AgeMountOptions {
-    #[options(free, help = "The encrypted filesystem to mount.")]
-    filename: String,
+    #[options(free, help = "The directory to mount.")]
+    directory: String,
 
-    #[options(free, help = "The directory to mount the filesystem at.")]
+    #[options(free, help = "The path to mount at.")]
     mountpoint: String,
 
     #[options(help = "Print this help message and exit.")]
@@ -159,9 +155,6 @@ struct AgeMountOptions {
     #[options(help = "Print version info and exit.", short = "V")]
     version: bool,
 
-    #[options(help = "Indicates the filesystem type (one of \"tar\", \"zip\").")]
-    types: String,
-
     #[options(
         help = "Maximum work factor to allow for passphrase decryption.",
         meta = "WF",
@@ -169,34 +162,26 @@ struct AgeMountOptions {
     )]
     max_work_factor: Option<u8>,
 
-    #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
+    #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
     identity: Vec<String>,
 }
 
-fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
-    open: F,
-    mountpoint: String,
-) -> Result<(), Error>
+fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(open: F, mountpoint: PathBuf)
 where
     F: FnOnce() -> io::Result<T>,
 {
     let fuse_args: Vec<&OsStr> = vec![&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
 
-    let fs = open().map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
-    info!("{}", fl!("info-mounting-as-fuse"));
-    fuse_mt::mount(fs, &mountpoint, &fuse_args)?;
-    Ok(())
-}
-
-fn mount_stream(
-    stream: StreamReader<ArmoredReader<io::BufReader<File>>>,
-    types: String,
-    mountpoint: String,
-) -> Result<(), Error> {
-    match types.as_str() {
-        "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), mountpoint),
-        "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), mountpoint),
-        _ => Err(Error::UnknownType(types)),
+    match open().map(|fs| fuse_mt::FuseMT::new(fs, 1)) {
+        Ok(fs) => {
+            info!("{}", fl!("info-mounting-as-fuse"));
+            if let Err(e) = fuse_mt::mount(fs, &mountpoint, &fuse_args) {
+                error!("{}", e);
+            }
+        }
+        Err(e) => {
+            error!("{}", e);
+        }
     }
 }
 
@@ -212,9 +197,6 @@ fn main() -> Result<(), Error> {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
     age::localizer().select(&requested_languages).unwrap();
-    // Unfortunately the common Windows terminals don't support Unicode Directionality
-    // Isolation Marks, so we disable them for now.
-    LANGUAGE_LOADER.set_use_isolating(false);
 
     let args = args().collect::<Vec<_>>();
 
@@ -231,59 +213,41 @@ fn main() -> Result<(), Error> {
     let opts = AgeMountOptions::parse_args_default_or_exit();
 
     if opts.version {
-        println!("rage-mount {}", env!("CARGO_PKG_VERSION"));
+        println!("rage-mount-dir {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
-    if opts.filename.is_empty() {
-        return Err(Error::MissingFilename);
+
+    if opts.directory.is_empty() {
+        return Err(Error::MissingSource);
     }
     if opts.mountpoint.is_empty() {
         return Err(Error::MissingMountpoint);
     }
-    if opts.types.is_empty() {
-        return Err(Error::MissingType);
+
+    let directory = PathBuf::from(opts.directory);
+    if !directory.is_dir() {
+        return Err(Error::SourceMustBeDir);
+    }
+    let mountpoint = PathBuf::from(opts.mountpoint);
+    if !mountpoint.is_dir() {
+        return Err(Error::MountpointMustBeDir);
     }
 
-    info!(
-        "{}",
-        i18n_embed_fl::fl!(
-            LANGUAGE_LOADER,
-            "info-decrypting",
-            filename = opts.filename.as_str()
-        )
+    let identities = read_identities(
+        opts.identity,
+        opts.max_work_factor,
+        Error::IdentityNotFound,
+        Error::IdentityEncryptedWithoutPassphrase,
+        Error::UnsupportedKey,
+    )?;
+
+    if identities.is_empty() {
+        return Err(Error::MissingIdentities);
+    }
+
+    mount_fs(
+        || crate::overlay::AgeOverlayFs::new(directory.into(), identities),
+        mountpoint,
     );
-    let file = File::open(opts.filename)?;
-
-    let types = opts.types;
-    let mountpoint = opts.mountpoint;
-
-    match age::Decryptor::new(ArmoredReader::new(file))? {
-        age::Decryptor::Passphrase(decryptor) => {
-            match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
-                Ok(passphrase) => decryptor
-                    .decrypt(&passphrase, opts.max_work_factor)
-                    .map_err(|e| e.into())
-                    .and_then(|stream| mount_stream(stream, types, mountpoint)),
-                Err(_) => Ok(()),
-            }
-        }
-        age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(
-                opts.identity,
-                opts.max_work_factor,
-                Error::IdentityNotFound,
-                Error::IdentityEncryptedWithoutPassphrase,
-                Error::UnsupportedKey,
-            )?;
-
-            if identities.is_empty() {
-                return Err(Error::MissingIdentities);
-            }
-
-            decryptor
-                .decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
-                .map_err(|e| e.into())
-                .and_then(|stream| mount_stream(stream, types, mountpoint))
-        }
-    }
+    Ok(())
 }

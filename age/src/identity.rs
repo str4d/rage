@@ -19,8 +19,8 @@ pub enum IdentityFileEntry {
 impl IdentityFileEntry {
     pub(crate) fn into_identity(
         self,
-        callbacks: impl Callbacks + 'static,
-    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+        callbacks: impl Callbacks + Send + Sync + 'static,
+    ) -> Result<Box<dyn crate::Identity + Send + Sync>, DecryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]

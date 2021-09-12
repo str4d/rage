@@ -25,14 +25,14 @@ pub fn read_identities<E, G, H>(
     file_not_found: G,
     identity_encrypted_without_passphrase: H,
     #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
-) -> Result<Vec<Box<dyn Identity>>, E>
+) -> Result<Vec<Box<dyn Identity + Send + Sync>>, E>
 where
     E: From<crate::DecryptError>,
     E: From<io::Error>,
     G: Fn(String) -> E,
     H: Fn(String) -> E,
 {
-    let mut identities: Vec<Box<dyn Identity>> = vec![];
+    let mut identities: Vec<Box<dyn Identity + Send + Sync>> = vec![];
 
     for filename in filenames {
         // Try parsing as an encrypted age identity.
