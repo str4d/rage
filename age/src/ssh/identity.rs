@@ -13,7 +13,7 @@ use nom::{
     IResult,
 };
 use rand::rngs::OsRng;
-use rsa::padding::PaddingScheme;
+use rsa::{padding::PaddingScheme, pkcs1::DecodeRsaPrivateKey};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::io;
@@ -21,7 +21,7 @@ use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
 use super::{
-    read_asn1, read_ssh, ssh_tag, write_ssh, EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    read_ssh, ssh_tag, write_ssh, EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL,
     SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
 };
 use crate::{
@@ -322,15 +322,17 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                     if enc_header.is_some() {
                         Some(UnsupportedKey::EncryptedPem.into())
                     } else {
-                        read_asn1::rsa_privkey(&privkey).ok().map(|(_, privkey)| {
-                            let mut ssh_key = vec![];
-                            cookie_factory::gen(
-                                write_ssh::rsa_pubkey(&privkey.to_public_key()),
-                                &mut ssh_key,
-                            )
-                            .expect("can write into a Vec");
-                            UnencryptedKey::SshRsa(ssh_key, Box::new(privkey)).into()
-                        })
+                        rsa::RsaPrivateKey::from_pkcs1_der(&privkey)
+                            .ok()
+                            .map(|privkey| {
+                                let mut ssh_key = vec![];
+                                cookie_factory::gen(
+                                    write_ssh::rsa_pubkey(&privkey.to_public_key()),
+                                    &mut ssh_key,
+                                )
+                                .expect("can write into a Vec");
+                                UnencryptedKey::SshRsa(ssh_key, Box::new(privkey)).into()
+                            })
                     }
                 },
             ),
