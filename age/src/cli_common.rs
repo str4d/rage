@@ -4,6 +4,7 @@ use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
+    CryptoRng, RngCore,
 };
 use rpassword::read_password_from_tty;
 use secrecy::{ExposeSecret, SecretString};
@@ -171,18 +172,10 @@ pub enum Passphrase {
     Generated(SecretString),
 }
 
-/// Reads a passphrase from stdin, or generates a secure one if none is provided.
-pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
-    let res = read_secret(
-        &fl!("cli-passphrase-desc"),
-        &fl!("cli-passphrase-prompt"),
-        Some(&fl!("cli-passphrase-confirm")),
-    )?;
-
-    if res.expose_secret().is_empty() {
-        // Generate a secure passphrase
+impl Passphrase {
+    /// Generates a secure passphrase.
+    pub fn random<R: RngCore + CryptoRng>(mut rng: R) -> Self {
         let between = Uniform::from(0..2048);
-        let mut rng = OsRng;
         let new_passphrase = (0..10)
             .map(|_| {
                 BIP39_WORDLIST
@@ -197,7 +190,20 @@ pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
                     acc + "-" + s
                 }
             });
-        Ok(Passphrase::Generated(SecretString::new(new_passphrase)))
+        Passphrase::Generated(SecretString::new(new_passphrase))
+    }
+}
+
+/// Reads a passphrase from stdin, or generates a secure one if none is provided.
+pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
+    let res = read_secret(
+        &fl!("cli-passphrase-desc"),
+        &fl!("cli-passphrase-prompt"),
+        Some(&fl!("cli-passphrase-confirm")),
+    )?;
+
+    if res.expose_secret().is_empty() {
+        Ok(Passphrase::random(OsRng))
     } else {
         Ok(Passphrase::Typed(res))
     }

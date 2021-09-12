@@ -16,6 +16,7 @@ to 1.0.0 are beta releases.
   within an age identity file.
 - `age::{DecryptError, EncryptError, PluginError}: Clone` bounds.
 - `age::cli_common::UiCallbacks: Clone + Copy` bounds.
+- `age::cli_common::Passphrase::random`, for generating a secure passphrase.
 
 ### Changed
 - MSRV is now 1.51.0.
