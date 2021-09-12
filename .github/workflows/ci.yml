@@ -99,8 +99,6 @@ jobs:
           args: --all --release --all-features --timeout 180 --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2.0.3
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
 
   doc-links:
     name: Nightly lint
