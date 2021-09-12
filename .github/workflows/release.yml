@@ -20,16 +20,15 @@ jobs:
         name: [linux, armv7, arm64, windows, macos]
         include:
           - name: linux
-            os: ubuntu-16.04
+            os: ubuntu-18.04
             build_deps: >
               libfuse-dev
-              libpcsclite-dev
             build_flags: --features mount
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
 
           - name: armv7
-            os: ubuntu-16.04
+            os: ubuntu-18.04
             target: armv7-unknown-linux-gnueabihf
             build_deps: >
               gcc-arm-linux-gnueabihf
@@ -41,7 +40,7 @@ jobs:
             asset_suffix: armv7-linux.tar.gz
 
           - name: arm64
-            os: ubuntu-16.04
+            os: ubuntu-18.04
             target: aarch64-unknown-linux-gnu
             build_deps: >
               gcc-aarch64-linux-gnu
@@ -125,7 +124,6 @@ jobs:
             target: x86_64-unknown-linux-gnu
             build_deps: >
               libfuse-dev
-              libpcsclite-dev
             build_flags: --features mount
 
           - name: armv7

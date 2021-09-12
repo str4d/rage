@@ -91,7 +91,7 @@ jobs:
           toolchain: stable
           override: true
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev libpcsclite-dev
+        run: sudo apt install libfuse-dev
       - name: Generate coverage report
         uses: actions-rs/tarpaulin@v0.1
         with:

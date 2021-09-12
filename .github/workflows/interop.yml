@@ -59,9 +59,9 @@ jobs:
       - name: Use specified FiloSottile/age commit
         if: github.event.action == 'age-interop-request'
         run: echo "AGE_REF=${{ github.event.client_payload.sha }}" >> $GITHUB_ENV
-      - name: Use FiloSottile/age current master
+      - name: Use FiloSottile/age current main
         if: github.event.action != 'age-interop-request'
-        run: echo "AGE_REF=refs/heads/master" >> $GITHUB_ENV
+        run: echo "AGE_REF=refs/heads/main" >> $GITHUB_ENV
 
       - name: Check out FiloSottile/age
         uses: actions/checkout@v2

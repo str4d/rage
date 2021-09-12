@@ -18,6 +18,8 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.51.0.
+- `*-linux.tar.gz` release binaries are now built with Ubuntu 18.04, and require
+  a system with a minimum of `glibc 2.27`.
 
 ## [0.6.0] - 2021-05-02
 ### Added
@@ -44,6 +46,10 @@ to 1.0.0 are beta releases.
 - `-i/--identity` can now be used when encrypting files. This requires the
   `-e/--encrypt` flag (to prevent ambiguity, e.g. if the user wants to decrypt
   but forgets the `-d/--decrypt` flag).
+- `*-linux.tar.gz` release binaries are now built with Ubuntu 16.04, enabling
+  them to be used on systems with a minimum of `glibc 2.23`.
+- Debian packages are now built with Ubuntu 18.04, enabling them to be used on
+  Debian/Ubuntu systems with a minimum of `glibc 2.27`.
 
 ### Removed
 - Recipients file support from `-r/--recipient` (use `-R/--recipients-file`
