@@ -50,6 +50,8 @@ err-no-matching-keys = No se encontraron claves coincidentes.
 err-unknown-format = Formato {-age} desconocido.
 rec-unknown-format = ¿Has intentado actualizar a la última versión?
 
+err-read-identity-not-found = Archivo identidad no encontrado: {$filename}
+
 ## SSH identities
 
 ssh-passphrase-prompt = Escribe frase contraseña para clave OpenSSH '{$filename}'

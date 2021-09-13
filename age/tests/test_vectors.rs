@@ -1,9 +1,9 @@
 use secrecy::SecretString;
 use std::fs;
-use std::io::{self, Read};
+use std::io::Read;
 
 #[test]
-fn age_test_vectors() -> Result<(), age::DecryptError> {
+fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
     for test_vector in fs::read_dir("./tests/testdata")?.filter(|res| {
         res.as_ref()
             .map(|e| {
@@ -28,9 +28,6 @@ fn age_test_vectors() -> Result<(), age::DecryptError> {
                         name
                     )],
                     None,
-                    |e| age::DecryptError::Io(io::Error::new(io::ErrorKind::NotFound, e)),
-                    |e| age::DecryptError::Io(io::Error::new(io::ErrorKind::Other, e)),
-                    |_, _| age::DecryptError::DecryptionFailed,
                 )?;
                 d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
             }

@@ -408,14 +408,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         }
         age::Decryptor::Recipients(decryptor) => {
             let identities = if opts.plugin_name.is_empty() {
-                read_identities(
-                    opts.identity,
-                    opts.max_work_factor,
-                    error::DecryptError::IdentityNotFound,
-                    error::DecryptError::IdentityEncryptedWithoutPassphrase,
-                    #[cfg(feature = "ssh")]
-                    error::DecryptError::UnsupportedKey,
-                )?
+                read_identities(opts.identity, opts.max_work_factor)?
             } else {
                 // Construct the default plugin.
                 vec![Box::new(plugin::IdentityPluginV1::new(

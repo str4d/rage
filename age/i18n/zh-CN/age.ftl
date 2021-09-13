@@ -50,6 +50,8 @@ err-no-matching-keys = 未搜索到匹配的密钥
 err-unknown-format = 未知的 {-age} 格式。
 rec-unknown-format = 您尝试更新至最新版本了吗？
 
+err-read-identity-not-found = 未搜索到身份文件： {$filename}
+
 ## SSH identities
 
 ssh-passphrase-prompt = 输入 OpenSSH 密钥 '{$filename}' 的密码短语
