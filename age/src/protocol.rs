@@ -40,6 +40,7 @@ impl Nonce {
     }
 
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     async fn read_async<R: AsyncRead + Unpin>(input: &mut R) -> io::Result<Self> {
         let mut nonce = [0; 16];
         input.read_exact(&mut nonce).await?;
@@ -193,6 +194,7 @@ impl<R: Read> Decryptor<R> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + Unpin> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///

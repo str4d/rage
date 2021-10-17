@@ -4,34 +4,107 @@ use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
+    CryptoRng, RngCore,
 };
 use rpassword::read_password_from_tty;
 use secrecy::{ExposeSecret, SecretString};
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{armor::ArmoredReader, fl, identity::IdentityFile, Callbacks, Identity};
+use crate::{armor::ArmoredReader, fl, identity::IdentityFile, wfl, Callbacks, Identity};
 
 pub mod file_io;
 
 const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
-/// Reads identities from the provided files if given, or the default system
-/// locations if no files are given.
-pub fn read_identities<E, G, H>(
+/// Errors that can occur while reading identities.
+#[derive(Debug)]
+pub enum ReadError {
+    /// An age identity was encrypted without a passphrase.
+    IdentityEncryptedWithoutPassphrase(String),
+    /// The given identity file could not be found.
+    IdentityNotFound(String),
+    /// An I/O error occurred while reading.
+    Io(io::Error),
+    /// A required plugin could not be found.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    MissingPlugin {
+        /// The plugin's binary name.
+        binary_name: String,
+    },
+    /// The given identity file contains an SSH key that we know how to parse, but that we
+    /// do not support.
+    #[cfg(feature = "ssh")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
+    UnsupportedKey(String, crate::ssh::UnsupportedKey),
+}
+
+impl From<io::Error> for ReadError {
+    fn from(e: io::Error) -> Self {
+        ReadError::Io(e)
+    }
+}
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReadError::IdentityEncryptedWithoutPassphrase(filename) => {
+                write!(
+                    f,
+                    "{}",
+                    i18n_embed_fl::fl!(
+                        crate::i18n::LANGUAGE_LOADER,
+                        "err-read-identity-encrypted-without-passphrase",
+                        filename = filename.as_str()
+                    )
+                )
+            }
+            ReadError::IdentityNotFound(filename) => write!(
+                f,
+                "{}",
+                i18n_embed_fl::fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "err-read-identity-not-found",
+                    filename = filename.as_str()
+                )
+            ),
+            ReadError::Io(e) => write!(f, "{}", e),
+            #[cfg(feature = "plugin")]
+            ReadError::MissingPlugin { binary_name } => {
+                writeln!(
+                    f,
+                    "{}",
+                    i18n_embed_fl::fl!(
+                        crate::i18n::LANGUAGE_LOADER,
+                        "err-missing-plugin",
+                        plugin_name = binary_name.as_str()
+                    )
+                )?;
+                wfl!(f, "rec-missing-plugin")
+            }
+            #[cfg(feature = "ssh")]
+            ReadError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(inner) => Some(inner),
+            _ => None,
+        }
+    }
+}
+
+/// Reads identities from the provided files.
+pub fn read_identities(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
-    file_not_found: G,
-    identity_encrypted_without_passphrase: H,
-    #[cfg(feature = "ssh")] unsupported_ssh: impl Fn(String, crate::ssh::UnsupportedKey) -> E,
-) -> Result<Vec<Box<dyn Identity>>, E>
-where
-    E: From<crate::DecryptError>,
-    E: From<io::Error>,
-    G: Fn(String) -> E,
-    H: Fn(String) -> E,
-{
+) -> Result<Vec<Box<dyn Identity>>, ReadError> {
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
     for filename in filenames {
@@ -46,7 +119,7 @@ where
                 identities.push(Box::new(identity));
                 continue;
             } else {
-                return Err(identity_encrypted_without_passphrase(filename));
+                return Err(ReadError::IdentityEncryptedWithoutPassphrase(filename));
             }
         }
 
@@ -56,7 +129,9 @@ where
             BufReader::new(File::open(&filename)?),
             Some(filename.clone()),
         ) {
-            Ok(crate::ssh::Identity::Unsupported(k)) => return Err(unsupported_ssh(filename, k)),
+            Ok(crate::ssh::Identity::Unsupported(k)) => {
+                return Err(ReadError::UnsupportedKey(filename, k))
+            }
             Ok(identity) => {
                 identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
                 continue;
@@ -67,12 +142,19 @@ where
         // Try parsing as multiple single-line age identities.
         let identity_file =
             IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => file_not_found(filename),
+                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
                 _ => e.into(),
             })?;
 
         for entry in identity_file.into_identities() {
-            identities.push(entry.into_identity(UiCallbacks)?);
+            identities.push(entry.into_identity(UiCallbacks).map_err(|e| match e {
+                crate::DecryptError::MissingPlugin { binary_name } => {
+                    ReadError::MissingPlugin { binary_name }
+                }
+                // DecryptError::MissingPlugin is the only possible error kind returned by
+                // IdentityFileEntry::into_identity.
+                _ => unreachable!(),
+            })?);
         }
     }
 
@@ -171,18 +253,10 @@ pub enum Passphrase {
     Generated(SecretString),
 }
 
-/// Reads a passphrase from stdin, or generates a secure one if none is provided.
-pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
-    let res = read_secret(
-        &fl!("cli-passphrase-desc"),
-        &fl!("cli-passphrase-prompt"),
-        Some(&fl!("cli-passphrase-confirm")),
-    )?;
-
-    if res.expose_secret().is_empty() {
-        // Generate a secure passphrase
+impl Passphrase {
+    /// Generates a secure passphrase.
+    pub fn random<R: RngCore + CryptoRng>(mut rng: R) -> Self {
         let between = Uniform::from(0..2048);
-        let mut rng = OsRng;
         let new_passphrase = (0..10)
             .map(|_| {
                 BIP39_WORDLIST
@@ -197,7 +271,20 @@ pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
                     acc + "-" + s
                 }
             });
-        Ok(Passphrase::Generated(SecretString::new(new_passphrase)))
+        Passphrase::Generated(SecretString::new(new_passphrase))
+    }
+}
+
+/// Reads a passphrase from stdin, or generates a secure one if none is provided.
+pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
+    let res = read_secret(
+        &fl!("cli-passphrase-desc"),
+        &fl!("cli-passphrase-prompt"),
+        Some(&fl!("cli-passphrase-confirm")),
+    )?;
+
+    if res.expose_secret().is_empty() {
+        Ok(Passphrase::random(OsRng))
     } else {
         Ok(Passphrase::Typed(res))
     }

@@ -35,12 +35,14 @@ pub enum Format {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 struct EncodedLine {
     bytes: Vec<u8>,
     offset: usize,
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 struct EncodedBytes {
     offset: usize,
     end: usize,
@@ -55,8 +57,10 @@ pub(crate) struct LineEndingWriter<W> {
 
     /// None if `AsyncWrite::poll_closed` has been called.
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     line: Option<Vec<u8>>,
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     line_with_ending: Option<EncodedLine>,
 }
 
@@ -143,6 +147,7 @@ impl<W: Write> Write for LineEndingWriter<W> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<W: AsyncWrite> LineEndingWriter<W> {
     fn new_async(inner: W) -> Self {
         // Write the begin marker
@@ -179,6 +184,7 @@ impl<W: AsyncWrite> LineEndingWriter<W> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<W: AsyncWrite> AsyncWrite for LineEndingWriter<W> {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -259,6 +265,7 @@ enum ArmorIs<W> {
         byte_buf: Option<Vec<u8>>,
         encoded_buf: [u8; BASE64_CHUNK_SIZE_COLUMNS],
         #[cfg(feature = "async")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
         encoded_line: Option<EncodedBytes>,
     },
 
@@ -369,6 +376,7 @@ impl<W: Write> Write for ArmoredWriter<W> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<W: AsyncWrite> ArmoredWriter<W> {
     /// Wraps the given output in an `ArmoredWriter` that will apply the given [`Format`].
     pub fn wrap_async_output(output: W, format: Format) -> Self {
@@ -409,6 +417,7 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -786,6 +795,7 @@ impl<R: BufRead> Read for ArmoredReader<R> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
     fn poll_read(
         mut self: Pin<&mut Self>,

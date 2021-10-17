@@ -16,6 +16,8 @@ to 1.0.0 are beta releases.
   within an age identity file.
 - `age::{DecryptError, EncryptError, PluginError}: Clone` bounds.
 - `age::cli_common::UiCallbacks: Clone + Copy` bounds.
+- `age::cli_common::Passphrase::random`, for generating a secure passphrase.
+- `age::cli_common::ReadError`
 
 ### Changed
 - MSRV is now 1.51.0.
@@ -25,11 +27,12 @@ to 1.0.0 are beta releases.
     identities. This assumption is checked at file-decryption time.
   - New `max_work_factor` parameter for controlling the work factor when
     decrypting encrypted identities.
-  - New `identity_encrypted_without_passphrase` parameter for customising the
-    error when an invalid encrypted identity is found.
   - Identities are now returned in the same order as `filenames` (and
     top-to-bottom from within each file). Plugin identities are no longer
     coalesced; there is one `Box<dyn Identity>` per plugin identity.
+  - `age::cli_common::ReadError` is now returned instead of a user-specified
+    error type. The error constructor parameters have been removed from the
+    function.
 - `age::Callbacks::prompt` has been renamed to `Callbacks::display_message`.
   - `age::cli_common::UiCallbacks::display_message` no longer uses `pinentry`
     (which displays a temporary prompt that can be dismissed), so the message is

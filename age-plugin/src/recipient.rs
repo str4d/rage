@@ -249,13 +249,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     }
     let recipients = parse_and_add(
         recipients,
-        |hrp| {
-            if hrp.starts_with(PLUGIN_RECIPIENT_PREFIX) {
-                Some(&hrp[PLUGIN_RECIPIENT_PREFIX.len()..])
-            } else {
-                None
-            }
-        },
+        |hrp| hrp.strip_prefix(PLUGIN_RECIPIENT_PREFIX),
         |index| Error::Recipient {
             index,
             message: "Invalid recipient encoding".to_owned(),

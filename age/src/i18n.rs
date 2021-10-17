@@ -51,6 +51,19 @@ macro_rules! wlnfl {
 }
 
 /// Returns the [`Localizer`] to be used for localizing this library.
+///
+/// # Examples
+///
+/// ```
+/// // Fetch the set of languages that the user's desktop environment requests.
+/// let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
+///
+/// // Localize the age crate based on the requested languages.
+/// //
+/// // If none of the requested languages are available, or if this function
+/// // is not called, age defaults to en-US.
+/// age::localizer().select(&requested_languages).unwrap();
+/// ```
 pub fn localizer() -> Box<dyn Localizer> {
     Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &TRANSLATIONS))
 }

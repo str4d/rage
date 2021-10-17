@@ -25,6 +25,7 @@ pub(crate) mod read {
     };
 
     #[cfg(feature = "ssh")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn encoded_str(
         count: usize,
         config: base64::Config,
@@ -44,6 +45,7 @@ pub(crate) mod read {
     }
 
     #[cfg(feature = "ssh")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn str_while_encoded(
         config: base64::Config,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
@@ -63,6 +65,7 @@ pub(crate) mod read {
     }
 
     #[cfg(feature = "ssh")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn wrapped_str_while_encoded(
         config: base64::Config,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {

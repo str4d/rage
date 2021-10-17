@@ -137,8 +137,7 @@ impl fmt::Display for EncryptError {
 pub(crate) enum DecryptError {
     Age(age::DecryptError),
     ArmorFlag,
-    IdentityEncryptedWithoutPassphrase(String),
-    IdentityNotFound(String),
+    IdentityRead(age::cli_common::ReadError),
     Io(io::Error),
     MissingIdentities,
     MixedIdentityAndPluginName,
@@ -148,13 +147,17 @@ pub(crate) enum DecryptError {
     PassphraseWithoutFileArgument,
     RecipientFlag,
     RecipientsFileFlag,
-    #[cfg(feature = "ssh")]
-    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::DecryptError> for DecryptError {
     fn from(e: age::DecryptError) -> Self {
         DecryptError::Age(e)
+    }
+}
+
+impl From<age::cli_common::ReadError> for DecryptError {
+    fn from(e: age::cli_common::ReadError) -> Self {
+        DecryptError::IdentityRead(e)
     }
 }
 
@@ -186,26 +189,7 @@ impl fmt::Display for DecryptError {
                 wlnfl!(f, "err-dec-armor-flag")?;
                 wfl!(f, "rec-dec-armor-flag")
             }
-            DecryptError::IdentityEncryptedWithoutPassphrase(filename) => {
-                write!(
-                    f,
-                    "{}",
-                    fl!(
-                        crate::LANGUAGE_LOADER,
-                        "err-dec-identity-encrypted-without-passphrase",
-                        filename = filename.as_str()
-                    )
-                )
-            }
-            DecryptError::IdentityNotFound(filename) => write!(
-                f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-dec-identity-not-found",
-                    filename = filename.as_str()
-                )
-            ),
+            DecryptError::IdentityRead(e) => write!(f, "{}", e),
             DecryptError::Io(e) => write!(f, "{}", e),
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
@@ -231,8 +215,6 @@ impl fmt::Display for DecryptError {
                 wlnfl!(f, "err-dec-recipients-file-flag")?;
                 wfl!(f, "rec-dec-recipient-flag")
             }
-            #[cfg(feature = "ssh")]
-            DecryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
     }
 }

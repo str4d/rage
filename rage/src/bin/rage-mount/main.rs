@@ -52,20 +52,24 @@ macro_rules! wlnfl {
 
 enum Error {
     Age(age::DecryptError),
-    IdentityEncryptedWithoutPassphrase(String),
-    IdentityNotFound(String),
+    IdentityRead(age::cli_common::ReadError),
     Io(io::Error),
     MissingFilename,
     MissingIdentities,
     MissingMountpoint,
     MissingType,
     UnknownType(String),
-    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::DecryptError> for Error {
     fn from(e: age::DecryptError) -> Self {
         Error::Age(e)
+    }
+}
+
+impl From<age::cli_common::ReadError> for Error {
+    fn from(e: age::cli_common::ReadError) -> Self {
+        Error::IdentityRead(e)
     }
 }
 
@@ -95,26 +99,7 @@ impl fmt::Debug for Error {
                 }
                 _ => write!(f, "{}", e),
             },
-            Error::IdentityEncryptedWithoutPassphrase(filename) => {
-                write!(
-                    f,
-                    "{}",
-                    i18n_embed_fl::fl!(
-                        LANGUAGE_LOADER,
-                        "err-dec-identity-encrypted-without-passphrase",
-                        filename = filename.as_str()
-                    )
-                )
-            }
-            Error::IdentityNotFound(filename) => write!(
-                f,
-                "{}",
-                i18n_embed_fl::fl!(
-                    LANGUAGE_LOADER,
-                    "err-dec-identity-not-found",
-                    filename = filename.as_str()
-                )
-            ),
+            Error::IdentityRead(e) => write!(f, "{}", e),
             Error::Io(e) => write!(f, "{}", e),
             Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
             Error::MissingIdentities => {
@@ -132,7 +117,6 @@ impl fmt::Debug for Error {
                     fs_type = t.as_str()
                 )
             ),
-            Error::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }?;
         writeln!(f)?;
         writeln!(f, "[ {} ]", fl!("err-ux-A"))?;
@@ -268,13 +252,7 @@ fn main() -> Result<(), Error> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(
-                opts.identity,
-                opts.max_work_factor,
-                Error::IdentityNotFound,
-                Error::IdentityEncryptedWithoutPassphrase,
-                Error::UnsupportedKey,
-            )?;
+            let identities = read_identities(opts.identity, opts.max_work_factor)?;
 
             if identities.is_empty() {
                 return Err(Error::MissingIdentities);

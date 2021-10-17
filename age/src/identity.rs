@@ -13,6 +13,7 @@ pub enum IdentityFileEntry {
     Native(x25519::Identity),
     /// A plugin-compatible identity.
     #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     Plugin(plugin::Identity),
 }
 
