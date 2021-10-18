@@ -63,8 +63,8 @@ time = { version = "0.1", optional = true }
 zip = { version = "0.5.9", optional = true }
 
 [dev-dependencies]
-clap = "3.0.0-beta.1"
-clap_generate = "3.0.0-beta.1"
+clap = "=3.0.0-beta.2"
+clap_generate = "=3.0.0-beta.2"
 flate2 = "1"
 man = "0.3"
 

@@ -391,9 +391,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.0.0-beta.5"
+version = "3.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "feff3878564edb93745d58cf63e17b63f24142506e7a20c87a5521ed7bfb1d63"
+checksum = "4bd1061998a501ee7d4b6d449020df3266ca3124b941ec56cf2005c3779ca142"
 dependencies = [
  "atty",
  "bitflags",
@@ -403,8 +403,9 @@ dependencies = [
  "os_str_bytes",
  "strsim",
  "termcolor",
- "textwrap 0.14.2",
- "unicase",
+ "textwrap 0.12.1",
+ "unicode-width",
+ "vec_map",
 ]
 
 [[package]]
@@ -422,11 +423,11 @@ dependencies = [
 
 [[package]]
 name = "clap_generate"
-version = "3.0.0-beta.5"
+version = "3.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097ab5db1c3417442270cd57c8dd39f6c3114d3ce09d595f9efddbb1fcfaa799"
+checksum = "adf420f8b687b628d2915ccfd43a660c437a170432e3fbcb66944e8717a0d68f"
 dependencies = [
- "clap 3.0.0-beta.5",
+ "clap 3.0.0-beta.2",
 ]
 
 [[package]]
@@ -1463,12 +1464,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "os_str_bytes"
-version = "4.2.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "addaa943333a514159c80c97ff4a93306530d965d27e139188283cd13e06a799"
-dependencies = [
- "memchr",
-]
+checksum = "afb2e1c3ee07430c2cf76151675e583e0f19985fa6efae47d6848a3e2c824f85"
 
 [[package]]
 name = "ouroboros"
@@ -1773,7 +1771,7 @@ version = "0.6.0"
 dependencies = [
  "age",
  "chrono",
- "clap 3.0.0-beta.5",
+ "clap 3.0.0-beta.2",
  "clap_generate",
  "console",
  "env_logger 0.9.0",
@@ -2303,9 +2301,9 @@ dependencies = [
 
 [[package]]
 name = "textwrap"
-version = "0.14.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0066c8d12af8b5acd21e00547c3797fde4e8677254a7ee429176ccebbe93dd80"
+checksum = "203008d98caf094106cfaba70acfed15e18ed3ddb7d94e49baec153a2b462789"
 dependencies = [
  "unicode-width",
 ]
@@ -2415,15 +2413,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "unicase"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
-dependencies = [
- "version_check",
-]
-
-[[package]]
 name = "unicode-segmentation"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2456,6 +2445,12 @@ name = "uuid"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+
+[[package]]
+name = "vec_map"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version_check"
