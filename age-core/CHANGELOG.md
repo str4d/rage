@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.7.0] - 2021-10-18
 ### Added
 - `age_core::secrecy`, which re-exports the `secrecy` crate.
 - `age_core::plugin::Error`

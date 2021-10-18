@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.7.0] - 2021-10-18
 ### Added
 - `age::encrypted::Identity`, for decrypting files with passphrase-encrypted
   age identity files.

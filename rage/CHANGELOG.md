@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.7.0] - 2021-10-18
 ### Added
 - `-i/--identity` now accepts passphrase-encrypted age identity files.
 - The `-j PLUGIN_NAME` flag, which allows decrypting with a plugin using its
