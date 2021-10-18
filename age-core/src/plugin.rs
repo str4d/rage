@@ -1,3 +1,8 @@
+//! Common structs and constants for the age plugin system.
+//!
+//! These are shared between the client implementation in the `age` crate, and the plugin
+//! implementations built around the `age-plugin` crate.
+
 use rand::{thread_rng, Rng};
 use secrecy::Zeroize;
 use std::fmt;
