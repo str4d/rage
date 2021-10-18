@@ -35,7 +35,6 @@ dependencies = [
  "rand 0.8.4",
  "rust-embed",
  "scrypt",
- "secrecy",
  "sha2",
  "subtle",
  "x25519-dalek",
