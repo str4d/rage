@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Changed
 - MSRV is now 1.51.0.
+- `age_plugin::Callbacks` methods now return `age_core::plugin::Error` instead
+  of `()` for internal errors, following changes to `age_core::plugin::Result`.
 
 ## [0.1.0] - 2021-05-02
 Initial beta release!

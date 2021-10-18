@@ -234,24 +234,24 @@ pub trait Callbacks<E> {
     ///
     /// This can be used to prompt the user to take some physical action, such as
     /// inserting a hardware key.
-    fn message(&mut self, message: &str) -> age_core::plugin::Result<(), ()>;
+    fn message(&mut self, message: &str) -> age_core::plugin::Result<()>;
 
     /// Requests a non-secret value from the user.
     ///
     /// `message` will be displayed to the user, providing context for the request.
     ///
     /// To request secrets, use [`Callbacks::request_secret`].
-    fn request_public(&mut self, message: &str) -> age_core::plugin::Result<String, ()>;
+    fn request_public(&mut self, message: &str) -> age_core::plugin::Result<String>;
 
     /// Requests a secret value from the user, such as a passphrase.
     ///
     /// `message` will be displayed to the user, providing context for the request.
-    fn request_secret(&mut self, message: &str) -> age_core::plugin::Result<SecretString, ()>;
+    fn request_secret(&mut self, message: &str) -> age_core::plugin::Result<SecretString>;
 
     /// Sends an error.
     ///
     /// Note: This API may be removed in a subsequent API refactor, after we've figured
     /// out how errors should be handled overall, and how to distinguish between hard and
     /// soft errors.
-    fn error(&mut self, error: E) -> age_core::plugin::Result<(), ()>;
+    fn error(&mut self, error: E) -> age_core::plugin::Result<()>;
 }
