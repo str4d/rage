@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.2.0] - 2021-10-18
 ### Changed
 - MSRV is now 1.51.0.
 - `age_plugin::Callbacks` methods now return `age_core::plugin::Error` instead
