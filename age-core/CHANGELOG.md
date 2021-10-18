@@ -8,6 +8,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age_core::secrecy`, which re-exports the `secrecy` crate.
 - `age_core::plugin::Error`
 
 ### Changed

@@ -60,7 +60,6 @@ cookie-factory = "0.3.1"
 nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
-secrecy = "0.8"
 subtle = "2"
 zeroize = "1"
 

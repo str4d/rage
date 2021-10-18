@@ -1,5 +1,6 @@
 //! Common helpers for CLI binaries.
 
+use age_core::secrecy::{ExposeSecret, SecretString};
 use pinentry::PassphraseInput;
 use rand::{
     distributions::{Distribution, Uniform},
@@ -7,7 +8,6 @@ use rand::{
     CryptoRng, RngCore,
 };
 use rpassword::read_password_from_tty;
-use secrecy::{ExposeSecret, SecretString};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader};

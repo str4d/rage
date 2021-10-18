@@ -3,9 +3,9 @@
 use age_core::{
     format::{FileKey, Stanza},
     plugin::{Connection, IDENTITY_V1, RECIPIENT_V1},
+    secrecy::ExposeSecret,
 };
 use bech32::Variant;
-use secrecy::ExposeSecret;
 use std::convert::TryInto;
 use std::fmt;
 use std::io;

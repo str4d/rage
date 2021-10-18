@@ -79,7 +79,6 @@ dependencies = [
  "rsa",
  "rust-embed",
  "scrypt",
- "secrecy",
  "sha2",
  "subtle",
  "web-sys",
@@ -112,7 +111,6 @@ dependencies = [
  "bech32",
  "chrono",
  "gumdrop",
- "secrecy",
 ]
 
 [[package]]

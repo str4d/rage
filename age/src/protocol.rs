@@ -1,8 +1,7 @@
 //! Encryption and decryption routines for age.
 
-use age_core::format::grease_the_joint;
+use age_core::{format::grease_the_joint, secrecy::SecretString};
 use rand::{rngs::OsRng, RngCore};
-use secrecy::SecretString;
 use std::io::{self, Read, Write};
 
 use crate::{
@@ -214,7 +213,7 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
 
 #[cfg(test)]
 mod tests {
-    use secrecy::SecretString;
+    use age_core::secrecy::SecretString;
     use std::io::{BufReader, Read, Write};
 
     #[cfg(feature = "ssh")]

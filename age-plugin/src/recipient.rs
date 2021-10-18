@@ -3,9 +3,9 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     plugin::{self, BidirSend, Connection},
+    secrecy::SecretString,
 };
 use bech32::FromBase32;
-use secrecy::SecretString;
 use std::convert::TryInto;
 use std::io;
 

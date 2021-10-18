@@ -83,7 +83,7 @@
 //! ## Passphrase-based encryption
 //!
 //! ```
-//! use secrecy::Secret;
+//! use age_core::secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
 //! # fn run_main() -> Result<(), ()> {
@@ -177,8 +177,10 @@ pub mod plugin;
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
 
-use age_core::format::{FileKey, Stanza};
-use secrecy::SecretString;
+use age_core::{
+    format::{FileKey, Stanza},
+    secrecy::SecretString,
+};
 
 /// A private key or other value that can unwrap an opaque file key from a recipient
 /// stanza.

@@ -1,4 +1,4 @@
-use secrecy::SecretString;
+use age_core::secrecy::SecretString;
 use std::fs;
 use std::io::Read;
 

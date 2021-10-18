@@ -165,8 +165,8 @@
 #![deny(broken_intra_doc_links)]
 #![deny(missing_docs)]
 
+use age_core::secrecy::SecretString;
 use bech32::Variant;
-use secrecy::SecretString;
 use std::io;
 
 pub mod identity;

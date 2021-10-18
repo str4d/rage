@@ -3,9 +3,9 @@
 use age_core::{
     format::{FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    secrecy::{ExposeSecret, SecretString},
 };
 use bech32::FromBase32;
-use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::io;
 

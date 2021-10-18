@@ -1,7 +1,9 @@
 //! Decryptors for age.
 
-use age_core::format::{FileKey, Stanza};
-use secrecy::SecretString;
+use age_core::{
+    format::{FileKey, Stanza},
+    secrecy::SecretString,
+};
 use std::io::Read;
 
 use super::Nonce;
