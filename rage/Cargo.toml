@@ -54,7 +54,6 @@ lazy_static = "1"
 log = "0.4"
 pinentry = "0.5"
 rust-embed = "6"
-secrecy = "0.8"
 
 # rage-mount dependencies
 fuse_mt = { version = "0.5.1", optional = true }

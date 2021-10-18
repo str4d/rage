@@ -83,7 +83,7 @@
 //! ## Passphrase-based encryption
 //!
 //! ```
-//! use age_core::secrecy::Secret;
+//! use age::secrecy::Secret;
 //! use std::io::{Read, Write};
 //!
 //! # fn run_main() -> Result<(), ()> {
@@ -137,6 +137,9 @@
 // Catch documentation errors caused by code changes.
 #![deny(broken_intra_doc_links)]
 #![deny(missing_docs)]
+
+// Re-export crates that are used in our public API.
+pub use age_core::secrecy;
 
 mod error;
 mod format;

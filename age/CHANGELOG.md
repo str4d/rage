@@ -18,6 +18,7 @@ to 1.0.0 are beta releases.
 - `age::cli_common::UiCallbacks: Clone + Copy` bounds.
 - `age::cli_common::Passphrase::random`, for generating a secure passphrase.
 - `age::cli_common::ReadError`
+- `age::secrecy`, which re-exports the `secrecy` crate.
 
 ### Changed
 - MSRV is now 1.51.0.

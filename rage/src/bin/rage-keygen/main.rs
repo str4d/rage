@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use age::cli_common::file_io;
+use age::{cli_common::file_io, secrecy::ExposeSecret};
 use gumdrop::Options;
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
@@ -9,7 +9,6 @@ use i18n_embed::{
 use lazy_static::lazy_static;
 use log::error;
 use rust_embed::RustEmbed;
-use secrecy::ExposeSecret;
 use std::io::Write;
 
 #[derive(RustEmbed)]

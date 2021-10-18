@@ -1790,7 +1790,6 @@ dependencies = [
  "man",
  "pinentry",
  "rust-embed",
- "secrecy",
  "tar",
  "time",
  "zip",

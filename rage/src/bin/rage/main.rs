@@ -5,7 +5,9 @@ use age::{
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
     },
-    plugin, Identity, IdentityFile, IdentityFileEntry, Recipient,
+    plugin,
+    secrecy::ExposeSecret,
+    Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
 use gumdrop::{Options, ParsingStyle};
 use i18n_embed::{
@@ -14,7 +16,6 @@ use i18n_embed::{
 };
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
-use secrecy::ExposeSecret;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
