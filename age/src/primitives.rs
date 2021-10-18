@@ -1,11 +1,11 @@
 //! Primitive cryptographic operations used by `age`.
 
+use age_core::secrecy::{ExposeSecret, Secret};
 use hmac::{
     crypto_mac::{MacError, Output},
     Hmac, Mac, NewMac,
 };
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, Params as ScryptParams};
-use secrecy::{ExposeSecret, Secret};
 use sha2::Sha256;
 use std::io::{self, Write};
 

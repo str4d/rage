@@ -45,7 +45,7 @@ maintenance = { status = "experimental" }
 # rage and rage-keygen dependencies
 age = { version = "0.6.0", path = "../age", features = ["armor", "cli-common", "plugin"] }
 chrono = "0.4"
-console = "0.14"
+console = { version = "0.15", default-features = false }
 env_logger = "0.9"
 gumdrop = "0.8"
 i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
@@ -54,7 +54,6 @@ lazy_static = "1"
 log = "0.4"
 pinentry = "0.5"
 rust-embed = "6"
-secrecy = "0.8"
 
 # rage-mount dependencies
 fuse_mt = { version = "0.5.1", optional = true }

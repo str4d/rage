@@ -1,8 +1,11 @@
 //! Key structs and serialization.
 
-use age_core::{format::FileKey, primitives::hkdf};
+use age_core::{
+    format::FileKey,
+    primitives::hkdf,
+    secrecy::{ExposeSecret, Secret},
+};
 use rand::{rngs::OsRng, RngCore};
-use secrecy::{ExposeSecret, Secret};
 
 use crate::{
     error::DecryptError,

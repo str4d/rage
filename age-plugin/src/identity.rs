@@ -3,9 +3,9 @@
 use age_core::{
     format::{FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    secrecy::{ExposeSecret, SecretString},
 };
 use bech32::FromBase32;
-use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::io;
 
@@ -56,13 +56,13 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
     ///
     /// This can be used to prompt the user to take some physical action, such as
     /// inserting a hardware key.
-    fn message(&mut self, message: &str) -> plugin::Result<(), ()> {
+    fn message(&mut self, message: &str) -> plugin::Result<()> {
         self.0
             .send("msg", &[], message.as_bytes())
             .map(|res| res.map(|_| ()))
     }
 
-    fn request_public(&mut self, message: &str) -> plugin::Result<String, ()> {
+    fn request_public(&mut self, message: &str) -> plugin::Result<String> {
         self.0
             .send("request-public", &[], message.as_bytes())
             .and_then(|res| match res {
@@ -71,25 +71,25 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
                         io::Error::new(io::ErrorKind::InvalidData, "response is not UTF-8")
                     })
                     .map(Ok),
-                Err(()) => Ok(Err(())),
+                Err(e) => Ok(Err(e)),
             })
     }
 
     /// Requests a secret value from the user, such as a passphrase.
     ///
     /// `message` will be displayed to the user, providing context for the request.
-    fn request_secret(&mut self, message: &str) -> plugin::Result<SecretString, ()> {
+    fn request_secret(&mut self, message: &str) -> plugin::Result<SecretString> {
         self.0
             .send("request-secret", &[], message.as_bytes())
             .and_then(|res| match res {
                 Ok(s) => String::from_utf8(s.body)
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
                     .map(|s| Ok(SecretString::new(s))),
-                Err(()) => Ok(Err(())),
+                Err(e) => Ok(Err(e)),
             })
     }
 
-    fn error(&mut self, error: Error) -> plugin::Result<(), ()> {
+    fn error(&mut self, error: Error) -> plugin::Result<()> {
         error.send(self.0).map(|()| Ok(()))
     }
 }

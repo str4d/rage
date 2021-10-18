@@ -1,11 +1,11 @@
 //! I/O helper structs for age file encryption and decryption.
 
+use age_core::secrecy::{ExposeSecret, SecretVec};
 use chacha20poly1305::{
     aead::{generic_array::GenericArray, Aead, NewAead},
     ChaCha20Poly1305,
 };
 use pin_project::pin_project;
-use secrecy::{ExposeSecret, SecretVec};
 use std::cmp;
 use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -643,7 +643,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
 
 #[cfg(test)]
 mod tests {
-    use secrecy::ExposeSecret;
+    use age_core::secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
     use super::{PayloadKey, Stream, CHUNK_SIZE};

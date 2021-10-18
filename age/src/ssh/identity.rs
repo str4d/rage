@@ -1,6 +1,7 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, hkdf},
+    secrecy::{ExposeSecret, Secret},
 };
 use i18n_embed_fl::fl;
 use nom::{
@@ -13,7 +14,6 @@ use nom::{
 };
 use rand::rngs::OsRng;
 use rsa::padding::PaddingScheme;
-use secrecy::{ExposeSecret, Secret};
 use sha2::{Digest, Sha256, Sha512};
 use std::convert::TryInto;
 use std::fmt;
@@ -345,7 +345,7 @@ pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use secrecy::ExposeSecret;
+    use age_core::secrecy::ExposeSecret;
     use std::io::BufReader;
 
     use super::Identity;

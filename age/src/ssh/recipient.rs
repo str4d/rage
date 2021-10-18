@@ -1,6 +1,7 @@
 use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_encrypt, hkdf},
+    secrecy::ExposeSecret,
 };
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
@@ -12,7 +13,6 @@ use nom::{
 };
 use rand::rngs::OsRng;
 use rsa::{padding::PaddingScheme, PublicKey};
-use secrecy::ExposeSecret;
 use sha2::Sha256;
 use std::convert::TryFrom;
 use std::fmt;

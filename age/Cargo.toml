@@ -60,7 +60,6 @@ cookie-factory = "0.3.1"
 nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
-secrecy = "0.8"
 subtle = "2"
 zeroize = "1"
 
@@ -75,7 +74,7 @@ lazy_static = "1"
 rust-embed = "6"
 
 # Common CLI dependencies
-console = { version = "0.14", optional = true }
+console = { version = "0.15", optional = true, default-features = false }
 pinentry = { version = "0.5", optional = true }
 rpassword = { version = "5", optional = true }
 

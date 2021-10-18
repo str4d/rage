@@ -1,5 +1,11 @@
+//! Common structs and constants for the age plugin system.
+//!
+//! These are shared between the client implementation in the `age` crate, and the plugin
+//! implementations built around the `age-plugin` crate.
+
 use rand::{thread_rng, Rng};
 use secrecy::Zeroize;
+use std::fmt;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::iter;
 use std::path::Path;
@@ -15,13 +21,29 @@ const RESPONSE_OK: &str = "ok";
 const RESPONSE_FAIL: &str = "fail";
 const RESPONSE_UNSUPPORTED: &str = "unsupported";
 
+/// An error within the plugin protocol.
+#[derive(Debug)]
+pub enum Error {
+    Fail,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Fail => write!(f, "General plugin protocol error"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
 /// Result type for the plugin protocol.
 ///
 /// - The outer error indicates a problem with the IPC transport or state machine; these
 ///   should result in the state machine being terminated and the connection closed.
 /// - The inner error indicates an error within the plugin protocol, that the recipient
 ///   should explicitly handle.
-pub type Result<T, E> = io::Result<std::result::Result<T, E>>;
+pub type Result<T> = io::Result<std::result::Result<T, Error>>;
 
 type UnidirResult<A, B, C, E> = io::Result<(
     std::result::Result<Vec<A>, Vec<E>>,
@@ -287,7 +309,7 @@ pub struct BidirSend<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
 impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
     /// Send a command and receive a response.
-    pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> Result<Stanza, ()> {
+    pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> Result<Stanza> {
         for grease in self.0.grease_gun() {
             self.0.send(&grease.tag, &grease.args, &grease.body)?;
             self.0.receive()?;
@@ -296,7 +318,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
         let s = self.0.receive()?;
         match s.tag.as_ref() {
             RESPONSE_OK => Ok(Ok(s)),
-            RESPONSE_FAIL => Ok(Err(())),
+            RESPONSE_FAIL => Ok(Err(Error::Fail)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("unexpected response: {}", tag),
@@ -310,7 +332,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
         command: &str,
         metadata: &[&str],
         stanza: &Stanza,
-    ) -> Result<Stanza, ()> {
+    ) -> Result<Stanza> {
         for grease in self.0.grease_gun() {
             self.0.send(&grease.tag, &grease.args, &grease.body)?;
             self.0.receive()?;
@@ -319,7 +341,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
         let s = self.0.receive()?;
         match s.tag.as_ref() {
             RESPONSE_OK => Ok(Ok(s)),
-            RESPONSE_FAIL => Ok(Err(())),
+            RESPONSE_FAIL => Ok(Err(Error::Fail)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("unexpected response: {}", tag),

@@ -8,8 +8,8 @@
 //! a short 32-bit ID of the public key.
 
 use aes::{Aes128Ctr, Aes192Ctr, Aes256, Aes256Ctr};
+use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
-use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
 
 use crate::error::DecryptError;
@@ -113,8 +113,8 @@ mod decrypt {
     use aes::cipher::{
         BlockCipher, BlockDecrypt, BlockEncrypt, NewBlockCipher, NewCipher, StreamCipher,
     };
+    use age_core::secrecy::SecretString;
     use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
-    use secrecy::SecretString;
 
     use super::OpenSshKdf;
     use crate::error::DecryptError;
@@ -270,6 +270,7 @@ mod read_asn1 {
 }
 
 mod read_ssh {
+    use age_core::secrecy::Secret;
     use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
     use nom::{
         branch::alt,
@@ -282,7 +283,6 @@ mod read_ssh {
     };
     use num_traits::Zero;
     use rsa::BigUint;
-    use secrecy::Secret;
 
     use super::{
         identity::{UnencryptedKey, UnsupportedKey},

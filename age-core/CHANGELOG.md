@@ -7,11 +7,17 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age_core::secrecy`, which re-exports the `secrecy` crate.
+- `age_core::plugin::Error`
+
 ### Changed
 - MSRV is now 1.51.0.
 - The `body` property of `age_core::format::AgeStanza` has been replaced by the
   `AgeStanza::body` method, to enable enclosing parsers to defer Base64 decoding
   until the very end.
+- `age_core::plugin::Result` now only takes a single generic argument, and uses
+  `age_core::plugin::Error` for its inner error type.
 
 ## [0.6.0] - 2021-05-02
 ### Security

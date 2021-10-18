@@ -128,7 +128,7 @@ impl IdentityFile {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use secrecy::ExposeSecret;
+    use age_core::secrecy::ExposeSecret;
     use std::io::BufReader;
 
     use super::{IdentityFile, IdentityFileEntry};

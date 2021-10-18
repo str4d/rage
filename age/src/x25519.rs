@@ -3,11 +3,10 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
+    secrecy::{ExposeSecret, SecretString},
 };
 use bech32::{ToBase32, Variant};
 use rand_7::rngs::OsRng;
-use secrecy::ExposeSecret;
-use secrecy::SecretString;
 use std::convert::TryInto;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -188,9 +187,9 @@ impl crate::Recipient for Recipient {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use age_core::secrecy::ExposeSecret;
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
-    use secrecy::ExposeSecret;
     use x25519_dalek::{PublicKey, StaticSecret};
 
     use super::{Identity, Recipient};

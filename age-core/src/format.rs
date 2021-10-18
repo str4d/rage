@@ -1,3 +1,5 @@
+//! Core types and encoding operations used by the age file format.
+
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
@@ -126,6 +128,7 @@ pub fn grease_the_joint() -> Stanza {
     Stanza { tag, args, body }
 }
 
+/// Decoding operations for age types.
 pub mod read {
     use nom::{
         branch::alt,
@@ -148,6 +151,8 @@ pub mod read {
         )
     }
 
+    /// Reads an age "arbitrary string".
+    ///
     /// From the age specification:
     /// ```text
     /// ... an arbitrary string is a sequence of ASCII characters with values 33 to 126.
@@ -273,6 +278,7 @@ pub mod read {
     }
 }
 
+/// Encoding operations for age types.
 pub mod write {
     use cookie_factory::{
         combinator::string,

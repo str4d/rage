@@ -212,7 +212,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R
 mod tests {
     use std::{cell::Cell, io::BufReader};
 
-    use secrecy::{ExposeSecret, SecretString};
+    use age_core::secrecy::{ExposeSecret, SecretString};
 
     use super::Identity;
     use crate::{
@@ -254,7 +254,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
         }
 
         /// This intentionally panics if called twice.
-        fn request_passphrase(&self, _: &str) -> Option<secrecy::SecretString> {
+        fn request_passphrase(&self, _: &str) -> Option<SecretString> {
             Some(SecretString::new(self.0.take().unwrap().to_owned()))
         }
     }

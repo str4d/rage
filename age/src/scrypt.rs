@@ -1,9 +1,9 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt},
+    secrecy::{ExposeSecret, SecretString},
 };
 use rand::{rngs::OsRng, RngCore};
-use secrecy::{ExposeSecret, SecretString};
 use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;

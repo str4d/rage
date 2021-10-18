@@ -1,4 +1,7 @@
-use age_core::format::{FileKey, Stanza};
+use age_core::{
+    format::{FileKey, Stanza},
+    secrecy::ExposeSecret,
+};
 use age_plugin::{
     identity::{self, IdentityPluginV1},
     print_new_identity,
@@ -6,7 +9,6 @@ use age_plugin::{
     run_state_machine, Callbacks,
 };
 use gumdrop::Options;
-use secrecy::ExposeSecret;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
