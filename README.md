@@ -127,29 +127,22 @@ encrypted to a specific public key.
 
 ## Installation
 
-On macOS or Linux, you can use Homebrew:
-
-```
-brew tap str4d.xyz/rage https://str4d.xyz/rage
-brew install rage
-```
+| Environment | CLI command |
+|-------------|-------------|
+| Cargo (Rust 1.51+) | `cargo install rage` |
+| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| openSUSE Tumbleweed | `zypper install rage-encryption` |
 
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
 
-If your system has Rust 1.51+ installed (either via `rustup` or a system
-package), you can build directly from source:
-
-```
-cargo install rage
-```
-
-> Note: previously the `rage` suite of tools was provided in the `age` Rust
-> crate. This is no longer the case; `age` now only contains the Rust library.
-
 Help from new packagers is very welcome.
 
 ### Feature flags
+
+When building with Cargo, you can configure rage using `--no-default-features`
+and `--features comma,separated,flags` to enable or disable the following
+feature flags:
 
 - `mount` enables the `rage-mount` tool, which can mount age-encrypted TAR or
   ZIP archives as read-only. It is currently only usable on Unix systems, as it
