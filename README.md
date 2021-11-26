@@ -140,6 +140,10 @@ Help from new packagers is very welcome.
 
 ### Feature flags
 
+When building with Cargo, you can configure rage using `--no-default-features`
+and `--features comma,separated,flags` to enable or disable the following
+feature flags:
+
 - `mount` enables the `rage-mount` tool, which can mount age-encrypted TAR or
   ZIP archives as read-only. It is currently only usable on Unix systems, as it
   relies on `libfuse`.
