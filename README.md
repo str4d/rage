@@ -131,6 +131,7 @@ encrypted to a specific public key.
 |-------------|-------------|
 | Cargo (Rust 1.51+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| openSUSE Tumbleweed | `zypper install rage-encryption` |
 
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
