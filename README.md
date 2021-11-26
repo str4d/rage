@@ -127,22 +127,13 @@ encrypted to a specific public key.
 
 ## Installation
 
-On macOS or Linux, you can use Homebrew:
-
-```
-brew tap str4d.xyz/rage https://str4d.xyz/rage
-brew install rage
-```
+| Environment | CLI command |
+|-------------|-------------|
+| Cargo (Rust 1.51+) | `cargo install rage` |
+| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
 
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
-
-If your system has Rust 1.51+ installed (either via `rustup` or a system
-package), you can build directly from source:
-
-```
-cargo install rage
-```
 
 > Note: previously the `rage` suite of tools was provided in the `age` Rust
 > crate. This is no longer the case; `age` now only contains the Rust library.
