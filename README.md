@@ -136,9 +136,6 @@ encrypted to a specific public key.
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
 
-> Note: previously the `rage` suite of tools was provided in the `age` Rust
-> crate. This is no longer the case; `age` now only contains the Rust library.
-
 Help from new packagers is very welcome.
 
 ### Feature flags
