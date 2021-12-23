@@ -333,6 +333,8 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::ErrorKind;
+
     use super::{read, write};
 
     #[test]
@@ -434,5 +436,42 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
         assert_eq!(stanza.tag, test_tag);
         assert_eq!(stanza.args, test_args);
         assert_eq!(stanza.body(), test_body);
+    }
+
+    #[test]
+    fn age_stanza_invalid_last_line() {
+        // Artifact found by cargo-fuzz on commit 81f91581bf7e21075519dc23e4a28b4d201dd784
+        // We add an extra newline to the artifact so that we would "correctly" trigger
+        // the bug in the legacy part of `read::legacy_age_stanza`.
+        let artifact = "-> H
+/
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the body length is invalid.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"/\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
     }
 }
