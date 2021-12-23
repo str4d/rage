@@ -151,6 +151,30 @@ pub mod read {
         )
     }
 
+    /// Returns true if the byte is one of the specific ASCII values of the standard
+    /// Base64 character set which leave trailing bits when they occur as the last
+    /// character in an encoding of length 2 mod 4.
+    fn base64_has_no_trailing_bits_2(c: &u8) -> bool {
+        // With two trailing characters, the last character has up to four trailing bits.
+        matches!(
+            c,
+            // A | Q | g | w
+            65 | 81 | 103 | 119,
+        )
+    }
+
+    /// Returns true if the byte is one of the specific ASCII values of the standard
+    /// Base64 character set which leave trailing bits when they occur as the last
+    /// character in an encoding of length 3 mod 4.
+    fn base64_has_no_trailing_bits_3(c: &u8) -> bool {
+        // With three trailing characters, the last character has up to two trailing bits.
+        matches!(
+            c,
+            // A | E | I | M | Q | U | Y | c | g | k | o | s | w | 0 | 4 | 8
+            65 | 69 | 73 | 77 | 81 | 85 | 89 | 99 | 103 | 107 | 111 | 115 | 119 | 48 | 52 | 56,
+        )
+    }
+
     /// Reads an age "arbitrary string".
     ///
     /// From the age specification:
@@ -169,11 +193,20 @@ pub mod read {
             many_till(
                 // Any body lines before the last MUST be full-length.
                 terminated(take_while_m_n(64, 64, is_base64_char), newline),
-                // Last body line MUST be short (empty if necessary), and MUST be a valid
-                // Base64 length (i.e. the length must not be 1 mod 4).
+                // Last body line:
+                // - MUST be short (empty if necessary).
+                // - MUST be a valid Base64 length (i.e. the length must not be 1 mod 4).
+                // - MUST NOT leave trailing bits (if the length is 2 or 3 mod 4).
                 verify(
                     terminated(take_while_m_n(0, 63, is_base64_char), newline),
-                    |line: &[u8]| line.len() % 4 != 1,
+                    |line: &[u8]| match line.len() % 4 {
+                        0 => true,
+                        1 => false,
+                        2 => base64_has_no_trailing_bits_2(line.last().unwrap()),
+                        3 => base64_has_no_trailing_bits_3(line.last().unwrap()),
+                        // No other cases, but Rust wants an exhaustive match on u8.
+                        _ => unreachable!(),
+                    },
                 ),
             ),
             |(full_chunks, partial_chunk): (Vec<&[u8]>, &[u8])| {
@@ -194,6 +227,10 @@ pub mod read {
                 if full_chunks.iter().any(|s| s.len() != 64)
                     || partial_chunk.len() > 64
                     || partial_chunk.len() % 4 == 1
+                    || (partial_chunk.len() % 4 == 2
+                        && !base64_has_no_trailing_bits_2(partial_chunk.last().unwrap()))
+                    || (partial_chunk.len() % 4 == 3
+                        && !base64_has_no_trailing_bits_3(partial_chunk.last().unwrap()))
                 {
                     None
                 } else {
