@@ -28,12 +28,12 @@ x25519-dalek = "1"
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
-hkdf = "0.11"
-hmac = "0.11"
-sha2 = "0.9"
+hkdf = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.8", default-features = false }
+scrypt = { version = "0.8.1", default-features = false }
 
 # - CSPRNG
 rand = "0.8"
@@ -46,13 +46,14 @@ bech32 = "0.8"
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
 num-traits = { version = "0.2", optional = true }
 rsa = { version = "0.5", optional = true }
+sha2_09 = { package = "sha2", version = "0.9" }
 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = { version = "3", optional = true }
 
 # - Encrypted keys
 aes = { version = "0.7", optional = true, features = ["ctr"] }
-bcrypt-pbkdf = { version = "0.7", optional = true }
+bcrypt-pbkdf = { version = "0.7.2", optional = true }
 block-modes = { version = "0.8", optional = true }
 
 # Parsing

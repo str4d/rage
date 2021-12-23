@@ -14,7 +14,7 @@ use nom::{
 };
 use rand::rngs::OsRng;
 use rsa::padding::PaddingScheme;
-use sha2::{Digest, Sha256, Sha512};
+use sha2_09::{Digest, Sha256, Sha512};
 use std::convert::TryInto;
 use std::fmt;
 use std::io;
