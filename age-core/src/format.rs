@@ -481,4 +481,77 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
         let body = stanza.body();
         assert!(body.is_empty());
     }
+
+    #[test]
+    fn age_stanza_last_line_two_trailing_chars() {
+        // Artifact found by cargo-fuzz on commit 8da15148fc005a48ffeb43eb76dab478eb2fdf72
+        // We add an extra newline to the artifact so that we would "correctly" trigger
+        // the bug in the legacy part of `read::legacy_age_stanza`.
+        let artifact = "-> '
+dy
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the last body line has trailing bits.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"dy\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
+    }
+
+    #[test]
+    fn age_stanza_last_line_three_trailing_chars() {
+        // Artifact found by cargo-fuzz after age_stanza_last_line_two_trailing_chars was
+        // incorrectly fixed.
+        let artifact = "-> h
+ddd
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the last body line has trailing bits.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"ddd\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
+    }
 }
