@@ -134,7 +134,7 @@ pub mod read {
         branch::alt,
         bytes::streaming::{tag, take_while1, take_while_m_n},
         character::streaming::newline,
-        combinator::{map, map_opt, opt},
+        combinator::{map, map_opt, opt, verify},
         multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
         IResult,
@@ -169,8 +169,12 @@ pub mod read {
             many_till(
                 // Any body lines before the last MUST be full-length.
                 terminated(take_while_m_n(64, 64, is_base64_char), newline),
-                // Last body line MUST be short (empty if necessary).
-                terminated(take_while_m_n(0, 63, is_base64_char), newline),
+                // Last body line MUST be short (empty if necessary), and MUST be a valid
+                // Base64 length (i.e. the length must not be 1 mod 4).
+                verify(
+                    terminated(take_while_m_n(0, 63, is_base64_char), newline),
+                    |line: &[u8]| line.len() % 4 != 1,
+                ),
             ),
             |(full_chunks, partial_chunk): (Vec<&[u8]>, &[u8])| {
                 let mut chunks = full_chunks;
@@ -185,9 +189,12 @@ pub mod read {
             separated_list1(newline, take_while1(is_base64_char)),
             |chunks: Vec<&[u8]>| {
                 // Enforce that the only chunk allowed to be shorter than 64 characters
-                // is the last chunk.
+                // is the last chunk, and that its length must not be 1 mod 4.
                 let (partial_chunk, full_chunks) = chunks.split_last().unwrap();
-                if full_chunks.iter().any(|s| s.len() != 64) || partial_chunk.len() > 64 {
+                if full_chunks.iter().any(|s| s.len() != 64)
+                    || partial_chunk.len() > 64
+                    || partial_chunk.len() % 4 == 1
+                {
                     None
                 } else {
                     Some(chunks)
