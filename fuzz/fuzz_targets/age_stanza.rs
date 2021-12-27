@@ -7,7 +7,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok((leftover, stanza)) = read::age_stanza(data) {
         let mut buf = Vec::with_capacity(data.len());
         gen(
-            write::age_stanza(stanza.tag, &stanza.args, &stanza.body),
+            write::age_stanza(stanza.tag, &stanza.args, &stanza.body()),
             &mut buf,
         )
         .expect("can write to Vec");

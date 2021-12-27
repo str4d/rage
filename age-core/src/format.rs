@@ -134,7 +134,7 @@ pub mod read {
         branch::alt,
         bytes::streaming::{tag, take_while1, take_while_m_n},
         character::streaming::newline,
-        combinator::{map, map_opt, opt},
+        combinator::{map, map_opt, opt, verify},
         multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
         IResult,
@@ -148,6 +148,30 @@ pub mod read {
             c,
             // A..=Z | a..=z | 0..=9 | + | /
             65..=90 | 97..=122 | 48..=57 | 43 | 47,
+        )
+    }
+
+    /// Returns true if the byte is one of the specific ASCII values of the standard
+    /// Base64 character set which leave trailing bits when they occur as the last
+    /// character in an encoding of length 2 mod 4.
+    fn base64_has_no_trailing_bits_2(c: &u8) -> bool {
+        // With two trailing characters, the last character has up to four trailing bits.
+        matches!(
+            c,
+            // A | Q | g | w
+            65 | 81 | 103 | 119,
+        )
+    }
+
+    /// Returns true if the byte is one of the specific ASCII values of the standard
+    /// Base64 character set which leave trailing bits when they occur as the last
+    /// character in an encoding of length 3 mod 4.
+    fn base64_has_no_trailing_bits_3(c: &u8) -> bool {
+        // With three trailing characters, the last character has up to two trailing bits.
+        matches!(
+            c,
+            // A | E | I | M | Q | U | Y | c | g | k | o | s | w | 0 | 4 | 8
+            65 | 69 | 73 | 77 | 81 | 85 | 89 | 99 | 103 | 107 | 111 | 115 | 119 | 48 | 52 | 56,
         )
     }
 
@@ -169,8 +193,21 @@ pub mod read {
             many_till(
                 // Any body lines before the last MUST be full-length.
                 terminated(take_while_m_n(64, 64, is_base64_char), newline),
-                // Last body line MUST be short (empty if necessary).
-                terminated(take_while_m_n(0, 63, is_base64_char), newline),
+                // Last body line:
+                // - MUST be short (empty if necessary).
+                // - MUST be a valid Base64 length (i.e. the length must not be 1 mod 4).
+                // - MUST NOT leave trailing bits (if the length is 2 or 3 mod 4).
+                verify(
+                    terminated(take_while_m_n(0, 63, is_base64_char), newline),
+                    |line: &[u8]| match line.len() % 4 {
+                        0 => true,
+                        1 => false,
+                        2 => base64_has_no_trailing_bits_2(line.last().unwrap()),
+                        3 => base64_has_no_trailing_bits_3(line.last().unwrap()),
+                        // No other cases, but Rust wants an exhaustive match on u8.
+                        _ => unreachable!(),
+                    },
+                ),
             ),
             |(full_chunks, partial_chunk): (Vec<&[u8]>, &[u8])| {
                 let mut chunks = full_chunks;
@@ -185,9 +222,16 @@ pub mod read {
             separated_list1(newline, take_while1(is_base64_char)),
             |chunks: Vec<&[u8]>| {
                 // Enforce that the only chunk allowed to be shorter than 64 characters
-                // is the last chunk.
+                // is the last chunk, and that its length must not be 1 mod 4.
                 let (partial_chunk, full_chunks) = chunks.split_last().unwrap();
-                if full_chunks.iter().any(|s| s.len() != 64) || partial_chunk.len() > 64 {
+                if full_chunks.iter().any(|s| s.len() != 64)
+                    || partial_chunk.len() > 64
+                    || partial_chunk.len() % 4 == 1
+                    || (partial_chunk.len() % 4 == 2
+                        && !base64_has_no_trailing_bits_2(partial_chunk.last().unwrap()))
+                    || (partial_chunk.len() % 4 == 3
+                        && !base64_has_no_trailing_bits_3(partial_chunk.last().unwrap()))
+                {
                     None
                 } else {
                     Some(chunks)
@@ -333,6 +377,8 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::ErrorKind;
+
     use super::{read, write};
 
     #[test]
@@ -434,5 +480,115 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
         assert_eq!(stanza.tag, test_tag);
         assert_eq!(stanza.args, test_args);
         assert_eq!(stanza.body(), test_body);
+    }
+
+    #[test]
+    fn age_stanza_invalid_last_line() {
+        // Artifact found by cargo-fuzz on commit 81f91581bf7e21075519dc23e4a28b4d201dd784
+        // We add an extra newline to the artifact so that we would "correctly" trigger
+        // the bug in the legacy part of `read::legacy_age_stanza`.
+        let artifact = "-> H
+/
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the body length is invalid.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"/\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
+    }
+
+    #[test]
+    fn age_stanza_last_line_two_trailing_chars() {
+        // Artifact found by cargo-fuzz on commit 8da15148fc005a48ffeb43eb76dab478eb2fdf72
+        // We add an extra newline to the artifact so that we would "correctly" trigger
+        // the bug in the legacy part of `read::legacy_age_stanza`.
+        let artifact = "-> '
+dy
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the last body line has trailing bits.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"dy\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
+    }
+
+    #[test]
+    fn age_stanza_last_line_three_trailing_chars() {
+        // Artifact found by cargo-fuzz after age_stanza_last_line_two_trailing_chars was
+        // incorrectly fixed.
+        let artifact = "-> h
+ddd
+
+";
+
+        // The stanza parser requires the last body line is short (possibly empty), so
+        // should reject this artifact.
+        match read::age_stanza(artifact.as_bytes()) {
+            Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok((rest, stanza)) => {
+                assert_eq!(rest, b"\n");
+                // This is where the fuzzer triggered a panic.
+                let _ = stanza.body();
+                // We should never reach here either before or after the bug was fixed,
+                // because the last body line has trailing bits.
+                panic!("Invalid test case was parsed without error");
+            }
+        }
+
+        // The legacy parser accepts this artifact by ignoring the invalid body line,
+        // because bodies were allowed to be omitted.
+        let (rest, stanza) = read::legacy_age_stanza(artifact.as_bytes()).unwrap();
+        // The remainder should the invalid body line. If the standard parser were fixed
+        // but the legacy parser was not, this would only contain a single newline.
+        assert_eq!(rest, b"ddd\n\n");
+        // This is where the fuzzer would have triggered a panic if it were using the
+        // legacy parser.
+        let body = stanza.body();
+        assert!(body.is_empty());
     }
 }

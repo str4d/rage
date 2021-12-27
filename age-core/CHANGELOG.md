@@ -8,6 +8,16 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.7.1] - 2021-12-27
+### Fixed
+- In 0.7.0, Base64 decoding was moved to the `AgeStanza::body` method, with the
+  stanza parser only checking for valid Base64 characters. This caused the
+  parser to start accepting stanzas with non-canonical last body lines (where
+  the Base64 encoding would have trailing bits that could not be decoded into
+  full bytes); calling `AgeStanza::body` on these stanzas would cause a panic.
+  This release fixes the parser to reject non-canonical last body lines, turning
+  the panic back into an error.
+
 ## [0.7.0] - 2021-10-18
 ### Added
 - `age_core::secrecy`, which re-exports the `secrecy` crate.
