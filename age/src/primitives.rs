@@ -2,8 +2,8 @@
 
 use age_core::secrecy::{ExposeSecret, Secret};
 use hmac::{
-    crypto_mac::{MacError, Output},
-    Hmac, Mac, NewMac,
+    digest::{CtOutput, MacError},
+    Hmac, Mac,
 };
 use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, Params as ScryptParams};
 use sha2::Sha256;
@@ -35,13 +35,13 @@ impl HmacWriter {
     }
 
     /// Checks if `mac` is correct for the processed input.
-    pub(crate) fn finalize(self) -> Output<Hmac<Sha256>> {
+    pub(crate) fn finalize(self) -> CtOutput<Hmac<Sha256>> {
         self.inner.finalize()
     }
 
     /// Checks if `mac` is correct for the processed input.
     pub(crate) fn verify(self, mac: &[u8]) -> Result<(), MacError> {
-        self.inner.verify(mac)
+        self.inner.verify_slice(mac)
     }
 }
 

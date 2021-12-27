@@ -318,8 +318,8 @@ impl From<io::Error> for DecryptError {
     }
 }
 
-impl From<hmac::crypto_mac::MacError> for DecryptError {
-    fn from(_: hmac::crypto_mac::MacError) -> Self {
+impl From<hmac::digest::MacError> for DecryptError {
+    fn from(_: hmac::digest::MacError) -> Self {
         DecryptError::InvalidMac
     }
 }

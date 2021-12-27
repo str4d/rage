@@ -47,7 +47,7 @@ impl HeaderV1 {
         header
     }
 
-    pub(crate) fn verify_mac(&self, mac_key: HmacKey) -> Result<(), hmac::crypto_mac::MacError> {
+    pub(crate) fn verify_mac(&self, mac_key: HmacKey) -> Result<(), hmac::digest::MacError> {
         let mut mac = HmacWriter::new(mac_key);
         if let Some(bytes) = &self.encoded_bytes {
             // The MAC covers all bytes up to the end of the --- prefix.
