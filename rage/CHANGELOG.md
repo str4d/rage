@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.7.1] - 2021-12-27
+### Fixed
+- Fixed a bug in 0.7.0 where non-canonical recipient stanza bodies in an age
+  file header would cause `rage` to crash instead of being rejected.
+
 ## [0.7.0] - 2021-10-18
 ### Added
 - `-i/--identity` now accepts passphrase-encrypted age identity files.

@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.2.1] - 2021-12-27
+### Fixed
+- Bumped `age-core` to 0.7.1 to fix a bug where non-canonical recipient stanza
+  bodies in an age file header would cause a panic instead of being rejected.
+
 ## [0.2.0] - 2021-10-18
 ### Changed
 - MSRV is now 1.51.0.
