@@ -7,6 +7,12 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age_core::io::{DebugReader, DebugWriter}`
+
+### Changed
+- `Connection::open` now returns the debugging-friendly concrete type
+  `Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>`.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed

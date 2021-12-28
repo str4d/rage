@@ -2,6 +2,7 @@
 
 use age_core::{
     format::{FileKey, Stanza},
+    io::{DebugReader, DebugWriter},
     plugin::{Connection, IDENTITY_V1, RECIPIENT_V1},
     secrecy::ExposeSecret,
 };
@@ -163,7 +164,10 @@ impl Plugin {
             .map_err(|_| binary_name)
     }
 
-    fn connect(&self, state_machine: &str) -> io::Result<Connection<ChildStdout, ChildStdin>> {
+    fn connect(
+        &self,
+        state_machine: &str,
+    ) -> io::Result<Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>> {
         Connection::open(&self.0, state_machine)
     }
 }
