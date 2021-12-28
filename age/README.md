@@ -1,3 +1,5 @@
+<p align="center"><img alt="The age logo, an wireframe of St. Peters dome in Rome, with the text: age, file encryption" width="600" src="https://user-images.githubusercontent.com/1225294/132245842-fda4da6a-1cea-4738-a3da-2dc860861c98.png"></p>
+
 # age Rust library
 
 age is a simple, modern, and secure file encryption library. It features small
@@ -10,10 +12,7 @@ encryption and decryption of files or streams (e.g. in shell scripts), as well
 as additional features such as mounting an encrypted archive.
 
 The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
-To discuss the spec or other age related topics, please email
-[the mailing list](https://groups.google.com/d/forum/age-dev) at
-age-dev@googlegroups.com. age was designed by
-[@Benjojo12](https://twitter.com/Benjojo12) and
+The age format was designed by [@Benjojo12](https://twitter.com/Benjojo12) and
 [@FiloSottile](https://twitter.com/FiloSottile).
 
 The reference interoperable Go implementation is available at
