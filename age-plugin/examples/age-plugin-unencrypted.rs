@@ -25,6 +25,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         plugin_name: &str,
         _bytes: &[u8],
     ) -> Result<(), recipient::Error> {
+        eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_recipient called");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the recipient here.
             Ok(())
@@ -42,6 +43,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         plugin_name: &str,
         _bytes: &[u8],
     ) -> Result<(), recipient::Error> {
+        eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_identity called");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the identity.
             Ok(())
@@ -58,6 +60,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         file_keys: Vec<FileKey>,
         mut callbacks: impl Callbacks<recipient::Error>,
     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<recipient::Error>>> {
+        eprintln!("age-plugin-unencrypted: RecipientPluginV1::wrap_file_keys called");
         // A real plugin would wrap the file key here.
         let _ = callbacks
             .message("This plugin doesn't have any recipient-specific logic. It's unencrypted!")?;
@@ -84,6 +87,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         plugin_name: &str,
         _bytes: &[u8],
     ) -> Result<(), identity::Error> {
+        eprintln!("age-plugin-unencrypted: IdentityPluginV1::add_identity called");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the identity.
             Ok(())
@@ -100,6 +104,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         files: Vec<Vec<Stanza>>,
         mut callbacks: impl Callbacks<identity::Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<identity::Error>>>> {
+        eprintln!("age-plugin-unencrypted: IdentityPluginV1::unwrap_file_keys called");
         let mut file_keys = HashMap::with_capacity(files.len());
         for (file_index, stanzas) in files.into_iter().enumerate() {
             for stanza in stanzas {

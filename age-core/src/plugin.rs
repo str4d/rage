@@ -5,13 +5,17 @@
 
 use rand::{thread_rng, Rng};
 use secrecy::Zeroize;
+use std::env;
 use std::fmt;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::iter;
 use std::path::Path;
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 
-use crate::format::{grease_the_joint, read, write, Stanza};
+use crate::{
+    format::{grease_the_joint, read, write, Stanza},
+    io::{DebugReader, DebugWriter},
+};
 
 pub const IDENTITY_V1: &str = "identity-v1";
 pub const RECIPIENT_V1: &str = "recipient-v1";
@@ -59,19 +63,31 @@ pub struct Connection<R: Read, W: Write> {
     _working_dir: Option<tempfile::TempDir>,
 }
 
-impl Connection<ChildStdout, ChildStdin> {
-    /// Start a plugin binary with the given state machine.
+impl Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>> {
+    /// Starts a plugin binary with the given state machine.
+    ///
+    /// If the `AGEDEBUG` environment variable is set to `plugin`, then all messages sent
+    /// to and from the plugin, as well as anything the plugin prints to its `stderr`,
+    /// will be printed to the `stderr` of the parent process.
     pub fn open(binary: &Path, state_machine: &str) -> io::Result<Self> {
         let working_dir = tempfile::tempdir()?;
+        let debug_enabled = env::var("AGEDEBUG").map(|s| s == "plugin").unwrap_or(false);
         let process = Command::new(binary.canonicalize()?)
             .arg(format!("--age-plugin={}", state_machine))
             .current_dir(working_dir.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(if debug_enabled {
+                Stdio::inherit()
+            } else {
+                Stdio::null()
+            })
             .spawn()?;
-        let input = BufReader::new(process.stdout.expect("could open stdout"));
-        let output = process.stdin.expect("could open stdin");
+        let input = BufReader::new(DebugReader::new(
+            process.stdout.expect("could open stdout"),
+            debug_enabled,
+        ));
+        let output = DebugWriter::new(process.stdin.expect("could open stdin"), debug_enabled);
         Ok(Connection {
             input,
             output,

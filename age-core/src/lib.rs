@@ -12,6 +12,7 @@
 pub use secrecy;
 
 pub mod format;
+pub mod io;
 pub mod primitives;
 
 #[cfg(feature = "plugin")]
