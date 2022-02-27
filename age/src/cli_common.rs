@@ -138,6 +138,8 @@ pub fn read_identities(
             }
             Err(_) => (),
         }
+        // IdentityFileEntry::into_identity will never return a MissingPlugin error
+        // when plugin feature is not enabled.
 
         // Try parsing as multiple single-line age identities.
         let identity_file =
@@ -147,14 +149,23 @@ pub fn read_identities(
             })?;
 
         for entry in identity_file.into_identities() {
-            identities.push(entry.into_identity(UiCallbacks).map_err(|e| match e {
+            let entry = entry.into_identity(UiCallbacks);
+
+            #[cfg(feature = "plugin")]
+            let entry = entry.map_err(|e| match e {
+                #[cfg(feature = "plugin")]
                 crate::DecryptError::MissingPlugin { binary_name } => {
                     ReadError::MissingPlugin { binary_name }
                 }
                 // DecryptError::MissingPlugin is the only possible error kind returned by
                 // IdentityFileEntry::into_identity.
                 _ => unreachable!(),
-            })?);
+            })?;
+
+            #[cfg(not(feature = "plugin"))]
+            let entry = entry.unwrap();
+
+            identities.push(entry);
         }
     }
 
