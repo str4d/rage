@@ -13,7 +13,10 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{armor::ArmoredReader, fl, identity::IdentityFile, wfl, Callbacks, Identity};
+use crate::{fl, identity::IdentityFile, wfl, Callbacks, Identity};
+
+#[cfg(feature = "armor")]
+use crate::armor::ArmoredReader;
 
 pub mod file_io;
 
@@ -108,6 +111,7 @@ pub fn read_identities(
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
     for filename in filenames {
+        #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
         if let Ok(identity) = crate::encrypted::Identity::from_buffer(
             ArmoredReader::new(BufReader::new(File::open(&filename)?)),
