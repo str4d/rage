@@ -215,9 +215,10 @@ mod tests {
     use age_core::secrecy::{ExposeSecret, SecretString};
 
     use super::Identity;
-    use crate::{
-        armor::ArmoredReader, x25519, Callbacks, DecryptError, Identity as _, Recipient as _,
-    };
+    use crate::{x25519, Callbacks, DecryptError, Identity as _, Recipient as _};
+
+    #[cfg(feature = "armor")]
+    use crate::armor::ArmoredReader;
 
     const TEST_ENCRYPTED_IDENTITY_PASSPHRASE: &str = "foobar";
 
@@ -260,6 +261,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     }
 
     #[test]
+    #[cfg(feature = "armor")]
     fn round_trip() {
         let pk: x25519::Recipient = TEST_RECIPIENT.parse().unwrap();
         let file_key = [12; 16].into();
