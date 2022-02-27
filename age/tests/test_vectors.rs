@@ -3,6 +3,7 @@ use std::fs;
 use std::io::Read;
 
 #[test]
+#[cfg(feature = "cli-common")]
 fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
     for test_vector in fs::read_dir("./tests/testdata")?.filter(|res| {
         res.as_ref()
