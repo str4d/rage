@@ -107,10 +107,10 @@ jobs:
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]"}'
 
       # Download the binaries to test
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v3
         with:
           name: rage
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v3
         with:
           name: age
       - run: chmod +x rage/rage
