@@ -7,7 +7,6 @@ use age_core::{
     secrecy::ExposeSecret,
 };
 use bech32::Variant;
-use std::convert::TryInto;
 use std::fmt;
 use std::io;
 use std::iter;

@@ -7,7 +7,6 @@ use chacha20poly1305::{
 };
 use pin_project::pin_project;
 use std::cmp;
-use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroize;
 

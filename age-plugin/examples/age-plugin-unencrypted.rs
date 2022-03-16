@@ -10,7 +10,6 @@ use age_plugin::{
 };
 use gumdrop::Options;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::io;
 
 const PLUGIN_NAME: &str = "unencrypted";

@@ -6,7 +6,6 @@ use age_core::{
     secrecy::SecretString,
 };
 use bech32::FromBase32;
-use std::convert::TryInto;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};

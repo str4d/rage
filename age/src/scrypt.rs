@@ -4,7 +4,6 @@ use age_core::{
     secrecy::{ExposeSecret, SecretString},
 };
 use rand::{rngs::OsRng, RngCore};
-use std::convert::TryInto;
 use std::time::Duration;
 use zeroize::Zeroize;
 
