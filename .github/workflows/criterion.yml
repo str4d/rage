@@ -16,7 +16,7 @@ jobs:
     env:
       CRITERION_TOKEN: ${{ secrets.CRITERION_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Run benchmarks
         run: |
           # run benchmarks and save baseline to "criterion.dev.temp"

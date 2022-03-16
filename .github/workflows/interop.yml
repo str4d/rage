@@ -16,7 +16,7 @@ jobs:
           -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / Build rage"}'
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: 1.56.0
@@ -64,7 +64,7 @@ jobs:
         run: echo "AGE_REF=refs/heads/main" >> $GITHUB_ENV
 
       - name: Check out FiloSottile/age
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: FiloSottile/age
           ref: ${{ env.AGE_REF }}
