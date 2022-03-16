@@ -164,7 +164,7 @@ fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
 where
     F: FnOnce() -> io::Result<T>,
 {
-    let fuse_args: Vec<&OsStr> = vec![&OsStr::new("-o"), &OsStr::new("ro,auto_unmount")];
+    let fuse_args: Vec<&OsStr> = vec![OsStr::new("-o"), OsStr::new("ro,auto_unmount")];
 
     let fs = open().map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
     info!("{}", fl!("info-mounting-as-fuse"));

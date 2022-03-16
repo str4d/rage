@@ -48,7 +48,7 @@ impl UnencryptedKey {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
                 let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
-                if ssh_tag(&ssh_key) != tag {
+                if ssh_tag(ssh_key) != tag {
                     return None;
                 }
 
@@ -73,7 +73,7 @@ impl UnencryptedKey {
             }
             (UnencryptedKey::SshEd25519(ssh_key, privkey), SSH_ED25519_RECIPIENT_TAG) => {
                 let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
-                if ssh_tag(&ssh_key) != tag {
+                if ssh_tag(ssh_key) != tag {
                     return None;
                 }
                 if stanza.body.len() != crate::x25519::ENCRYPTED_FILE_KEY_BYTES {
@@ -92,7 +92,7 @@ impl UnencryptedKey {
                 let pk = X25519PublicKey::from(&sk);
 
                 let tweak: StaticSecret =
-                    hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
+                    hkdf(ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
                 let shared_secret = tweak
                     .diffie_hellman(&X25519PublicKey::from(*sk.diffie_hellman(&epk).as_bytes()));
 

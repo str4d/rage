@@ -109,8 +109,7 @@ impl crate::Recipient for Recipient {
                     )
                     .expect("pubkey is valid and file key is not too long");
 
-                let encoded_tag =
-                    base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
 
                 Ok(vec![Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
@@ -126,7 +125,7 @@ impl crate::Recipient for Recipient {
                 let epk: X25519PublicKey = (&esk).into();
 
                 let tweak: StaticSecret =
-                    hkdf(&ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
+                    hkdf(ssh_key, SSH_ED25519_RECIPIENT_KEY_LABEL, &[]).into();
                 let shared_secret =
                     tweak.diffie_hellman(&(*esk.diffie_hellman(&pk).as_bytes()).into());
 
@@ -141,8 +140,7 @@ impl crate::Recipient for Recipient {
                 );
                 let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-                let encoded_tag =
-                    base64::encode_config(&ssh_tag(&ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
                 let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
                 Ok(vec![Stanza {

@@ -324,7 +324,7 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
         if !buf.is_empty() {
             let this = self.as_mut().project();
             *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, false)?,
+                bytes: this.stream.encrypt_chunk(this.chunk, false)?,
                 offset: 0,
             });
             this.chunk.clear();
@@ -346,7 +346,7 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
             // Finish the stream.
             let this = self.as_mut().project();
             *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, true)?,
+                bytes: this.stream.encrypt_chunk(this.chunk, true)?,
                 offset: 0,
             });
         }
@@ -719,7 +719,7 @@ mod tests {
         let mut encrypted = vec![];
         {
             let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
-            w.write_all(&data).unwrap();
+            w.write_all(data).unwrap();
             w.finish().unwrap();
         };
 
@@ -759,7 +759,7 @@ mod tests {
 
             let mut tmp = data;
             loop {
-                match w.as_mut().poll_write(&mut cx, &tmp) {
+                match w.as_mut().poll_write(&mut cx, tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                     Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
