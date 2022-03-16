@@ -7,7 +7,7 @@
 //! Note that these recipient types are not anonymous: the encrypted message will include
 //! a short 32-bit ID of the public key.
 
-use aes::{Aes128Ctr, Aes192Ctr, Aes256, Aes256Ctr};
+use aes::{Aes128, Aes192, Aes256};
 use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use sha2::{Digest, Sha256};
@@ -30,6 +30,11 @@ pub(super) const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
 const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
 
 const TAG_LEN_BYTES: usize = 4;
+
+type Aes256CbcDec = cbc::Decryptor<Aes256>;
+type Aes128Ctr = ctr::Ctr64BE<Aes128>;
+type Aes192Ctr = ctr::Ctr64BE<Aes192>;
+type Aes256Ctr = ctr::Ctr64BE<Aes256>;
 
 fn ssh_tag(pubkey: &[u8]) -> [u8; TAG_LEN_BYTES] {
     let tag_bytes = Sha256::digest(pubkey);
@@ -56,7 +61,7 @@ impl OpenSshCipher {
         ct: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
         match self {
-            OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256>(kdf, p, ct, 32),
+            OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256CbcDec>(kdf, p, ct, 32),
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
             OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
@@ -110,16 +115,13 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes::cipher::{
-        BlockCipher, BlockDecrypt, BlockEncrypt, NewBlockCipher, NewCipher, StreamCipher,
-    };
+    use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher};
     use age_core::secrecy::SecretString;
-    use block_modes::{block_padding::NoPadding, BlockMode, Cbc};
 
     use super::OpenSshKdf;
     use crate::error::DecryptError;
 
-    pub(super) fn aes_cbc<C: BlockCipher + BlockEncrypt + BlockDecrypt + NewBlockCipher>(
+    pub(super) fn aes_cbc<C: BlockDecryptMut + KeyIvInit>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
@@ -128,14 +130,13 @@ mod decrypt {
         let kdf_output = kdf.derive(passphrase, key_len + 16);
         let (key, iv) = kdf_output.split_at(key_len);
 
-        let cipher =
-            Cbc::<C, NoPadding>::new_from_slices(key, iv).expect("key and IV are correct length");
+        let cipher = C::new_from_slices(key, iv).expect("key and IV are correct length");
         cipher
-            .decrypt_vec(&ciphertext)
+            .decrypt_padded_vec_mut::<NoPadding>(&ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 
-    pub(super) fn aes_ctr<C: NewCipher + StreamCipher>(
+    pub(super) fn aes_ctr<C: StreamCipher + KeyIvInit>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
