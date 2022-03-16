@@ -162,7 +162,7 @@
 
 #![forbid(unsafe_code)]
 // Catch documentation errors caused by code changes.
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
 use age_core::secrecy::SecretString;
