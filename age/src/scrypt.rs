@@ -120,7 +120,7 @@ impl<'a> crate::Identity for Identity<'a> {
         }
 
         let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
-        let log_n = u8::from_str_radix(stanza.args.get(1)?, 10).ok()?;
+        let log_n = stanza.args.get(1)?.parse().ok()?;
 
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         let target = target_scrypt_work_factor();

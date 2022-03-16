@@ -66,7 +66,7 @@ impl Nonce {
         }
     }
 
-    fn to_bytes(&self) -> [u8; 12] {
+    fn to_bytes(self) -> [u8; 12] {
         self.0.to_be_bytes()[4..]
             .try_into()
             .expect("slice is correct length")
@@ -891,7 +891,7 @@ mod tests {
         // reader, and move it one byte forward from the start, using SeekFrom::End.
         // Confirm that reading 4 bytes from that point gives us "ello", as it should.
         let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(&encrypted));
-        let eof_relative_offset = 1 as i64 - plaintext.len() as i64;
+        let eof_relative_offset = 1_i64 - plaintext.len() as i64;
         reader.seek(SeekFrom::End(eof_relative_offset)).unwrap();
         let mut buf = [0; 4];
         reader.read_exact(&mut buf).unwrap();

@@ -112,9 +112,11 @@ impl IdentityPluginV1 for IdentityPlugin {
                     // A real plugin would attempt to unwrap the file key with the stored
                     // identities.
                     let _ = callbacks.message("This identity does nothing!")?;
-                    file_keys.entry(file_index).or_insert(Ok(FileKey::from(
-                        TryInto::<[u8; 16]>::try_into(&stanza.body[..]).unwrap(),
-                    )));
+                    file_keys.entry(file_index).or_insert_with(|| {
+                        Ok(FileKey::from(
+                            TryInto::<[u8; 16]>::try_into(&stanza.body[..]).unwrap(),
+                        ))
+                    });
                     break;
                 }
             }
