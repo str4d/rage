@@ -128,7 +128,7 @@ encrypted to a specific public key.
 
 | Environment | CLI command |
 |-------------|-------------|
-| Cargo (Rust 1.51+) | `cargo install rage` |
+| Cargo (Rust 1.56+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
 | openSUSE Tumbleweed | `zypper install rage-encryption` |
 
