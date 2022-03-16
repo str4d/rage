@@ -16,7 +16,6 @@ use i18n_embed::{
 };
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
-use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;

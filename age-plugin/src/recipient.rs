@@ -6,7 +6,6 @@ use age_core::{
     secrecy::SecretString,
 };
 use bech32::FromBase32;
-use std::convert::TryInto;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
@@ -128,9 +127,9 @@ impl Error {
 
     fn message(&self) -> &str {
         match self {
-            Error::Recipient { message, .. } => &message,
-            Error::Identity { message, .. } => &message,
-            Error::Internal { message } => &message,
+            Error::Recipient { message, .. } => message,
+            Error::Identity { message, .. } => message,
+            Error::Internal { message } => message,
         }
     }
 
@@ -143,7 +142,7 @@ impl Error {
         };
 
         let metadata = match &index {
-            Some(index) => vec![self.kind(), &index],
+            Some(index) => vec![self.kind(), index],
             None => vec![self.kind()],
         };
 
@@ -230,7 +229,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                         .as_ref()
                         .and_then(|(hrp, data, variant)| match (plugin_name(hrp), variant) {
                             (Some(plugin_name), &bech32::Variant::Bech32) => {
-                                Vec::from_base32(&data).ok().map(|data| (plugin_name, data))
+                                Vec::from_base32(data).ok().map(|data| (plugin_name, data))
                             }
                             _ => None,
                         })
@@ -254,7 +253,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             index,
             message: "Invalid recipient encoding".to_owned(),
         },
-        |index, plugin_name, bytes| plugin.add_recipient(index, &plugin_name, &bytes),
+        |index, plugin_name, bytes| plugin.add_recipient(index, plugin_name, &bytes),
     );
     let identities = parse_and_add(
         identities,
@@ -269,7 +268,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             index,
             message: "Invalid identity encoding".to_owned(),
         },
-        |index, plugin_name, bytes| plugin.add_identity(index, &plugin_name, &bytes),
+        |index, plugin_name, bytes| plugin.add_identity(index, plugin_name, &bytes),
     );
 
     // Phase 2: wrap the file keys or return errors

@@ -6,7 +6,7 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Catch documentation errors caused by code changes.
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 // Re-export crates that are used in our public API.
 pub use secrecy;

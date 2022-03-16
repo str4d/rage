@@ -7,7 +7,6 @@ use age_core::{
 };
 use bech32::{ToBase32, Variant};
 use rand_7::rngs::OsRng;
-use std::convert::TryInto;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;

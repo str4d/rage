@@ -134,9 +134,9 @@ impl Error {
 
     fn message(&self) -> &str {
         match self {
-            Error::Identity { message, .. } => &message,
-            Error::Internal { message } => &message,
-            Error::Stanza { message, .. } => &message,
+            Error::Identity { message, .. } => message,
+            Error::Internal { message } => message,
+            Error::Stanza { message, .. } => message,
         }
     }
 
@@ -152,8 +152,8 @@ impl Error {
         };
 
         let metadata = match &index {
-            Some((file_index, Some(stanza_index))) => vec![self.kind(), &file_index, &stanza_index],
-            Some((index, None)) => vec![self.kind(), &index],
+            Some((file_index, Some(stanza_index))) => vec![self.kind(), file_index, stanza_index],
+            Some((index, None)) => vec![self.kind(), index],
             None => vec![self.kind()],
         };
 

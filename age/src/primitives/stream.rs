@@ -7,7 +7,6 @@ use chacha20poly1305::{
 };
 use pin_project::pin_project;
 use std::cmp;
-use std::convert::TryInto;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroize;
 
@@ -66,7 +65,7 @@ impl Nonce {
         }
     }
 
-    fn to_bytes(&self) -> [u8; 12] {
+    fn to_bytes(self) -> [u8; 12] {
         self.0.to_be_bytes()[4..]
             .try_into()
             .expect("slice is correct length")
@@ -324,7 +323,7 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
         if !buf.is_empty() {
             let this = self.as_mut().project();
             *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, false)?,
+                bytes: this.stream.encrypt_chunk(this.chunk, false)?,
                 offset: 0,
             });
             this.chunk.clear();
@@ -346,7 +345,7 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
             // Finish the stream.
             let this = self.as_mut().project();
             *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(&this.chunk, true)?,
+                bytes: this.stream.encrypt_chunk(this.chunk, true)?,
                 offset: 0,
             });
         }
@@ -719,7 +718,7 @@ mod tests {
         let mut encrypted = vec![];
         {
             let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
-            w.write_all(&data).unwrap();
+            w.write_all(data).unwrap();
             w.finish().unwrap();
         };
 
@@ -759,7 +758,7 @@ mod tests {
 
             let mut tmp = data;
             loop {
-                match w.as_mut().poll_write(&mut cx, &tmp) {
+                match w.as_mut().poll_write(&mut cx, tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                     Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
@@ -891,7 +890,7 @@ mod tests {
         // reader, and move it one byte forward from the start, using SeekFrom::End.
         // Confirm that reading 4 bytes from that point gives us "ello", as it should.
         let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(&encrypted));
-        let eof_relative_offset = 1 as i64 - plaintext.len() as i64;
+        let eof_relative_offset = 1_i64 - plaintext.len() as i64;
         reader.seek(SeekFrom::End(eof_relative_offset)).unwrap();
         let mut buf = [0; 4];
         reader.read_exact(&mut buf).unwrap();

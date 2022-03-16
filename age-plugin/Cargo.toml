@@ -6,7 +6,7 @@ authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 age-core = { version = "0.7.1", path = "../age-core", features = ["plugin"] }

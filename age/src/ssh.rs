@@ -80,7 +80,7 @@ impl OpenSshKdf {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
                 let mut output = vec![0; out_len];
-                bcrypt_pbkdf(passphrase.expose_secret(), &salt, *rounds, &mut output)
+                bcrypt_pbkdf(passphrase.expose_secret(), salt, *rounds, &mut output)
                     .expect("parameters are valid");
                 output
             }
@@ -132,7 +132,7 @@ mod decrypt {
 
         let cipher = C::new_from_slices(key, iv).expect("key and IV are correct length");
         cipher
-            .decrypt_padded_vec_mut::<NoPadding>(&ciphertext)
+            .decrypt_padded_vec_mut::<NoPadding>(ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 
@@ -416,7 +416,7 @@ mod read_ssh {
             map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
                 if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
                     let mut privkey = [0; 64];
-                    privkey.copy_from_slice(&privkey_bytes);
+                    privkey.copy_from_slice(privkey_bytes);
                     Some(Secret::new(privkey))
                 } else {
                     None

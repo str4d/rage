@@ -210,7 +210,7 @@ impl<W: AsyncWrite> AsyncWrite for LineEndingWriter<W> {
             // line must be written in poll_close().
             if !buf.is_empty() {
                 *this.line_with_ending = Some(EncodedLine {
-                    bytes: [&line, LINE_ENDING.as_bytes()].concat(),
+                    bytes: [line, LINE_ENDING.as_bytes()].concat(),
                     offset: 0,
                 });
                 line.clear();
@@ -240,7 +240,7 @@ impl<W: AsyncWrite> AsyncWrite for LineEndingWriter<W> {
             // marker.
             *this.line_with_ending = Some(EncodedLine {
                 bytes: [
-                    &line,
+                    line,
                     LINE_ENDING.as_bytes(),
                     ARMORED_END_MARKER.as_bytes(),
                     LINE_ENDING.as_bytes(),
@@ -1080,7 +1080,7 @@ mod tests {
 
                 let mut tmp = &data[..];
                 loop {
-                    match w.as_mut().poll_write(&mut cx, &tmp) {
+                    match w.as_mut().poll_write(&mut cx, tmp) {
                         Poll::Ready(Ok(0)) => break,
                         Poll::Ready(Ok(written)) => tmp = &tmp[written..],
                         Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
