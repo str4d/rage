@@ -33,7 +33,7 @@ hmac = "0.12"
 sha2 = "0.10"
 
 # - scrypt from RFC 7914
-scrypt = { version = "0.8.1", default-features = false }
+scrypt = { version = "0.9", default-features = false }
 
 # - CSPRNG
 rand = "0.8"
