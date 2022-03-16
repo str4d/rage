@@ -7,7 +7,7 @@ use rand::{
     rngs::OsRng,
     CryptoRng, RngCore,
 };
-use rpassword::read_password_from_tty;
+use rpassword::prompt_password;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -199,11 +199,10 @@ pub fn read_secret(
         input.interact()
     } else {
         // Fall back to CLI interface.
-        let passphrase =
-            read_password_from_tty(Some(&format!("{}: ", description))).map(SecretString::new)?;
+        let passphrase = prompt_password(format!("{}: ", description)).map(SecretString::new)?;
         if let Some(confirm_prompt) = confirm {
-            let confirm_passphrase = read_password_from_tty(Some(&format!("{}: ", confirm_prompt)))
-                .map(SecretString::new)?;
+            let confirm_passphrase =
+                prompt_password(format!("{}: ", confirm_prompt)).map(SecretString::new)?;
 
             if !bool::from(
                 passphrase

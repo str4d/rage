@@ -1,33 +1,50 @@
-use clap::{App, Arg};
-use clap_generate::{generate, generators, Generator};
+use clap::{Arg, Command};
+use clap_complete::{generate, shells, Generator};
 use std::fs::{create_dir_all, File};
 
 const COMPLETIONS_DIR: &str = "./target/completions";
 
 fn generate_completion<G: Generator, S: Into<String>>(
-    app: &mut App,
+    gen: G,
+    app: &mut Command,
     bin_name: S,
     file_name: String,
 ) {
     let mut file = File::create(format!("{}/{}", COMPLETIONS_DIR, file_name))
         .expect("Should be able to open file in target directory");
-    generate::<G, _>(app, bin_name, &mut file);
+    generate::<G, _>(gen, app, bin_name, &mut file);
 }
 
-fn generate_completions(mut app: App, bin_name: &str) {
-    generate_completion::<generators::Bash, _>(&mut app, bin_name, format!("{}.bash", bin_name));
-    generate_completion::<generators::Elvish, _>(&mut app, bin_name, format!("{}.elv", bin_name));
-    generate_completion::<generators::Fish, _>(&mut app, bin_name, format!("{}.fish", bin_name));
-    generate_completion::<generators::PowerShell, _>(
+fn generate_completions(mut app: Command, bin_name: &str) {
+    generate_completion(
+        shells::Bash,
+        &mut app,
+        bin_name,
+        format!("{}.bash", bin_name),
+    );
+    generate_completion(
+        shells::Elvish,
+        &mut app,
+        bin_name,
+        format!("{}.elv", bin_name),
+    );
+    generate_completion(
+        shells::Fish,
+        &mut app,
+        bin_name,
+        format!("{}.fish", bin_name),
+    );
+    generate_completion(
+        shells::PowerShell,
         &mut app,
         format!("{}.exe", bin_name),
         format!("{}.ps1", bin_name),
     );
-    generate_completion::<generators::Zsh, _>(&mut app, bin_name, format!("{}.zsh", bin_name));
+    generate_completion(shells::Zsh, &mut app, bin_name, format!("{}.zsh", bin_name));
 }
 
 fn rage_completions() {
-    let app = App::new("rage")
+    let app = Command::new("rage")
         .arg(Arg::new("input"))
         .arg(Arg::new("encrypt").short('e').long("encrypt"))
         .arg(Arg::new("decrypt").short('d').long("decrypt"))
@@ -41,21 +58,21 @@ fn rage_completions() {
         .arg(
             Arg::new("recipient")
                 .takes_value(true)
-                .multiple(true)
+                .multiple_occurrences(true)
                 .short('r')
                 .long("recipient"),
         )
         .arg(
             Arg::new("recipients-file")
                 .takes_value(true)
-                .multiple(true)
+                .multiple_occurrences(true)
                 .short('R')
                 .long("recipients-file"),
         )
         .arg(
             Arg::new("identity")
                 .takes_value(true)
-                .multiple(true)
+                .multiple_occurrences(true)
                 .short('i')
                 .long("identity"),
         )
@@ -70,7 +87,7 @@ fn rage_completions() {
 }
 
 fn rage_keygen_completions() {
-    let app = App::new("rage-keygen").arg(
+    let app = Command::new("rage-keygen").arg(
         Arg::new("output")
             .takes_value(true)
             .short('o')
@@ -81,7 +98,7 @@ fn rage_keygen_completions() {
 }
 
 fn rage_mount_completions() {
-    let app = App::new("rage-mount")
+    let app = Command::new("rage-mount")
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
         .arg(Arg::new("types").short('t').long("types"))
@@ -93,7 +110,7 @@ fn rage_mount_completions() {
         .arg(
             Arg::new("identity")
                 .takes_value(true)
-                .multiple(true)
+                .multiple_occurrences(true)
                 .short('i')
                 .long("identity"),
         );

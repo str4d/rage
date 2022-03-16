@@ -11,6 +11,7 @@ to 1.0.0 are beta releases.
 - `age_core::io::{DebugReader, DebugWriter}`
 
 ### Changed
+- MSRV is now 1.56.0.
 - `Connection::open` now returns the debugging-friendly concrete type
   `Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>`.
 
