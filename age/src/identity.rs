@@ -18,6 +18,7 @@ pub enum IdentityFileEntry {
 }
 
 impl IdentityFileEntry {
+    #[allow(unused_variables)]
     pub(crate) fn into_identity(
         self,
         callbacks: impl Callbacks + 'static,
@@ -33,6 +34,7 @@ impl IdentityFileEntry {
         }
     }
 
+    #[allow(unused_variables)]
     pub(crate) fn to_recipient(
         &self,
         callbacks: impl Callbacks + 'static,

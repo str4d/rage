@@ -2,7 +2,10 @@
 
 use std::io::{self, Read, Stderr, Write};
 
-use io_tee::{ReadExt, TeeReader, TeeWriter, WriteExt};
+use io_tee::{TeeReader, TeeWriter};
+
+#[cfg(feature = "plugin")]
+use io_tee::{ReadExt, WriteExt};
 
 /// A wrapper around a reader that optionally tees its input to `stderr` for this process.
 pub enum DebugReader<R: Read> {
@@ -11,6 +14,8 @@ pub enum DebugReader<R: Read> {
 }
 
 impl<R: Read> DebugReader<R> {
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     pub(crate) fn new(reader: R, debug_enabled: bool) -> Self {
         if debug_enabled {
             DebugReader::On(reader.tee_dbg())
@@ -36,6 +41,8 @@ pub enum DebugWriter<W: Write> {
 }
 
 impl<W: Write> DebugWriter<W> {
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     pub(crate) fn new(writer: W, debug_enabled: bool) -> Self {
         if debug_enabled {
             DebugWriter::On(writer.tee_dbg())
