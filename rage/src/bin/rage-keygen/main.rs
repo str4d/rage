@@ -61,7 +61,7 @@ fn main() {
     }
 
     let mut output =
-        match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600) {
+        match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600, false) {
             Ok(output) => output,
             Err(e) => {
                 error!(

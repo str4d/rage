@@ -9,8 +9,16 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::cli_common::file_io::InputReader::is_terminal`
+
 ### Changed
 - MSRV is now 1.56.0.
+- `age::cli_common::file_io::OutputWriter::new` now takes an `input_is_tty`
+  boolean argument. If `input_is_tty` is set to `true`, then if `OutputWriter`
+  will write to a stdout TTY, it buffers the entire output so it doesn't get in
+  the way of typing the input, and then writes the buffered output to stdout
+  during `OutputWriter::flush`.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed

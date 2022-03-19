@@ -250,7 +250,7 @@ fn set_up_io(
     let input = file_io::InputReader::new(input)?;
 
     // Create an output to the user-requested location.
-    let output = file_io::OutputWriter::new(output, output_format, 0o666)?;
+    let output = file_io::OutputWriter::new(output, output_format, 0o666, input.is_terminal())?;
 
     Ok((input, output))
 }
