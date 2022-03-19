@@ -7,6 +7,8 @@ use std::io::{self, Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
+use zeroize::Zeroize;
+
 use crate::{fl, util::LINE_ENDING, wfl, wlnfl};
 
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
@@ -56,6 +58,11 @@ impl InputReader {
 
         Ok(InputReader::Stdin(io::stdin()))
     }
+
+    /// Returns true if this input is from a terminal, and a user is likely typing it.
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Stdin(_)) && atty::is(atty::Stream::Stdin)
+    }
 }
 
 impl Read for InputReader {
@@ -64,6 +71,65 @@ impl Read for InputReader {
             InputReader::File(f) => f.read(buf),
             InputReader::Stdin(handle) => handle.read(buf),
         }
+    }
+}
+
+/// A stdout write that optionally buffers the entire output before writing.
+enum StdoutBuffer {
+    Direct(io::Stdout),
+    Buffered(Vec<u8>),
+}
+
+impl StdoutBuffer {
+    fn direct() -> Self {
+        Self::Direct(io::stdout())
+    }
+
+    fn buffered() -> Self {
+        Self::Buffered(Vec::with_capacity(8 * 1024 * 1024))
+    }
+}
+
+impl Write for StdoutBuffer {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        match self {
+            StdoutBuffer::Direct(w) => w.write(data),
+            StdoutBuffer::Buffered(buf) => {
+                // If we need to re-allocate the buffer, do so manually so we can zeroize.
+                if buf.len() + data.len() > buf.capacity() {
+                    let mut new_buf = Vec::with_capacity(std::cmp::max(
+                        buf.capacity() * 2,
+                        buf.capacity() + data.len(),
+                    ));
+                    new_buf.extend_from_slice(buf);
+                    buf.zeroize();
+                    *buf = new_buf;
+                }
+
+                buf.extend_from_slice(data);
+                Ok(data.len())
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self {
+            StdoutBuffer::Direct(w) => w.flush(),
+            StdoutBuffer::Buffered(buf) => {
+                let mut w = io::stdout();
+                w.write_all(buf)?;
+                buf.zeroize();
+                buf.clear();
+                w.flush()
+            }
+        }
+    }
+}
+
+impl Drop for StdoutBuffer {
+    fn drop(&mut self) {
+        // Destructors should not panic, so we ignore a failed flush.
+        let _ = self.flush();
     }
 }
 
@@ -79,7 +145,7 @@ pub enum OutputFormat {
 
 /// Writer that wraps standard output to handle TTYs nicely.
 pub struct StdoutWriter {
-    inner: io::Stdout,
+    inner: StdoutBuffer,
     count: usize,
     format: OutputFormat,
     is_tty: bool,
@@ -87,9 +153,15 @@ pub struct StdoutWriter {
 }
 
 impl StdoutWriter {
-    fn new(format: OutputFormat, is_tty: bool) -> Self {
+    fn new(format: OutputFormat, is_tty: bool, input_is_tty: bool) -> Self {
         StdoutWriter {
-            inner: io::stdout(),
+            // If the input comes from a TTY and the output will go to a TTY, buffer the
+            // output so it doesn't get in the way of typing the input.
+            inner: if input_is_tty && is_tty {
+                StdoutBuffer::buffered()
+            } else {
+                StdoutBuffer::direct()
+            },
             count: 0,
             format,
             is_tty,
@@ -219,7 +291,12 @@ pub enum OutputWriter {
 
 impl OutputWriter {
     /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
-    pub fn new(output: Option<String>, mut format: OutputFormat, _mode: u32) -> io::Result<Self> {
+    pub fn new(
+        output: Option<String>,
+        mut format: OutputFormat,
+        _mode: u32,
+        input_is_tty: bool,
+    ) -> io::Result<Self> {
         let is_tty = console::user_attended();
         if let Some(filename) = output {
             // Respect the Unix convention that "-" as an output filename
@@ -243,7 +320,11 @@ impl OutputWriter {
             }
         }
 
-        Ok(OutputWriter::Stdout(StdoutWriter::new(format, is_tty)))
+        Ok(OutputWriter::Stdout(StdoutWriter::new(
+            format,
+            is_tty,
+            input_is_tty,
+        )))
     }
 
     /// Returns true if this output is to a terminal, and a user will likely see it.
@@ -281,9 +362,14 @@ pub(crate) mod tests {
     #[cfg(unix)]
     #[test]
     fn lazy_existing_file() {
-        OutputWriter::new(Some("/dev/null".to_string()), OutputFormat::Text, 0o600)
-            .unwrap()
-            .flush()
-            .unwrap();
+        OutputWriter::new(
+            Some("/dev/null".to_string()),
+            OutputFormat::Text,
+            0o600,
+            false,
+        )
+        .unwrap()
+        .flush()
+        .unwrap();
     }
 }

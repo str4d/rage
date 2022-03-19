@@ -43,6 +43,7 @@ version = "0.7.1"
 dependencies = [
  "aes",
  "age-core",
+ "atty",
  "base64",
  "bcrypt-pbkdf",
  "bech32",

@@ -77,6 +77,7 @@ lazy_static = "1"
 rust-embed = "6"
 
 # Common CLI dependencies
+atty = { version = "0.2", optional = true }
 console = { version = "0.15", optional = true, default-features = false }
 pinentry = { version = "0.5", optional = true }
 rpassword = { version = "6", optional = true }
@@ -103,7 +104,7 @@ pprof = { version = "0.7", features = ["criterion", "flamegraph"] }
 default = []
 armor = []
 async = ["futures"]
-cli-common = ["console", "pinentry", "rpassword"]
+cli-common = ["atty", "console", "pinentry", "rpassword"]
 plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",

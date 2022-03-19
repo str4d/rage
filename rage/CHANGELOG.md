@@ -11,6 +11,10 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Changed
 - MSRV is now 1.56.0.
+- When both reading input from the terminal (e.g. if the user is typing the
+  plaintext to be encrypted) and writing output to the terminal, `rage` now
+  buffers the output until the input is finished, so the output doesn't get in
+  the way of typing.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed
