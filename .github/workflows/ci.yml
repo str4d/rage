@@ -3,31 +3,6 @@ name: CI checks
 on: [push, pull_request]
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.56.0
-          override: true
-
-      # Ensure all code has been formatted with rustfmt
-      - run: rustup component add rustfmt
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check --color always
-
-      - run: rustup component add clippy
-      - name: Clippy check
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   test:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -98,6 +73,26 @@ jobs:
           command: check
           args: --tests --examples --benches --all-features
 
+  clippy:
+    name: Clippy (1.56.0)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.56.0
+          components: clippy
+          override: true
+      - name: Install linux build dependencies
+        run: sudo apt install libfuse-dev
+      - name: Clippy check
+        uses: actions-rs/clippy-check@v1
+        with:
+          name: Clippy (1.56.0)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --all-targets -- -D warnings
+
   codecov:
     name: Code coverage
     runs-on: ubuntu-latest
@@ -113,20 +108,22 @@ jobs:
       - name: Generate coverage report
         uses: actions-rs/tarpaulin@v0.1
         with:
-          version: '0.13.3'
-          args: --all --release --all-features --timeout 180 --out Xml
+          version: '0.19.1'
+          args: --workspace --release --all-features --timeout 180 --out Xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2.1.0
+        with:
+          fail_ci_if_error: true
 
   doc-links:
-    name: Nightly lint
+    name: Intra-doc links
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.56.0
           override: true
       - name: cargo fetch
         uses: actions-rs/cargo@v1
@@ -140,3 +137,20 @@ jobs:
         with:
           command: doc
           args: --all --exclude rage --all-features --document-private-items
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.56.0
+          components: rustfmt
+          override: true
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
