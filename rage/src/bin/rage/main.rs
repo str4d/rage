@@ -242,6 +242,19 @@ struct AgeOptions {
     output: Option<String>,
 }
 
+fn set_up_io(
+    input: Option<String>,
+    output: Option<String>,
+    output_format: file_io::OutputFormat,
+) -> io::Result<(file_io::InputReader, file_io::OutputWriter)> {
+    let input = file_io::InputReader::new(input)?;
+
+    // Create an output to the user-requested location.
+    let output = file_io::OutputWriter::new(output, output_format, 0o666)?;
+
+    Ok((input, output))
+}
+
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     if !opts.plugin_name.is_empty() {
         return Err(error::EncryptError::PluginNameFlag);
@@ -301,16 +314,14 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         )?)
     };
 
-    let mut input = file_io::InputReader::new(opts.input)?;
-
     let (format, output_format) = if opts.armor {
         (Format::AsciiArmor, file_io::OutputFormat::Text)
     } else {
         (Format::Binary, file_io::OutputFormat::Binary)
     };
 
-    // Create an output to the user-requested location.
-    let output = file_io::OutputWriter::new(opts.output, output_format, 0o666)?;
+    let (mut input, output) = set_up_io(opts.input, opts.output, output_format)?;
+
     let is_stdout = match output {
         file_io::OutputWriter::File(..) => false,
         file_io::OutputWriter::Stdout(..) => true,
@@ -336,12 +347,10 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     Ok(())
 }
 
-fn write_output<R: io::Read>(
+fn write_output<R: io::Read, W: io::Write>(
     mut input: R,
-    output: Option<String>,
+    mut output: W,
 ) -> Result<(), error::DecryptError> {
-    let mut output = file_io::OutputWriter::new(output, file_io::OutputFormat::Unknown, 0o666)?;
-
     io::copy(&mut input, &mut output)?;
 
     Ok(())
@@ -366,12 +375,12 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         return Err(error::DecryptError::MixedIdentityAndPluginName);
     }
 
-    let output = opts.output;
-
     #[cfg(not(unix))]
     let has_file_argument = opts.input.is_some();
 
-    match age::Decryptor::new(ArmoredReader::new(file_io::InputReader::new(opts.input)?))? {
+    let (input, output) = set_up_io(opts.input, opts.output, file_io::OutputFormat::Unknown)?;
+
+    match age::Decryptor::new(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
             // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
             // any conflict with stdin.
