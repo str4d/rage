@@ -268,51 +268,44 @@ fn set_up_io(
     Ok((input, output))
 }
 
-const AGE_MAGIC: &[u8] = b"age-encryption.org/";
-const ARMORED_BEGIN_MARKER: &[u8] = b"-----BEGIN AGE ENCRYPTED FILE-----";
+type ReadCheckerMatchCase = (&'static [u8], Box<dyn FnOnce() -> io::Result<()>>);
+type ReadCheckerMatcher = Option<(&'static [u8], usize, Box<dyn FnOnce() -> io::Result<()>>)>;
 
-/// A wrapper around the plaintext reader that checks it for common encryption mistakes.
-struct PlaintextChecker<R: io::Read> {
+/// A wrapper around a reader that checks it for various prefixes.
+struct ReadChecker<R: io::Read, const N: usize> {
     inner: R,
-    /// The number of bytes of data read so far that match the age header magic.
-    magic_matches: Option<usize>,
-    /// The number of bytes of data read so far that match the age armor begin marker.
-    armor_matches: Option<usize>,
+    matches: [ReadCheckerMatcher; N],
 }
 
-impl<R: io::Read> PlaintextChecker<R> {
-    fn new(inner: R) -> Self {
+impl<R: io::Read, const N: usize> ReadChecker<R, N> {
+    fn new(inner: R, matches: [ReadCheckerMatchCase; N]) -> Self {
         Self {
             inner,
-            magic_matches: Some(0),
-            armor_matches: Some(0),
+            matches: matches.map(|(prefix, on_match)| Some((prefix, 0, on_match))),
         }
     }
 }
 
-impl<R: io::Read> io::Read for PlaintextChecker<R> {
+impl<R: io::Read, const N: usize> io::Read for ReadChecker<R, N> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let read = self.inner.read(buf)?;
         let data = &buf[..read];
 
-        let check_prefix = |matched: &mut Option<usize>, prefix: &[u8]| {
-            if let Some(start) = matched.take() {
+        for matcher in &mut self.matches {
+            if let Some((prefix, start, on_match)) = matcher.take() {
                 let to_check = &prefix[start..];
                 if to_check.len() > data.len() {
                     // We haven't read enough data to verify a full match; check for a
                     // partial match, and update the matched counter so we keep checking.
                     if to_check.starts_with(data) {
-                        *matched = Some(start + data.len());
+                        *matcher = Some((prefix, start + data.len(), on_match));
                     }
                 } else if data.starts_with(to_check) {
-                    warning!("warn-double-encrypting");
+                    on_match()?;
                     // Don't set matched so we stop checking.
                 }
             }
-        };
-
-        check_prefix(&mut self.magic_matches, AGE_MAGIC);
-        check_prefix(&mut self.armor_matches, ARMORED_BEGIN_MARKER);
+        }
 
         Ok(read)
     }
@@ -401,7 +394,24 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         _ => e.into(),
     };
 
-    io::copy(&mut PlaintextChecker::new(input), &mut output).map_err(map_io_errors)?;
+    const AGE_MAGIC: &[u8] = b"age-encryption.org/";
+    const ARMORED_BEGIN_MARKER: &[u8] = b"-----BEGIN AGE ENCRYPTED FILE-----";
+    let warn_double_encrypting = Box::new(|| {
+        warning!("warn-double-encrypting");
+        Ok(())
+    });
+
+    io::copy(
+        &mut ReadChecker::new(
+            input,
+            [
+                (AGE_MAGIC, warn_double_encrypting.clone()),
+                (ARMORED_BEGIN_MARKER, warn_double_encrypting),
+            ],
+        ),
+        &mut output,
+    )
+    .map_err(map_io_errors)?;
     output
         .finish()
         .and_then(|armor| armor.finish())
