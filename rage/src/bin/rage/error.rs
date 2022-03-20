@@ -134,6 +134,18 @@ impl fmt::Display for EncryptError {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct DetectedPowerShellCorruptionError;
+
+impl fmt::Display for DetectedPowerShellCorruptionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        wlnfl!(f, "err-detected-powershell-corruption")?;
+        wfl!(f, "rec-detected-powershell-corruption")
+    }
+}
+
+impl std::error::Error for DetectedPowerShellCorruptionError {}
+
 pub(crate) enum DecryptError {
     Age(age::DecryptError),
     ArmorFlag,

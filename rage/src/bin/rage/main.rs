@@ -453,6 +453,27 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     let (input, output) = set_up_io(opts.input, opts.output, file_io::OutputFormat::Unknown)?;
 
+    // CRLF_MANGLED_INTRO and UTF16_MANGLED_INTRO are the intro lines of the age format after
+    // mangling by various versions of PowerShell redirection, truncated to the length of the
+    // correct intro line. See https://github.com/FiloSottile/age/issues/290 for more info.
+    const CRLF_MANGLED_INTRO: &[u8] = b"age-encryption.org/v1\r";
+    const UTF16_MANGLED_INTRO: &[u8] =
+        b"\xff\xfea\x00g\x00e\x00-\x00e\x00n\x00c\x00r\x00y\x00p\x00";
+    let err_powershell_corruption = Box::new(|| {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            error::DetectedPowerShellCorruptionError,
+        ))
+    });
+
+    let input = ReadChecker::new(
+        input,
+        [
+            (CRLF_MANGLED_INTRO, err_powershell_corruption.clone()),
+            (UTF16_MANGLED_INTRO, err_powershell_corruption),
+        ],
+    );
+
     match age::Decryptor::new(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
             // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
