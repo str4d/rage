@@ -114,6 +114,9 @@ err-enc-plugin-name-flag = {-flag-plugin-name} can't be used with {-flag-encrypt
 
 ## Decryption errors
 
+err-detected-powershell-corruption = It looks like this file was corrupted by PowerShell redirection.
+rec-detected-powershell-corruption = Consider using -o or -a to encrypt files in PowerShell.
+
 rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
 
 err-dec-armor-flag = {-flag-armor} can't be used with {-flag-decrypt}.
