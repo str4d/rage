@@ -15,6 +15,9 @@ to 1.0.0 are beta releases.
   plaintext to be encrypted) and writing output to the terminal, `rage` now
   buffers the output until the input is finished, so the output doesn't get in
   the way of typing.
+- A warning is now displayed if `rage` detects that the file being encrypted
+  starts with the age magic string or armor begin marker (indicating that an
+  age-encrypted file is being double-encrypted). The file is still encrypted.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed

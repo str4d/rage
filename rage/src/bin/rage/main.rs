@@ -39,6 +39,19 @@ macro_rules! fl {
     }};
 }
 
+macro_rules! warning {
+    ($warning_id:literal) => {{
+        eprintln!(
+            "{}",
+            i18n_embed_fl::fl!(
+                $crate::LANGUAGE_LOADER,
+                "warning-msg",
+                warning = fl!($warning_id)
+            )
+        );
+    }};
+}
+
 /// Parses a recipient from a string.
 fn parse_recipient(
     s: String,
@@ -255,6 +268,56 @@ fn set_up_io(
     Ok((input, output))
 }
 
+const AGE_MAGIC: &[u8] = b"age-encryption.org/";
+const ARMORED_BEGIN_MARKER: &[u8] = b"-----BEGIN AGE ENCRYPTED FILE-----";
+
+/// A wrapper around the plaintext reader that checks it for common encryption mistakes.
+struct PlaintextChecker<R: io::Read> {
+    inner: R,
+    /// The number of bytes of data read so far that match the age header magic.
+    magic_matches: Option<usize>,
+    /// The number of bytes of data read so far that match the age armor begin marker.
+    armor_matches: Option<usize>,
+}
+
+impl<R: io::Read> PlaintextChecker<R> {
+    fn new(inner: R) -> Self {
+        Self {
+            inner,
+            magic_matches: Some(0),
+            armor_matches: Some(0),
+        }
+    }
+}
+
+impl<R: io::Read> io::Read for PlaintextChecker<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let read = self.inner.read(buf)?;
+        let data = &buf[..read];
+
+        let check_prefix = |matched: &mut Option<usize>, prefix: &[u8]| {
+            if let Some(start) = matched.take() {
+                let to_check = &prefix[start..];
+                if to_check.len() > data.len() {
+                    // We haven't read enough data to verify a full match; check for a
+                    // partial match, and update the matched counter so we keep checking.
+                    if to_check.starts_with(data) {
+                        *matched = Some(start + data.len());
+                    }
+                } else if data.starts_with(to_check) {
+                    warning!("warn-double-encrypting");
+                    // Don't set matched so we stop checking.
+                }
+            }
+        };
+
+        check_prefix(&mut self.magic_matches, AGE_MAGIC);
+        check_prefix(&mut self.armor_matches, ARMORED_BEGIN_MARKER);
+
+        Ok(read)
+    }
+}
+
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     if !opts.plugin_name.is_empty() {
         return Err(error::EncryptError::PluginNameFlag);
@@ -320,7 +383,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         (Format::Binary, file_io::OutputFormat::Binary)
     };
 
-    let (mut input, output) = set_up_io(opts.input, opts.output, output_format)?;
+    let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
 
     let is_stdout = match output {
         file_io::OutputWriter::File(..) => false,
@@ -338,7 +401,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         _ => e.into(),
     };
 
-    io::copy(&mut input, &mut output).map_err(map_io_errors)?;
+    io::copy(&mut PlaintextChecker::new(input), &mut output).map_err(map_io_errors)?;
     output
         .finish()
         .and_then(|armor| armor.finish())
