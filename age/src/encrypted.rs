@@ -250,6 +250,10 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
             unimplemented!()
         }
 
+        fn confirm(&self, _: &str, _: &str, _: Option<&str>) -> Option<bool> {
+            unimplemented!()
+        }
+
         fn request_public_string(&self, _: &str) -> Option<String> {
             unimplemented!()
         }

@@ -26,6 +26,7 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 const CMD_ERROR: &str = "error";
 const CMD_RECIPIENT_STANZA: &str = "recipient-stanza";
 const CMD_MSG: &str = "msg";
+const CMD_CONFIRM: &str = "confirm";
 const CMD_REQUEST_PUBLIC: &str = "request-public";
 const CMD_REQUEST_SECRET: &str = "request-secret";
 const CMD_FILE_KEY: &str = "file-key";
@@ -236,6 +237,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
         if let Err(e) = conn.bidir_receive(
             &[
                 CMD_MSG,
+                CMD_CONFIRM,
                 CMD_REQUEST_PUBLIC,
                 CMD_REQUEST_SECRET,
                 CMD_RECIPIENT_STANZA,
@@ -246,6 +248,33 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                     self.callbacks
                         .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
+                }
+                CMD_CONFIRM => {
+                    let message = String::from_utf8_lossy(&command.body);
+                    let (yes_string, no_string) = match &command.args[..] {
+                        [] => {
+                            errors.push(PluginError::Other {
+                                kind: "internal".to_owned(),
+                                metadata: vec![],
+                                message: format!(
+                                    "{} command must have at least one metadata argument",
+                                    CMD_CONFIRM
+                                ),
+                            });
+                            return reply.fail();
+                        }
+                        [yes_string] => (yes_string, None),
+                        [yes_string, no_string, ..] => (yes_string, Some(no_string)),
+                    };
+                    if let Some(value) = self.callbacks.confirm(
+                        &message,
+                        yes_string,
+                        no_string.as_ref().map(|s| s.as_str()),
+                    ) {
+                        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_REQUEST_PUBLIC => {
                     if let Some(value) = self
@@ -401,6 +430,7 @@ impl<C: Callbacks> IdentityPluginV1<C> {
         if let Err(e) = conn.bidir_receive(
             &[
                 CMD_MSG,
+                CMD_CONFIRM,
                 CMD_REQUEST_PUBLIC,
                 CMD_REQUEST_SECRET,
                 CMD_FILE_KEY,
@@ -411,6 +441,33 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                     self.callbacks
                         .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
+                }
+                CMD_CONFIRM => {
+                    let message = String::from_utf8_lossy(&command.body);
+                    let (yes_string, no_string) = match &command.args[..] {
+                        [] => {
+                            errors.push(PluginError::Other {
+                                kind: "internal".to_owned(),
+                                metadata: vec![],
+                                message: format!(
+                                    "{} command must have at least one metadata argument",
+                                    CMD_CONFIRM
+                                ),
+                            });
+                            return reply.fail();
+                        }
+                        [yes_string] => (yes_string, None),
+                        [yes_string, no_string, ..] => (yes_string, Some(no_string)),
+                    };
+                    if let Some(value) = self.callbacks.confirm(
+                        &message,
+                        yes_string,
+                        no_string.as_ref().map(|s| s.as_str()),
+                    ) {
+                        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_REQUEST_PUBLIC => {
                     if let Some(value) = self
