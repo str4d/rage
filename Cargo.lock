@@ -107,6 +107,7 @@ name = "age-plugin"
 version = "0.2.1"
 dependencies = [
  "age-core",
+ "base64",
  "bech32",
  "chrono",
  "gumdrop",
