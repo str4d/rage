@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
 - `age::Callbacks::confirm` to request that the user provides confirmation for
   some action.
 - `age::cli_common::file_io::InputReader::is_terminal`
+- `age::ssh::ParseRecipientKeyError`, which was previously in the public API but
+  unnameable and could not be matched upon.
 
 ### Changed
 - MSRV is now 1.56.0.

@@ -18,7 +18,7 @@ pub(crate) mod identity;
 pub(crate) mod recipient;
 
 pub use identity::{Identity, UnsupportedKey};
-pub use recipient::Recipient;
+pub use recipient::{ParseRecipientKeyError, Recipient};
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
@@ -297,7 +297,7 @@ mod read_ssh {
     };
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
-    fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    pub(crate) fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
         length_data(be_u32)(input)
     }
 

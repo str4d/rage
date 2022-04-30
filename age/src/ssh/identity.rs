@@ -138,7 +138,7 @@ pub enum UnsupportedKey {
 }
 
 impl UnsupportedKey {
-    /// Prints details about this unsupported identity.
+    /// Prints details about this unsupported key.
     pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
         if let Some(name) = filename {
             writeln!(
@@ -146,7 +146,7 @@ impl UnsupportedKey {
                 "{}",
                 fl!(
                     crate::i18n::LANGUAGE_LOADER,
-                    "ssh-unsupported-identity",
+                    "ssh-unsupported-key",
                     name = name
                 )
             )?;

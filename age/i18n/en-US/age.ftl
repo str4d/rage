@@ -73,7 +73,7 @@ encrypted-warn-no-match = Warning: encrypted identity file '{$filename}' didn't 
 
 ssh-passphrase-prompt = Type passphrase for OpenSSH key '{$filename}'
 
-ssh-unsupported-identity = Unsupported SSH identity: {$name}
+ssh-unsupported-key = Unsupported SSH key: {$name}
 
 ssh-insecure-key-format =
     Insecure Encrypted Key Format
