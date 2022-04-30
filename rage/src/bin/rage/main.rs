@@ -54,6 +54,7 @@ macro_rules! warning {
 
 /// Parses a recipient from a string.
 fn parse_recipient(
+    filename: &str,
     s: String,
     recipients: &mut Vec<Box<dyn Recipient>>,
     plugin_recipients: &mut Vec<plugin::Recipient>,
@@ -63,7 +64,16 @@ fn parse_recipient(
     } else if let Some(pk) = {
         #[cfg(feature = "ssh")]
         {
-            s.parse::<age::ssh::Recipient>().ok().map(Box::new)
+            match s.parse::<age::ssh::Recipient>() {
+                Ok(pk) => Some(Box::new(pk)),
+                Err(age::ssh::ParseRecipientKeyError::Unsupported(key_type)) => {
+                    return Err(error::EncryptError::UnsupportedKey(
+                        filename.to_string(),
+                        age::ssh::UnsupportedKey::Type(key_type),
+                    ))
+                }
+                _ => None,
+            }
         }
 
         #[cfg(not(feature = "ssh"))]
@@ -92,7 +102,12 @@ fn read_recipients_list<R: BufRead>(
         // Skip empty lines and comments
         if line.is_empty() || line.find('#') == Some(0) {
             continue;
-        } else if parse_recipient(line, recipients, plugin_recipients).is_err() {
+        } else if let Err(e) = parse_recipient(filename, line, recipients, plugin_recipients) {
+            #[cfg(feature = "ssh")]
+            if matches!(e, error::EncryptError::UnsupportedKey(_, _)) {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()));
+            }
+
             // Return a line number in place of the line, so we don't leak the file
             // contents in error messages.
             return Err(io::Error::new(
@@ -121,7 +136,7 @@ fn read_recipients(
     let mut plugin_identities: Vec<plugin::Identity> = vec![];
 
     for arg in recipient_strings {
-        parse_recipient(arg, &mut recipients, &mut plugin_recipients)?;
+        parse_recipient("", arg, &mut recipients, &mut plugin_recipients)?;
     }
 
     for arg in recipients_file_strings {

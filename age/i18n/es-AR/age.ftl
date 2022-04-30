@@ -56,7 +56,7 @@ err-read-identity-not-found = Archivo identidad no encontrado: {$filename}
 
 ssh-passphrase-prompt = Escribe frase contraseña para clave OpenSSH '{$filename}'
 
-ssh-unsupported-identity = Identidad SSH no soportada: {$name}
+ssh-unsupported-key = Clave SSH no soportada: {$name}
 
 ssh-insecure-key-format =
     Formato de Clave Encriptada inseguro

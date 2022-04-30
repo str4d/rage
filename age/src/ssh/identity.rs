@@ -127,16 +127,18 @@ impl UnencryptedKey {
 ///
 /// The Display impl provides details for each unsupported key as to why we don't support
 /// it, and how a user can migrate to a supported key.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum UnsupportedKey {
     /// An encrypted `PEM` key.
     EncryptedPem,
     /// An encrypted SSH key using a specific cipher.
     EncryptedSsh(String),
+    /// An SSH key type that we do not support.
+    Type(String),
 }
 
 impl UnsupportedKey {
-    /// Prints details about this unsupported identity.
+    /// Prints details about this unsupported key.
     pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
         if let Some(name) = filename {
             writeln!(
@@ -144,7 +146,7 @@ impl UnsupportedKey {
                 "{}",
                 fl!(
                     crate::i18n::LANGUAGE_LOADER,
-                    "ssh-unsupported-identity",
+                    "ssh-unsupported-key",
                     name = name
                 )
             )?;
@@ -177,6 +179,15 @@ impl UnsupportedKey {
                     )
                 )?;
             }
+            UnsupportedKey::Type(key_type) => writeln!(
+                f,
+                "{}",
+                fl!(
+                    crate::i18n::LANGUAGE_LOADER,
+                    "ssh-unsupported-key-type",
+                    key_type = key_type.as_str(),
+                )
+            )?,
         }
         Ok(())
     }
@@ -347,7 +358,7 @@ pub(crate) mod tests {
     use age_core::secrecy::ExposeSecret;
     use std::io::BufReader;
 
-    use super::Identity;
+    use super::{Identity, UnsupportedKey};
     use crate::{
         ssh::recipient::{
             tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
@@ -392,6 +403,16 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 1OxfM/XXUB+VHtZ6isGNAAAADHN0cjRkQGNhcmJvbgE=
 -----END OPENSSH PRIVATE KEY-----";
 
+    pub(crate) const TEST_SSH_ECDSA_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAaAAAABNlY2RzYS
+1zaGEyLW5pc3RwMjU2AAAACG5pc3RwMjU2AAAAQQQQ0odKVFtwOmuCl6RXfwzExGs9dP9a
+V9H5xAfETILMd7sLFgqyOxz1FA84EZV0vKdW5c0HPB7/JxQw0vFmNSWeAAAAqGOGFFJjhh
+RSAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBDSh0pUW3A6a4KX
+pFd/DMTEaz10/1pX0fnEB8RMgsx3uwsWCrI7HPUUDzgRlXS8p1blzQc8Hv8nFDDS8WY1JZ
+4AAAAgBQ5LA+stpdk3TYwB/4xhiOaDHzxaacv+u47ciigD8bQAAAAKc3RyNGRAY3ViZQEC
+AwQFBg==
+-----END OPENSSH PRIVATE KEY-----";
+
     #[test]
     fn ssh_rsa_round_trip() {
         let buf = BufReader::new(TEST_SSH_RSA_SK.as_bytes());
@@ -429,6 +450,20 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),
             file_key.expose_secret()
+        );
+    }
+
+    #[test]
+    fn ssh_unsupported_key_type() {
+        let buf = BufReader::new(TEST_SSH_ECDSA_SK.as_bytes());
+        let identity = Identity::from_buffer(buf, None).unwrap();
+        let unsupported = match &identity {
+            Identity::Unsupported(res) => res,
+            _ => panic!("key should be unencrypted"),
+        };
+        assert_eq!(
+            unsupported,
+            &UnsupportedKey::Type("ecdsa-sha2-nistp256".to_string()),
         );
     }
 }

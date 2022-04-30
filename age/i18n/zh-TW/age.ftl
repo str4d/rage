@@ -56,7 +56,7 @@ err-read-identity-not-found = 未搜索到身份文件： {$filename}
 
 ssh-passphrase-prompt = 輸入 OpenSSH 密鑰 '{$filename}' 的密碼短語
 
-ssh-unsupported-identity = 該 SSH 身份不受支持： {$name}
+ssh-unsupported-key = 該 SSH 身份不受支持： {$name}
 
 ssh-insecure-key-format =
     不安全的私鑰格式

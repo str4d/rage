@@ -18,7 +18,7 @@ pub(crate) mod identity;
 pub(crate) mod recipient;
 
 pub use identity::{Identity, UnsupportedKey};
-pub use recipient::Recipient;
+pub use recipient::{ParseRecipientKeyError, Recipient};
 
 pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
@@ -108,9 +108,14 @@ impl EncryptedKey {
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
 
         let mut parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
-        parser(&decrypted)
+        match parser(&decrypted)
             .map(|(_, sk)| sk)
-            .map_err(|_| DecryptError::KeyDecryptionFailed)
+            .map_err(|_| DecryptError::KeyDecryptionFailed)?
+        {
+            Identity::Unencrypted(key) => Ok(key),
+            Identity::Unsupported(_) => Err(DecryptError::KeyDecryptionFailed),
+            Identity::Encrypted(_) => unreachable!(),
+        }
     }
 }
 
@@ -279,7 +284,7 @@ mod read_ssh {
         combinator::{map, map_opt, map_parser, map_res, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
-        sequence::{pair, preceded, terminated, tuple},
+        sequence::{delimited, pair, preceded, terminated, tuple},
         IResult,
     };
     use num_traits::Zero;
@@ -292,7 +297,7 @@ mod read_ssh {
     };
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
-    fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    pub(crate) fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
         length_data(be_u32)(input)
     }
 
@@ -394,16 +399,29 @@ mod read_ssh {
         ))(input)
     }
 
+    /// Parses the comment from an OpenSSH privkey and verifies its deterministic padding.
+    fn comment_and_padding(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        terminated(
+            // Comment
+            string,
+            // Deterministic padding
+            verify(rest, |padding: &[u8]| {
+                padding.iter().enumerate().all(|(i, b)| *b == (i + 1) as u8)
+            }),
+        )(input)
+    }
+
     /// Internal OpenSSH encoding of an RSA private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
-        preceded(
+        delimited(
             string_tag(SSH_RSA_KEY_PREFIX),
             map(
                 tuple((mpint, mpint, mpint, mpint, mpint, mpint)),
                 |(n, e, d, _iqmp, p, q)| rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]),
             ),
+            comment_and_padding,
         )(input)
     }
 
@@ -411,7 +429,7 @@ mod read_ssh {
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3277-L3283)
     fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], Secret<[u8; 64]>> {
-        preceded(
+        delimited(
             string_tag(SSH_ED25519_KEY_PREFIX),
             map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
                 if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
@@ -422,6 +440,7 @@ mod read_ssh {
                     None
                 }
             }),
+            comment_and_padding,
         )(input)
     }
 
@@ -452,7 +471,7 @@ mod read_ssh {
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &[u8],
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], UnencryptedKey> {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Identity> {
         // We need to own, move, and clone these in order to keep them alive.
         let ssh_key_rsa = ssh_key.to_vec();
         let ssh_key_ed25519 = ssh_key.to_vec();
@@ -467,24 +486,17 @@ mod read_ssh {
                     None
                 }
             }),
-            terminated(
-                alt((
-                    map(openssh_rsa_privkey, move |sk| {
-                        UnencryptedKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk))
-                    }),
-                    map(openssh_ed25519_privkey, move |privkey| {
-                        UnencryptedKey::SshEd25519(ssh_key_ed25519.clone(), privkey)
-                    }),
-                )),
-                pair(
-                    // Comment
-                    string,
-                    // Deterministic padding
-                    verify(rest, |padding: &[u8]| {
-                        padding.iter().enumerate().all(|(i, b)| *b == (i + 1) as u8)
-                    }),
-                ),
-            ),
+            alt((
+                map(openssh_rsa_privkey, move |sk| {
+                    UnencryptedKey::SshRsa(ssh_key_rsa.clone(), Box::new(sk)).into()
+                }),
+                map(openssh_ed25519_privkey, move |privkey| {
+                    UnencryptedKey::SshEd25519(ssh_key_ed25519.clone(), privkey).into()
+                }),
+                map(string, |key_type| {
+                    UnsupportedKey::Type(String::from_utf8_lossy(key_type).to_string()).into()
+                }),
+            )),
         )
     }
 
@@ -508,7 +520,7 @@ mod read_ssh {
             |(encryption, (ssh_key, private))| match &encryption {
                 None => {
                     let (_, privkey) = openssh_unencrypted_privkey(ssh_key)(private).ok()?;
-                    Some(privkey.into())
+                    Some(privkey)
                 }
                 Some((CipherResult::Supported(cipher), kdf)) => Some(
                     EncryptedKey {

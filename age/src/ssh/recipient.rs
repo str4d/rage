@@ -19,8 +19,9 @@ use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 use super::{
     identity::{Identity, UnencryptedKey},
-    read_ssh, ssh_tag, EncryptedKey, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
-    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+    read_ssh, ssh_tag, EncryptedKey, UnsupportedKey, SSH_ED25519_KEY_PREFIX,
+    SSH_ED25519_RECIPIENT_KEY_LABEL, SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX,
+    SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
 };
 use crate::{
     error::EncryptError,
@@ -36,6 +37,11 @@ pub enum Recipient {
     SshEd25519(Vec<u8>, EdwardsPoint),
 }
 
+pub(crate) enum ParsedRecipient {
+    Supported(Recipient),
+    Unsupported(String),
+}
+
 /// Error conditions when parsing an SSH recipient.
 #[derive(Debug, PartialEq)]
 pub enum ParseRecipientKeyError {
@@ -45,6 +51,8 @@ pub enum ParseRecipientKeyError {
     Ignore,
     /// The string is not a valid SSH recipient.
     Invalid(&'static str),
+    /// The string is a parseable value that corresponds to an unsupported SSH key type.
+    Unsupported(String),
 }
 
 impl std::str::FromStr for Recipient {
@@ -53,8 +61,10 @@ impl std::str::FromStr for Recipient {
     /// Parses an SSH recipient from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match ssh_recipient(s) {
-            Ok((_, Some(pk))) => Ok(pk),
-            Ok((_, None)) => Err(ParseRecipientKeyError::Ignore),
+            Ok((_, ParsedRecipient::Supported(pk))) => Ok(pk),
+            Ok((_, ParsedRecipient::Unsupported(key_type))) => {
+                Err(ParseRecipientKeyError::Unsupported(key_type))
+            }
             _ => Err(ParseRecipientKeyError::Invalid("invalid SSH recipient")),
         }
     }
@@ -85,9 +95,18 @@ impl TryFrom<Identity> for Recipient {
                     Ok(Recipient::SshRsa(ssh_key, pk))
                 } else if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
                     Ok(Recipient::SshEd25519(ssh_key, pk))
+                } else if let Ok((_, key_type)) = read_ssh::string(&ssh_key) {
+                    Err(ParseRecipientKeyError::Unsupported(
+                        String::from_utf8_lossy(key_type).to_string(),
+                    ))
                 } else {
-                    Err(ParseRecipientKeyError::Ignore)
+                    Err(ParseRecipientKeyError::Invalid(
+                        "Invalid SSH pubkey in SSH privkey",
+                    ))
                 }
+            }
+            Identity::Unsupported(UnsupportedKey::Type(key_type)) => {
+                Err(ParseRecipientKeyError::Unsupported(key_type))
             }
             Identity::Unsupported(_) => Err(ParseRecipientKeyError::Ignore),
         }
@@ -152,33 +171,35 @@ impl crate::Recipient for Recipient {
     }
 }
 
-fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
+fn ssh_rsa_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
         map_opt(
             str_while_encoded(base64::STANDARD_NO_PAD),
             |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(Recipient::SshRsa(ssh_key, pk))),
+                Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk))),
                 Err(_) => None,
             },
         ),
     )(input)
 }
 
-fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
+fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     preceded(
         pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
         map_opt(
             encoded_str(51, base64::STANDARD_NO_PAD),
             |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(Some(Recipient::SshEd25519(ssh_key, pk))),
+                Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshEd25519(
+                    ssh_key, pk,
+                ))),
                 Err(_) => None,
             },
         ),
     )(input)
 }
 
-fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
+fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     // We rely on the invariant that SSH public keys are always of the form
     // `key_type Base64(string(key_type) || ...)` to detect valid pubkeys.
     map_opt(
@@ -187,11 +208,15 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Option<Recipient>> {
             tag(" "),
             str_while_encoded(base64::STANDARD_NO_PAD),
         ),
-        |(key_type, ssh_key)| read_ssh::string_tag(key_type)(&ssh_key).map(|_| None).ok(),
+        |(key_type, ssh_key)| {
+            read_ssh::string_tag(key_type)(&ssh_key)
+                .map(|_| ParsedRecipient::Unsupported(key_type.to_string()))
+                .ok()
+        },
     )(input)
 }
 
-pub(crate) fn ssh_recipient(input: &str) -> IResult<&str, Option<Recipient>> {
+pub(crate) fn ssh_recipient(input: &str) -> IResult<&str, ParsedRecipient> {
     alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
 }
 
@@ -201,7 +226,7 @@ pub(crate) mod tests {
 
     pub(crate) const TEST_SSH_RSA_PK: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE7nIXTGNuaRBN9toI/wNALuQec8mvlt0iJ7o3OaD2UvoKHJ7S8rmIn4FiQDUed/Vac3OhUibei1k+TBmm16u2Rj3klgWZOIDgi8d4vXKI5N3YBhxr3jsQ+kz1c+iZ4z/tTtz306+4K46XViVMWwyyg9j82Jn41mOAy9vdeDIfQ5fLeaGqn5KwlT61GNkZ+ozWK/ZNlQIlNCcoXxhJULIs9XrtczWyVBAea1nlDo0WHODePxoJjmsNHrpQXn5mf9O83xs10qfTUjnRUt48jRmedFy4tcra3QGmSTQ3KZne+wXXSb0cIpXLGvZjQSPHgG1hc4r3uBpiSzvesGLv79XL alice@rust";
     pub(crate) const TEST_SSH_ED25519_PK: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
-    const TEST_SSH_IGNORE_PK: &str = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+    const TEST_SSH_UNSUPPORTED_PK: &str = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
     const TEST_SSH_INVALID_PK: &str = "ecdsa-sha2-nistp256 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
 
     #[test]
@@ -217,9 +242,12 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn ssh_ignore_encoding() {
-        let pk: Result<Recipient, ParseRecipientKeyError> = TEST_SSH_IGNORE_PK.parse();
-        assert_eq!(pk.unwrap_err(), ParseRecipientKeyError::Ignore);
+    fn ssh_unsupported_key_type() {
+        let pk: Result<Recipient, ParseRecipientKeyError> = TEST_SSH_UNSUPPORTED_PK.parse();
+        assert_eq!(
+            pk.unwrap_err(),
+            ParseRecipientKeyError::Unsupported("ecdsa-sha2-nistp256".to_string()),
+        );
     }
 
     #[test]
