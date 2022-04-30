@@ -236,6 +236,29 @@ pub trait Callbacks<E> {
     /// inserting a hardware key.
     fn message(&mut self, message: &str) -> age_core::plugin::Result<()>;
 
+    /// Requests that the user provides confirmation for some action.
+    ///
+    /// This can be used to, for example, request that a hardware key the plugin wants to
+    /// try either be plugged in, or skipped.
+    ///
+    /// - `message` is the request or call-to-action to be displayed to the user.
+    /// - `yes_string` and (optionally) `no_string` will be displayed on buttons or next
+    ///   to selection options in the user's UI.
+    ///
+    /// Returns:
+    /// - `Ok(true)` if the user selected the option marked with `yes_string`.
+    /// - `Ok(false)` if the user selected the option marked with `no_string` (or the
+    ///   default negative confirmation label).
+    /// - `Err(Error::Fail)` if the confirmation request could not be given to the user
+    ///   (for example, if there is no UI for displaying messages).
+    /// - `Err(Error::Unsupported)` if the user's client does not support this callback.
+    fn confirm(
+        &mut self,
+        message: &str,
+        yes_string: &str,
+        no_string: Option<&str>,
+    ) -> age_core::plugin::Result<bool>;
+
     /// Requests a non-secret value from the user.
     ///
     /// `message` will be displayed to the user, providing context for the request.

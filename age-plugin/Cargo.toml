@@ -10,6 +10,7 @@ edition = "2021"
 
 [dependencies]
 age-core = { version = "0.7.1", path = "../age-core", features = ["plugin"] }
+base64 = "0.13"
 bech32 = "0.8"
 chrono = "0.4"
 

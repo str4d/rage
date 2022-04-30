@@ -1,7 +1,7 @@
 //! Common helpers for CLI binaries.
 
 use age_core::secrecy::{ExposeSecret, SecretString};
-use pinentry::PassphraseInput;
+use pinentry::{ConfirmationDialog, PassphraseInput};
 use rand::{
     distributions::{Distribution, Uniform},
     rngs::OsRng,
@@ -176,6 +176,29 @@ pub fn read_identities(
     Ok(identities)
 }
 
+fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool> {
+    if let Some(mut input) = ConfirmationDialog::with_default_binary() {
+        // pinentry binary is available!
+        input.with_ok(ok).with_timeout(30);
+        if let Some(cancel) = cancel {
+            input.with_cancel(cancel);
+        }
+        input.confirm(query)
+    } else {
+        // Fall back to CLI interface.
+        let term = console::Term::stderr();
+        let initial = format!("{}: (y/n) ", query);
+        loop {
+            let response = term.read_line_initial_text(&initial)?.to_lowercase();
+            if ["y", "yes"].contains(&response.as_str()) {
+                break Ok(true);
+            } else if ["n", "no"].contains(&response.as_str()) {
+                break Ok(false);
+            }
+        }
+    }
+}
+
 /// Requests a secret from the user.
 ///
 /// If a `pinentry` binary is available on the system, it is used to request the secret.
@@ -245,6 +268,10 @@ pub struct UiCallbacks;
 impl Callbacks for UiCallbacks {
     fn display_message(&self, message: &str) {
         eprintln!("{}", message);
+    }
+
+    fn confirm(&self, message: &str, yes_string: &str, no_string: Option<&str>) -> Option<bool> {
+        confirm(message, yes_string, no_string).ok()
     }
 
     fn request_public_string(&self, description: &str) -> Option<String> {

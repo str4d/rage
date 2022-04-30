@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age_plugin::Callbacks::confirm`
+
 ### Changed
 - MSRV is now 1.56.0.
 

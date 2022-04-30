@@ -29,12 +29,14 @@ const RESPONSE_UNSUPPORTED: &str = "unsupported";
 #[derive(Debug)]
 pub enum Error {
     Fail,
+    Unsupported,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Fail => write!(f, "General plugin protocol error"),
+            Self::Unsupported => write!(f, "Unsupported command"),
         }
     }
 }
@@ -335,6 +337,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
         match s.tag.as_ref() {
             RESPONSE_OK => Ok(Ok(s)),
             RESPONSE_FAIL => Ok(Err(Error::Fail)),
+            RESPONSE_UNSUPPORTED => Ok(Err(Error::Unsupported)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("unexpected response: {}", tag),
@@ -358,6 +361,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
         match s.tag.as_ref() {
             RESPONSE_OK => Ok(Ok(s)),
             RESPONSE_FAIL => Ok(Err(Error::Fail)),
+            RESPONSE_UNSUPPORTED => Ok(Err(Error::Unsupported)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("unexpected response: {}", tag),

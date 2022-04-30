@@ -61,6 +61,34 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .map(|res| res.map(|_| ()))
     }
 
+    fn confirm(
+        &mut self,
+        message: &str,
+        yes_string: &str,
+        no_string: Option<&str>,
+    ) -> age_core::plugin::Result<bool> {
+        let metadata: Vec<_> = Some(yes_string)
+            .into_iter()
+            .chain(no_string)
+            .map(|s| base64::encode_config(s, base64::STANDARD_NO_PAD))
+            .collect();
+        let metadata: Vec<_> = metadata.iter().map(|s| s.as_str()).collect();
+
+        self.0
+            .send("confirm", &metadata, message.as_bytes())
+            .and_then(|res| match res {
+                Ok(s) => match &s.args[..] {
+                    [x] if x == "yes" => Ok(Ok(true)),
+                    [x] if x == "no" => Ok(Ok(false)),
+                    _ => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Invalid response to confirm command",
+                    )),
+                },
+                Err(e) => Ok(Err(e)),
+            })
+    }
+
     fn request_public(&mut self, message: &str) -> plugin::Result<String> {
         self.0
             .send("request-public", &[], message.as_bytes())

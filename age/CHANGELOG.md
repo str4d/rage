@@ -10,6 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age::Callbacks::confirm` to request that the user provides confirmation for
+  some action.
 - `age::cli_common::file_io::InputReader::is_terminal`
 
 ### Changed

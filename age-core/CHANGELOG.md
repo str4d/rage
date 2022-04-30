@@ -9,11 +9,16 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age_core::io::{DebugReader, DebugWriter}`
+- `age_core::plugin::Error::Unsupported`
 
 ### Changed
 - MSRV is now 1.56.0.
-- `Connection::open` now returns the debugging-friendly concrete type
-  `Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>`.
+- `age_core::plugin`:
+  - `Connection::open` now returns the debugging-friendly concrete type
+    `Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>`.
+  - `BidirSend::{send, send_stanza}` now return `Ok(Error::Unsupported)` when an
+    `unsupported` response is received, instead of `Err(io::Error)`, making it
+    easier for plugins to implement fallback strategies.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed
