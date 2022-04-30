@@ -18,6 +18,9 @@ to 1.0.0 are beta releases.
 - A warning is now displayed if `rage` detects that the file being encrypted
   starts with the age magic string or armor begin marker (indicating that an
   age-encrypted file is being double-encrypted). The file is still encrypted.
+- A message is now printed if a plugin takes longer than 10 seconds to encrypt
+  or decrypt its header entry (for example, if the plugin is waiting on some
+  user interaction that hasn't occurred yet).
 
 ## [0.7.1] - 2021-12-27
 ### Fixed
