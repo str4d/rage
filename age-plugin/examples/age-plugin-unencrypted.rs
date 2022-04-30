@@ -9,11 +9,21 @@ use age_plugin::{
     run_state_machine, Callbacks,
 };
 use gumdrop::Options;
+
 use std::collections::HashMap;
+use std::env;
 use std::io;
 
 const PLUGIN_NAME: &str = "unencrypted";
 const RECIPIENT_TAG: &str = PLUGIN_NAME;
+
+fn explode(location: &str) {
+    if let Ok(s) = env::var("AGE_EXPLODES") {
+        if s == location {
+            panic!("Env variable AGE_EXPLODES={} is set. Boom! 💥", location);
+        }
+    }
+}
 
 struct RecipientPlugin;
 
@@ -25,6 +35,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         _bytes: &[u8],
     ) -> Result<(), recipient::Error> {
         eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_recipient called");
+        explode("recipient");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the recipient here.
             Ok(())
@@ -43,6 +54,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         _bytes: &[u8],
     ) -> Result<(), recipient::Error> {
         eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_identity called");
+        explode("identity");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the identity.
             Ok(())
@@ -60,6 +72,7 @@ impl RecipientPluginV1 for RecipientPlugin {
         mut callbacks: impl Callbacks<recipient::Error>,
     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<recipient::Error>>> {
         eprintln!("age-plugin-unencrypted: RecipientPluginV1::wrap_file_keys called");
+        explode("wrap");
         // A real plugin would wrap the file key here.
         let _ = callbacks
             .message("This plugin doesn't have any recipient-specific logic. It's unencrypted!")?;
@@ -87,6 +100,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         _bytes: &[u8],
     ) -> Result<(), identity::Error> {
         eprintln!("age-plugin-unencrypted: IdentityPluginV1::add_identity called");
+        explode("identity");
         if plugin_name == PLUGIN_NAME {
             // A real plugin would store the identity.
             Ok(())
@@ -104,6 +118,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         mut callbacks: impl Callbacks<identity::Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<identity::Error>>>> {
         eprintln!("age-plugin-unencrypted: IdentityPluginV1::unwrap_file_keys called");
+        explode("unwrap");
         let mut file_keys = HashMap::with_capacity(files.len());
         for (file_index, stanzas) in files.into_iter().enumerate() {
             for stanza in stanzas {
