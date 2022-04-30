@@ -98,7 +98,7 @@ quickcheck = "1"
 quickcheck_macros = "1"
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.7", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.8", features = ["criterion", "flamegraph"] }
 
 [features]
 default = []
