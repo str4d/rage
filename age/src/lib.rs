@@ -242,7 +242,7 @@ pub trait Recipient {
 ///
 /// Structs that implement this trait should be given directly to the individual
 /// `Recipient` or `Identity` implementations that require them.
-pub trait Callbacks {
+pub trait Callbacks: Clone + Send + Sync + 'static {
     /// Shows a message to the user.
     ///
     /// This can be used to prompt the user to take some physical action, such as
