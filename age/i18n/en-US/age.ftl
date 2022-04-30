@@ -10,6 +10,8 @@
 
 -age = age
 -rage = rage
+-ssh-rsa = ssh-rsa
+-ssh-ed25519 = ssh-ed25519
 
 ## CLI helpers
 
@@ -104,3 +106,11 @@ ssh-unsupported-cipher =
     If you would like support for this key type, please open an issue here:
 
     {$new_issue}
+
+ssh-unsupported-key-type =
+    Unsupported SSH Key Type
+    ------------------------
+    OpenSSH supports various different key types, but {-rage} only supports a
+    subset of these for backwards compatibility, specifically the '{-ssh-rsa}'
+    and '{-ssh-ed25519}' key types. This SSH key uses the unsupported key type
+    '{$key_type}'.
