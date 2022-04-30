@@ -65,17 +65,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ahash"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
-dependencies = [
- "getrandom 0.2.6",
- "once_cell",
- "version_check",
-]
-
-[[package]]
 name = "arbitrary"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,13 +214,13 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "5.3.1"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "084c61a88f94d7557441d01e89fc3800b0b80658462b05aa7b55dfae069da09b"
+checksum = "4c8858831f7781322e539ea39e72449c46b059638250c14344fec8d0aa6e539c"
 dependencies = [
  "cfg-if",
- "hashbrown",
- "lock_api",
+ "num_cpus",
+ "parking_lot",
 ]
 
 [[package]]
@@ -340,12 +329,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "hashbrown"
-version = "0.12.0"
+name = "hermit-abi"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c21d40587b92fa6a6c6e3c1bdbf87d75511db5672f9c93175574b3a00df1758"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
- "ahash",
+ "libc",
 ]
 
 [[package]]
@@ -532,10 +521,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "once_cell"
-version = "1.10.0"
+name = "num_cpus"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
+checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
+dependencies = [
+ "hermit-abi",
+ "libc",
+]
 
 [[package]]
 name = "opaque-debug"
