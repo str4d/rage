@@ -13,6 +13,7 @@ default-run = "rage"
 
 [package.metadata.deb]
 name = "rage"
+conflicts = "rage-musl"
 extended-description = """\
 age is a simple, modern, and secure encryption format with small explicit keys, \
 no config options, and UNIX-style composability. rage is a Rust implementation \
@@ -37,6 +38,15 @@ assets = [
     ["../README.md", "usr/share/doc/rage/README.md", "644"],
 ]
 features = ["mount"]
+
+[package.metadata.deb.variants.musl]
+name = "rage-musl"
+conflicts = "rage"
+extended-description = """\
+age is a simple, modern, and secure encryption format with small explicit keys, \
+no config options, and UNIX-style composability. rage is a Rust implementation \
+of the age specification. This package is statically linked against musl."""
+features = []
 
 [badges]
 maintenance = { status = "experimental" }

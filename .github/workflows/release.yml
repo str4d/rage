@@ -118,13 +118,19 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        name: [linux, armv7, arm64]
+        name: [linux, linux-musl, armv7, armv7-musl, arm64, arm64-musl]
         include:
           - name: linux
             target: x86_64-unknown-linux-gnu
             build_deps: >
               libfuse-dev
             build_flags: --features mount
+
+          - name: linux-musl
+            target: x86_64-unknown-linux-musl
+            build_deps: >
+              musl-tools
+            deb_flags: --variant=musl
 
           - name: armv7
             target: armv7-unknown-linux-gnueabihf
@@ -134,6 +140,16 @@ jobs:
               [target.armv7-unknown-linux-gnueabihf]
               linker = "arm-linux-gnueabihf-gcc"
 
+          - name: armv7-musl
+            target: armv7-unknown-linux-musleabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+              musl-tools
+            cargo_config: |
+              [target.armv7-unknown-linux-musleabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+            deb_flags: --variant=musl
+
           - name: arm64
             target: aarch64-unknown-linux-gnu
             build_deps: >
@@ -141,6 +157,16 @@ jobs:
             cargo_config: |
               [target.aarch64-unknown-linux-gnu]
               linker = "aarch64-linux-gnu-gcc"
+
+          - name: arm64-musl
+            target: aarch64-unknown-linux-musl
+            build_deps: >
+              gcc-aarch64-linux-gnu
+              musl-tools
+            cargo_config: |
+              [target.aarch64-unknown-linux-musl]
+              linker = "aarch64-linux-gnu-gcc"
+            deb_flags: --variant=musl
 
     steps:
       - uses: actions/checkout@v3
@@ -190,7 +216,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: deb
-          args: --package rage --no-build --target ${{ matrix.target }}
+          args: --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
 
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@2.2.1
