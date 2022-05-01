@@ -260,7 +260,7 @@ struct AgeOptions {
     identity: Vec<String>,
 
     #[options(
-        help = "Use the plugin NAME in its default mode as an identity.",
+        help = "Use age-plugin-PLUGIN-NAME in its default mode as an identity.",
         no_long,
         short = "j"
     )]

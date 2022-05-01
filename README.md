@@ -47,6 +47,7 @@ Optional arguments:
   -r, --recipient RECIPIENT   Encrypt to the specified RECIPIENT. May be repeated.
   -R, --recipients-file PATH  Encrypt to the recipients listed at PATH. May be repeated.
   -i, --identity IDENTITY     Use the identity file at IDENTITY. May be repeated.
+  -j PLUGIN-NAME              Use age-plugin-PLUGIN-NAME in its default mode as an identity.
   -o, --output OUTPUT         Write the result to the file at path OUTPUT.
 
 INPUT defaults to standard input, and OUTPUT defaults to standard output.
