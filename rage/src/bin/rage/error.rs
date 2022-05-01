@@ -152,6 +152,7 @@ pub(crate) enum DecryptError {
     IdentityRead(age::cli_common::ReadError),
     Io(io::Error),
     MissingIdentities,
+    MixedIdentityAndPassphrase,
     MixedIdentityAndPluginName,
     PassphraseFlag,
     PassphraseTimedOut,
@@ -206,6 +207,9 @@ impl fmt::Display for DecryptError {
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 wlnfl!(f, "rec-dec-missing-identities")
+            }
+            DecryptError::MixedIdentityAndPassphrase => {
+                wfl!(f, "err-dec-mixed-identity-passphrase")
             }
             DecryptError::MixedIdentityAndPluginName => {
                 wfl!(f, "err-mixed-identity-and-plugin-name")

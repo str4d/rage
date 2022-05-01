@@ -130,6 +130,8 @@ err-dec-identity-not-found = Identity file not found: {$filename}
 err-dec-missing-identities = Missing identities.
 rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
 
+err-dec-mixed-identity-passphrase = {-flag-identity} can't be used with passphrase-encrypted files.
+
 err-mixed-identity-and-plugin-name = {-flag-identity} can't be used with {-flag-plugin-name}.
 
 err-dec-passphrase-flag = {-flag-passphrase} can't be used with {-flag-decrypt}.

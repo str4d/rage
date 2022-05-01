@@ -22,6 +22,11 @@ to 1.0.0 are beta releases.
   or decrypt its header entry (for example, if the plugin is waiting on some
   user interaction that hasn't occurred yet).
 
+### Fixed
+- Decryption now returns an error when given a passphrase-encrypted file if
+  `-i/--identity` is present. Previously this could result in scripts hanging
+  forever (given that passphrase decryption is intentionally not scriptable).
+
 ## [0.7.1] - 2021-12-27
 ### Fixed
 - Fixed a bug in 0.7.0 where non-canonical recipient stanza bodies in an age
