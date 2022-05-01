@@ -412,6 +412,13 @@ impl<R> StreamReader<R> {
             let last = chunk.len() < ENCRYPTED_CHUNK_SIZE;
 
             self.chunk = match (self.stream.decrypt_chunk(chunk, last), last) {
+                (Ok(chunk), _) if chunk.expose_secret().is_empty() => {
+                    assert!(last);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        crate::fl!("err-stream-last-chunk-empty"),
+                    ));
+                }
                 (Ok(chunk), _) => Some(chunk),
                 (Err(_), false) => Some(self.stream.decrypt_chunk(chunk, true)?),
                 (Err(e), true) => return Err(e),

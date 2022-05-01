@@ -24,6 +24,9 @@ to 1.0.0 are beta releases.
   will write to a stdout TTY, it buffers the entire output so it doesn't get in
   the way of typing the input, and then writes the buffered output to stdout
   during `OutputWriter::flush`.
+- Ciphertexts are now required to end in a non-empty STREAM chunk. Neither age
+  nor rage generate files ending in an empty chunk, instead marking the final
+  full chunk as the last chunk.
 
 ## [0.7.1] - 2021-12-27
 ### Fixed
