@@ -10,6 +10,8 @@
 
 -age = age
 -rage = rage
+-ssh-rsa = ssh-rsa
+-ssh-ed25519 = ssh-ed25519
 
 ## CLI helpers
 
@@ -50,7 +52,26 @@ err-no-matching-keys = Nessuna chiave corrispondente trovata
 err-unknown-format = Formato {-age} sconosciuto.
 rec-unknown-format = Hai provato ad aggiornare all'ultima versione?
 
+err-missing-plugin = '{$plugin_name}' non trovato nella PATH.
+rec-missing-plugin = Hai installato il plugin?
+
+err-plugin-identity = '{$plugin_name}' ha fallito gestendo un'identità: {$message}
+err-plugin-recipient = '{$plugin_name}' ha fallito gestendo il destinatario {$recipient}: {$message}
+err-plugin-multiple = Il plugin ha riportato errori multipli:
+
+err-read-identity-encrypted-without-passphrase =
+    Il file di identità '{$filename}' è cifrato con {-age} ma non con una passphrase.
 err-read-identity-not-found = File di identità non trovato: {$filename}
+
+## Encrypted identities
+
+encrypted-passphrase-prompt = Inserisci la passphrase per l'identità cifrata '{$filename}'
+
+encrypted-warn-no-match = Attenzione: il file di identità cifrato '{$filename}' non corrisponde a nessuno dei destinatari
+
+## Plugin identities
+
+plugin-waiting-on-binary = In attesa di {$binary_name}...
 
 ## SSH identities
 
@@ -86,7 +107,14 @@ ssh-unsupported-cipher =
     con il supporto a cifrari non standard. La tua chiave usa un cifrario
     attualmente non supportato ({$cipher}).
 
-    Se vorresti il sopporto per questo tipo di chiave, per favore apri una
-    issue qui:
+    Se vorresti il supporto per questo tipo di chiave, per favore apri una
+    segnalazione qui:
 
     {$new_issue}
+
+ssh-unsupported-key-type =
+    Tipo di Chiave SSH Non Supportato
+    ---------------------------------
+    OpenSSH supporta diversi tipi di chiavi, ma {-rage} ne supporta solo alcuni;
+    specificatamente, i tipi '{-ssh-rsa}' e '{-ssh-ed25519}'. Questa chiave SSH
+    è del tipo '{$key_type}', che non è supportato.
