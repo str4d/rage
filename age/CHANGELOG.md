@@ -18,6 +18,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.56.0.
+- `age::Callbacks` now requires `Clone + Send + Sync + 'static` bounds.
 - `age::cli_common::file_io::OutputWriter::new` now takes an `input_is_tty`
   boolean argument. If `input_is_tty` is set to `true`, then if `OutputWriter`
   will write to a stdout TTY, it buffers the entire output so it doesn't get in

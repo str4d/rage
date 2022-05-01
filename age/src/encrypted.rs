@@ -35,7 +35,7 @@ impl<R: io::Read> IdentityState<R> {
     ///
     /// Returns the (possibly cached) identities, and a boolean marking if the identities
     /// were not cached (and we just asked the user for a passphrase).
-    fn decrypt<C: Callbacks + Clone + 'static>(
+    fn decrypt<C: Callbacks>(
         self,
         filename: Option<&str>,
         callbacks: C,
@@ -82,7 +82,7 @@ pub struct Identity<R: io::Read, C: Callbacks> {
     callbacks: C,
 }
 
-impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
+impl<R: io::Read, C: Callbacks> Identity<R, C> {
     /// Parses an encrypted identity from an input containing valid UTF-8.
     ///
     /// `filename` is the path to the file that the input is reading from, if any.
@@ -186,7 +186,7 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> Identity<R, C> {
     }
 }
 
-impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R, C> {
+impl<R: io::Read, C: Callbacks> crate::Identity for Identity<R, C> {
     fn unwrap_stanza(
         &self,
         stanza: &age_core::format::Stanza,
@@ -210,7 +210,8 @@ impl<R: io::Read, C: Callbacks + Clone + 'static> crate::Identity for Identity<R
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::Cell, io::BufReader};
+    use std::io::BufReader;
+    use std::sync::{Arc, Mutex};
 
     use age_core::secrecy::{ExposeSecret, SecretString};
 
@@ -237,11 +238,11 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     const TEST_RECIPIENT: &str = "age1ysxuaeqlk7xd8uqsh8lsnfwt9jzzjlqf49ruhpjrrj5yatlcuf7qke4pqe";
 
     #[derive(Clone)]
-    struct MockCallbacks(Cell<Option<&'static str>>);
+    struct MockCallbacks(Arc<Mutex<Option<&'static str>>>);
 
     impl MockCallbacks {
         fn new(passphrase: &'static str) -> Self {
-            MockCallbacks(Cell::new(Some(passphrase)))
+            MockCallbacks(Arc::new(Mutex::new(Some(passphrase))))
         }
     }
 
@@ -260,7 +261,9 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(self.0.take().unwrap().to_owned()))
+            Some(SecretString::new(
+                self.0.lock().unwrap().take().unwrap().to_owned(),
+            ))
         }
     }
 

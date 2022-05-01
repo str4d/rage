@@ -21,7 +21,7 @@ impl IdentityFileEntry {
     #[allow(unused_variables)]
     pub(crate) fn into_identity(
         self,
-        callbacks: impl Callbacks + 'static,
+        callbacks: impl Callbacks,
     ) -> Result<Box<dyn crate::Identity>, DecryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
@@ -37,7 +37,7 @@ impl IdentityFileEntry {
     #[allow(unused_variables)]
     pub(crate) fn to_recipient(
         &self,
-        callbacks: impl Callbacks + 'static,
+        callbacks: impl Callbacks,
     ) -> Result<Box<dyn crate::Recipient>, EncryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
