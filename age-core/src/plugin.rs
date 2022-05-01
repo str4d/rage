@@ -382,6 +382,11 @@ impl<'a, R: Read, W: Write> Reply<'a, R, W> {
         )
     }
 
+    /// Reply with `ok`, metadata, and optional data.
+    pub fn ok_with_metadata<S: AsRef<str>>(self, metadata: &[S], data: Option<&[u8]>) -> Response {
+        Response(self.0.send(RESPONSE_OK, metadata, data.unwrap_or_default()))
+    }
+
     /// The command failed (for example, the user failed to respond to an input request).
     pub fn fail(self) -> Response {
         Response(self.0.send::<&str>(RESPONSE_FAIL, &[], &[]))
