@@ -10,6 +10,7 @@ to 1.0.0 are beta releases.
 ### Added
 - `age_core::io::{DebugReader, DebugWriter}`
 - `age_core::plugin::Error::Unsupported`
+- `age_core::plugin::Reply::ok_with_metadata`
 
 ### Changed
 - MSRV is now 1.56.0.

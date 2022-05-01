@@ -269,7 +269,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
             .as_ref()
             .map(|s| s.borrow()),
     ) {
-        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
+        reply.ok_with_metadata(&[if value { "yes" } else { "no" }], None)
     } else {
         reply.fail()
     }
