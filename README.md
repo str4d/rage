@@ -13,6 +13,19 @@ age was designed by [@Benjojo12](https://twitter.com/Benjojo12) and
 The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
 
+## Installation
+
+| Environment | CLI command |
+|-------------|-------------|
+| Cargo (Rust 1.56+) | `cargo install rage` |
+| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| openSUSE Tumbleweed | `zypper install rage-encryption` |
+
+On Windows, Linux, and macOS, you can use the
+[pre-built binaries](https://github.com/str4d/rage/releases).
+
+Help from new packagers is very welcome.
+
 ## Usage
 
 ```
@@ -34,6 +47,7 @@ Optional arguments:
   -r, --recipient RECIPIENT   Encrypt to the specified RECIPIENT. May be repeated.
   -R, --recipients-file PATH  Encrypt to the recipients listed at PATH. May be repeated.
   -i, --identity IDENTITY     Use the identity file at IDENTITY. May be repeated.
+  -j PLUGIN-NAME              Use age-plugin-PLUGIN-NAME in its default mode as an identity.
   -o, --output OUTPUT         Write the result to the file at path OUTPUT.
 
 INPUT defaults to standard input, and OUTPUT defaults to standard output.
@@ -123,19 +137,6 @@ $ rage -d -i ~/.ssh/id_ed25519 example.png.age > example.png
 Note that SSH key support employs more complex cryptography, and embeds a public
 key tag in the encrypted file, making it possible to track files that are
 encrypted to a specific public key.
-
-## Installation
-
-| Environment | CLI command |
-|-------------|-------------|
-| Cargo (Rust 1.56+) | `cargo install rage` |
-| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
-| openSUSE Tumbleweed | `zypper install rage-encryption` |
-
-On Windows, Linux, and macOS, you can use the
-[pre-built binaries](https://github.com/str4d/rage/releases).
-
-Help from new packagers is very welcome.
 
 ### Feature flags
 
