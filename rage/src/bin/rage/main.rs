@@ -491,6 +491,10 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     match age::Decryptor::new(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
+            if !opts.identity.is_empty() {
+                return Err(error::DecryptError::MixedIdentityAndPassphrase);
+            }
+
             // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
             // any conflict with stdin.
             #[cfg(not(unix))]
