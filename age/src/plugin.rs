@@ -3,7 +3,7 @@
 use age_core::{
     format::{FileKey, Stanza},
     io::{DebugReader, DebugWriter},
-    plugin::{Connection, IDENTITY_V1, RECIPIENT_V1},
+    plugin::{Connection, Reply, Response, IDENTITY_V1, RECIPIENT_V1},
     secrecy::ExposeSecret,
 };
 use bech32::Variant;
@@ -220,6 +220,37 @@ impl Plugin {
     }
 }
 
+fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
+    command: Stanza,
+    reply: Reply<R, W>,
+    errors: &mut Vec<PluginError>,
+    callbacks: &C,
+) -> Response {
+    let message = String::from_utf8_lossy(&command.body);
+    let (yes_string, no_string) = match &command.args[..] {
+        [] => {
+            errors.push(PluginError::Other {
+                kind: "internal".to_owned(),
+                metadata: vec![],
+                message: format!(
+                    "{} command must have at least one metadata argument",
+                    CMD_CONFIRM
+                ),
+            });
+            return reply.fail();
+        }
+        [yes_string] => (yes_string, None),
+        [yes_string, no_string, ..] => (yes_string, Some(no_string)),
+    };
+    if let Some(value) =
+        callbacks.confirm(&message, yes_string, no_string.as_ref().map(|s| s.as_str()))
+    {
+        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
+    } else {
+        reply.fail()
+    }
+}
+
 /// An age plugin with an associated set of recipients.
 ///
 /// This struct implements [`Recipient`], enabling the plugin to encrypt a file to the
@@ -299,33 +330,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                         .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
-                CMD_CONFIRM => {
-                    let message = String::from_utf8_lossy(&command.body);
-                    let (yes_string, no_string) = match &command.args[..] {
-                        [] => {
-                            errors.push(PluginError::Other {
-                                kind: "internal".to_owned(),
-                                metadata: vec![],
-                                message: format!(
-                                    "{} command must have at least one metadata argument",
-                                    CMD_CONFIRM
-                                ),
-                            });
-                            return reply.fail();
-                        }
-                        [yes_string] => (yes_string, None),
-                        [yes_string, no_string, ..] => (yes_string, Some(no_string)),
-                    };
-                    if let Some(value) = self.callbacks.confirm(
-                        &message,
-                        yes_string,
-                        no_string.as_ref().map(|s| s.as_str()),
-                    ) {
-                        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
-                    } else {
-                        reply.fail()
-                    }
-                }
+                CMD_CONFIRM => handle_confirm(command, reply, &mut errors, &self.callbacks),
                 CMD_REQUEST_PUBLIC => {
                     if let Some(value) = self
                         .callbacks
@@ -494,33 +499,7 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                         .display_message(&String::from_utf8_lossy(&command.body));
                     reply.ok(None)
                 }
-                CMD_CONFIRM => {
-                    let message = String::from_utf8_lossy(&command.body);
-                    let (yes_string, no_string) = match &command.args[..] {
-                        [] => {
-                            errors.push(PluginError::Other {
-                                kind: "internal".to_owned(),
-                                metadata: vec![],
-                                message: format!(
-                                    "{} command must have at least one metadata argument",
-                                    CMD_CONFIRM
-                                ),
-                            });
-                            return reply.fail();
-                        }
-                        [yes_string] => (yes_string, None),
-                        [yes_string, no_string, ..] => (yes_string, Some(no_string)),
-                    };
-                    if let Some(value) = self.callbacks.confirm(
-                        &message,
-                        yes_string,
-                        no_string.as_ref().map(|s| s.as_str()),
-                    ) {
-                        reply.ok(Some(if value { "yes" } else { "no" }.as_bytes()))
-                    } else {
-                        reply.fail()
-                    }
-                }
+                CMD_CONFIRM => handle_confirm(command, reply, &mut errors, &self.callbacks),
                 CMD_REQUEST_PUBLIC => {
                     if let Some(value) = self
                         .callbacks
