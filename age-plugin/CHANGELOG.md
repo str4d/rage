@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.3.0] - 2022-05-02
 ### Added
 - `age_plugin::Callbacks::confirm`
 

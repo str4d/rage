@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "age-core",
  "base64",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "base64",
  "chacha20poly1305",
