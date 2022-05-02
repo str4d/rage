@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "aes",
  "age-core",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "base64",
  "chacha20poly1305",
@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "age-plugin"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "age-core",
  "base64",
@@ -1784,7 +1784,7 @@ dependencies = [
 
 [[package]]
 name = "rage"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "age",
  "chrono",

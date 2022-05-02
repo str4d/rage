@@ -1,7 +1,7 @@
 [package]
 name = "age-core"
 description = "[BETA] Common functions used across the age crates"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
 readme = "README.md"

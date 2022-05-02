@@ -1,7 +1,7 @@
 [package]
 name = "age-plugin"
 description = "[BETA] API for writing age plugins."
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
 readme = "README.md"
@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 
 [dependencies]
-age-core = { version = "0.7.1", path = "../age-core", features = ["plugin"] }
+age-core = { version = "0.8.0", path = "../age-core", features = ["plugin"] }
 base64 = "0.13"
 bech32 = "0.8"
 chrono = "0.4"

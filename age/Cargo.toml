@@ -1,7 +1,7 @@
 [package]
 name = "age"
 description = "[BETA] A simple, secure, and modern encryption library."
-version = "0.7.1"
+version = "0.8.0"
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 repository = "https://github.com/str4d/rage"
 readme = "README.md"
@@ -14,7 +14,7 @@ edition = "2021"
 maintenance = { status = "experimental" }
 
 [dependencies]
-age-core = { version = "0.7.1", path = "../age-core" }
+age-core = { version = "0.8.0", path = "../age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648

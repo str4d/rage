@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.8.0] - 2022-05-02
 ### Added
 - `age_core::io::{DebugReader, DebugWriter}`
 - `age_core::plugin::Error::Unsupported`
