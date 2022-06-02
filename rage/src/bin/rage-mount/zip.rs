@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use time::Timespec;
+use std::time::{Duration, SystemTime};
 use zip::{read::ZipFile, ZipArchive};
 
 fn zip_path(path: &Path) -> &Path {
@@ -23,7 +23,7 @@ fn zipfile_to_filetype(zf: &ZipFile) -> FileType {
 fn zipfile_to_fuse(zf: &ZipFile) -> FileAttr {
     let kind = zipfile_to_filetype(zf);
     let perm = (zf.unix_mode().unwrap_or(0) & 0o7777) as u16;
-    let mtime = zf.last_modified().to_time().to_timespec();
+    let mtime: SystemTime = zf.last_modified().to_time().unwrap().into();
 
     FileAttr {
         size: zf.size() as u64,
@@ -31,7 +31,7 @@ fn zipfile_to_fuse(zf: &ZipFile) -> FileAttr {
         atime: mtime,
         mtime,
         ctime: mtime,
-        crtime: Timespec { sec: 0, nsec: 0 },
+        crtime: SystemTime::UNIX_EPOCH,
         kind,
         perm,
         nlink: 1,
@@ -45,10 +45,10 @@ fn zipfile_to_fuse(zf: &ZipFile) -> FileAttr {
 const DIR_ATTR: FileAttr = FileAttr {
     size: 0,
     blocks: 0,
-    atime: Timespec { sec: 0, nsec: 0 },
-    mtime: Timespec { sec: 0, nsec: 0 },
-    ctime: Timespec { sec: 0, nsec: 0 },
-    crtime: Timespec { sec: 0, nsec: 0 },
+    atime: SystemTime::UNIX_EPOCH,
+    mtime: SystemTime::UNIX_EPOCH,
+    ctime: SystemTime::UNIX_EPOCH,
+    crtime: SystemTime::UNIX_EPOCH,
     kind: FileType::Directory,
     perm: 0o0755,
     nlink: 1,
@@ -116,7 +116,7 @@ impl AgeZipFs {
     }
 }
 
-const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
+const TTL: Duration = Duration::from_secs(1);
 
 impl FilesystemMT for AgeZipFs {
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
