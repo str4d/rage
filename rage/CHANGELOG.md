@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.8.1] - 2022-06-18
+### Security
+- Require `age 0.8.1`. See the [`age` crate changelog](../age/CHANGELOG.md) for
+  details.
+
 ## [0.8.0] - 2022-05-02
 ### Changed
 - MSRV is now 1.56.0.
