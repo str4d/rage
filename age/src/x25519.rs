@@ -87,16 +87,24 @@ impl crate::Identity for Identity {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
+
+        // Enforce valid and canonical stanza format.
+        // https://c2sp.org/age#x25519-recipient-stanza
+        let ephemeral_share = match &stanza.args[..] {
+            [arg] => match base64_arg(arg, [0; EPK_LEN_BYTES]) {
+                Some(ephemeral_share) => ephemeral_share,
+                None => return Some(Err(DecryptError::InvalidHeader)),
+            },
+            _ => return Some(Err(DecryptError::InvalidHeader)),
+        };
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        let epk: PublicKey = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?.into();
-        let encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES] = stanza.body[..].try_into().ok()?;
-
-        // A failure to decrypt is non-fatal (we try to decrypt the recipient
-        // stanza with other X25519 keys), because we cannot tell which key
-        // matches a particular stanza.
+        let epk: PublicKey = ephemeral_share.into();
+        let encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES] = stanza.body[..]
+            .try_into()
+            .expect("Length should have been checked above");
 
         let pk: PublicKey = (&self.0).into();
         let shared_secret = self.0.diffie_hellman(&epk);
@@ -118,6 +126,9 @@ impl crate::Identity for Identity {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
 
+        // A failure to decrypt is non-fatal (we try to decrypt the recipient
+        // stanza with other X25519 keys), because we cannot tell which key
+        // matches a particular stanza.
         aead_decrypt(&enc_key, FILE_KEY_BYTES, &encrypted_file_key)
             .ok()
             .map(|mut pt| {
