@@ -9,6 +9,13 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Security
+- `age::Decryptor` did not previously require "contributory" behaviour for
+  `X25519` recipient stanzas. If an age file has an `X25519` recipient stanza
+  with an ephemeral share that is a small-order point, the file could previously
+  be decrypted by any native age identity. To ensure we match the behaviour in
+  the [age specification](https://c2sp.org/age#x25519-recipient-stanza), these
+  files are now rejected as invalid.
 
 ## [0.8.0] - 2022-05-02
 ### Added
