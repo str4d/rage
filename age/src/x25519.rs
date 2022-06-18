@@ -8,6 +8,7 @@ use age_core::{
 use bech32::{ToBase32, Variant};
 use rand_7::rngs::OsRng;
 use std::fmt;
+use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
@@ -86,19 +87,38 @@ impl crate::Identity for Identity {
         if stanza.tag != X25519_RECIPIENT_TAG {
             return None;
         }
+
+        // Enforce valid and canonical stanza format.
+        // https://c2sp.org/age#x25519-recipient-stanza
+        let ephemeral_share = match &stanza.args[..] {
+            [arg] => match base64_arg(arg, [0; EPK_LEN_BYTES]) {
+                Some(ephemeral_share) => ephemeral_share,
+                None => return Some(Err(DecryptError::InvalidHeader)),
+            },
+            _ => return Some(Err(DecryptError::InvalidHeader)),
+        };
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        let epk: PublicKey = base64_arg(stanza.args.get(0)?, [0; EPK_LEN_BYTES])?.into();
-        let encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES] = stanza.body[..].try_into().ok()?;
-
-        // A failure to decrypt is non-fatal (we try to decrypt the recipient
-        // stanza with other X25519 keys), because we cannot tell which key
-        // matches a particular stanza.
+        let epk: PublicKey = ephemeral_share.into();
+        let encrypted_file_key: [u8; ENCRYPTED_FILE_KEY_BYTES] = stanza.body[..]
+            .try_into()
+            .expect("Length should have been checked above");
 
         let pk: PublicKey = (&self.0).into();
         let shared_secret = self.0.diffie_hellman(&epk);
+        // Replace with `SharedSecret::was_contributory` once x25519-dalek supports newer
+        // zeroize (https://github.com/dalek-cryptography/x25519-dalek/issues/74#issuecomment-1159481280).
+        if shared_secret
+            .as_bytes()
+            .iter()
+            .fold(0, |acc, b| acc | b)
+            .ct_eq(&0)
+            .into()
+        {
+            return Some(Err(DecryptError::InvalidHeader));
+        }
 
         let mut salt = vec![];
         salt.extend_from_slice(epk.as_bytes());
@@ -106,6 +126,9 @@ impl crate::Identity for Identity {
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
 
+        // A failure to decrypt is non-fatal (we try to decrypt the recipient
+        // stanza with other X25519 keys), because we cannot tell which key
+        // matches a particular stanza.
         aead_decrypt(&enc_key, FILE_KEY_BYTES, &encrypted_file_key)
             .ok()
             .map(|mut pt| {
@@ -166,6 +189,20 @@ impl crate::Recipient for Recipient {
         let esk = EphemeralSecret::new(&mut rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
+
+        // It is vanishingly unlikely that we generate the all-zero esk, so if we do then
+        // it is likely that the RNG is bad, and we should fail loudly.
+        // Replace with `SharedSecret::was_contributory` once x25519-dalek supports
+        // newer zeroize (https://github.com/dalek-cryptography/x25519-dalek/issues/74#issuecomment-1159481280).
+        if bool::from(
+            shared_secret
+                .as_bytes()
+                .iter()
+                .fold(0, |acc, b| acc | b)
+                .ct_eq(&0),
+        ) {
+            panic!("Generated the all-zero esk; OS RNG is likely failing!");
+        }
 
         let mut salt = vec![];
         salt.extend_from_slice(epk.as_bytes());
