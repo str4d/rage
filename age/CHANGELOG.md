@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.8.1] - 2022-06-18
 ### Security
 - `age::Decryptor` did not previously require "contributory" behaviour for
   `X25519` recipient stanzas. If an age file has an `X25519` recipient stanza
