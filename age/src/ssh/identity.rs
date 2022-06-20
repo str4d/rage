@@ -31,6 +31,7 @@ use crate::{
 };
 
 /// An SSH private key for decrypting an age file.
+#[derive(Clone)]
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
     SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
@@ -194,6 +195,7 @@ impl UnsupportedKey {
 }
 
 /// An SSH private key for decrypting an age file.
+#[derive(Clone)]
 pub enum Identity {
     /// An unencrypted key.
     Unencrypted(UnencryptedKey),

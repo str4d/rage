@@ -89,6 +89,7 @@ impl OpenSshKdf {
 }
 
 /// An encrypted SSH private key.
+#[derive(Clone)]
 pub struct EncryptedKey {
     ssh_key: Vec<u8>,
     cipher: OpenSshCipher,
