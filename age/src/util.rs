@@ -16,6 +16,10 @@ pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
 }
 
 pub(crate) mod read {
+    use std::str::FromStr;
+
+    use nom::{character::complete::digit1, combinator::verify, ParseTo};
+
     #[cfg(feature = "ssh")]
     use nom::{
         combinator::map_res,
@@ -99,6 +103,13 @@ pub(crate) mod read {
             Ok(_) => Some(buf),
             Err(_) => None,
         }
+    }
+
+    /// Parses a decimal number composed only of digits with no leading zeros.
+    pub(crate) fn decimal_digit_arg<T: FromStr>(arg: &str) -> Option<T> {
+        verify::<_, _, _, (), _, _>(digit1, |n: &str| !n.starts_with('0'))(arg)
+            .ok()
+            .and_then(|(_, n)| n.parse_to())
     }
 }
 
