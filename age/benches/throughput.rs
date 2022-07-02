@@ -1,6 +1,24 @@
 use age::{x25519, Decryptor, Encryptor};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use criterion_cycles_per_byte::CyclesPerByte;
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+type Criterion_ = Criterion<CyclesPerByte>;
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+type Criterion_ = Criterion;
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn setup_criterion() -> Criterion_ {
+    Criterion::default().with_measurement(CyclesPerByte)
+}
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+fn setup_criterion() -> Criterion_ {
+    Criterion::default()
+}
 
 #[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
@@ -10,7 +28,7 @@ use std::iter;
 
 const KB: usize = 1024;
 
-fn bench(c: &mut Criterion<CyclesPerByte>) {
+fn bench(c: &mut Criterion_) {
     let identity = x25519::Identity::generate();
     let recipient = identity.to_public();
     let mut group = c.benchmark_group("age");
@@ -70,15 +88,14 @@ fn bench(c: &mut Criterion<CyclesPerByte>) {
 #[cfg(unix)]
 criterion_group!(
     name = benches;
-    config = Criterion::default()
-        .with_measurement(CyclesPerByte)
+    config = setup_criterion()
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = bench
 );
 #[cfg(not(unix))]
 criterion_group!(
     name = benches;
-    config = Criterion::default()
+    config = setup_criterion()
         .with_measurement(CyclesPerByte);
     targets = bench
 );

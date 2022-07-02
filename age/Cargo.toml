@@ -91,7 +91,6 @@ wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
-criterion-cycles-per-byte = "0.1"
 futures-test = "0.3"
 hex = "0.4"
 i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
@@ -101,6 +100,9 @@ test-case = "2"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.8", features = ["criterion", "flamegraph"] }
+
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dev-dependencies]
+criterion-cycles-per-byte = "0.1"
 
 [features]
 default = []
