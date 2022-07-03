@@ -17,6 +17,12 @@ to 1.0.0 are beta releases.
 - `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
   stanzas (instead of ignoring or accepting them respectively), matching the
   [age specification](https://c2sp.org/age#scrypt-recipient-stanza).
+- `age::armor::ArmoredReader`:
+  - It now accepts armored files with no newline after the end marker.
+    Previously these were rejected by the synchronous API, and would cause the
+    async API to hang.
+  - The async API now correctly rejects some classes of invalid armoring that
+    previously would cause it to hang.
 
 ## [0.8.1] - 2022-06-18
 ### Security

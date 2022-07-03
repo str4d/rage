@@ -68,6 +68,7 @@ zeroize = "1"
 
 # Async I/O
 futures = { version = "0.3", optional = true }
+memchr = { version = "2.5", optional = true }
 pin-project = "1"
 
 # Localization
@@ -108,7 +109,7 @@ criterion-cycles-per-byte = "0.1"
 [features]
 default = []
 armor = []
-async = ["futures"]
+async = ["futures", "memchr"]
 cli-common = ["atty", "console", "pinentry", "rpassword"]
 plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
