@@ -350,13 +350,9 @@ fn check_decrypt_success(
             assert_eq!(
                 e.kind(),
                 if [
-                    "armor_garbage_encoded",
                     "stream_no_chunks",
                     "stream_no_final_full",
                     "stream_no_final_two_chunks_full",
-                    "stream_trailing_garbage_long",
-                    "stream_trailing_garbage_short",
-                    "stream_two_final_chunks",
                 ]
                 .contains(&filename)
                 {
