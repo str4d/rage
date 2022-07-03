@@ -9,6 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
+  stanzas (instead of ignoring or accepting them respectively), matching the
+  [age specification](https://c2sp.org/age#scrypt-recipient-stanza).
 
 ## [0.8.1] - 2022-06-18
 ### Security

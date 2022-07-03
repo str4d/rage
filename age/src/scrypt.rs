@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 use crate::{
     error::{DecryptError, EncryptError},
     primitives::scrypt,
-    util::read::base64_arg,
+    util::read::{base64_arg, decimal_digit_arg},
 };
 
 pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
@@ -114,12 +114,19 @@ impl<'a> crate::Identity for Identity<'a> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
         }
+
+        // Enforce valid and canonical stanza format.
+        // https://c2sp.org/age#scrypt-recipient-stanza
+        let (salt, log_n) = match &stanza.args[..] {
+            [salt, log_n] => match (base64_arg(salt, [0; SALT_LEN]), decimal_digit_arg(log_n)) {
+                (Some(salt), Some(log_n)) => (salt, log_n),
+                _ => return Some(Err(DecryptError::InvalidHeader)),
+            },
+            _ => return Some(Err(DecryptError::InvalidHeader)),
+        };
         if stanza.body.len() != ENCRYPTED_FILE_KEY_BYTES {
             return Some(Err(DecryptError::InvalidHeader));
         }
-
-        let salt = base64_arg(stanza.args.get(0)?, [0; SALT_LEN])?;
-        let log_n = stanza.args.get(1)?.parse().ok()?;
 
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         let target = target_scrypt_work_factor();

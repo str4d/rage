@@ -19,9 +19,29 @@ use test_case::test_case;
 #[test_case("hmac_truncated")]
 #[test_case("scrypt")]
 #[test_case("scrypt_and_x25519")]
+#[test_case("scrypt_bad_tag")]
+#[test_case("scrypt_double")]
+#[test_case("scrypt_extra_argument")]
 #[test_case("scrypt_long_file_key")]
 #[test_case("scrypt_no_match")]
+#[test_case("scrypt_not_canonical_body")]
+#[test_case("scrypt_not_canonical_salt")]
+#[test_case("scrypt_salt_long")]
+#[test_case("scrypt_salt_missing")]
+#[test_case("scrypt_salt_short")]
+#[test_case("scrypt_uppercase")]
 #[test_case("scrypt_work_factor_23")]
+#[test_case("scrypt_work_factor_hex")]
+#[test_case("scrypt_work_factor_leading_garbage")]
+#[test_case("scrypt_work_factor_leading_plus")]
+#[test_case("scrypt_work_factor_leading_zero_decimal")]
+#[test_case("scrypt_work_factor_leading_zero_octal")]
+#[test_case("scrypt_work_factor_missing")]
+#[test_case("scrypt_work_factor_negative")]
+#[test_case("scrypt_work_factor_overflow")]
+#[test_case("scrypt_work_factor_trailing_garbage")]
+#[test_case("scrypt_work_factor_wrong")]
+#[test_case("scrypt_work_factor_zero")]
 #[test_case("stanza_bad_start")]
 #[test_case("stanza_base64_padding")]
 #[test_case("stanza_empty_argument")]
@@ -36,9 +56,28 @@ use test_case::test_case;
 #[test_case("stanza_not_canonical")]
 #[test_case("stanza_spurious_cr")]
 #[test_case("stanza_valid_characters")]
+#[test_case("stream_bad_tag")]
+#[test_case("stream_bad_tag_second_chunk")]
+#[test_case("stream_bad_tag_second_chunk_full")]
 #[test_case("stream_empty_payload")]
 #[test_case("stream_last_chunk_empty")]
 #[test_case("stream_last_chunk_full")]
+#[test_case("stream_last_chunk_full_second")]
+#[test_case("stream_missing_tag")]
+#[test_case("stream_no_chunks")]
+#[test_case("stream_no_final")]
+#[test_case("stream_no_final_full")]
+#[test_case("stream_no_final_two_chunks")]
+#[test_case("stream_no_final_two_chunks_full")]
+#[test_case("stream_no_nonce")]
+#[test_case("stream_short_chunk")]
+#[test_case("stream_short_nonce")]
+#[test_case("stream_short_second_chunk")]
+#[test_case("stream_three_chunks")]
+#[test_case("stream_trailing_garbage_long")]
+#[test_case("stream_trailing_garbage_short")]
+#[test_case("stream_two_chunks")]
+#[test_case("stream_two_final_chunks")]
 #[test_case("version_unsupported")]
 #[test_case("x25519")]
 #[test_case("x25519_bad_tag")]
@@ -63,7 +102,13 @@ fn testkit(filename: &str) {
 
     match Decryptor::new(&testfile.age_file[..]).and_then(|d| match d {
         Decryptor::Recipients(d) => {
-            assert_eq!(testfile.passphrases.len(), 0);
+            assert_eq!(
+                testfile.passphrases.len(),
+                // `scrypt_uppercase` uses the stanza tag `Scrypt` instead of `scrypt`, so
+                // even though there is a valid passphrase, the decryptor treats it as a
+                // different recipient stanza kind.
+                if filename == "scrypt_uppercase" { 1 } else { 0 }
+            );
             let identities: Vec<x25519::Identity> = testfile
                 .identities
                 .iter()
@@ -97,8 +142,27 @@ fn testkit(filename: &str) {
                 (Ok(_), Expect::HeaderFailure)
                     if ["stanza_missing_body", "stanza_missing_final_line"].contains(&filename) => {
                 }
-                (Err(e), Expect::PayloadFailure) => {
-                    assert_eq!(e.kind(), io::ErrorKind::InvalidData)
+                (Err(e), Expect::PayloadFailure { payload_sha256 }) => {
+                    assert_eq!(
+                        e.kind(),
+                        if [
+                            "stream_no_chunks",
+                            "stream_no_final_full",
+                            "stream_no_final_two_chunks_full",
+                            "stream_trailing_garbage_long",
+                            "stream_trailing_garbage_short",
+                            "stream_two_final_chunks",
+                        ]
+                        .contains(&filename)
+                        {
+                            io::ErrorKind::UnexpectedEof
+                        } else {
+                            io::ErrorKind::InvalidData
+                        }
+                    );
+                    // The tests with this expectation are checking that no partial STREAM
+                    // blocks are written to the payload.
+                    assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
                 }
                 (actual, expected) => panic!(
                     "Expected {:?}, got {}{}",
@@ -113,26 +177,19 @@ fn testkit(filename: &str) {
             }
         }
         Err(e) => match e {
-            DecryptError::DecryptionFailed
-            | DecryptError::ExcessiveWork { .. }
+            DecryptError::ExcessiveWork { .. }
             | DecryptError::InvalidHeader
             | DecryptError::Io(_)
             | DecryptError::UnknownFormat => {
                 assert_eq!(testfile.expect, Expect::HeaderFailure)
             }
-            // Temporary workaround for the testkit test files not distinguishing header
-            // failures from "no matching keys".
-            DecryptError::NoMatchingKeys
-                if ["x25519_bad_tag", "x25519_no_match", "x25519_lowercase"]
-                    .contains(&filename) =>
-            {
-                assert_eq!(testfile.expect, Expect::HeaderFailure)
-            }
             DecryptError::InvalidMac => assert_eq!(testfile.expect, Expect::HmacFailure),
+            DecryptError::DecryptionFailed | DecryptError::NoMatchingKeys => {
+                assert_eq!(testfile.expect, Expect::NoMatch)
+            }
             DecryptError::KeyDecryptionFailed => todo!(),
             #[cfg(feature = "plugin")]
             DecryptError::MissingPlugin { .. } => todo!(),
-            DecryptError::NoMatchingKeys => todo!(),
             #[cfg(feature = "plugin")]
             DecryptError::Plugin(_) => todo!(),
         },
@@ -144,7 +201,8 @@ enum Expect {
     Success { payload_sha256: [u8; 32] },
     HeaderFailure,
     HmacFailure,
-    PayloadFailure,
+    NoMatch,
+    PayloadFailure { payload_sha256: [u8; 32] },
 }
 
 struct TestFile {
@@ -177,8 +235,16 @@ impl TestFile {
                     }
                 }
                 "header failure" => Expect::HeaderFailure,
-                "payload failure" => Expect::PayloadFailure,
+                "payload failure" => {
+                    line.clear();
+                    r.read_line(&mut line).unwrap();
+                    let payload = data(&line, "payload:");
+                    Expect::PayloadFailure {
+                        payload_sha256: hex::decode(payload).unwrap().try_into().unwrap(),
+                    }
+                }
                 "HMAC failure" => Expect::HmacFailure,
+                "no match" => Expect::NoMatch,
                 e => panic!("Unknown testkit failure '{}'", e),
             }
         };
