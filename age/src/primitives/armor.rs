@@ -2,6 +2,8 @@
 
 use pin_project::pin_project;
 use std::cmp;
+use std::error;
+use std::fmt;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use zeroize::Zeroizing;
 
@@ -512,6 +514,50 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
     }
 }
 
+/// The various errors that can be returned while parsing the armored format.
+#[derive(Debug)]
+pub enum ArmoredReadError {
+    /// An error occurred while parsing Base64.
+    Base64(base64::DecodeError),
+    /// The begin marker for the armor is invalid.
+    InvalidBeginMarker,
+    /// Invalid UTF-8 characters were encountered between the begin and end marker.
+    InvalidUtf8,
+    /// A line of the armor contains a `\r` character.
+    LineContainsCr,
+    /// A line of the armor is missing a line ending.
+    ///
+    /// In practice, this only enforces a newline after the end marker, because the parser
+    /// splits the input on newlines, so a missing line ending internally would instead be
+    /// interpreted as either `ArmoredReadError::LineContainsCr` or
+    /// `ArmoredReadError::NotWrappedAt64Chars`.
+    MissingLineEnding,
+    /// The armor is not wrapped at 64 characters.
+    NotWrappedAt64Chars,
+    /// There is a short line in the middle of the armor (only the final line may be short).
+    ShortLineInMiddle,
+}
+
+impl fmt::Display for ArmoredReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ArmoredReadError::Base64(e) => e.fmt(f),
+            ArmoredReadError::InvalidBeginMarker => write!(f, "invalid armor begin marker"),
+            ArmoredReadError::InvalidUtf8 => write!(f, "stream did not contain valid UTF-8"),
+            ArmoredReadError::LineContainsCr => write!(f, "line contains CR"),
+            ArmoredReadError::MissingLineEnding => write!(f, "missing line ending"),
+            ArmoredReadError::NotWrappedAt64Chars => {
+                write!(f, "invalid armor (not wrapped at 64 characters)")
+            }
+            ArmoredReadError::ShortLineInMiddle => {
+                write!(f, "invalid armor (short line in middle of encoding)")
+            }
+        }
+    }
+}
+
+impl error::Error for ArmoredReadError {}
+
 /// The position in the underlying reader corresponding to the start of the data inside
 /// the armor.
 ///
@@ -630,7 +676,12 @@ impl<R> ArmoredReader<R> {
                     // is valid UTF-8, so we can move it into the line buffer.
                     self.line_buf.push_str(
                         std::str::from_utf8(&self.byte_buf[MARKER_LEN + 1..MIN_ARMOR_LEN])
-                            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
+                            .map_err(|_| {
+                                io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    ArmoredReadError::InvalidUtf8,
+                                )
+                            })?,
                     );
                     self.count_reader_bytes(1);
                 }
@@ -638,7 +689,7 @@ impl<R> ArmoredReader<R> {
                 (_, _) => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid armor begin marker",
+                        ArmoredReadError::InvalidBeginMarker,
                     ))
                 }
             }
@@ -688,13 +739,13 @@ impl<R> ArmoredReader<R> {
         } else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "missing line ending",
+                ArmoredReadError::MissingLineEnding,
             ));
         };
         if line.contains('\r') {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "line contains CR",
+                ArmoredReadError::LineContainsCr,
             ));
         }
 
@@ -713,13 +764,13 @@ impl<R> ArmoredReader<R> {
                 (true, ARMORED_COLUMNS_PER_LINE) => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid armor (short line in middle of encoding)",
+                        ArmoredReadError::ShortLineInMiddle,
                     ));
                 }
                 _ => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid armor (not wrapped at 64 characters)",
+                        ArmoredReadError::NotWrappedAt64Chars,
                     ));
                 }
             }
@@ -729,7 +780,9 @@ impl<R> ArmoredReader<R> {
         self.byte_start = 0;
         self.byte_end =
             base64::decode_config_slice(line.as_bytes(), base64::STANDARD, self.byte_buf.as_mut())
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                .map_err(|e| {
+                    io::Error::new(io::ErrorKind::InvalidData, ArmoredReadError::Base64(e))
+                })?;
 
         // Finished with this buffered line!
         self.line_buf.clear();
@@ -855,7 +908,7 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
                             .push_str(std::str::from_utf8(&available[..pos]).map_err(|_| {
                                 io::Error::new(
                                     io::ErrorKind::InvalidData,
-                                    "stream did not contain valid UTF-8",
+                                    ArmoredReadError::InvalidUtf8,
                                 )
                             })?);
 
