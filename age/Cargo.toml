@@ -131,7 +131,7 @@ required-features = ["ssh"]
 
 [[test]]
 name = "testkit"
-required-features = ["async"]
+required-features = ["armor", "async"]
 
 [[bench]]
 name = "parser"

@@ -4,11 +4,44 @@ use std::{
     str::FromStr,
 };
 
-use age::{secrecy::SecretString, x25519, DecryptError, Decryptor, Identity};
+use age::{
+    armor::{ArmoredReadError, ArmoredReader},
+    secrecy::SecretString,
+    x25519, DecryptError, Decryptor, Identity,
+};
 use futures::AsyncReadExt;
 use sha2::{Digest, Sha256};
 use test_case::test_case;
 
+#[test_case("armor")]
+#[test_case("armor_crlf")]
+#[test_case("armor_empty_line_begin")]
+#[test_case("armor_empty_line_end")]
+#[test_case("armor_eol_between_padding")]
+#[test_case("armor_full_last_line")]
+#[test_case("armor_garbage_encoded")]
+#[test_case("armor_garbage_leading")]
+#[test_case("armor_garbage_trailing")]
+#[test_case("armor_header_crlf")]
+#[test_case("armor_headers")]
+#[test_case("armor_invalid_character_header")]
+#[test_case("armor_invalid_character_payload")]
+#[test_case("armor_long_line")]
+#[test_case("armor_lowercase")]
+#[test_case("armor_no_end_line")]
+#[test_case("armor_no_eol")]
+#[test_case("armor_no_match")]
+#[test_case("armor_no_padding")]
+#[test_case("armor_not_canonical")]
+#[test_case("armor_pgp_checksum")]
+#[test_case("armor_short_line")]
+#[test_case("armor_whitespace_begin")]
+#[test_case("armor_whitespace_end")]
+#[test_case("armor_whitespace_eol")]
+#[test_case("armor_whitespace_last_line")]
+#[test_case("armor_whitespace_line_start")]
+#[test_case("armor_whitespace_outside")]
+#[test_case("armor_wrong_type")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -98,7 +131,7 @@ fn testkit(filename: &str) {
     let testfile = TestFile::parse(filename);
     let comment = format_testkit_comment(&testfile);
 
-    match Decryptor::new(&testfile.age_file[..]).and_then(|d| match d {
+    match Decryptor::new(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| match d {
         Decryptor::Recipients(d) => {
             let identities = get_testkit_identities(filename, &testfile);
             d.decrypt(identities.iter().map(|i| i as &dyn Identity))
@@ -110,13 +143,42 @@ fn testkit(filename: &str) {
     }) {
         Ok(mut r) => {
             let mut payload = vec![];
-            let res = io::Read::read_to_end(&mut r, &mut payload);
+            let res = r.read_to_end(&mut payload);
             check_decrypt_success(filename, testfile, &comment, res, &payload);
         }
-        Err(e) => check_decrypt_error(testfile, e),
+        Err(e) => check_decrypt_error(filename, testfile, e),
     }
 }
 
+#[test_case("armor")]
+#[test_case("armor_crlf")]
+#[test_case("armor_empty_line_begin")]
+#[test_case("armor_empty_line_end")]
+#[test_case("armor_eol_between_padding")]
+#[test_case("armor_full_last_line")]
+// #[test_case("armor_garbage_encoded")]
+#[test_case("armor_garbage_leading")]
+#[test_case("armor_garbage_trailing")]
+#[test_case("armor_header_crlf")]
+#[test_case("armor_headers")]
+#[test_case("armor_invalid_character_header")]
+#[test_case("armor_invalid_character_payload")]
+#[test_case("armor_long_line")]
+#[test_case("armor_lowercase")]
+// #[test_case("armor_no_end_line")]
+// #[test_case("armor_no_eol")]
+#[test_case("armor_no_match")]
+#[test_case("armor_no_padding")]
+#[test_case("armor_not_canonical")]
+#[test_case("armor_pgp_checksum")]
+#[test_case("armor_short_line")]
+#[test_case("armor_whitespace_begin")]
+#[test_case("armor_whitespace_end")]
+#[test_case("armor_whitespace_eol")]
+#[test_case("armor_whitespace_last_line")]
+#[test_case("armor_whitespace_line_start")]
+#[test_case("armor_whitespace_outside")]
+#[test_case("armor_wrong_type")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -207,7 +269,7 @@ async fn testkit_async(filename: &str) {
     let testfile = TestFile::parse(filename);
     let comment = format_testkit_comment(&testfile);
 
-    match Decryptor::new_async(&testfile.age_file[..])
+    match Decryptor::new_async(ArmoredReader::from_async_reader(&testfile.age_file[..]))
         .await
         .and_then(|d| match d {
             Decryptor::Recipients(d) => {
@@ -221,10 +283,10 @@ async fn testkit_async(filename: &str) {
         }) {
         Ok(mut r) => {
             let mut payload = vec![];
-            let res = AsyncReadExt::read_to_end(&mut r, &mut payload).await;
+            let res = r.read_to_end(&mut payload).await;
             check_decrypt_success(filename, testfile, &comment, res, &payload);
         }
-        Err(e) => check_decrypt_error(testfile, e),
+        Err(e) => check_decrypt_error(filename, testfile, e),
     }
 }
 
@@ -277,10 +339,18 @@ fn check_decrypt_success(
         // parsing legacy age stanzas without an explicit short final line.
         (Ok(_), Expect::HeaderFailure)
             if ["stanza_missing_body", "stanza_missing_final_line"].contains(&filename) => {}
+        (Err(e), Expect::ArmorFailure) => {
+            assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+            assert_eq!(
+                e.into_inner().map(|inner| inner.is::<ArmoredReadError>()),
+                Some(true)
+            );
+        }
         (Err(e), Expect::PayloadFailure { payload_sha256 }) => {
             assert_eq!(
                 e.kind(),
                 if [
+                    "armor_garbage_encoded",
                     "stream_no_chunks",
                     "stream_no_final_full",
                     "stream_no_final_two_chunks_full",
@@ -312,12 +382,41 @@ fn check_decrypt_success(
     }
 }
 
-fn check_decrypt_error(testfile: TestFile, e: DecryptError) {
+fn check_decrypt_error(filename: &str, testfile: TestFile, e: DecryptError) {
     match e {
-        DecryptError::ExcessiveWork { .. }
-        | DecryptError::InvalidHeader
-        | DecryptError::Io(_)
-        | DecryptError::UnknownFormat => {
+        DecryptError::InvalidHeader => {
+            // `ArmoredReader` is a transparent wrapper around an `io::Read` and
+            // only runs de-armoring if it detects the expected begin marker.
+            // This leaves a hole in error detection: if the begin marker is invalid,
+            // then the test case will be rejected by the inner age header parsing
+            // with `DecryptError::InvalidHeader`. However, we can't simply treat
+            // these as "armor failed" because there are test cases where the armor is
+            // valid but the contained age file is invalid. We hard-code the list of
+            // test cases with invalid begin markers to cover this hole.
+            if testfile.armored
+                && [
+                    "armor_garbage_leading",
+                    "armor_lowercase",
+                    "armor_whitespace_begin",
+                    "armor_wrong_type",
+                ]
+                .contains(&filename)
+            {
+                assert_eq!(testfile.expect, Expect::ArmorFailure);
+            } else {
+                assert_eq!(testfile.expect, Expect::HeaderFailure);
+            }
+        }
+        DecryptError::Io(e) => {
+            let kind = e.kind();
+            if e.into_inner().map(|inner| inner.is::<ArmoredReadError>()) == Some(true) {
+                assert_eq!(kind, io::ErrorKind::InvalidData);
+                assert_eq!(testfile.expect, Expect::ArmorFailure);
+            } else {
+                assert_eq!(testfile.expect, Expect::HeaderFailure);
+            }
+        }
+        DecryptError::ExcessiveWork { .. } | DecryptError::UnknownFormat => {
             assert_eq!(testfile.expect, Expect::HeaderFailure)
         }
         DecryptError::InvalidMac => assert_eq!(testfile.expect, Expect::HmacFailure),
@@ -335,6 +434,7 @@ fn check_decrypt_error(testfile: TestFile, e: DecryptError) {
 #[derive(Debug, PartialEq, Eq)]
 enum Expect {
     Success { payload_sha256: [u8; 32] },
+    ArmorFailure,
     HeaderFailure,
     HmacFailure,
     NoMatch,
@@ -345,6 +445,7 @@ struct TestFile {
     expect: Expect,
     identities: Vec<String>,
     passphrases: Vec<String>,
+    armored: bool,
     comment: Option<String>,
     age_file: Vec<u8>,
 }
@@ -370,6 +471,7 @@ impl TestFile {
                         payload_sha256: hex::decode(payload).unwrap().try_into().unwrap(),
                     }
                 }
+                "armor failure" => Expect::ArmorFailure,
                 "header failure" => Expect::HeaderFailure,
                 "payload failure" => {
                     line.clear();
@@ -393,6 +495,7 @@ impl TestFile {
 
         let mut identities = vec![];
         let mut passphrases = vec![];
+        let mut armored = false;
         let mut comment = None;
         loop {
             line.clear();
@@ -405,6 +508,7 @@ impl TestFile {
             match prefix {
                 "identity" => identities.push(data.to_owned()),
                 "passphrase" => passphrases.push(data.to_owned()),
+                "armored" => armored = data == "yes",
                 "comment" => comment = Some(data.to_owned()),
                 _ => panic!("Unknown testkit metadata '{}'", prefix),
             }
@@ -417,6 +521,7 @@ impl TestFile {
             expect,
             identities,
             passphrases,
+            armored,
             comment,
             age_file,
         }
