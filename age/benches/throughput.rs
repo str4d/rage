@@ -95,8 +95,7 @@ criterion_group!(
 #[cfg(not(unix))]
 criterion_group!(
     name = benches;
-    config = setup_criterion()
-        .with_measurement(CyclesPerByte);
+    config = setup_criterion();
     targets = bench
 );
 criterion_main!(benches);
