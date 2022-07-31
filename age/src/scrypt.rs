@@ -23,7 +23,7 @@ const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 /// Pick an scrypt work factor that will take around 1 second on this device.
 ///
 /// Guaranteed to return a valid work factor (less than 64).
-fn target_scrypt_work_factor() -> u8 {
+fn target_scrypt_work_factor(time_target: Duration) -> u8 {
     // Time a work factor that should always be fast.
     let mut log_n = 10;
 
@@ -63,7 +63,7 @@ fn target_scrypt_work_factor() -> u8 {
     duration
         .map(|mut d| {
             // Use duration as a proxy for CPU usage, which scales linearly with N.
-            while d < ONE_SECOND && log_n < 63 {
+            while d < time_target && log_n < 63 {
                 log_n += 1;
                 d *= 2;
             }
@@ -75,8 +75,25 @@ fn target_scrypt_work_factor() -> u8 {
         })
 }
 
+/// The work factor used for scrypt
+/// The default is 1s
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum WorkFactor{
+    /// A hardcoded value
+    Fixed(u8),
+    /// A time-based value
+    TimeBased(Duration)
+}
+
+impl Default for WorkFactor {
+    fn default() -> Self {
+        WorkFactor::TimeBased(ONE_SECOND)
+    }
+}
+
 pub(crate) struct Recipient {
     pub(crate) passphrase: SecretString,
+    pub(crate) work_factor: WorkFactor
 }
 
 impl crate::Recipient for Recipient {
@@ -88,7 +105,10 @@ impl crate::Recipient for Recipient {
         inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
         inner_salt.extend_from_slice(&salt);
 
-        let log_n = target_scrypt_work_factor();
+        let log_n = match self.work_factor {
+            WorkFactor::Fixed(f) => f,
+            WorkFactor::TimeBased(target) => target_scrypt_work_factor(target)
+        };
 
         let enc_key =
             scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
@@ -129,7 +149,7 @@ impl<'a> crate::Identity for Identity<'a> {
         }
 
         // Place bounds on the work factor we will accept (roughly 16 seconds).
-        let target = target_scrypt_work_factor();
+        let target = target_scrypt_work_factor(ONE_SECOND);
         if log_n > self.max_work_factor.unwrap_or_else(|| target + 4) {
             return Some(Err(DecryptError::ExcessiveWork {
                 required: log_n,

@@ -152,7 +152,7 @@ mod util;
 pub use error::{DecryptError, EncryptError};
 pub use identity::{IdentityFile, IdentityFileEntry};
 pub use primitives::stream;
-pub use protocol::{decryptor, Decryptor, Encryptor};
+pub use protocol::{decryptor, Decryptor, Encryptor, WorkFactor};
 
 #[cfg(feature = "armor")]
 pub use primitives::armor;

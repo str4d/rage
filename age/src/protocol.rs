@@ -12,6 +12,8 @@ use crate::{
     scrypt, Recipient,
 };
 
+pub use crate::scrypt::WorkFactor;
+
 #[cfg(feature = "async")]
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -52,7 +54,7 @@ enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
     Keys(Vec<Box<dyn Recipient>>),
     /// Encryption to a passphrase.
-    Passphrase(SecretString),
+    Passphrase(SecretString, WorkFactor),
 }
 
 /// Encryptor for creating an age file.
@@ -74,7 +76,19 @@ impl Encryptor {
     ///
     /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
-        Encryptor(EncryptorType::Passphrase(passphrase))
+        Encryptor(EncryptorType::Passphrase(passphrase, WorkFactor::default()))
+    }
+
+    /// Returns an `Encryptor` that will create an age file encrypted with a passphrase and a specify work factor.
+    /// Anyone with the passphrase can decrypt the file.
+    ///
+    /// This API should only be used with a passphrase that was provided by (or generated
+    /// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`]
+    /// and then use [`Encryptor::with_recipients`].
+    ///
+    /// [`x25519::Identity`]: crate::x25519::Identity
+    pub fn with_user_passphrase_and_work_factor(passphrase: SecretString, work_factor: WorkFactor) -> Self {
+        Encryptor(EncryptorType::Passphrase(passphrase, work_factor))
     }
 
     /// Creates the header for this age file.
@@ -91,8 +105,8 @@ impl Encryptor {
                 stanzas.push(grease_the_joint());
                 stanzas
             }
-            EncryptorType::Passphrase(passphrase) => {
-                scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?
+            EncryptorType::Passphrase(passphrase, work_factor) => {
+                scrypt::Recipient { passphrase, work_factor }.wrap_file_key(&file_key)?
             }
         };
 
