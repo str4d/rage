@@ -8,7 +8,7 @@ class Rage < Formula
     depends_on "rust" => :build
 
     def install
-      system "cargo", "install", *std_cargo_args(path: './rage')
+        system "cargo", "install", *std_cargo_args(path: './rage')
     end
 
     test do
