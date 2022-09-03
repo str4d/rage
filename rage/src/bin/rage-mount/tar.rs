@@ -4,9 +4,10 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
+use std::time::{Duration, SystemTime};
+
 use tar::{Archive, Entry, EntryType};
-use time::Timespec;
 
 fn tar_path(path: &Path) -> &Path {
     path.strip_prefix("/").unwrap()
@@ -28,11 +29,11 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
     let perm = (entry.header().mode()? & 0o7777) as u16;
 
-    let mtime = Timespec::new(entry.header().mtime()? as i64, 0);
+    let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()? as u64, 0);
     let ctime = if let Some(header) = entry.header().as_gnu() {
         header
             .ctime()
-            .map(|ctime| Timespec::new(ctime as i64, 0))
+            .map(|ctime| SystemTime::UNIX_EPOCH + Duration::new(ctime as u64, 0))
             .unwrap_or(mtime)
     } else {
         mtime
@@ -40,7 +41,7 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
     let atime = if let Some(header) = entry.header().as_gnu() {
         header
             .atime()
-            .map(|atime| Timespec::new(atime as i64, 0))
+            .map(|atime| SystemTime::UNIX_EPOCH + Duration::new(atime as u64, 0))
             .unwrap_or(mtime)
     } else {
         mtime
@@ -52,7 +53,7 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
         atime,
         mtime,
         ctime,
-        crtime: Timespec { sec: 0, nsec: 0 },
+        crtime: SystemTime::UNIX_EPOCH,
         kind,
         perm,
         nlink: 1,
@@ -66,10 +67,10 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
 const ROOT_ATTR: FileAttr = FileAttr {
     size: 0,
     blocks: 0,
-    atime: Timespec { sec: 0, nsec: 0 },
-    mtime: Timespec { sec: 0, nsec: 0 },
-    ctime: Timespec { sec: 0, nsec: 0 },
-    crtime: Timespec { sec: 0, nsec: 0 },
+    atime: SystemTime::UNIX_EPOCH,
+    mtime: SystemTime::UNIX_EPOCH,
+    ctime: SystemTime::UNIX_EPOCH,
+    crtime: SystemTime::UNIX_EPOCH,
     kind: FileType::Directory,
     perm: 0o0755,
     nlink: 1,
@@ -105,6 +106,7 @@ type OpenFile = (PathBuf, u64, u64);
 
 pub struct AgeTarFs {
     inner: Mutex<StreamReader<ArmoredReader<BufReader<File>>>>,
+    destroy_tx: mpsc::SyncSender<()>,
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     file_map: HashMap<PathBuf, (FileAttr, u64)>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
@@ -112,7 +114,10 @@ pub struct AgeTarFs {
 }
 
 impl AgeTarFs {
-    pub fn open(stream: StreamReader<ArmoredReader<BufReader<File>>>) -> io::Result<Self> {
+    pub fn open(
+        stream: StreamReader<ArmoredReader<BufReader<File>>>,
+        destroy_tx: mpsc::SyncSender<()>,
+    ) -> io::Result<Self> {
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root
@@ -135,6 +140,7 @@ impl AgeTarFs {
 
         Ok(AgeTarFs {
             inner: Mutex::new(archive.into_inner()),
+            destroy_tx,
             dir_map,
             file_map,
             open_dirs: Mutex::new((HashMap::new(), 0)),
@@ -143,9 +149,15 @@ impl AgeTarFs {
     }
 }
 
-const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
+const TTL: Duration = Duration::from_secs(1);
 
 impl FilesystemMT for AgeTarFs {
+    fn destroy(&self) {
+        self.destroy_tx
+            .send(())
+            .expect("Could not send signal on channel.");
+    }
+
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         let open_dirs = self.open_dirs.lock().unwrap();
         let open_files = self.open_files.lock().unwrap();
