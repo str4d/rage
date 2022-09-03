@@ -7,6 +7,7 @@ repository = "https://github.com/str4d/rage"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 edition = "2021"
+rust-version = "1.56"
 
 [package.metadata.docs.rs]
 all-features = true
