@@ -9,6 +9,7 @@ keywords = ["age", "cli", "encryption"]
 categories = ["command-line-utilities", "cryptography"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+rust-version = "1.56"
 default-run = "rage"
 
 [package.metadata.deb]

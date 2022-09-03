@@ -13,7 +13,7 @@ use nom::{
 };
 use rand::rngs::OsRng;
 use rsa::{padding::PaddingScheme, PublicKey};
-use sha2_09::Sha256;
+use sha2::Sha256;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 

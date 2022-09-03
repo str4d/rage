@@ -7,6 +7,7 @@ repository = "https://github.com/str4d/rage"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 edition = "2021"
+rust-version = "1.56"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,7 +22,7 @@ maintenance = { status = "experimental" }
 base64 = "0.13"
 
 # - ChaCha20-Poly1305 from RFC 7539
-chacha20poly1305 = { version = "0.9", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 
 # - HKDF from RFC 5869 with SHA-256
 hkdf = "0.12"
