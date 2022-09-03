@@ -8,9 +8,7 @@ class Rage < Formula
     depends_on "rust" => :build
 
     def install
-        system "cargo", "build", "--release", "--package", "rage"
-        bin.install "target/release/rage"
-        bin.install "target/release/rage-keygen"
+        system "cargo", "install", *std_cargo_args(path: './rage')
     end
 
     test do
