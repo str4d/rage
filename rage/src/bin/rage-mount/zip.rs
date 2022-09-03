@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
 use std::time::{Duration, SystemTime};
 use zip::{read::ZipFile, ZipArchive};
 
@@ -85,13 +85,17 @@ fn add_dir_to_map(
 
 pub struct AgeZipFs {
     inner: Mutex<ZipArchive<StreamReader<ArmoredReader<BufReader<File>>>>>,
+    destroy_tx: mpsc::SyncSender<()>,
     dir_map: HashMap<PathBuf, Vec<DirectoryEntry>>,
     open_dirs: Mutex<(HashMap<u64, PathBuf>, u64)>,
     open_files: Mutex<(HashMap<u64, usize>, u64)>,
 }
 
 impl AgeZipFs {
-    pub fn open(stream: StreamReader<ArmoredReader<BufReader<File>>>) -> io::Result<Self> {
+    pub fn open(
+        stream: StreamReader<ArmoredReader<BufReader<File>>>,
+        destroy_tx: mpsc::SyncSender<()>,
+    ) -> io::Result<Self> {
         let mut archive =
             ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
@@ -109,6 +113,7 @@ impl AgeZipFs {
 
         Ok(AgeZipFs {
             inner: Mutex::new(archive),
+            destroy_tx,
             dir_map,
             open_dirs: Mutex::new((HashMap::new(), 0)),
             open_files: Mutex::new((HashMap::new(), 0)),
@@ -119,6 +124,12 @@ impl AgeZipFs {
 const TTL: Duration = Duration::from_secs(1);
 
 impl FilesystemMT for AgeZipFs {
+    fn destroy(&self) {
+        self.destroy_tx
+            .send(())
+            .expect("Could not send signal on channel.");
+    }
+
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         let mut inner = self.inner.lock().unwrap();
         let open_dirs = self.open_dirs.lock().unwrap();

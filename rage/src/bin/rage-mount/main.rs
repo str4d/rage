@@ -19,6 +19,7 @@ use rust_embed::RustEmbed;
 use std::fmt;
 use std::fs::File;
 use std::io;
+use std::sync::mpsc;
 
 mod tar;
 mod zip;
@@ -161,6 +162,7 @@ struct AgeMountOptions {
 fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
     open: F,
     mountpoint: String,
+    finished: mpsc::Receiver<()>,
 ) -> Result<(), Error>
 where
     F: FnOnce() -> io::Result<T>,
@@ -168,11 +170,14 @@ where
     let fs = open().map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
     info!("{}", fl!("info-mounting-as-fuse"));
 
-    fuser::mount2(
-        fs,
-        &mountpoint,
-        &[MountOption::RO, MountOption::AutoUnmount],
-    )?;
+    // Mount the filesystem.
+    let handle = fuser::spawn_mount2(fs, mountpoint, &[MountOption::RO])?;
+
+    // Wait until we are done.
+    finished.recv().expect("Could not receive from channel.");
+
+    // Ensure the filesystem is unmounted.
+    handle.join();
 
     Ok(())
 }
@@ -182,9 +187,24 @@ fn mount_stream(
     types: String,
     mountpoint: String,
 ) -> Result<(), Error> {
+    // We want to block until either Ctrl-C, or the filesystem is unmounted externally.
+    // Set up a channel for notifying the main thread that we should exit.
+    let (tx, finished) = mpsc::sync_channel(2);
+    let destroy_tx = tx.clone();
+    ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
+        .expect("Error setting Ctrl-C handler");
+
     match types.as_str() {
-        "tar" => mount_fs(|| crate::tar::AgeTarFs::open(stream), mountpoint),
-        "zip" => mount_fs(|| crate::zip::AgeZipFs::open(stream), mountpoint),
+        "tar" => mount_fs(
+            || crate::tar::AgeTarFs::open(stream, destroy_tx),
+            mountpoint,
+            finished,
+        ),
+        "zip" => mount_fs(
+            || crate::zip::AgeZipFs::open(stream, destroy_tx),
+            mountpoint,
+            finished,
+        ),
         _ => Err(Error::UnknownType(types)),
     }
 }

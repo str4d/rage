@@ -66,6 +66,7 @@ pinentry = "0.5"
 rust-embed = "6"
 
 # rage-mount dependencies
+ctrlc = { version = "3.2", optional = true }
 fuse_mt = { version = "0.6.0", optional = true }
 fuser = { version = "0.11.1", optional = true }
 libc = { version = "0.2", optional = true }
@@ -81,7 +82,7 @@ man = "0.3"
 
 [features]
 default = ["ssh"]
-mount = ["fuse_mt", "fuser", "libc", "tar", "time", "zip"]
+mount = ["ctrlc", "fuse_mt", "fuser", "libc", "tar", "time", "zip"]
 ssh = ["age/ssh"]
 unstable = ["age/unstable"]
 
