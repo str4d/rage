@@ -12,7 +12,7 @@ rust-version = "1.56"
 [dependencies]
 age-core = { version = "0.8.0", path = "../age-core", features = ["plugin"] }
 base64 = "0.13"
-bech32 = "0.8"
+bech32 = "0.9"
 chrono = "0.4"
 
 [dev-dependencies]
