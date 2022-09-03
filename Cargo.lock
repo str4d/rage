@@ -868,9 +868,9 @@ dependencies = [
 
 [[package]]
 name = "fuser"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aef8400a4ea1d18a8302e2952f5137a9a21ab257825ccc7d67db4a8018b89022"
+checksum = "104ed58f182bc2975062cd3fab229e82b5762de420e26cf5645f661402694599"
 dependencies = [
  "libc",
  "log",
@@ -1856,6 +1856,7 @@ dependencies = [
  "env_logger 0.9.0",
  "flate2",
  "fuse_mt",
+ "fuser",
  "gumdrop",
  "i18n-embed",
  "i18n-embed-fl",

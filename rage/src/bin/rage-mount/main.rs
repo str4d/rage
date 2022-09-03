@@ -6,6 +6,7 @@ use age::{
     stream::StreamReader,
 };
 use fuse_mt::FilesystemMT;
+use fuser::MountOption;
 use gumdrop::Options;
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
@@ -14,7 +15,7 @@ use i18n_embed::{
 use lazy_static::lazy_static;
 use log::info;
 use rust_embed::RustEmbed;
-use std::ffi::OsStr;
+
 use std::fmt;
 use std::fs::File;
 use std::io;
@@ -164,11 +165,15 @@ fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
 where
     F: FnOnce() -> io::Result<T>,
 {
-    let fuse_args: Vec<&OsStr> = vec![OsStr::new("-o"), OsStr::new("ro,auto_unmount")];
-
     let fs = open().map(|fs| fuse_mt::FuseMT::new(fs, 1))?;
     info!("{}", fl!("info-mounting-as-fuse"));
-    fuse_mt::mount(fs, &mountpoint, &fuse_args)?;
+
+    fuser::mount2(
+        fs,
+        &mountpoint,
+        &[MountOption::RO, MountOption::AutoUnmount],
+    )?;
+
     Ok(())
 }
 
