@@ -46,7 +46,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfe0133578c0986e1fe3dfcd4af1cc5b2dd6c3dbf534d69916ce16a2701d40ba"
 dependencies = [
  "cfg-if",
- "cipher",
+ "cipher 0.4.3",
  "cpufeatures",
 ]
 
@@ -62,7 +62,7 @@ dependencies = [
  "bech32",
  "cbc",
  "chacha20poly1305",
- "cipher",
+ "cipher 0.4.3",
  "console",
  "cookie-factory",
  "criterion",
@@ -263,7 +263,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e412e2cd0f2b2d93e02543ceae7917b3c70331573df19ee046bcbc35e45e87d7"
 dependencies = [
  "byteorder",
- "cipher",
+ "cipher 0.4.3",
 ]
 
 [[package]]
@@ -332,7 +332,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b52a9543ae338f279b96b0b9fed9c8093744685043739079ce85cd58f289a6"
 dependencies = [
- "cipher",
+ "cipher 0.4.3",
 ]
 
 [[package]]
@@ -357,7 +357,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7fc89c7c5b9e7a02dfe45cd2367bae382f9ed31c61ca8debe5f827c420a2f08"
 dependencies = [
  "cfg-if",
- "cipher",
+ "cipher 0.4.3",
  "cpufeatures",
 ]
 
@@ -369,7 +369,7 @@ checksum = "10cd79432192d1c0f4e1a0fef9527696cc039165d729fb41b3f4f4f354c2dc35"
 dependencies = [
  "aead",
  "chacha20",
- "cipher",
+ "cipher 0.4.3",
  "poly1305",
  "zeroize",
 ]
@@ -385,6 +385,15 @@ dependencies = [
  "num-traits",
  "time 0.1.44",
  "winapi",
+]
+
+[[package]]
+name = "cipher"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
+dependencies = [
+ "generic-array",
 ]
 
 [[package]]
@@ -638,7 +647,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d14f329cfbaf5d0e06b5e87fff7e265d2673c5ea7d2c27691a2c107db1442a0"
 dependencies = [
- "cipher",
+ "cipher 0.4.3",
 ]
 
 [[package]]
@@ -1399,7 +1408,7 @@ version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e322c04a9e3440c327fca7b6c8a63e6890a32fa2ad689db972425f07e0d22abb"
 dependencies = [
- "autocfg 1.1.0",
+ "autocfg",
  "bitflags",
  "cfg-if",
  "libc",
@@ -2123,7 +2132,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97a22f5af31f73a954c10289c93e8a50cc23d971e80ee446f1f6f7137a088213"
 dependencies = [
- "cipher",
+ "cipher 0.4.3",
 ]
 
 [[package]]
