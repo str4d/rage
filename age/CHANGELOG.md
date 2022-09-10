@@ -9,6 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::armor::ArmoredReadError`, used to wrap armor-specific read errors inside
+  `std::io::Error`.
+
 ### Fixed
 - `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
   stanzas (instead of ignoring or accepting them respectively), matching the
