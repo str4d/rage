@@ -18,6 +18,8 @@ to 1.0.0 are beta releases.
   stanzas (instead of ignoring or accepting them respectively), matching the
   [age specification](https://c2sp.org/age#scrypt-recipient-stanza).
 - `age::armor::ArmoredReader`:
+  - It now rejects armored files with non-whitespace characters after the end
+    marker.
   - It now accepts armored files with no newline after the end marker.
     Previously these were rejected by the synchronous API, and would cause the
     async API to hang.

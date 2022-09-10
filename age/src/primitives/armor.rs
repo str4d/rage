@@ -533,6 +533,8 @@ pub enum ArmoredReadError {
     NotWrappedAt64Chars,
     /// There is a short line in the middle of the armor (only the final line may be short).
     ShortLineInMiddle,
+    /// There are trailing non-whitespace characters after the end marker.
+    TrailingGarbage,
 }
 
 impl fmt::Display for ArmoredReadError {
@@ -547,6 +549,12 @@ impl fmt::Display for ArmoredReadError {
             }
             ArmoredReadError::ShortLineInMiddle => {
                 write!(f, "invalid armor (short line in middle of encoding)")
+            }
+            ArmoredReadError::TrailingGarbage => {
+                write!(
+                    f,
+                    "invalid armor (non-whitespace characters after end marker)"
+                )
             }
         }
     }
@@ -830,7 +838,22 @@ impl<R: BufRead> Read for ArmoredReader<R> {
 
             // Parse the line into bytes
             if self.parse_armor_line()? {
-                // This was the last line!
+                // This was the last line! Check for trailing garbage.
+                loop {
+                    let amt = match self.inner.fill_buf()? {
+                        &[] => break,
+                        buf => {
+                            if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    ArmoredReadError::TrailingGarbage,
+                                ));
+                            }
+                            buf.len()
+                        }
+                    };
+                    self.inner.consume(amt);
+                }
                 break;
             }
 
@@ -960,7 +983,23 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
 
                     // Parse the line into bytes.
                     let read = if self.parse_armor_line()? {
-                        // This was the last line!
+                        // This was the last line! Check for trailing garbage.
+                        let mut this = self.as_mut().project();
+                        loop {
+                            let amt = match ready!(this.inner.as_mut().poll_fill_buf(cx))? {
+                                &[] => break,
+                                buf => {
+                                    if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                                        return Poll::Ready(Err(io::Error::new(
+                                            io::ErrorKind::InvalidData,
+                                            ArmoredReadError::TrailingGarbage,
+                                        )));
+                                    }
+                                    buf.len()
+                                }
+                            };
+                            this.inner.as_mut().consume(amt);
+                        }
                         0
                     } else {
                         // Output as much as we can of this line.
