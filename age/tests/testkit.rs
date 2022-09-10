@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use age::{x25519, DecryptError, Decryptor, Identity};
+use age::{secrecy::SecretString, x25519, DecryptError, Decryptor, Identity};
 use sha2::{Digest, Sha256};
 use test_case::test_case;
 
@@ -95,104 +95,128 @@ use test_case::test_case;
 #[test_case("x25519_short_share")]
 fn testkit(filename: &str) {
     let testfile = TestFile::parse(filename);
-    let comment = testfile
-        .comment
-        .map(|c| format!(" ({})", c))
-        .unwrap_or_default();
+    let comment = format_testkit_comment(&testfile);
 
     match Decryptor::new(&testfile.age_file[..]).and_then(|d| match d {
         Decryptor::Recipients(d) => {
-            assert_eq!(
-                testfile.passphrases.len(),
-                // `scrypt_uppercase` uses the stanza tag `Scrypt` instead of `scrypt`, so
-                // even though there is a valid passphrase, the decryptor treats it as a
-                // different recipient stanza kind.
-                if filename == "scrypt_uppercase" { 1 } else { 0 }
-            );
-            let identities: Vec<x25519::Identity> = testfile
-                .identities
-                .iter()
-                .map(|s| s.as_str())
-                .map(x25519::Identity::from_str)
-                .collect::<Result<_, _>>()
-                .unwrap();
+            let identities = get_testkit_identities(filename, &testfile);
             d.decrypt(identities.iter().map(|i| i as &dyn Identity))
         }
         Decryptor::Passphrase(d) => {
-            assert_eq!(testfile.identities.len(), 0);
-            match testfile.passphrases.len() {
-                0 => panic!("Test file is missing passphrase{}", comment),
-                1 => d.decrypt(
-                    &testfile.passphrases.get(0).cloned().unwrap().into(),
-                    Some(16),
-                ),
-                n => panic!("Too many passphrases ({}){}", n, comment),
-            }
+            let passphrase = get_testkit_passphrase(&testfile, &comment);
+            d.decrypt(&passphrase, Some(16))
         }
     }) {
         Ok(mut r) => {
             let mut payload = vec![];
             let res = r.read_to_end(&mut payload);
-            match (res, testfile.expect) {
-                (Ok(_), Expect::Success { payload_sha256 }) => {
-                    assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
-                }
-                // These testfile failures are expected, because we maintains support for
-                // parsing legacy age stanzas without an explicit short final line.
-                (Ok(_), Expect::HeaderFailure)
-                    if ["stanza_missing_body", "stanza_missing_final_line"].contains(&filename) => {
-                }
-                (Err(e), Expect::PayloadFailure { payload_sha256 }) => {
-                    assert_eq!(
-                        e.kind(),
-                        if [
-                            "stream_no_chunks",
-                            "stream_no_final_full",
-                            "stream_no_final_two_chunks_full",
-                            "stream_trailing_garbage_long",
-                            "stream_trailing_garbage_short",
-                            "stream_two_final_chunks",
-                        ]
-                        .contains(&filename)
-                        {
-                            io::ErrorKind::UnexpectedEof
-                        } else {
-                            io::ErrorKind::InvalidData
-                        }
-                    );
-                    // The tests with this expectation are checking that no partial STREAM
-                    // blocks are written to the payload.
-                    assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
-                }
-                (actual, expected) => panic!(
-                    "Expected {:?}, got {}{}",
-                    expected,
-                    if actual.is_ok() {
-                        format!("payload '{}'", String::from_utf8_lossy(&payload))
-                    } else {
-                        format!("{:?}", actual)
-                    },
-                    comment,
-                ),
-            }
+            check_decrypt_success(filename, testfile, &comment, res, &payload);
         }
-        Err(e) => match e {
-            DecryptError::ExcessiveWork { .. }
-            | DecryptError::InvalidHeader
-            | DecryptError::Io(_)
-            | DecryptError::UnknownFormat => {
-                assert_eq!(testfile.expect, Expect::HeaderFailure)
-            }
-            DecryptError::InvalidMac => assert_eq!(testfile.expect, Expect::HmacFailure),
-            DecryptError::DecryptionFailed | DecryptError::NoMatchingKeys => {
-                assert_eq!(testfile.expect, Expect::NoMatch)
-            }
-            DecryptError::KeyDecryptionFailed => todo!(),
-            #[cfg(feature = "plugin")]
-            DecryptError::MissingPlugin { .. } => todo!(),
-            #[cfg(feature = "plugin")]
-            DecryptError::Plugin(_) => todo!(),
-        },
+        Err(e) => check_decrypt_error(testfile, e),
+    }
+}
+
+fn format_testkit_comment(testfile: &TestFile) -> String {
+    testfile
+        .comment
+        .as_ref()
+        .map(|c| format!(" ({})", c))
+        .unwrap_or_default()
+}
+
+fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<x25519::Identity> {
+    assert_eq!(
+        testfile.passphrases.len(),
+        // `scrypt_uppercase` uses the stanza tag `Scrypt` instead of `scrypt`, so
+        // even though there is a valid passphrase, the decryptor treats it as a
+        // different recipient stanza kind.
+        if filename == "scrypt_uppercase" { 1 } else { 0 }
+    );
+    testfile
+        .identities
+        .iter()
+        .map(|s| s.as_str())
+        .map(x25519::Identity::from_str)
+        .collect::<Result<_, _>>()
+        .unwrap()
+}
+
+fn get_testkit_passphrase(testfile: &TestFile, comment: &str) -> SecretString {
+    assert_eq!(testfile.identities.len(), 0);
+    match testfile.passphrases.len() {
+        0 => panic!("Test file is missing passphrase{}", comment),
+        1 => testfile.passphrases.get(0).cloned().unwrap().into(),
+        n => panic!("Too many passphrases ({}){}", n, comment),
+    }
+}
+
+fn check_decrypt_success(
+    filename: &str,
+    testfile: TestFile,
+    comment: &str,
+    res: io::Result<usize>,
+    payload: &[u8],
+) {
+    match (res, testfile.expect) {
+        (Ok(_), Expect::Success { payload_sha256 }) => {
+            assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
+        }
+        // These testfile failures are expected, because we maintains support for
+        // parsing legacy age stanzas without an explicit short final line.
+        (Ok(_), Expect::HeaderFailure)
+            if ["stanza_missing_body", "stanza_missing_final_line"].contains(&filename) => {}
+        (Err(e), Expect::PayloadFailure { payload_sha256 }) => {
+            assert_eq!(
+                e.kind(),
+                if [
+                    "stream_no_chunks",
+                    "stream_no_final_full",
+                    "stream_no_final_two_chunks_full",
+                    "stream_trailing_garbage_long",
+                    "stream_trailing_garbage_short",
+                    "stream_two_final_chunks",
+                ]
+                .contains(&filename)
+                {
+                    io::ErrorKind::UnexpectedEof
+                } else {
+                    io::ErrorKind::InvalidData
+                }
+            );
+            // The tests with this expectation are checking that no partial STREAM
+            // blocks are written to the payload.
+            assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
+        }
+        (actual, expected) => panic!(
+            "Expected {:?}, got {}{}",
+            expected,
+            if actual.is_ok() {
+                format!("payload '{}'", String::from_utf8_lossy(payload))
+            } else {
+                format!("{:?}", actual)
+            },
+            comment,
+        ),
+    }
+}
+
+fn check_decrypt_error(testfile: TestFile, e: DecryptError) {
+    match e {
+        DecryptError::ExcessiveWork { .. }
+        | DecryptError::InvalidHeader
+        | DecryptError::Io(_)
+        | DecryptError::UnknownFormat => {
+            assert_eq!(testfile.expect, Expect::HeaderFailure)
+        }
+        DecryptError::InvalidMac => assert_eq!(testfile.expect, Expect::HmacFailure),
+        DecryptError::DecryptionFailed | DecryptError::NoMatchingKeys => {
+            assert_eq!(testfile.expect, Expect::NoMatch)
+        }
+        DecryptError::KeyDecryptionFailed => todo!(),
+        #[cfg(feature = "plugin")]
+        DecryptError::MissingPlugin { .. } => todo!(),
+        #[cfg(feature = "plugin")]
+        DecryptError::Plugin(_) => todo!(),
     }
 }
 
