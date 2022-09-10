@@ -198,10 +198,7 @@ impl Stream {
         assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
 
         self.nonce.set_last(last).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "last chunk has been processed",
-            )
+            io::Error::new(io::ErrorKind::InvalidData, "last chunk has been processed")
         })?;
 
         let decrypted = self
@@ -711,11 +708,11 @@ mod tests {
 
             // Further calls return an error
             match s.decrypt_chunk(&encrypted, false) {
-                Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                Err(e) => assert_eq!(e.kind(), io::ErrorKind::InvalidData),
                 _ => panic!("Expected error"),
             }
             match s.decrypt_chunk(&encrypted, true) {
-                Err(e) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                Err(e) => assert_eq!(e.kind(), io::ErrorKind::InvalidData),
                 _ => panic!("Expected error"),
             }
 

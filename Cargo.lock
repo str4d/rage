@@ -77,6 +77,7 @@ dependencies = [
  "i18n-embed",
  "i18n-embed-fl",
  "lazy_static",
+ "memchr",
  "nom",
  "num-traits",
  "pin-project",

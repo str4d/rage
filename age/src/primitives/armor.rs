@@ -16,7 +16,11 @@ use futures::{
     task::{Context, Poll},
 };
 #[cfg(feature = "async")]
+use std::mem;
+#[cfg(feature = "async")]
 use std::pin::Pin;
+#[cfg(feature = "async")]
+use std::str;
 
 const ARMORED_COLUMNS_PER_LINE: usize = 64;
 const ARMORED_BYTES_PER_LINE: usize = ARMORED_COLUMNS_PER_LINE / 4 * 3;
@@ -525,17 +529,14 @@ pub enum ArmoredReadError {
     InvalidUtf8,
     /// A line of the armor contains a `\r` character.
     LineContainsCr,
-    /// A line of the armor is missing a line ending.
-    ///
-    /// In practice, this only enforces a newline after the end marker, because the parser
-    /// splits the input on newlines, so a missing line ending internally would instead be
-    /// interpreted as either `ArmoredReadError::LineContainsCr` or
-    /// `ArmoredReadError::NotWrappedAt64Chars`.
-    MissingLineEnding,
+    /// The final Base64 line is non-canonical.
+    MissingPadding,
     /// The armor is not wrapped at 64 characters.
     NotWrappedAt64Chars,
     /// There is a short line in the middle of the armor (only the final line may be short).
     ShortLineInMiddle,
+    /// There are trailing non-whitespace characters after the end marker.
+    TrailingGarbage,
 }
 
 impl fmt::Display for ArmoredReadError {
@@ -545,12 +546,20 @@ impl fmt::Display for ArmoredReadError {
             ArmoredReadError::InvalidBeginMarker => write!(f, "invalid armor begin marker"),
             ArmoredReadError::InvalidUtf8 => write!(f, "stream did not contain valid UTF-8"),
             ArmoredReadError::LineContainsCr => write!(f, "line contains CR"),
-            ArmoredReadError::MissingLineEnding => write!(f, "missing line ending"),
+            ArmoredReadError::MissingPadding => {
+                write!(f, "invalid armor (last line is missing padding)")
+            }
             ArmoredReadError::NotWrappedAt64Chars => {
                 write!(f, "invalid armor (not wrapped at 64 characters)")
             }
             ArmoredReadError::ShortLineInMiddle => {
                 write!(f, "invalid armor (short line in middle of encoding)")
+            }
+            ArmoredReadError::TrailingGarbage => {
+                write!(
+                    f,
+                    "invalid armor (non-whitespace characters after end marker)"
+                )
             }
         }
     }
@@ -737,10 +746,11 @@ impl<R> ArmoredReader<R> {
         } else if self.line_buf.ends_with('\n') {
             self.line_buf.trim_end_matches('\n')
         } else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                ArmoredReadError::MissingLineEnding,
-            ));
+            // If the line does not end in a `\n`, then it must be the final line in the
+            // file, because we parse the file into lines by splitting on `\n`. This will
+            // either be an invalid line (and be caught as a different error), or the end
+            // marker (which we allow to omit a trailing `\n`).
+            &self.line_buf
         };
         if line.contains('\r') {
             return Err(io::Error::new(
@@ -757,6 +767,15 @@ impl<R> ArmoredReader<R> {
         } else {
             match (self.found_short_line, line.len()) {
                 (false, ARMORED_COLUMNS_PER_LINE) => (),
+                (false, n) if n % 4 != 0 => {
+                    // The `base64` crate does not (yet) support canonical decoding.
+                    // Handle this ourselves until the upstream issue is closed:
+                    // https://github.com/marshallpierce/rust-base64/issues/182
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        ArmoredReadError::MissingPadding,
+                    ));
+                }
                 (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
                     // The format may contain a single short line at the end.
                     self.found_short_line = true;
@@ -833,7 +852,22 @@ impl<R: BufRead> Read for ArmoredReader<R> {
 
             // Parse the line into bytes
             if self.parse_armor_line()? {
-                // This was the last line!
+                // This was the last line! Check for trailing garbage.
+                loop {
+                    let amt = match self.inner.fill_buf()? {
+                        &[] => break,
+                        buf => {
+                            if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    ArmoredReadError::TrailingGarbage,
+                                ));
+                            }
+                            buf.len()
+                        }
+                    };
+                    self.inner.consume(amt);
+                }
                 break;
             }
 
@@ -844,6 +878,61 @@ impl<R: BufRead> Read for ArmoredReader<R> {
         }
 
         Ok(buf_len - buf.len())
+    }
+}
+
+/// Copied from `futures_util::io::read_until::read_until_internal`.
+#[cfg(feature = "async")]
+fn read_until_internal<R: AsyncBufRead + ?Sized>(
+    mut reader: Pin<&mut R>,
+    cx: &mut Context<'_>,
+    byte: u8,
+    buf: &mut Vec<u8>,
+    read: &mut usize,
+) -> Poll<io::Result<usize>> {
+    loop {
+        let (done, used) = {
+            let available = ready!(reader.as_mut().poll_fill_buf(cx))?;
+            if let Some(i) = memchr::memchr(byte, available) {
+                buf.extend_from_slice(&available[..=i]);
+                (true, i + 1)
+            } else {
+                buf.extend_from_slice(available);
+                (false, available.len())
+            }
+        };
+        reader.as_mut().consume(used);
+        *read += used;
+        if done || used == 0 {
+            return Poll::Ready(Ok(mem::replace(read, 0)));
+        }
+    }
+}
+
+/// Adapted from `futures_util::io::read_line::read_line_internal`.
+#[cfg(feature = "async")]
+fn read_line_internal<R: AsyncBufRead + ?Sized>(
+    reader: Pin<&mut R>,
+    cx: &mut Context<'_>,
+    buf: &mut String,
+    bytes: &mut Vec<u8>,
+    read: &mut usize,
+) -> Poll<io::Result<usize>> {
+    let ret = ready!(read_until_internal(reader, cx, b'\n', bytes, read));
+    match String::from_utf8(mem::take(bytes)) {
+        Err(_) => Poll::Ready(ret.and_then(|_| {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                ArmoredReadError::InvalidUtf8,
+            ))
+        })),
+        Ok(mut line) => {
+            debug_assert!(buf.is_empty());
+            debug_assert_eq!(*read, 0);
+            // Safety: `bytes` is a valid UTF-8 because `str::from_utf8` returned `Ok`.
+            mem::swap(buf, &mut line);
+            Poll::Ready(ret)
+        }
     }
 }
 
@@ -891,34 +980,40 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
 
                     // Read the next line
                     {
+                        // Emulates `AsyncBufReadExt::read_line`.
                         let mut this = self.as_mut().project();
-                        let available = loop {
-                            let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
-                            if buf.contains(&b'\n') {
-                                break buf;
-                            }
-                        };
-                        let pos = available
-                            .iter()
-                            .position(|c| *c == b'\n')
-                            .expect("contains LF byte")
-                            + 1;
-
-                        this.line_buf
-                            .push_str(std::str::from_utf8(&available[..pos]).map_err(|_| {
-                                io::Error::new(
-                                    io::ErrorKind::InvalidData,
-                                    ArmoredReadError::InvalidUtf8,
-                                )
-                            })?);
-
-                        this.inner.as_mut().consume(pos);
-                        self.count_reader_bytes(pos);
+                        let buf: &mut String = &mut this.line_buf;
+                        let mut bytes = mem::take(buf).into_bytes();
+                        let mut read = 0;
+                        ready!(read_line_internal(
+                            this.inner.as_mut(),
+                            cx,
+                            buf,
+                            &mut bytes,
+                            &mut read,
+                        ))
                     }
+                    .map(|read| self.count_reader_bytes(read))?;
 
                     // Parse the line into bytes.
                     let read = if self.parse_armor_line()? {
-                        // This was the last line!
+                        // This was the last line! Check for trailing garbage.
+                        let mut this = self.as_mut().project();
+                        loop {
+                            let amt = match ready!(this.inner.as_mut().poll_fill_buf(cx))? {
+                                &[] => break,
+                                buf => {
+                                    if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                                        return Poll::Ready(Err(io::Error::new(
+                                            io::ErrorKind::InvalidData,
+                                            ArmoredReadError::TrailingGarbage,
+                                        )));
+                                    }
+                                    buf.len()
+                                }
+                            };
+                            this.inner.as_mut().consume(amt);
+                        }
                         0
                     } else {
                         // Output as much as we can of this line.
