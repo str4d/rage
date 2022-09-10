@@ -18,6 +18,10 @@ to 1.0.0 are beta releases.
   stanzas (instead of ignoring or accepting them respectively), matching the
   [age specification](https://c2sp.org/age#scrypt-recipient-stanza).
 - `age::armor::ArmoredReader`:
+  - It now correctly implements strict parsing as defined in
+    [RFC 7468](https://www.rfc-editor.org/rfc/rfc7468.html#section-3), and
+    rejects armored files with non-canonical final lines (where padding bytes
+    are omitted).
   - It now rejects armored files with non-whitespace characters after the end
     marker.
   - It now accepts armored files with no newline after the end marker.

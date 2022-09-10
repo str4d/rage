@@ -529,6 +529,8 @@ pub enum ArmoredReadError {
     InvalidUtf8,
     /// A line of the armor contains a `\r` character.
     LineContainsCr,
+    /// The final Base64 line is non-canonical.
+    MissingPadding,
     /// The armor is not wrapped at 64 characters.
     NotWrappedAt64Chars,
     /// There is a short line in the middle of the armor (only the final line may be short).
@@ -544,6 +546,9 @@ impl fmt::Display for ArmoredReadError {
             ArmoredReadError::InvalidBeginMarker => write!(f, "invalid armor begin marker"),
             ArmoredReadError::InvalidUtf8 => write!(f, "stream did not contain valid UTF-8"),
             ArmoredReadError::LineContainsCr => write!(f, "line contains CR"),
+            ArmoredReadError::MissingPadding => {
+                write!(f, "invalid armor (last line is missing padding)")
+            }
             ArmoredReadError::NotWrappedAt64Chars => {
                 write!(f, "invalid armor (not wrapped at 64 characters)")
             }
@@ -762,6 +767,15 @@ impl<R> ArmoredReader<R> {
         } else {
             match (self.found_short_line, line.len()) {
                 (false, ARMORED_COLUMNS_PER_LINE) => (),
+                (false, n) if n % 4 != 0 => {
+                    // The `base64` crate does not (yet) support canonical decoding.
+                    // Handle this ourselves until the upstream issue is closed:
+                    // https://github.com/marshallpierce/rust-base64/issues/182
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        ArmoredReadError::MissingPadding,
+                    ));
+                }
                 (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
                     // The format may contain a single short line at the end.
                     self.found_short_line = true;
