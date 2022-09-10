@@ -399,6 +399,9 @@ fn check_decrypt_error(filename: &str, testfile: TestFile, e: DecryptError) {
                 .contains(&filename)
             {
                 assert_eq!(testfile.expect, Expect::ArmorFailure);
+            } else if testfile.armored && ["armor_whitespace_outside"].contains(&filename) {
+                // This decryption error is expected, because we do not support parsing
+                // armored files with leading whitespace (due to how we detect armoring).
             } else {
                 assert_eq!(testfile.expect, Expect::HeaderFailure);
             }
