@@ -9,6 +9,11 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- Encryption now returns an error if the file would be encrypted to no
+  recipients. This can occur if only `-R/--recipients-file` flags are provided,
+  and they all point to files that contain only "#" prefixed comments and empty
+  lines.
 
 ## [0.8.1] - 2022-06-18
 ### Security

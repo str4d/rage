@@ -15,6 +15,11 @@ to 1.0.0 are beta releases.
 - `age::ssh`:
   - `impl Clone for Identity`
 
+### Changed
+- `age::Encryptor::with_recipients` now returns `Option<Encryptor>`, with `None`
+  returned if the provided list of recipients is empty (to prevent files being
+  encrypted to no recipients).
+
 ### Fixed
 - `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
   stanzas (instead of ignoring or accepting them respectively), matching the

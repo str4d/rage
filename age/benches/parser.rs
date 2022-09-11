@@ -24,6 +24,7 @@ fn bench(c: &mut Criterion) {
                     .map(|r| r as Box<dyn Recipient>)
                     .collect(),
             )
+            .unwrap()
             .wrap_output(&mut encrypted)
             .unwrap();
             output.write_all(&[]).unwrap();
