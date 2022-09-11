@@ -377,12 +377,15 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::MissingRecipients);
         }
 
-        age::Encryptor::with_recipients(read_recipients(
+        match age::Encryptor::with_recipients(read_recipients(
             opts.recipient,
             opts.recipients_file,
             opts.identity,
             opts.max_work_factor,
-        )?)
+        )?) {
+            Some(encryptor) => encryptor,
+            None => return Err(error::EncryptError::MissingRecipients),
+        }
     };
 
     let (format, output_format) = if opts.armor {

@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- Migrated to `aead 0.5`.
 
 ## [0.8.0] - 2022-05-02
 ### Added

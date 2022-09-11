@@ -59,10 +59,12 @@ enum EncryptorType {
 pub struct Encryptor(EncryptorType);
 
 impl Encryptor {
-    /// Returns an `Encryptor` that will create an age file encrypted to a list of
+    /// Constructs an `Encryptor` that will create an age file encrypted to a list of
     /// recipients.
-    pub fn with_recipients(recipients: Vec<Box<dyn Recipient>>) -> Self {
-        Encryptor(EncryptorType::Keys(recipients))
+    ///
+    /// Returns `None` if no recipients were provided.
+    pub fn with_recipients(recipients: Vec<Box<dyn Recipient>>) -> Option<Self> {
+        (!recipients.is_empty()).then(|| Encryptor(EncryptorType::Keys(recipients)))
     }
 
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
@@ -242,7 +244,7 @@ mod tests {
         let test_msg = b"This is a test message. For testing.";
 
         let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(recipients);
+        let e = Encryptor::with_recipients(recipients).unwrap();
         {
             let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
@@ -269,7 +271,7 @@ mod tests {
         let mut cx = noop_context();
 
         let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(recipients);
+        let e = Encryptor::with_recipients(recipients).unwrap();
         {
             let w = {
                 let f = e.wrap_async_output(&mut encrypted);
