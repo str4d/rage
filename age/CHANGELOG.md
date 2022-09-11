@@ -12,6 +12,8 @@ to 1.0.0 are beta releases.
 ### Added
 - `age::armor::ArmoredReadError`, used to wrap armor-specific read errors inside
   `std::io::Error`.
+- `age::ssh`:
+  - `impl Clone for Identity`
 
 ### Fixed
 - `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
