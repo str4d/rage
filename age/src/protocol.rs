@@ -50,7 +50,7 @@ impl Nonce {
 /// Handles the various types of age encryption.
 enum EncryptorType {
     /// Encryption to a list of recipients identified by keys.
-    Keys(Vec<Box<dyn Recipient>>),
+    Keys(Vec<Box<dyn Recipient + Send>>),
     /// Encryption to a passphrase.
     Passphrase(SecretString),
 }
@@ -63,7 +63,7 @@ impl Encryptor {
     /// recipients.
     ///
     /// Returns `None` if no recipients were provided.
-    pub fn with_recipients(recipients: Vec<Box<dyn Recipient>>) -> Option<Self> {
+    pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
         (!recipients.is_empty()).then(|| Encryptor(EncryptorType::Keys(recipients)))
     }
 
