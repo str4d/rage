@@ -21,7 +21,7 @@ fn bench(c: &mut Criterion) {
                     .iter()
                     .take(count)
                     .cloned()
-                    .map(|r| r as Box<dyn Recipient>)
+                    .map(|r| r as Box<dyn Recipient + Send>)
                     .collect(),
             )
             .unwrap()

@@ -38,7 +38,7 @@ impl IdentityFileEntry {
     pub(crate) fn to_recipient(
         &self,
         callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Recipient>, EncryptError> {
+    ) -> Result<Box<dyn crate::Recipient + Send>, EncryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
             #[cfg(feature = "plugin")]

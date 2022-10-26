@@ -56,7 +56,7 @@ macro_rules! warning {
 fn parse_recipient(
     filename: &str,
     s: String,
-    recipients: &mut Vec<Box<dyn Recipient>>,
+    recipients: &mut Vec<Box<dyn Recipient + Send>>,
     plugin_recipients: &mut Vec<plugin::Recipient>,
 ) -> Result<(), error::EncryptError> {
     if let Ok(pk) = s.parse::<age::x25519::Recipient>() {
@@ -93,7 +93,7 @@ fn parse_recipient(
 fn read_recipients_list<R: BufRead>(
     filename: &str,
     buf: R,
-    recipients: &mut Vec<Box<dyn Recipient>>,
+    recipients: &mut Vec<Box<dyn Recipient + Send>>,
     plugin_recipients: &mut Vec<plugin::Recipient>,
 ) -> io::Result<()> {
     for (line_number, line) in buf.lines().enumerate() {
@@ -130,8 +130,8 @@ fn read_recipients(
     recipients_file_strings: Vec<String>,
     identity_strings: Vec<String>,
     max_work_factor: Option<u8>,
-) -> Result<Vec<Box<dyn Recipient>>, error::EncryptError> {
-    let mut recipients: Vec<Box<dyn Recipient>> = vec![];
+) -> Result<Vec<Box<dyn Recipient + Send>>, error::EncryptError> {
+    let mut recipients: Vec<Box<dyn Recipient + Send>> = vec![];
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
     let mut plugin_identities: Vec<plugin::Identity> = vec![];
 
