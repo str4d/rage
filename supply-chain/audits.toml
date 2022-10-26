@@ -1,0 +1,8 @@
+
+# cargo-vet audits file
+
+[criteria.crypto-reviewed]
+description = "The cryptographic code in this crate has been reviewed for correctness by a member of a designated set of cryptography experts within the project."
+
+[audits]
+
