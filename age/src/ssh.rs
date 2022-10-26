@@ -162,7 +162,7 @@ mod decrypt {
 mod read_asn1 {
     use nom::{
         bytes::complete::{tag, take},
-        combinator::{map, map_opt},
+        combinator::{map, map_opt, map_res},
         error::{make_error, ErrorKind},
         multi::{length_data, length_value},
         sequence::{preceded, terminated, tuple},
@@ -261,7 +261,7 @@ mod read_asn1 {
                 preceded(
                     tag_version(0),
                     terminated(
-                        map(
+                        map_res(
                             tuple((integer, integer, integer, integer, integer)),
                             |(n, e, d, p, q)| {
                                 rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q])
@@ -418,7 +418,7 @@ mod read_ssh {
     fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
         delimited(
             string_tag(SSH_RSA_KEY_PREFIX),
-            map(
+            map_res(
                 tuple((mpint, mpint, mpint, mpint, mpint, mpint)),
                 |(n, e, d, _iqmp, p, q)| rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]),
             ),

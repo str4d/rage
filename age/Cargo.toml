@@ -46,7 +46,7 @@ bech32 = "0.9"
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
 num-traits = { version = "0.2", optional = true }
-rsa = { version = "0.6", optional = true }
+rsa = { version = "0.7", default-features = false, optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = { version = "3", optional = true }
