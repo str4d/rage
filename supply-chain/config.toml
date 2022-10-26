@@ -1,6 +1,16 @@
 
 # cargo-vet config file
 
+[imports.firefox]
+url = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[imports.zcashd]
+url = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[imports.zcashd.criteria-map]]
+ours = "crypto-reviewed"
+theirs = "crypto-reviewed"
+
 [policy.age]
 audit-as-crates-io = false
 
@@ -51,10 +61,6 @@ criteria = "safe-to-run"
 
 [[exemptions.atty]]
 version = "0.2.14"
-criteria = "safe-to-deploy"
-
-[[exemptions.autocfg]]
-version = "1.1.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.backtrace]]
@@ -151,10 +157,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.cipher]]
 version = "0.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.cipher]]
-version = "0.4.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap]]
@@ -333,22 +335,6 @@ criteria = "safe-to-run"
 version = "1.0.24"
 criteria = "safe-to-deploy"
 
-[[exemptions.fluent]]
-version = "0.16.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.fluent-bundle]]
-version = "0.15.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.fluent-langneg]]
-version = "0.13.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.fluent-syntax]]
-version = "0.11.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.fuse_mt]]
 version = "0.6.0"
 criteria = "safe-to-deploy"
@@ -425,17 +411,9 @@ criteria = "safe-to-deploy"
 version = "1.8.2"
 criteria = "safe-to-run"
 
-[[exemptions.hashbrown]]
-version = "0.12.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.hermit-abi]]
 version = "0.1.19"
 criteria = "safe-to-deploy"
-
-[[exemptions.hex]]
-version = "0.4.3"
-criteria = "safe-to-run"
 
 [[exemptions.hkdf]]
 version = "0.12.3"
@@ -481,16 +459,8 @@ criteria = "safe-to-run"
 version = "0.11.12"
 criteria = "safe-to-run"
 
-[[exemptions.inout]]
-version = "0.1.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.instant]]
 version = "0.1.12"
-criteria = "safe-to-deploy"
-
-[[exemptions.intl-memoizer]]
-version = "0.5.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.intl_pluralrules]]
@@ -545,10 +515,6 @@ criteria = "safe-to-deploy"
 version = "0.4.9"
 criteria = "safe-to-deploy"
 
-[[exemptions.log]]
-version = "0.4.17"
-criteria = "safe-to-deploy"
-
 [[exemptions.malloc_buf]]
 version = "0.0.6"
 criteria = "safe-to-deploy"
@@ -596,18 +562,6 @@ criteria = "safe-to-deploy"
 [[exemptions.num-format]]
 version = "0.4.3"
 criteria = "safe-to-run"
-
-[[exemptions.num-integer]]
-version = "0.1.45"
-criteria = "safe-to-deploy"
-
-[[exemptions.num-iter]]
-version = "0.1.43"
-criteria = "safe-to-deploy"
-
-[[exemptions.num-traits]]
-version = "0.2.15"
-criteria = "safe-to-deploy"
 
 [[exemptions.num_cpus]]
 version = "1.13.1"
@@ -753,10 +707,6 @@ criteria = "safe-to-run"
 version = "1.0.0"
 criteria = "safe-to-run"
 
-[[exemptions.quote]]
-version = "1.0.21"
-criteria = "safe-to-deploy"
-
 [[exemptions.rand]]
 version = "0.7.3"
 criteria = "safe-to-deploy"
@@ -784,14 +734,6 @@ criteria = "safe-to-deploy"
 [[exemptions.rand_hc]]
 version = "0.2.0"
 criteria = "safe-to-deploy"
-
-[[exemptions.rayon]]
-version = "1.5.3"
-criteria = "safe-to-run"
-
-[[exemptions.rayon-core]]
-version = "1.9.3"
-criteria = "safe-to-run"
 
 [[exemptions.redox_syscall]]
 version = "0.2.16"
@@ -844,10 +786,6 @@ criteria = "safe-to-deploy"
 [[exemptions.rustc-demangle]]
 version = "0.1.21"
 criteria = "safe-to-run"
-
-[[exemptions.rustc-hash]]
-version = "1.1.0"
-criteria = "safe-to-deploy"
 
 [[exemptions.ryu]]
 version = "1.0.11"
@@ -953,10 +891,6 @@ criteria = "safe-to-run"
 version = "1.0.103"
 criteria = "safe-to-deploy"
 
-[[exemptions.synstructure]]
-version = "0.12.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.tar]]
 version = "0.4.38"
 criteria = "safe-to-deploy"
@@ -1013,10 +947,6 @@ criteria = "safe-to-deploy"
 version = "0.2.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.tinystr]]
-version = "0.3.4"
-criteria = "safe-to-deploy"
-
 [[exemptions.tinytemplate]]
 version = "1.2.1"
 criteria = "safe-to-run"
@@ -1043,10 +973,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.unic-langid]]
 version = "0.9.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.unic-langid-impl]]
-version = "0.9.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]
