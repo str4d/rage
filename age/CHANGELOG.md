@@ -16,6 +16,7 @@ to 1.0.0 are beta releases.
   - `impl Clone for Identity`
 
 ### Changed
+- MSRV is now 1.59.0.
 - `age::Encryptor::with_recipients` now returns `Option<Encryptor>`, with `None`
   returned if the provided list of recipients is empty (to prevent files being
   encrypted to no recipients). The `recipients` argument is also now

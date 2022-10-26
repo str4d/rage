@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- MSRV is now 1.59.0.
+
 ### Fixed
 - Encryption now returns an error if the file would be encrypted to no
   recipients. This can occur if only `-R/--recipients-file` flags are provided,
