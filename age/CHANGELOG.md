@@ -18,7 +18,10 @@ to 1.0.0 are beta releases.
 ### Changed
 - `age::Encryptor::with_recipients` now returns `Option<Encryptor>`, with `None`
   returned if the provided list of recipients is empty (to prevent files being
-  encrypted to no recipients).
+  encrypted to no recipients). The `recipients` argument is also now
+  `Vec<Box<dyn age::Recipient + Send>>`.
+- `age::encrypted::Identity::recipients` now returns
+  `Vec<Box<dyn age::Recipient + Send>>`.
 
 ### Fixed
 - `age::Decryptor` now rejects invalid or non-canonical `scrypt` recipient
