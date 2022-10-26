@@ -48,7 +48,7 @@ impl<R: io::Read> IdentityState<R> {
                 let passphrase = match callbacks.request_passphrase(&fl!(
                     crate::i18n::LANGUAGE_LOADER,
                     "encrypted-passphrase-prompt",
-                    filename = filename.as_deref().unwrap_or_default()
+                    filename = filename.unwrap_or_default()
                 )) {
                     Some(passphrase) => passphrase,
                     None => todo!(),

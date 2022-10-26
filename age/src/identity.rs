@@ -27,8 +27,8 @@ impl IdentityFileEntry {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::IdentityPluginV1::new(
-                &i.plugin().to_owned(),
-                &[i],
+                i.plugin(),
+                &[i.clone()],
                 callbacks,
             )?)),
         }
@@ -43,7 +43,7 @@ impl IdentityFileEntry {
             IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::RecipientPluginV1::new(
-                &i.plugin().to_owned(),
+                i.plugin(),
                 &[],
                 &[i.clone()],
                 callbacks,

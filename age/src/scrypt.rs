@@ -130,7 +130,7 @@ impl<'a> crate::Identity for Identity<'a> {
 
         // Place bounds on the work factor we will accept (roughly 16 seconds).
         let target = target_scrypt_work_factor();
-        if log_n > self.max_work_factor.unwrap_or_else(|| target + 4) {
+        if log_n > self.max_work_factor.unwrap_or(target + 4) {
             return Some(Err(DecryptError::ExcessiveWork {
                 required: log_n,
                 target,

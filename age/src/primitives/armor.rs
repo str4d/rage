@@ -269,7 +269,7 @@ enum ArmorIs<W> {
         #[pin]
         inner: LineEndingWriter<W>,
         byte_buf: Option<Vec<u8>>,
-        encoded_buf: [u8; BASE64_CHUNK_SIZE_COLUMNS],
+        encoded_buf: Box<[u8; BASE64_CHUNK_SIZE_COLUMNS]>,
         #[cfg(feature = "async")]
         #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
         encoded_line: Option<EncodedBytes>,
@@ -293,7 +293,7 @@ impl<W: Write> ArmoredWriter<W> {
                 ArmoredWriter(ArmorIs::Enabled {
                     inner: w,
                     byte_buf: Some(Vec::with_capacity(BASE64_CHUNK_SIZE_BYTES)),
-                    encoded_buf: [0; BASE64_CHUNK_SIZE_COLUMNS],
+                    encoded_buf: Box::new([0; BASE64_CHUNK_SIZE_COLUMNS]),
                     #[cfg(feature = "async")]
                     encoded_line: None,
                 })
@@ -317,7 +317,7 @@ impl<W: Write> ArmoredWriter<W> {
             } => {
                 let byte_buf = byte_buf.unwrap();
                 let encoded =
-                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf);
+                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf[..]);
                 inner.write_all(&encoded_buf[..encoded])?;
                 inner.finish()
             }
@@ -359,10 +359,14 @@ impl<W: Write> Write for ArmoredWriter<W> {
                         break;
                     } else {
                         assert_eq!(
-                            base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf),
+                            base64::encode_config_slice(
+                                &byte_buf,
+                                base64::STANDARD,
+                                &mut encoded_buf[..],
+                            ),
                             BASE64_CHUNK_SIZE_COLUMNS
                         );
-                        inner.write_all(encoded_buf)?;
+                        inner.write_all(&encoded_buf[..])?;
                         byte_buf.clear();
                     };
                 }
@@ -390,7 +394,7 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
             Format::AsciiArmor => ArmoredWriter(ArmorIs::Enabled {
                 inner: LineEndingWriter::new_async(output),
                 byte_buf: Some(Vec::with_capacity(BASE64_CHUNK_SIZE_BYTES)),
-                encoded_buf: [0; BASE64_CHUNK_SIZE_COLUMNS],
+                encoded_buf: Box::new([0; BASE64_CHUNK_SIZE_COLUMNS]),
                 encoded_line: None,
             }),
             Format::Binary => ArmoredWriter(ArmorIs::Disabled { inner: output }),
@@ -455,7 +459,11 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                     // line must be written in poll_close().
                     if !buf.is_empty() {
                         assert_eq!(
-                            base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf),
+                            base64::encode_config_slice(
+                                &byte_buf,
+                                base64::STANDARD,
+                                &mut encoded_buf[..],
+                            ),
                             ARMORED_COLUMNS_PER_LINE
                         );
                         *encoded_line = Some(EncodedBytes {
@@ -499,7 +507,8 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
             if let Some(byte_buf) = byte_buf {
                 // Finish the armored format with a partial line (if necessary) and the end
                 // marker.
-                let encoded = base64::encode_config_slice(&byte_buf, base64::STANDARD, encoded_buf);
+                let encoded =
+                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf[..]);
                 *encoded_line = Some(EncodedBytes {
                     offset: 0,
                     end: encoded,
@@ -982,7 +991,7 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
                     {
                         // Emulates `AsyncBufReadExt::read_line`.
                         let mut this = self.as_mut().project();
-                        let buf: &mut String = &mut this.line_buf;
+                        let buf: &mut String = this.line_buf;
                         let mut bytes = mem::take(buf).into_bytes();
                         let mut read = 0;
                         ready!(read_line_internal(
