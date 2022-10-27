@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.9.0] - 2022-10-27
 ### Added
 - `age::armor::ArmoredReadError`, used to wrap armor-specific read errors inside
   `std::io::Error`.
