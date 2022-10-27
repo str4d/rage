@@ -1,9 +1,9 @@
 class Rage < Formula
     desc "[BETA] A simple, secure, and modern encryption tool."
     homepage "https://str4d.xyz/rage"
-    url "https://github.com/str4d/rage/archive/v0.8.1.tar.gz"
-    sha256 "f9f39c987d398163bb2e843e02b0008d86842cb30d70b4c1e3470d9a4b9de87d"
-    version "0.8.1"
+    url "https://github.com/str4d/rage/archive/v0.9.0.tar.gz"
+    sha256 "f5756004061f974e79607224864ceb3fdd50367272cc58aa5a755929cf1c70a3"
+    version "0.9.0"
 
     depends_on "rust" => :build
 
