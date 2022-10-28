@@ -429,76 +429,89 @@ who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.1 -> 1.0.3"
 
-[audits.zcashd.criteria.crypto-reviewed]
+[audits.zcash.criteria.crypto-reviewed]
 description = "The cryptographic code in this crate has been reviewed for correctness by a member of a designated set of cryptography experts within the project."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[audits.zcashd.criteria.license-reviewed]
+[audits.zcash.criteria.license-reviewed]
 description = "The license of this crate has been reviewed for compatibility with its usage in this repository. If the crate is not available under the MIT license, `contrib/debian/copyright` has been updated with a corresponding copyright notice for files under `depends/*/vendored-sources/CRATE_NAME`."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.aead]]
+[[audits.zcash.audits.aead]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.4.3 -> 0.5.1"
 notes = "Adds an AeadCore::generate_nonce function to generate random nonces, given a CryptoRng."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.chacha20]]
+[[audits.zcash.audits.chacha20]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = ["crypto-reviewed", "safe-to-deploy"]
 delta = "0.8.1 -> 0.8.2"
 notes = "Unpins zeroize."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.chacha20]]
+[[audits.zcash.audits.chacha20]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.8.2 -> 0.9.0"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.chacha20poly1305]]
+[[audits.zcash.audits.chacha20poly1305]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = ["crypto-reviewed", "safe-to-deploy"]
 delta = "0.9.0 -> 0.9.1"
 notes = "Unpins zeroize."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.chacha20poly1305]]
+[[audits.zcash.audits.chacha20poly1305]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.9.1 -> 0.10.1"
 notes = "This mainly adapts to API changes between aead 0.4 and aead 0.5."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cipher]]
+[[audits.zcash.audits.cipher]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.3.0 -> 0.4.3"
 notes = "Significant rework of (mainly RustCrypto-internal) APIs."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cpufeatures]]
+[[audits.zcash.audits.cpufeatures]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.2.2 -> 0.2.5"
 notes = "Unsafe changes just introduce `#[inline(never)]` wrappers."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.crypto-common]]
+[[audits.zcash.audits.crypto-common]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = ["crypto-reviewed", "safe-to-deploy"]
 delta = "0.1.3 -> 0.1.6"
 notes = "New trait and type alias look fine."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxx]]
+[[audits.zcash.audits.cxx]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.68 -> 1.0.72"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxx]]
+[[audits.zcash.audits.cxx]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.72 -> 1.0.76"
 notes = "Impls Unpin for SharedPtr and UniquePtr. The rationale makes sense."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxx]]
+[[audits.zcash.audits.cxx]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.76 -> 1.0.78"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxx]]
+[[audits.zcash.audits.cxx]]
 who = "Kris Nuttycombe <kris@nutty.land>"
 criteria = "safe-to-deploy"
 delta = "1.0.78 -> 1.0.79"
@@ -507,55 +520,65 @@ This release changes the result of the `cxxbridge` `exception` call to return
 a struct containing both the pointer to an error message and its length,
 instead of just the raw `*const u8`.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-flags]]
+[[audits.zcash.audits.cxxbridge-flags]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.68 -> 1.0.72"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-flags]]
+[[audits.zcash.audits.cxxbridge-flags]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.72 -> 1.0.76"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-flags]]
+[[audits.zcash.audits.cxxbridge-flags]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.76 -> 1.0.78"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-flags]]
+[[audits.zcash.audits.cxxbridge-flags]]
 who = "Kris Nuttycombe <kris@nutty.land>"
 criteria = "safe-to-deploy"
 delta = "1.0.78 -> 1.0.79"
 notes = "This is exclusively an update to the `cxxbridge` dependency version."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-macro]]
+[[audits.zcash.audits.cxxbridge-macro]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.68 -> 1.0.72"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-macro]]
+[[audits.zcash.audits.cxxbridge-macro]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.72 -> 1.0.76"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-macro]]
+[[audits.zcash.audits.cxxbridge-macro]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.76 -> 1.0.78"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-macro]]
+[[audits.zcash.audits.cxxbridge-macro]]
 who = "Kris Nuttycombe <kris@nutty.land>"
 criteria = "safe-to-deploy"
 delta = "1.0.78 -> 1.0.79"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.cxxbridge-macro]]
+[[audits.zcash.audits.cxxbridge-macro]]
 who = "Kris Nuttycombe <kris@nutty.land>"
 criteria = "safe-to-deploy"
 delta = "1.0.78 -> 1.0.79"
 notes = "This is exclusively an update to the `cxxbridge` dependency version."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.getrandom]]
+[[audits.zcash.audits.getrandom]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.2.6 -> 0.2.7"
@@ -563,138 +586,162 @@ notes = """
 Checked that getrandom::wasi::getrandom_inner matches wasi::random_get.
 Checked that getrandom::util_libc::Weak lock ordering matches std::sys::unix::weak::DlsymWeak.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.indexmap]]
+[[audits.zcash.audits.indexmap]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.8.1 -> 1.9.1"
 notes = "I'm satisfied that the assertion guarding the new unsafe block is correct."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.inout]]
+[[audits.zcash.audits.inout]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 version = "0.1.3"
 notes = "Reviewed in full."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.itoa]]
+[[audits.zcash.audits.itoa]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.1 -> 1.0.3"
 notes = "Update makes no changes to code."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.libm]]
+[[audits.zcash.audits.libm]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.2.2 -> 0.2.5"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.link-cplusplus]]
+[[audits.zcash.audits.link-cplusplus]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.6 -> 1.0.7"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.lock_api]]
+[[audits.zcash.audits.lock_api]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.4.7 -> 0.4.9"
 notes = "The unsafe changes fix soundness bugs. The unsafe additions in the new ArcMutexGuard::into_arc method seem fine, but it should probably have used ManuallyDrop instead of mem::forget."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.log]]
+[[audits.zcash.audits.log]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.4.16 -> 0.4.17"
 notes = "I confirmed that the unsafe transmutes are fine; NonZeroU128 and NonZeroI128 are `#[repr(transparent)]` wrappers around u128 and i128 respectively."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.num-integer]]
+[[audits.zcash.audits.num-integer]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.1.44 -> 0.1.45"
 notes = "Fixes some argument-handling panic bugs."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.parking_lot]]
+[[audits.zcash.audits.parking_lot]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.11.2 -> 0.12.1"
 notes = "Most `unsafe {}` changes were to reduce the scope of the unsafe blocks. I didn't closely review the migration to the asm! macro but it looks reasonable."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.parking_lot_core]]
+[[audits.zcash.audits.parking_lot_core]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "0.8.5 -> 0.9.3"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.poly1305]]
+[[audits.zcash.audits.poly1305]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.7.2 -> 0.8.0"
 notes = "Changes to unsafe (avx2) code look reasonable."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.proc-macro2]]
+[[audits.zcash.audits.proc-macro2]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.37 -> 1.0.41"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.serde]]
+[[audits.zcash.audits.serde]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.136 -> 1.0.143"
 notes = "Bumps serde-derive and adds some constructors."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.serde]]
+[[audits.zcash.audits.serde]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.143 -> 1.0.145"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.serde_derive]]
+[[audits.zcash.audits.serde_derive]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.136 -> 1.0.143"
 notes = "Bumps syn, inverts some build flags."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.serde_derive]]
+[[audits.zcash.audits.serde_derive]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.143 -> 1.0.145"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.syn]]
+[[audits.zcash.audits.syn]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.91 -> 1.0.98"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.thiserror]]
+[[audits.zcash.audits.thiserror]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.30 -> 1.0.32"
 notes = "Bumps thiserror-impl, no code changes."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.thiserror]]
+[[audits.zcash.audits.thiserror]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.32 -> 1.0.37"
 notes = "The new build script invokes rustc to determine whether it supports the Provider API. The only side-effect is it overwrites `$OUT_DIR/probe.rs`, which is fine because it is unique to the thiserror package."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.thiserror-impl]]
+[[audits.zcash.audits.thiserror-impl]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.30 -> 1.0.32"
 notes = "Only change is to refine an error message."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.thiserror-impl]]
+[[audits.zcash.audits.thiserror-impl]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.32 -> 1.0.37"
 notes = "Proc macro changes migrating to the Provider API look fine."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.unicode-ident]]
+[[audits.zcash.audits.unicode-ident]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 version = "1.0.2"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.universal-hash]]
+[[audits.zcash.audits.universal-hash]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "0.4.1 -> 0.5.0"
 notes = "I checked correctness of to_blocks which uses unsafe code in a safe function."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.windows_aarch64_msvc]]
+[[audits.zcash.audits.windows_aarch64_msvc]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-run"
 version = "0.36.1"
@@ -704,8 +751,9 @@ the Windows SDK to avoid a direct dependency on the latter. See
 https://github.com/microsoft/windows-rs/pull/1217 for context. I did not
 audit the binary blob, but the build script looks fine.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.windows_i686_gnu]]
+[[audits.zcash.audits.windows_i686_gnu]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-run"
 version = "0.36.1"
@@ -715,8 +763,9 @@ the Windows SDK to avoid a direct dependency on the latter. See
 https://github.com/microsoft/windows-rs/pull/1217 for context. I did not
 audit the binary blob, but the build script looks fine.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.windows_i686_msvc]]
+[[audits.zcash.audits.windows_i686_msvc]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-run"
 version = "0.36.1"
@@ -726,8 +775,9 @@ the Windows SDK to avoid a direct dependency on the latter. See
 https://github.com/microsoft/windows-rs/pull/1217 for context. I did not
 audit the binary blob, but the build script looks fine.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.windows_x86_64_gnu]]
+[[audits.zcash.audits.windows_x86_64_gnu]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-run"
 version = "0.36.1"
@@ -737,8 +787,9 @@ the Windows SDK to avoid a direct dependency on the latter. See
 https://github.com/microsoft/windows-rs/pull/1217 for context. I did not
 audit the binary blob, but the build script looks fine.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.windows_x86_64_msvc]]
+[[audits.zcash.audits.windows_x86_64_msvc]]
 who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-run"
 version = "0.36.1"
@@ -748,10 +799,12 @@ the Windows SDK to avoid a direct dependency on the latter. See
 https://github.com/microsoft/windows-rs/pull/1217 for context. I did not
 audit the binary blob, but the build script looks fine.
 """
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
-[[audits.zcashd.audits.zeroize]]
+[[audits.zcash.audits.zeroize]]
 who = "Daira Hopwood <daira@jacaranda.org>"
 criteria = "safe-to-deploy"
 delta = "1.4.3 -> 1.5.7"
 notes = "The zeroize_c_string unit test has UB, but that's very unlikely to cause a problem in practice."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
