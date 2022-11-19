@@ -9,8 +9,8 @@ use rand::{
 };
 use rpassword::prompt_password;
 use std::fmt;
-use std::fs::File;
-use std::io::{self, BufReader};
+use std::fs;
+use std::io::{self, Cursor};
 use subtle::ConstantTimeEq;
 
 use crate::{fl, identity::IdentityFile, wfl, Callbacks, Identity};
@@ -111,10 +111,13 @@ pub fn read_identities(
     let mut identities: Vec<Box<dyn Identity>> = vec![];
 
     for filename in filenames {
+        // Read the identity file in a single pass, and save to an in-memory buffer
+        let buf = Cursor::new(fs::read(&filename)?);
+
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
         if let Ok(identity) = crate::encrypted::Identity::from_buffer(
-            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            ArmoredReader::new(buf.clone()),
             Some(filename.clone()),
             UiCallbacks,
             max_work_factor,
@@ -129,10 +132,7 @@ pub fn read_identities(
 
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
-        match crate::ssh::Identity::from_buffer(
-            BufReader::new(File::open(&filename)?),
-            Some(filename.clone()),
-        ) {
+        match crate::ssh::Identity::from_buffer(buf.clone(), Some(filename.clone())) {
             Ok(crate::ssh::Identity::Unsupported(k)) => {
                 return Err(ReadError::UnsupportedKey(filename, k))
             }
@@ -146,11 +146,10 @@ pub fn read_identities(
         // when plugin feature is not enabled.
 
         // Try parsing as multiple single-line age identities.
-        let identity_file =
-            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
-                _ => e.into(),
-            })?;
+        let identity_file = IdentityFile::from_buffer(buf.clone()).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
+            _ => e.into(),
+        })?;
 
         for entry in identity_file.into_identities() {
             let entry = entry.into_identity(UiCallbacks);
