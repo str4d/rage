@@ -108,7 +108,7 @@ pub fn read_identities(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
 ) -> Result<Vec<Box<dyn Identity>>, ReadError> {
-    let mut identities: Vec<Box<dyn Identity>> = vec![];
+    let mut identities: Vec<Box<dyn Identity>> = Vec::with_capacity(filenames.len());
 
     for filename in filenames {
         #[cfg(feature = "armor")]

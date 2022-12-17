@@ -84,9 +84,9 @@ impl crate::Recipient for Recipient {
         let mut salt = [0; SALT_LEN];
         OsRng.fill_bytes(&mut salt);
 
-        let mut inner_salt = vec![];
-        inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
-        inner_salt.extend_from_slice(&salt);
+        let mut inner_salt = [0; SCRYPT_SALT_LABEL.len() + SALT_LEN];
+        inner_salt[..SCRYPT_SALT_LABEL.len()].copy_from_slice(SCRYPT_SALT_LABEL);
+        inner_salt[SCRYPT_SALT_LABEL.len()..].copy_from_slice(&salt);
 
         let log_n = target_scrypt_work_factor();
 
@@ -137,9 +137,9 @@ impl<'a> crate::Identity for Identity<'a> {
             }));
         }
 
-        let mut inner_salt = vec![];
-        inner_salt.extend_from_slice(SCRYPT_SALT_LABEL);
-        inner_salt.extend_from_slice(&salt);
+        let mut inner_salt = [0; SCRYPT_SALT_LABEL.len() + SALT_LEN];
+        inner_salt[..SCRYPT_SALT_LABEL.len()].copy_from_slice(SCRYPT_SALT_LABEL);
+        inner_salt[SCRYPT_SALT_LABEL.len()..].copy_from_slice(&salt);
 
         let enc_key = match scrypt(&inner_salt, log_n, self.passphrase.expose_secret()) {
             Ok(k) => k,

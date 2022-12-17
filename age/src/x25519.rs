@@ -120,9 +120,9 @@ impl crate::Identity for Identity {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        let mut salt = vec![];
-        salt.extend_from_slice(epk.as_bytes());
-        salt.extend_from_slice(pk.as_bytes());
+        let mut salt = [0; 64];
+        salt[..32].copy_from_slice(epk.as_bytes());
+        salt[32..].copy_from_slice(pk.as_bytes());
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
 
@@ -204,9 +204,9 @@ impl crate::Recipient for Recipient {
             panic!("Generated the all-zero esk; OS RNG is likely failing!");
         }
 
-        let mut salt = vec![];
-        salt.extend_from_slice(epk.as_bytes());
-        salt.extend_from_slice(self.0.as_bytes());
+        let mut salt = [0; 64];
+        salt[..32].copy_from_slice(epk.as_bytes());
+        salt[32..].copy_from_slice(self.0.as_bytes());
 
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
