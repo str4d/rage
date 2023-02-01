@@ -111,6 +111,7 @@ default = []
 armor = []
 async = ["futures", "memchr"]
 cli-common = ["atty", "console", "pinentry", "rpassword"]
+fatfree = []
 plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",

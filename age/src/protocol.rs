@@ -1,6 +1,6 @@
 //! Encryption and decryption routines for age.
 
-use age_core::{format::grease_the_joint, secrecy::SecretString};
+use age_core::secrecy::SecretString;
 use rand::{rngs::OsRng, RngCore};
 use std::io::{self, Read, Write};
 
@@ -89,8 +89,10 @@ impl Encryptor {
                 for recipient in recipients {
                     stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
                 }
-                // Keep the joint well oiled!
-                stanzas.push(grease_the_joint());
+                #[cfg(not(feature = "fatfree"))] {
+                    // Keep the joint well oiled!
+                    stanzas.push(age_core::format::grease_the_joint());
+                }
                 stanzas
             }
             EncryptorType::Passphrase(passphrase) => {
