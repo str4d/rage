@@ -1,7 +1,7 @@
 //! The age file format.
 
 use age_core::format::Stanza;
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, Read, Write};
 
 use crate::{
     error::DecryptError,
@@ -80,6 +80,34 @@ impl Header {
                     let new_len = m + n.get();
                     data.resize(new_len, 0);
                     input.read_exact(&mut data[m..new_len])?;
+                }
+                Err(_) => {
+                    break Err(DecryptError::InvalidHeader);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn read_buffered<R: BufRead>(mut input: R) -> Result<Self, DecryptError> {
+        let mut data = vec![];
+        loop {
+            match read::header(&data) {
+                Ok((_, mut header)) => {
+                    if let Header::V1(h) = &mut header {
+                        h.encoded_bytes = Some(data);
+                    }
+                    break Ok(header);
+                }
+                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
+                    // As we have a buffered reader, we can leverage the fact that the
+                    // currently-defined header formats are newline-separated, to more
+                    // efficiently read data for the parser to consume.
+                    if input.read_until(b'\n', &mut data)? == 0 {
+                        break Err(DecryptError::Io(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "Incomplete header",
+                        )));
+                    }
                 }
                 Err(_) => {
                     break Err(DecryptError::InvalidHeader);

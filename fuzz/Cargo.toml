@@ -34,3 +34,9 @@ path = "fuzz_targets/header.rs"
 [[bin]]
 name = "decrypt"
 path = "fuzz_targets/decrypt.rs"
+
+[[bin]]
+name = "decrypt_buffered"
+path = "fuzz_targets/decrypt_buffered.rs"
+test = false
+doc = false

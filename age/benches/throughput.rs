@@ -70,7 +70,7 @@ fn bench(c: &mut Criterion_) {
             output.finish().unwrap();
 
             b.iter(|| {
-                let decryptor = match Decryptor::new(&ct_buf[..]).unwrap() {
+                let decryptor = match Decryptor::new_buffered(&ct_buf[..]).unwrap() {
                     Decryptor::Recipients(decryptor) => decryptor,
                     _ => panic!(),
                 };
