@@ -8,6 +8,7 @@
 //! a short 32-bit ID of the public key.
 
 use aes::{Aes128, Aes192, Aes256};
+use aes_gcm::Aes256Gcm;
 use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use sha2::{Digest, Sha256};
@@ -51,6 +52,7 @@ enum OpenSshCipher {
     Aes128Ctr,
     Aes192Ctr,
     Aes256Ctr,
+    Aes256Gcm,
 }
 
 impl OpenSshCipher {
@@ -65,6 +67,7 @@ impl OpenSshCipher {
             OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct)),
             OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct)),
             OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct)),
+            OpenSshCipher::Aes256Gcm => decrypt::aes_gcm::<Aes256Gcm>(kdf, p, ct),
         }
     }
 }
@@ -122,6 +125,7 @@ impl EncryptedKey {
 
 mod decrypt {
     use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher};
+    use aes_gcm::aead::{AeadMut, KeyInit};
     use age_core::secrecy::SecretString;
     use cipher::generic_array::{ArrayLength, GenericArray};
 
@@ -162,6 +166,18 @@ mod decrypt {
         let mut plaintext = ciphertext.to_vec();
         cipher.apply_keystream(&mut plaintext);
         plaintext
+    }
+
+    pub(super) fn aes_gcm<C: AeadMut + KeyInit>(
+        kdf: &OpenSshKdf,
+        passphrase: SecretString,
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>, DecryptError> {
+        let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase);
+        let mut cipher = C::new(&key);
+        cipher
+            .decrypt(&nonce, ciphertext)
+            .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 }
 
@@ -261,6 +277,9 @@ mod read_ssh {
                         }),
                         map(string_tag("aes256-ctr"), |_| {
                             CipherResult::Supported(OpenSshCipher::Aes256Ctr)
+                        }),
+                        map(string_tag("aes256-gcm@openssh.com"), |_| {
+                            CipherResult::Supported(OpenSshCipher::Aes256Gcm)
                         }),
                         map(string, |s| {
                             CipherResult::Unsupported(String::from_utf8_lossy(s).into_owned())

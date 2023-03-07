@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- Support for encrypted OpenSSH keys exported from 1Password.
 
 ## [0.9.0] - 2022-10-27
 ### Added
