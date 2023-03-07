@@ -8,9 +8,10 @@
 //! a short 32-bit ID of the public key.
 
 use aes::{Aes128, Aes192, Aes256};
-use aes_gcm::Aes256Gcm;
+use aes_gcm::{AeadCore, Aes256Gcm};
 use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
+use cipher::Unsigned;
 use sha2::{Digest, Sha256};
 
 use crate::error::DecryptError;
@@ -56,6 +57,17 @@ enum OpenSshCipher {
 }
 
 impl OpenSshCipher {
+    /// Returns the length of the authenticating part of the cipher (the tag of an AEAD).
+    fn auth_len(self) -> usize {
+        match self {
+            OpenSshCipher::Aes256Cbc
+            | OpenSshCipher::Aes128Ctr
+            | OpenSshCipher::Aes192Ctr
+            | OpenSshCipher::Aes256Ctr => 0,
+            OpenSshCipher::Aes256Gcm => <Aes256Gcm as AeadCore>::TagSize::USIZE,
+        }
+    }
+
     fn decrypt(
         self,
         kdf: &OpenSshKdf,
@@ -187,7 +199,7 @@ mod read_ssh {
     use nom::{
         branch::alt,
         bytes::complete::{tag, take},
-        combinator::{map, map_opt, map_parser, map_res, rest, verify},
+        combinator::{flat_map, map, map_opt, map_parser, map_res, recognize, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{delimited, pair, preceded, terminated, tuple},
@@ -413,26 +425,47 @@ mod read_ssh {
     ///
     /// - [Specification](https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.key)
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Identity> {
-        map_opt(
+        flat_map(
             pair(
                 preceded(tag(b"openssh-key-v1\x00"), encryption_header),
-                pair(
-                    preceded(
-                        // We only support a single key, like OpenSSH:
-                        // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
-                        tag(b"\x00\x00\x00\x01"),
-                        string, // The public key in SSH format
-                    ),
-                    string, // The private key in SSH format
+                preceded(
+                    // We only support a single key, like OpenSSH:
+                    // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
+                    tag(b"\x00\x00\x00\x01"),
+                    string, // The public key in SSH format
                 ),
             ),
-            |(encryption, (ssh_key, private))| match &encryption {
-                None => {
-                    let (_, privkey) = openssh_unencrypted_privkey(ssh_key)(private).ok()?;
-                    Some(privkey)
-                }
-                Some((CipherResult::Supported(cipher), kdf)) => Some(
-                    EncryptedKey {
+            openssh_privkey_inner,
+        )(input)
+    }
+
+    /// Encrypted, padded list of private keys.
+    fn openssh_privkey_inner<'a>(
+        (encryption, ssh_key): (Option<(CipherResult, OpenSshKdf)>, &'a [u8]),
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Identity> {
+        // `PROTOCOL.key` specifies that the encrypted list of private keys is encoded as
+        // a `string`, but this is incorrect when AEAD ciphertexts are used. For what I
+        // can only assume are backwards-compatibility reasons, the `string` part encodes
+        // the ciphertext without tag, and the tag is just appended to the encoding. So
+        // you can only parse the full data structure by interpreting the encryption
+        // header.
+        let expected_remainder = encryption.as_ref().map_or(0, |(cipher_res, _)| {
+            if let CipherResult::Supported(cipher) = cipher_res {
+                cipher.auth_len()
+            } else {
+                0
+            }
+        });
+
+        move |input: &[u8]| match &encryption {
+            None => map_parser(string, openssh_unencrypted_privkey(ssh_key))(input),
+            Some((cipher_res, kdf)) => map(
+                map_parser(
+                    recognize(pair(string, take(expected_remainder))),
+                    preceded(be_u32, rest),
+                ),
+                |private| match cipher_res {
+                    CipherResult::Supported(cipher) => EncryptedKey {
                         ssh_key: ssh_key.to_vec(),
                         cipher: *cipher,
                         kdf: kdf.clone(),
@@ -440,12 +473,12 @@ mod read_ssh {
                         filename: None,
                     }
                     .into(),
-                ),
-                Some((CipherResult::Unsupported(cipher), _)) => {
-                    Some(UnsupportedKey::EncryptedSsh(cipher.clone()).into())
-                }
-            },
-        )(input)
+                    CipherResult::Unsupported(cipher) => {
+                        UnsupportedKey::EncryptedSsh(cipher.clone()).into()
+                    }
+                },
+            )(input),
+        }
     }
 
     /// An SSH-encoded RSA public key.
