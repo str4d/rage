@@ -121,23 +121,32 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes::cipher::{
-        block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher, Unsigned,
-    };
+    use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher};
     use age_core::secrecy::SecretString;
+    use cipher::generic_array::{ArrayLength, GenericArray};
 
     use super::OpenSshKdf;
     use crate::error::DecryptError;
+
+    fn derive_key_material<KeySize: ArrayLength<u8>, IvSize: ArrayLength<u8>>(
+        kdf: &OpenSshKdf,
+        passphrase: SecretString,
+    ) -> (GenericArray<u8, KeySize>, GenericArray<u8, IvSize>) {
+        let kdf_output = kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE);
+        let (key, iv) = kdf_output.split_at(KeySize::USIZE);
+        (
+            GenericArray::from_exact_iter(key.iter().copied()).expect("key is correct length"),
+            GenericArray::from_exact_iter(iv.iter().copied()).expect("iv is correct length"),
+        )
+    }
 
     pub(super) fn aes_cbc<C: BlockDecryptMut + KeyIvInit>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        let kdf_output = kdf.derive(passphrase, C::KeySize::USIZE + C::IvSize::USIZE);
-        let (key, iv) = kdf_output.split_at(C::KeySize::USIZE);
-
-        let cipher = C::new_from_slices(key, iv).expect("key and IV are correct length");
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+        let cipher = C::new(&key, &iv);
         cipher
             .decrypt_padded_vec_mut::<NoPadding>(ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
@@ -148,11 +157,8 @@ mod decrypt {
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Vec<u8> {
-        let kdf_output = kdf.derive(passphrase, C::KeySize::USIZE + C::IvSize::USIZE);
-        let (key, nonce) = kdf_output.split_at(C::KeySize::USIZE);
-
-        let mut cipher = C::new_from_slices(key, nonce).expect("key and nonce are correct length");
-
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+        let mut cipher = C::new(&key, &iv);
         let mut plaintext = ciphertext.to_vec();
         cipher.apply_keystream(&mut plaintext);
         plaintext
