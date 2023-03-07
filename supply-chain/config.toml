@@ -1,6 +1,15 @@
 
 # cargo-vet config file
 
+[imports.bytecode-alliance]
+url = "https://raw.githubusercontent.com/bytecodealliance/wasmtime/main/supply-chain/audits.toml"
+
+[imports.embark-studios]
+url = "https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/audits.toml"
+
+[imports.isrg]
+url = "https://raw.githubusercontent.com/divviup/libprio-rs/main/supply-chain/audits.toml"
+
 [imports.mozilla]
 url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 
@@ -51,18 +60,6 @@ criteria = "safe-to-run"
 version = "0.7.19"
 criteria = "safe-to-deploy"
 
-[[exemptions.arrayvec]]
-version = "0.7.2"
-criteria = "safe-to-run"
-
-[[exemptions.atty]]
-version = "0.2.14"
-criteria = "safe-to-deploy"
-
-[[exemptions.backtrace]]
-version = "0.3.66"
-criteria = "safe-to-run"
-
 [[exemptions.base64]]
 version = "0.13.1"
 criteria = "safe-to-deploy"
@@ -87,10 +84,6 @@ criteria = "safe-to-deploy"
 version = "0.1.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.block-buffer]]
-version = "0.10.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.block-padding]]
 version = "0.3.2"
 criteria = "safe-to-deploy"
@@ -102,10 +95,6 @@ criteria = "safe-to-deploy"
 [[exemptions.bstr]]
 version = "0.2.17"
 criteria = "safe-to-run"
-
-[[exemptions.bumpalo]]
-version = "3.11.1"
-criteria = "safe-to-deploy"
 
 [[exemptions.bytemuck]]
 version = "1.12.1"
@@ -129,14 +118,6 @@ criteria = "safe-to-run"
 
 [[exemptions.cbc]]
 version = "0.1.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.cc]]
-version = "1.0.73"
-criteria = "safe-to-deploy"
-
-[[exemptions.cfg-if]]
-version = "1.0.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.chacha20]]
@@ -170,10 +151,6 @@ criteria = "safe-to-run"
 [[exemptions.clap_lex]]
 version = "0.2.4"
 criteria = "safe-to-run"
-
-[[exemptions.codespan-reporting]]
-version = "0.11.1"
-criteria = "safe-to-deploy"
 
 [[exemptions.console]]
 version = "0.15.2"
@@ -233,10 +210,6 @@ criteria = "safe-to-run"
 
 [[exemptions.crossbeam-utils]]
 version = "0.8.12"
-criteria = "safe-to-deploy"
-
-[[exemptions.crypto-common]]
-version = "0.1.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.csv]]
@@ -571,10 +544,6 @@ criteria = "safe-to-deploy"
 version = "11.1.3"
 criteria = "safe-to-run"
 
-[[exemptions.opaque-debug]]
-version = "0.3.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.os_str_bytes]]
 version = "6.3.0"
 criteria = "safe-to-run"
@@ -597,10 +566,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.pbkdf2]]
 version = "0.11.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.percent-encoding]]
-version = "2.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project]]
@@ -665,10 +630,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.proc-macro-error-attr]]
 version = "1.0.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.proc-macro2]]
-version = "1.0.47"
 criteria = "safe-to-deploy"
 
 [[exemptions.quick-xml]]
@@ -758,10 +719,6 @@ criteria = "safe-to-deploy"
 [[exemptions.rust-embed-utils]]
 version = "7.3.0"
 criteria = "safe-to-deploy"
-
-[[exemptions.rustc-demangle]]
-version = "0.1.21"
-criteria = "safe-to-run"
 
 [[exemptions.ryu]]
 version = "1.0.11"
@@ -955,10 +912,6 @@ criteria = "safe-to-deploy"
 version = "0.2.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.universal-hash]]
-version = "0.5.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.users]]
 version = "0.11.0"
 criteria = "safe-to-deploy"
@@ -1003,10 +956,6 @@ criteria = "safe-to-deploy"
 version = "0.2.83"
 criteria = "safe-to-deploy"
 
-[[exemptions.wasm-bindgen-shared]]
-version = "0.2.83"
-criteria = "safe-to-deploy"
-
 [[exemptions.web-sys]]
 version = "0.3.60"
 criteria = "safe-to-deploy"
@@ -1029,38 +978,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.winapi-x86_64-pc-windows-gnu]]
 version = "0.4.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-sys]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_aarch64_gnullvm]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_aarch64_msvc]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_gnu]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_msvc]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_gnu]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_gnullvm]]
-version = "0.42.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_msvc]]
-version = "0.42.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.wsl]]
