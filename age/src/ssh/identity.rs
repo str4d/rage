@@ -455,6 +455,17 @@ KjW7kUOJnI8dAeaqJa18P7XkAuzcuZmVoCTurqEOSeb5Ww9Nq0csB0zkF22/PeWy3+BZW5
 hDsL1OfQl4WbakZQ==
 -----END OPENSSH PRIVATE KEY-----",
         ),
+        (
+            "aes256-gcm@openssh.com",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAAFmFlczI1Ni1nY21Ab3BlbnNzaC5jb20AAAAGYmNyeXB0AA
+AAGAAAABCPl8ey+kOWEfNDWjsOW+yeAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAA
+IHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkHK4lAYpbPto7eVDnl7RM5
+smu3f1Gi/Ov305gASYkCWxL3cvzxTgP2prG7ky4FS5EnFeCoZU4GR49nMjTtJwVJz9vUmQ
+csGgRF9XqsdNcNwroWoIeejitFjrQ/n+zVreeMtCWU3gvVSHV97ZhcBVCxCQyPdeaQoUr9
+k38nvmwdar9EY4Mb7LrSqR6oybE/g9Hjg6cxzVcvDQKga6tJVM5oY=
+-----END OPENSSH PRIVATE KEY-----",
+        ),
     ];
     pub(crate) const TEST_SSH_ED25519_SK: &str = TEST_SSH_ED25519_SK_LIST[0].1;
 
