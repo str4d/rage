@@ -1,282 +1,84 @@
 
 # cargo-vet imports lock
 
-[[audits.firefox.audits.android_system_properties]]
-who = "Nicolas Silva <nical@fastmail.com>"
-criteria = "safe-to-deploy"
-version = "0.1.2"
-notes = "I wrote this crate, reviewed by jimb. It is mostly a Rust port of some C++ code we already ship."
-
-[[audits.firefox.audits.android_system_properties]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.1.2 -> 0.1.4"
-
-[[audits.firefox.audits.autocfg]]
+[[audits.mozilla.audits.autocfg]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "1.1.0"
 notes = "All code written or reviewed by Josh Stone."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.bumpalo]]
-who = "Bobby Holley <bobbyholley@gmail.com>"
-criteria = "safe-to-run"
-delta = "3.9.1 -> 3.10.0"
-notes = """
-Some nontrivial functional changes but certainly meets the no-malware bar of
-safe-to-run. If we needed safe-to-deploy for this in m-c I'd ask Nick to re-
-certify this version, but we don't, so this is fine for now.
-"""
-
-[[audits.firefox.audits.clap_lex]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.0 -> 0.2.2"
-
-[[audits.firefox.audits.clap_lex]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.2 -> 0.2.4"
-
-[[audits.firefox.audits.cpufeatures]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.2 -> 0.2.4"
-
-[[audits.firefox.audits.crossbeam-channel]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.5.4 -> 0.5.6"
-
-[[audits.firefox.audits.crossbeam-deque]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.8.1 -> 0.8.2"
-
-[[audits.firefox.audits.crossbeam-epoch]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.9.8 -> 0.9.10"
-
-[[audits.firefox.audits.crossbeam-utils]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.8.8 -> 0.8.11"
-
-[[audits.firefox.audits.crypto-common]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.1.3 -> 0.1.6"
-
-[[audits.firefox.audits.either]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.6.1 -> 1.7.0"
-
-[[audits.firefox.audits.either]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.7.0 -> 1.8.0"
-
-[[audits.firefox.audits.fastrand]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.7.0 -> 1.8.0"
-
-[[audits.firefox.audits.fluent]]
+[[audits.mozilla.audits.fluent]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.16.0"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.fluent-bundle]]
+[[audits.mozilla.audits.fluent-bundle]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.15.2"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.fluent-langneg]]
+[[audits.mozilla.audits.fluent-langneg]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.13.0"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.fluent-syntax]]
+[[audits.mozilla.audits.fluent-syntax]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.11.0"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.futures]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-channel]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-core]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-executor]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-io]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-macro]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-sink]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-task]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.futures-util]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.3.21 -> 0.3.23"
-
-[[audits.firefox.audits.generic-array]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.14.5 -> 0.14.6"
-
-[[audits.firefox.audits.getrandom]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.6 -> 0.2.7"
-
-[[audits.firefox.audits.hashbrown]]
+[[audits.mozilla.audits.hashbrown]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 version = "0.12.3"
 notes = "This version is used in rust's libstd, so effectively we're already trusting it"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.hex]]
+[[audits.mozilla.audits.hex]]
 who = "Simon Friedberger <simon@mozilla.com>"
 criteria = "safe-to-deploy"
 version = "0.4.3"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.indexmap]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.8.2 -> 1.9.1"
-
-[[audits.firefox.audits.intl-memoizer]]
+[[audits.mozilla.audits.intl-memoizer]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.5.1"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.intl_pluralrules]]
-who = "Zibi Braniecki <zibi@unicode.org>"
-criteria = "safe-to-deploy"
-version = "7.0.1"
-
-[[audits.firefox.audits.itoa]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.2 -> 1.0.3"
-
-[[audits.firefox.audits.libc]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.126 -> 0.2.132"
-
-[[audits.firefox.audits.log]]
+[[audits.mozilla.audits.log]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 version = "0.4.17"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.memmap2]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.5.4 -> 0.5.7"
-
-[[audits.firefox.audits.num-integer]]
+[[audits.mozilla.audits.num-integer]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "0.1.45"
 notes = "All code written or reviewed by Josh Stone."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.num-iter]]
+[[audits.mozilla.audits.num-iter]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "0.1.43"
 notes = "All code written or reviewed by Josh Stone."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.num-traits]]
+[[audits.mozilla.audits.num-traits]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "0.2.15"
 notes = "All code written or reviewed by Josh Stone."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.once_cell]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.12.0 -> 1.13.1"
-
-[[audits.firefox.audits.os_str_bytes]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "6.1.0 -> 6.3.0"
-
-[[audits.firefox.audits.pin-project]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-run"
-delta = "1.0.10 -> 1.0.12"
-
-[[audits.firefox.audits.pin-project-internal]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-run"
-delta = "1.0.10 -> 1.0.12"
-
-[[audits.firefox.audits.proc-macro2]]
-who = "Nika Layzell <nika@thelayzells.com>"
-criteria = "safe-to-deploy"
-version = "1.0.39"
-notes = """
-`proc-macro2` acts as either a thin(-ish) wrapper around the std-provided
-`proc_macro` crate, or as a fallback implementation of the crate, depending on
-where it is used.
-
-If using this crate on older versions of rustc (1.56 and earlier), it will
-temporarily replace the panic handler while initializing in order to detect if
-it is running within a `proc_macro`, which could lead to surprising behaviour.
-This should not be an issue for more recent compiler versions, which support
-`proc_macro::is_available()`.
-
-The `proc-macro2` crate's fallback behaviour is not identical to the complex
-behaviour of the rustc compiler (e.g. it does not perform unicode normalization
-for identifiers), however it behaves well enough for its intended use-case
-(tests and scripts processing rust code).
-
-`proc-macro2` does not use unsafe code, however exposes one `unsafe` API to
-allow bypassing checks in the fallback implementation when constructing
-`Literal` using `from_str_unchecked`. This was intended to only be used by the
-`quote!` macro, however it has been removed
-(https://github.com/dtolnay/quote/commit/f621fe64a8a501cae8e95ebd6848e637bbc79078),
-and is likely completely unused. Even when used, this API shouldn't be able to
-cause unsoundness.
-"""
-
-[[audits.firefox.audits.proc-macro2]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.39 -> 1.0.43"
-
-[[audits.firefox.audits.quote]]
+[[audits.mozilla.audits.quote]]
 who = "Nika Layzell <nika@thelayzells.com>"
 criteria = "safe-to-deploy"
 version = "1.0.18"
@@ -290,96 +92,36 @@ This crate contains no unsafe code, and the internal logic, while difficult to
 read, is generally straightforward. I have audited the the quote macros, ident
 formatter, and runtime logic.
 """
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.quote]]
+[[audits.mozilla.audits.quote]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "1.0.18 -> 1.0.21"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.rayon]]
+[[audits.mozilla.audits.rayon]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "1.5.3"
 notes = "All code written or reviewed by Josh Stone or Niko Matsakis."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.rayon-core]]
+[[audits.mozilla.audits.rayon-core]]
 who = "Josh Stone <jistone@redhat.com>"
 criteria = "safe-to-deploy"
 version = "1.9.3"
 notes = "All code written or reviewed by Josh Stone or Niko Matsakis."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.redox_syscall]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.2.13 -> 0.2.16"
-
-[[audits.firefox.audits.regex]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.5.6 -> 1.6.0"
-
-[[audits.firefox.audits.regex-syntax]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.6.26 -> 0.6.27"
-
-[[audits.firefox.audits.rustc-hash]]
+[[audits.mozilla.audits.rustc-hash]]
 who = "Bobby Holley <bobbyholley@gmail.com>"
 criteria = "safe-to-deploy"
 version = "1.1.0"
 notes = "Straightforward crate with no unsafe code, does what it says on the tin."
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.ryu]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.10 -> 1.0.11"
-
-[[audits.firefox.audits.serde]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.137 -> 1.0.143"
-
-[[audits.firefox.audits.serde]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.143 -> 1.0.144"
-
-[[audits.firefox.audits.serde_derive]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.137 -> 1.0.143"
-
-[[audits.firefox.audits.serde_derive]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.143 -> 1.0.144"
-
-[[audits.firefox.audits.serde_json]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.81 -> 1.0.83"
-
-[[audits.firefox.audits.serde_json]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.83 -> 1.0.85"
-
-[[audits.firefox.audits.slab]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "0.4.6 -> 0.4.7"
-
-[[audits.firefox.audits.smallvec]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.8.0 -> 1.9.0"
-
-[[audits.firefox.audits.syn]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.96 -> 1.0.99"
-
-[[audits.firefox.audits.synstructure]]
+[[audits.mozilla.audits.synstructure]]
 who = "Nika Layzell <nika@thelayzells.com>"
 criteria = "safe-to-deploy"
 version = "0.12.6"
@@ -388,46 +130,19 @@ I am the primary author of the `synstructure` crate, and its current
 maintainer. The one use of `unsafe` is unnecessary, but documented and
 harmless. It will be removed in the next version.
 """
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.thiserror]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.31 -> 1.0.32"
-
-[[audits.firefox.audits.thiserror-impl]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.31 -> 1.0.32"
-
-[[audits.firefox.audits.tinystr]]
+[[audits.mozilla.audits.tinystr]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.3.4"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
-[[audits.firefox.audits.tinystr]]
-who = "Zibi Braniecki <zibi@unicode.org>"
-criteria = "safe-to-deploy"
-version = "0.6.0"
-
-[[audits.firefox.audits.unic-langid]]
+[[audits.mozilla.audits.unic-langid-impl]]
 who = "Zibi Braniecki <zibi@unicode.org>"
 criteria = "safe-to-deploy"
 version = "0.9.0"
-
-[[audits.firefox.audits.unic-langid-impl]]
-who = "Zibi Braniecki <zibi@unicode.org>"
-criteria = "safe-to-deploy"
-version = "0.9.0"
-
-[[audits.firefox.audits.unicode-ident]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.0 -> 1.0.1"
-
-[[audits.firefox.audits.unicode-ident]]
-who = "Mike Hommey <mh+mozilla@glandium.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.1 -> 1.0.3"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
 [audits.zcash.criteria.crypto-reviewed]
 description = "The cryptographic code in this crate has been reviewed for correctness by a member of a designated set of cryptography experts within the project."
@@ -807,4 +522,3 @@ criteria = "safe-to-deploy"
 delta = "1.4.3 -> 1.5.7"
 notes = "The zeroize_c_string unit test has UB, but that's very unlikely to cause a problem in practice."
 aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
-
