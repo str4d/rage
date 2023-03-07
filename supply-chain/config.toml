@@ -51,10 +51,6 @@ criteria = "safe-to-run"
 version = "0.7.19"
 criteria = "safe-to-deploy"
 
-[[exemptions.android_system_properties]]
-version = "0.1.5"
-criteria = "safe-to-deploy"
-
 [[exemptions.arrayvec]]
 version = "0.7.2"
 criteria = "safe-to-run"
@@ -283,10 +279,6 @@ criteria = "safe-to-deploy"
 version = "5.4.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.debugid]]
-version = "0.8.0"
-criteria = "safe-to-run"
-
 [[exemptions.der]]
 version = "0.6.0"
 criteria = "safe-to-deploy"
@@ -297,10 +289,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
 version = "0.10.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.either]]
-version = "1.8.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.encode_unicode]]
@@ -407,10 +395,6 @@ criteria = "safe-to-deploy"
 version = "0.8.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.half]]
-version = "1.8.2"
-criteria = "safe-to-run"
-
 [[exemptions.hermit-abi]]
 version = "0.1.19"
 criteria = "safe-to-deploy"
@@ -463,10 +447,6 @@ criteria = "safe-to-run"
 version = "0.1.12"
 criteria = "safe-to-deploy"
 
-[[exemptions.intl_pluralrules]]
-version = "7.0.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.io_tee]]
 version = "0.1.1"
 criteria = "safe-to-deploy"
@@ -489,10 +469,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.js-sys]]
 version = "0.3.60"
-criteria = "safe-to-deploy"
-
-[[exemptions.lazy_static]]
-version = "1.4.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]
@@ -823,10 +799,6 @@ criteria = "safe-to-deploy"
 version = "1.0.147"
 criteria = "safe-to-deploy"
 
-[[exemptions.serde_cbor]]
-version = "0.11.2"
-criteria = "safe-to-run"
-
 [[exemptions.serde_derive]]
 version = "1.0.147"
 criteria = "safe-to-deploy"
@@ -969,10 +941,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.15.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.unic-langid]]
-version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]
