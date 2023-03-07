@@ -726,6 +726,7 @@ impl<R> ArmoredReader<R> {
     ///
     /// Returns the number of bytes read into the buffer, or None if there was no cached
     /// data.
+    #[cfg(feature = "async")]
     fn read_cached_data(&mut self, buf: &mut [u8]) -> Option<usize> {
         if self.byte_start >= self.byte_end {
             None
@@ -820,8 +821,8 @@ impl<R> ArmoredReader<R> {
     }
 }
 
-impl<R: BufRead> Read for ArmoredReader<R> {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+impl<R: BufRead> BufRead for ArmoredReader<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
         loop {
             match self.is_armored {
                 None => {
@@ -829,60 +830,97 @@ impl<R: BufRead> Read for ArmoredReader<R> {
                     self.detect_armor()?
                 }
                 Some(false) => {
-                    // Return any leftover data from armor detection
-                    return if let Some(read) = self.read_cached_data(buf) {
-                        Ok(read)
-                    } else {
-                        self.inner.read(buf).map(|read| {
-                            self.data_read += read;
-                            self.count_reader_bytes(read)
+                    break if self.byte_start >= self.byte_end {
+                        self.inner.read(&mut self.byte_buf[..]).map(|read| {
+                            self.byte_start = 0;
+                            self.byte_end = read;
+                            self.count_reader_bytes(read);
+                            &self.byte_buf[..read]
                         })
-                    };
+                    } else {
+                        Ok(&self.byte_buf[self.byte_start..self.byte_end])
+                    }
                 }
-                Some(true) => break,
+                Some(true) => {
+                    break if self.found_end {
+                        Ok(&[])
+                    } else if self.byte_start >= self.byte_end {
+                        if self.read_next_armor_line()? {
+                            Ok(&[])
+                        } else {
+                            Ok(&self.byte_buf[self.byte_start..self.byte_end])
+                        }
+                    } else {
+                        Ok(&self.byte_buf[self.byte_start..self.byte_end])
+                    }
+                }
             }
         }
-        if self.found_end {
-            return Ok(0);
-        }
+    }
 
+    fn consume(&mut self, amt: usize) {
+        self.byte_start += amt;
+        self.data_read += amt;
+        assert!(self.byte_start <= self.byte_end);
+    }
+}
+
+impl<R: BufRead> ArmoredReader<R> {
+    /// Fills `self.byte_buf` with the next line of armored data.
+    ///
+    /// Returns `true` if this was the last line.
+    fn read_next_armor_line(&mut self) -> io::Result<bool> {
+        assert_eq!(self.is_armored, Some(true));
+
+        // Read the next line
+        self.inner
+            .read_line(&mut self.line_buf)
+            .map(|read| self.count_reader_bytes(read))?;
+
+        // Parse the line into bytes
+        if self.parse_armor_line()? {
+            // This was the last line! Check for trailing garbage.
+            loop {
+                let amt = match self.inner.fill_buf()? {
+                    &[] => break,
+                    buf => {
+                        if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                ArmoredReadError::TrailingGarbage,
+                            ));
+                        }
+                        buf.len()
+                    }
+                };
+                self.inner.consume(amt);
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<R: BufRead> Read for ArmoredReader<R> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         let buf_len = buf.len();
 
-        // Output any remaining bytes from the previous line
-        if let Some(read) = self.read_cached_data(buf) {
-            buf = &mut buf[read..];
-        }
-
         while !buf.is_empty() {
-            // Read the next line
-            self.inner
-                .read_line(&mut self.line_buf)
-                .map(|read| self.count_reader_bytes(read))?;
+            match self.fill_buf()? {
+                [] => break,
+                next => {
+                    let read = cmp::min(next.len(), buf.len());
 
-            // Parse the line into bytes
-            if self.parse_armor_line()? {
-                // This was the last line! Check for trailing garbage.
-                loop {
-                    let amt = match self.inner.fill_buf()? {
-                        &[] => break,
-                        buf => {
-                            if buf.iter().any(|b| !b.is_ascii_whitespace()) {
-                                return Err(io::Error::new(
-                                    io::ErrorKind::InvalidData,
-                                    ArmoredReadError::TrailingGarbage,
-                                ));
-                            }
-                            buf.len()
-                        }
-                    };
-                    self.inner.consume(amt);
+                    if next.len() < buf.len() {
+                        buf[..read].copy_from_slice(next);
+                    } else {
+                        buf.copy_from_slice(&next[..read]);
+                    }
+
+                    self.consume(read);
+                    buf = &mut buf[read..];
                 }
-                break;
-            }
-
-            // Output as much as we can of this line
-            if let Some(read) = self.read_cached_data(buf) {
-                buf = &mut buf[read..];
             }
         }
 
@@ -1061,49 +1099,9 @@ impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
                     self.inner.read_exact(&mut self.byte_buf[..MIN_ARMOR_LEN])?;
                     self.detect_armor()?
                 }
-                Some(false) => {
-                    break if self.byte_start >= self.byte_end {
-                        // Map the data read onto the underlying stream.
-                        let start = self.start()?;
-                        let pos = match pos {
-                            SeekFrom::Start(offset) => SeekFrom::Start(start + offset),
-                            // Current and End positions don't need to be shifted.
-                            x => x,
-                        };
-                        self.inner.seek(pos)
-                    } else {
-                        // We are still inside the first line.
-                        match pos {
-                            SeekFrom::Start(offset) => self.byte_start = offset as usize,
-                            SeekFrom::Current(offset) => {
-                                let res = (self.byte_start as i64) + offset;
-                                if res >= 0 {
-                                    self.byte_start = res as usize;
-                                } else {
-                                    return Err(io::Error::new(
-                                        io::ErrorKind::InvalidData,
-                                        "cannot seek before the start",
-                                    ));
-                                }
-                            }
-                            SeekFrom::End(offset) => {
-                                let res = (self.line_buf.len() as i64) + offset;
-                                if res >= 0 {
-                                    self.byte_start = res as usize;
-                                } else {
-                                    return Err(io::Error::new(
-                                        io::ErrorKind::InvalidData,
-                                        "cannot seek before the start",
-                                    ));
-                                }
-                            }
-                        }
-                        Ok(self.byte_start as u64)
-                    };
-                }
-                Some(true) => {
+                Some(armored) => {
                     // Convert the offset into the target position within the data inside
-                    // the armor.
+                    // the (maybe) armor.
                     let start = self.start()?;
                     let target_pos = match pos {
                         SeekFrom::Start(offset) => offset,
@@ -1145,6 +1143,15 @@ impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
                             }
                         }
                     };
+
+                    if !armored {
+                        // We can seek directly on the inner reader.
+                        self.inner.seek(SeekFrom::Start(start + target_pos))?;
+                        self.byte_start = 0;
+                        self.byte_end = 0;
+                        self.data_read = target_pos as usize;
+                        break Ok(self.data_read as u64);
+                    }
 
                     // Jump back to the start of the armor data, and then read and drop
                     // until we reach the target position. This is very inefficient, but
