@@ -359,7 +359,7 @@ pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use age_core::secrecy::ExposeSecret;
+    use age_core::secrecy::{ExposeSecret, SecretString};
     use std::io::BufReader;
 
     use super::{Identity, UnsupportedKey};
@@ -368,7 +368,7 @@ pub(crate) mod tests {
             tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
             Recipient,
         },
-        Identity as _, Recipient as _,
+        Callbacks, Identity as _, Recipient as _,
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----
@@ -399,13 +399,75 @@ QIGpMU4gh6p52S1eLttpIf2+39rEDzo8pY6BVmEp3fKN3jWmGS4mJQ31tWefupC+
 fGNu+wyKxPnSU3svsuvrOdwwDKvfqCNyYK878qKAAaBqbGT1NJ8=
 -----END RSA PRIVATE KEY-----";
 
-    pub(crate) const TEST_SSH_ED25519_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+    /// The same SSH key either unencrypted or encrypted with the passphrase "passphrase".
+    const TEST_SSH_ED25519_SK_LIST: &[(&str, &str)] = &[
+        (
+            "none",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 QyNTUxOQAAACB7Ci6nqZYaVvrjm8+XbzII89TsXzP111AflR7WeorBjQAAAJCfEwtqnxML
 agAAAAtzc2gtZWQyNTUxOQAAACB7Ci6nqZYaVvrjm8+XbzII89TsXzP111AflR7WeorBjQ
 AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
 1OxfM/XXUB+VHtZ6isGNAAAADHN0cjRkQGNhcmJvbgE=
------END OPENSSH PRIVATE KEY-----";
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+        (
+            "aes256-cbc",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jYmMAAAAGYmNyeXB0AAAAGAAAABC0OgNmiw
+QW/kJ8kCmmTA2TAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uOb
+z5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkPhBKsZoNmaeuWYJQxOl+ofEmue/sFJnW+4IOt
+oTrS/orMBJ4b/phQcv/ejWYJ4RYYVhSLiI6hf0KwNGefxI90E8iG/yDOKcrxb34tqDEYrY
+FARDaJVRd9QtWLEqoP7pgdBR2BTP7aK1y6Mx3eFDgiQI9f/0Sjxd8V0apOPXv4i4kuQ1Nt
+LF7kNlDznn/nyZlg==
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+        (
+            "aes128-ctr",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczEyOC1jdHIAAAAGYmNyeXB0AAAAGAAAABBub+J2jZ
+gyLfNBpxN08TqrAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uOb
+z5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkLXOo/xKLiv8ToPkQ9l838+Lps5NAkJ/dnJLt9
+134yXn7q/7DLtsbc6KesgELApQ3Niwirqom+GwDiuNra8/JspF6iz9HZHPjFvdCLQkpQnZ
+eB6tzoh6FNmfP2HlQjmJ2w0dNMov4/0PKSAYOnW7kXq0Li/E/Gxju/raMa+pU5guk2B93v
+D/wSEe2BjjIuXZ8g==
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+        (
+            "aes192-ctr",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczE5Mi1jdHIAAAAGYmNyeXB0AAAAGAAAABCQRxCxO3
+qnd3DPzT+ICJvfAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uOb
+z5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkIZMU3zFGbvSR/gvmNd9qiKr+/XCxgE3NOCrWe
+dIAveOwKzR4eXNO94TN4FF6iZv5USO1m4Mjbn3jiW4pSB6lnfctOCBWR6QPtssH0ZrmXMW
+OeOG1Nmlj2FG8LmfVNNrZ9JnXVrQYNqbvkxShb90DEFJwHWRCpzXIJEUepFJPyUPB+xLAm
+QMSqncd3IdGNmcQQ==
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+        (
+            "aes256-ctr",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABBSs0SUhQ
+958xWERf6ibyf2AAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uOb
+z5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkLvH9UsJa+ulewsZT2YtEkme1y9UZKI/vUbTms
+LVqWdLprBQIm3IClfGso6IPW7+imkwYRHPKYfBYGYuexzO8b+LRiZU5/lDQmsvZA3asNxp
+KjW7kUOJnI8dAeaqJa18P7XkAuzcuZmVoCTurqEOSeb5Ww9Nq0csB0zkF22/PeWy3+BZW5
+hDsL1OfQl4WbakZQ==
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+        (
+            "aes256-gcm@openssh.com",
+            "-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAAFmFlczI1Ni1nY21Ab3BlbnNzaC5jb20AAAAGYmNyeXB0AA
+AAGAAAABCPl8ey+kOWEfNDWjsOW+yeAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAA
+IHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGNAAAAkHK4lAYpbPto7eVDnl7RM5
+smu3f1Gi/Ov305gASYkCWxL3cvzxTgP2prG7ky4FS5EnFeCoZU4GR49nMjTtJwVJz9vUmQ
+csGgRF9XqsdNcNwroWoIeejitFjrQ/n+zVreeMtCWU3gvVSHV97ZhcBVCxCQyPdeaQoUr9
+k38nvmwdar9EY4Mb7LrSqR6oybE/g9Hjg6cxzVcvDQKga6tJVM5oY=
+-----END OPENSSH PRIVATE KEY-----",
+        ),
+    ];
+    pub(crate) const TEST_SSH_ED25519_SK: &str = TEST_SSH_ED25519_SK_LIST[0].1;
 
     pub(crate) const TEST_SSH_ECDSA_SK: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAaAAAABNlY2RzYS
@@ -416,6 +478,27 @@ pFd/DMTEaz10/1pX0fnEB8RMgsx3uwsWCrI7HPUUDzgRlXS8p1blzQc8Hv8nFDDS8WY1JZ
 4AAAAgBQ5LA+stpdk3TYwB/4xhiOaDHzxaacv+u47ciigD8bQAAAAKc3RyNGRAY3ViZQEC
 AwQFBg==
 -----END OPENSSH PRIVATE KEY-----";
+
+    #[derive(Clone)]
+    struct TestPassphrase(&'static str);
+
+    impl Callbacks for TestPassphrase {
+        fn display_message(&self, _: &str) {
+            unimplemented!()
+        }
+
+        fn confirm(&self, _: &str, _: &str, _: Option<&str>) -> Option<bool> {
+            unimplemented!()
+        }
+
+        fn request_public_string(&self, _: &str) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn request_passphrase(&self, _: &str) -> Option<SecretString> {
+            Some(SecretString::new(self.0.to_owned()))
+        }
+    }
 
     #[test]
     fn ssh_rsa_round_trip() {
@@ -439,22 +522,29 @@ AwQFBg==
 
     #[test]
     fn ssh_ed25519_round_trip() {
-        let buf = BufReader::new(TEST_SSH_ED25519_SK.as_bytes());
-        let identity = Identity::from_buffer(buf, None).unwrap();
-        match &identity {
-            Identity::Unencrypted(_) => (),
-            _ => panic!("key should be unencrypted"),
-        };
-        let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
+        for (kind, sk) in TEST_SSH_ED25519_SK_LIST {
+            eprintln!("Testing cipher '{}'", kind);
+            let buf = BufReader::new(sk.as_bytes());
+            let identity = Identity::from_buffer(buf, None).unwrap();
+            match (*kind, &identity) {
+                ("none", Identity::Unencrypted(_)) => (),
+                ("none", _) => panic!("key should be unencrypted"),
+                (_, Identity::Encrypted(_)) => (),
+                (_, Identity::Unsupported(_)) => panic!("{} cipher is unsupported", kind),
+                (_, _) => panic!("key should be encrypted"),
+            };
+            let identity = identity.with_callbacks(TestPassphrase("passphrase"));
+            let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
 
-        let file_key = [12; 16].into();
+            let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key).unwrap();
-        let unwrapped = identity.unwrap_stanzas(&wrapped);
-        assert_eq!(
-            unwrapped.unwrap().unwrap().expose_secret(),
-            file_key.expose_secret()
-        );
+            let wrapped = pk.wrap_file_key(&file_key).unwrap();
+            let unwrapped = identity.unwrap_stanzas(&wrapped);
+            assert_eq!(
+                unwrapped.unwrap().unwrap().expose_secret(),
+                file_key.expose_secret()
+            );
+        }
     }
 
     #[test]
