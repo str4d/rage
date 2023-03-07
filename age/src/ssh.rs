@@ -61,10 +61,10 @@ impl OpenSshCipher {
         ct: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
         match self {
-            OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256CbcDec>(kdf, p, ct, 32),
-            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct, 16)),
-            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct, 24)),
-            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct, 32)),
+            OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256CbcDec>(kdf, p, ct),
+            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct)),
+            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct)),
+            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct)),
         }
     }
 }
@@ -121,7 +121,9 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher};
+    use aes::cipher::{
+        block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher, Unsigned,
+    };
     use age_core::secrecy::SecretString;
 
     use super::OpenSshKdf;
@@ -131,10 +133,9 @@ mod decrypt {
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
-        key_len: usize,
     ) -> Result<Vec<u8>, DecryptError> {
-        let kdf_output = kdf.derive(passphrase, key_len + 16);
-        let (key, iv) = kdf_output.split_at(key_len);
+        let kdf_output = kdf.derive(passphrase, C::KeySize::USIZE + C::IvSize::USIZE);
+        let (key, iv) = kdf_output.split_at(C::KeySize::USIZE);
 
         let cipher = C::new_from_slices(key, iv).expect("key and IV are correct length");
         cipher
@@ -146,10 +147,9 @@ mod decrypt {
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
-        key_len: usize,
     ) -> Vec<u8> {
-        let kdf_output = kdf.derive(passphrase, key_len + 16);
-        let (key, nonce) = kdf_output.split_at(key_len);
+        let kdf_output = kdf.derive(passphrase, C::KeySize::USIZE + C::IvSize::USIZE);
+        let (key, nonce) = kdf_output.split_at(C::KeySize::USIZE);
 
         let mut cipher = C::new_from_slices(key, nonce).expect("key and nonce are correct length");
 
