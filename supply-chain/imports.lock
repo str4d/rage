@@ -283,6 +283,11 @@ who = "Brandon Pitman <bran@bran.land>"
 criteria = "safe-to-deploy"
 delta = "1.0.38 -> 1.0.39"
 
+[[audits.isrg.audits.unicode-ident]]
+who = "David Cook <dcook@divviup.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.2 -> 1.0.3"
+
 [[audits.isrg.audits.universal-hash]]
 who = "David Cook <dcook@divviup.org>"
 criteria = "safe-to-deploy"
@@ -936,6 +941,12 @@ criteria = "safe-to-deploy"
 delta = "0.9.0 -> 0.9.1"
 aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
 
+[[audits.mozilla.audits.unicode-ident]]
+who = "Mike Hommey <mh+mozilla@glandium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.3 -> 1.0.6"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
 [[audits.mozilla.audits.uuid]]
 who = "Gabriele Svelto <gsvelto@mozilla.com>"
 criteria = "safe-to-deploy"
@@ -1043,6 +1054,18 @@ who = "Jack Grigg <jack@z.cash>"
 criteria = "safe-to-deploy"
 delta = "1.0.30 -> 1.0.32"
 notes = "Only change is to refine an error message."
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.unicode-ident]]
+who = "Daira Hopwood <daira@jacaranda.org>"
+criteria = "safe-to-deploy"
+version = "1.0.2"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.unicode-ident]]
+who = "Jack Grigg <jack@electriccoin.co>"
+criteria = "safe-to-deploy"
+delta = "1.0.6 -> 1.0.8"
 aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
 [[audits.zcash.audits.universal-hash]]

@@ -927,10 +927,6 @@ criteria = "safe-to-deploy"
 version = "1.15.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.unicode-ident]]
-version = "1.0.8"
-criteria = "safe-to-deploy"
-
 [[exemptions.unicode-width]]
 version = "0.1.10"
 criteria = "safe-to-deploy"
