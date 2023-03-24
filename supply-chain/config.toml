@@ -1,6 +1,9 @@
 
 # cargo-vet config file
 
+[cargo-vet]
+version = "0.5"
+
 [imports.bytecode-alliance]
 url = "https://raw.githubusercontent.com/bytecodealliance/wasmtime/main/supply-chain/audits.toml"
 
@@ -16,7 +19,7 @@ url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 [imports.zcash]
 url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/audits.toml"
 
-[[imports.zcash.criteria-map]]
+[imports.zcash.criteria-map]
 ours = "crypto-reviewed"
 theirs = "crypto-reviewed"
 
@@ -922,10 +925,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.15.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.unicode-ident]]
-version = "1.0.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-width]]
