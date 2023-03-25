@@ -266,7 +266,7 @@ fn main() -> Result<(), Error> {
     let types = opts.types;
     let mountpoint = opts.mountpoint;
 
-    match age::Decryptor::new(ArmoredReader::new(file))? {
+    match age::Decryptor::new_buffered(ArmoredReader::new(file))? {
         age::Decryptor::Passphrase(decryptor) => {
             match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
                 Ok(passphrase) => decryptor

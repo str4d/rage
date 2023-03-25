@@ -30,7 +30,7 @@ fn bench(c: &mut Criterion) {
             output.write_all(&[]).unwrap();
             output.finish().unwrap();
 
-            b.iter(|| Decryptor::new(&encrypted[..]))
+            b.iter(|| Decryptor::new_buffered(&encrypted[..]))
         });
     }
 

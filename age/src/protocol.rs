@@ -2,7 +2,7 @@
 
 use age_core::{format::grease_the_joint, secrecy::SecretString};
 use rand::{rngs::OsRng, RngCore};
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, Read, Write};
 
 use crate::{
     error::{DecryptError, EncryptError},
@@ -181,8 +181,37 @@ impl<R: Read> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
+    ///
+    /// # Performance
+    ///
+    /// This constructor will work with any type implementing [`io::Read`], and uses a
+    /// slower parser and internal buffering to ensure no overreading occurs. Consider
+    /// using [`Decryptor::new_buffered`] for types implementing `std::io::BufRead`, which
+    /// includes `&[u8]` slices.
     pub fn new(mut input: R) -> Result<Self, DecryptError> {
         let header = Header::read(&mut input)?;
+
+        match header {
+            Header::V1(v1_header) => {
+                let nonce = Nonce::read(&mut input)?;
+                Decryptor::from_v1_header(input, v1_header, nonce)
+            }
+            Header::Unknown(_) => Err(DecryptError::UnknownFormat),
+        }
+    }
+}
+
+impl<R: BufRead> Decryptor<R> {
+    /// Attempts to create a decryptor for an age file.
+    ///
+    /// Returns an error if the input does not contain a valid age file.
+    ///
+    /// # Performance
+    ///
+    /// This constructor is more performant than [`Decryptor::new`] for types implementing
+    /// [`io::BufRead`], which includes `&[u8]` slices.
+    pub fn new_buffered(mut input: R) -> Result<Self, DecryptError> {
+        let header = Header::read_buffered(&mut input)?;
 
         match header {
             Header::V1(v1_header) => {

@@ -492,7 +492,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         ],
     );
 
-    match age::Decryptor::new(ArmoredReader::new(input))? {
+    match age::Decryptor::new_buffered(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
             if !opts.identity.is_empty() {
                 return Err(error::DecryptError::MixedIdentityAndPassphrase);
