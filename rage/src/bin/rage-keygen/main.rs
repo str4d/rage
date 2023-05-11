@@ -203,14 +203,14 @@ fn keypair_matching(
 }
 
 #[cfg(feature = "vanity")]
-fn parallel<T: Send>(task: impl FnMut(usize, usize) -> T + Clone + Send) -> Vec<T> {
+fn parallel<T: Send>(task: impl FnOnce(usize, usize) -> T + Clone + Send) -> Vec<T> {
     use std::thread::{scope, ScopedJoinHandle};
 
     scope(move |scope| {
         let total = num_cpus::get();
         (0..total)
             .map(move |n| {
-                let mut task = task.clone();
+                let task = task.clone();
                 scope.spawn(move || task(n, total))
             })
             .collect::<Vec<_>>()
