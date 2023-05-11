@@ -37,6 +37,12 @@ struct AgeOptions {
 
     #[options(help = "Write the result to the file at path OUTPUT. Defaults to standard output.")]
     output: Option<String>,
+
+    #[cfg(feature = "vanity")]
+    #[options(
+        help = "Find a public key matching this regular expression in the part after \"age1\"."
+    )]
+    vanity: Option<String>,
 }
 
 fn main() {
@@ -76,8 +82,31 @@ fn main() {
             }
         };
 
-    let sk = age::x25519::Identity::generate();
-    let pk = sk.to_public();
+    #[cfg(feature = "vanity")]
+    let (count, sk, pk) = if let Some(vanity) = opts.vanity {
+        let (count, found) = keypair_matching(&vanity);
+        if let Some((sk, pk)) = found {
+            (count, sk, pk)
+        } else {
+            error!(
+                "{}",
+                i18n_embed_fl::fl!(
+                    LANGUAGE_LOADER,
+                    "err-vanity-search-interrupted",
+                    count = count
+                ),
+            );
+            return;
+        }
+    } else {
+        let (sk, pk) = keypair();
+        (1, sk, pk)
+    };
+
+    #[cfg(not(feature = "vanity"))]
+    let (sk, pk) = keypair();
+    #[cfg(not(feature = "vanity"))]
+    let count = 1;
 
     if let Err(e) = (|| {
         if !output.is_terminal() {
@@ -86,9 +115,14 @@ fn main() {
 
         writeln!(
             output,
-            "# {}: {}",
+            "# {}: {}{}",
             fl!("identity-file-created"),
-            chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+            chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            if count > 1 {
+                format!("\n# {}: {}", fl!("identity-file-vanity-count"), count)
+            } else {
+                "".to_string()
+            }
         )?;
         writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
         writeln!(output, "{}", sk.to_string().expose_secret())
@@ -102,4 +136,87 @@ fn main() {
             )
         );
     }
+}
+
+fn keypair() -> (age::x25519::Identity, age::x25519::Recipient) {
+    let sk = age::x25519::Identity::generate();
+    let pk: age::x25519::Recipient = sk.to_public();
+    (sk, pk)
+}
+
+#[cfg(feature = "vanity")]
+fn keypair_matching(
+    vanity: &str,
+) -> (u64, Option<(age::x25519::Identity, age::x25519::Recipient)>) {
+    use std::{
+        fmt::Write,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
+    };
+
+    // Precompile the regex
+    let vanity = regex::Regex::new(vanity).unwrap();
+
+    // Flag to stop all the threads once the first match is found
+    let stop = Arc::new(AtomicBool::new(false));
+
+    if let Err(err) = ctrlc::set_handler({
+        let stop = stop.clone();
+        move || stop.store(true, Ordering::Relaxed)
+    }) {
+        error!(
+            "{}",
+            i18n_embed_fl::fl!(
+                LANGUAGE_LOADER,
+                "err-failed-to-set-ctrlc-handler",
+                err = err.to_string()
+            )
+        );
+        return (0, None);
+    }
+
+    let inner_loop = move |_, _| {
+        let mut pk_string = String::with_capacity(58 + 4);
+        let mut count: u64 = 0;
+        loop {
+            if stop.load(Ordering::Relaxed) {
+                return (count, None);
+            }
+            let (sk, pk) = keypair();
+            write!(pk_string, "{}", pk).unwrap();
+            if vanity.is_match(&pk_string[4..]) {
+                stop.store(true, Ordering::Relaxed);
+                return (count, Some((sk, pk)));
+            }
+            pk_string.clear();
+            count += 1;
+        }
+    };
+
+    // Spawn a thread on each CPU, waiting for the first to finish
+    let results = parallel(inner_loop);
+
+    let count = results.iter().map(|(count, _)| count).sum::<u64>();
+    (count, results.into_iter().find_map(|(_, found)| found))
+}
+
+#[cfg(feature = "vanity")]
+fn parallel<T: Send>(task: impl FnMut(usize, usize) -> T + Clone + Send) -> Vec<T> {
+    use std::thread::{scope, ScopedJoinHandle};
+
+    scope(move |scope| {
+        let total = num_cpus::get();
+        (0..total)
+            .map(move |n| {
+                let mut task = task.clone();
+                scope.spawn(move || task(n, total))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(ScopedJoinHandle::join)
+            .map(Result::unwrap)
+            .collect::<Vec<_>>()
+    })
 }

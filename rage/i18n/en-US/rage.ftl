@@ -70,6 +70,7 @@ warning-msg = Warning: {$warning}
 tty-pubkey = Public key
 identity-file-created = created
 identity-file-pubkey = public key
+identity-file-vanity-count = iterations to find vanity key
 
 ## Encryption messages
 
@@ -83,10 +84,12 @@ warn-double-encrypting = Encrypting an already-encrypted file
 
 err-failed-to-open-output = Failed to open output: {$err}
 err-failed-to-write-output = Failed to write to output: {$err}
+err-failed-to-set-ctrlc-handler = Failed to set Ctrl-C handler: {$err}
 err-identity-ambiguous = {-flag-identity} requires either {-flag-encrypt} or {-flag-decrypt}.
 err-mixed-encrypt-decrypt = {-flag-encrypt} can't be used with {-flag-decrypt}.
 err-passphrase-timed-out = Timed out waiting for passphrase input.
 err-same-input-and-output = Input and output are the same file '{$filename}'.
+err-vanity-search-interrupted = Search for vanity public key interrupted: tried {$count} keypairs.
 
 err-ux-A = Did {-rage} not do what you expected? Could an error be more useful?
 err-ux-B = Tell us

@@ -9,7 +9,7 @@ keywords = ["age", "cli", "encryption"]
 categories = ["command-line-utilities", "cryptography"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.63"
 default-run = "rage"
 
 [package.metadata.deb]
@@ -75,6 +75,10 @@ tar = { version = "0.4", optional = true }
 time = { version = "0.3.7", optional = true }
 zip = { version = "0.6.2", optional = true }
 
+# vanity keygen dependencies
+regex = { version = "1", optional = true }
+num_cpus = { version = "1", optional = true }
+
 [dev-dependencies]
 clap = "3.1"
 clap_complete = "3.1"
@@ -83,6 +87,7 @@ man = "0.3"
 
 [features]
 default = ["ssh"]
+vanity = ["regex", "num_cpus", "ctrlc"]
 mount = ["ctrlc", "fuse_mt", "fuser", "libc", "tar", "time", "zip"]
 ssh = ["age/ssh"]
 unstable = ["age/unstable"]
