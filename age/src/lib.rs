@@ -1,4 +1,4 @@
-//! *Library for encrypting and decryping age files*
+//! *Library for encrypting and decrypting age files*
 //!
 //! This crate implements file encryption according to the [age-encryption.org/v1]
 //! specification. It generates and consumes encrypted files that are compatible with the
