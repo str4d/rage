@@ -13,6 +13,10 @@ to 1.0.0 are beta releases.
 - Increased parsing speed of age file headers. For single-recipient encrypted
   files, decryption throughput increases by 6% for medium (< 1MiB) files, and
   over 40% for small (< 10kiB) files.
+- The `pinentry` binary used to request passphrases can now be set manually with
+  the `PINENTRY_PROGRAM` environment variable. It accepts either a binary name
+  or a path. Setting this to the empty string will disable `pinentry` usage and
+  fall back to the CLI interface.
 
 ## [0.9.1] - 2022-03-24
 ### Added

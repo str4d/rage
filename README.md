@@ -103,6 +103,12 @@ $ rage -d example.png.age >example.png
 Type passphrase: [hidden]
 ```
 
+If a binary named `pinentry` is available in `$PATH`, it will be used to ask the
+user for a passphrase. The `PINENTRY_PROGRAM` environment variable can be used
+to set the binary name or path to use. If a `pinentry` binary is not available,
+or `PINENTRY_PROGRAM` is set to the empty string, `rage` will fall back to the
+CLI instead.
+
 ### Passphrase-protected identity files
 
 If an identity file passed to `-i/--identity` is a passphrase-encrypted age

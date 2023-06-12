@@ -16,6 +16,12 @@ to 1.0.0 are beta releases.
 - `impl std::io::BufRead for age::armor::ArmoredReader`
 - `impl futures::io::AsyncBufRead for age::armor::ArmoredReader`
 
+### Changed
+- The `pinentry` binary used by `age::cli_common::read_secret` can now be set
+  manually with the `PINENTRY_PROGRAM` environment variable. It accepts either a
+  binary name or a path. Setting this to the empty string will disable `pinentry`
+  usage and fall back to the CLI interface.
+
 ## [0.9.1] - 2022-03-24
 ### Added
 - Support for encrypted OpenSSH keys exported from 1Password.
