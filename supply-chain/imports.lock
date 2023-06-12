@@ -226,7 +226,11 @@ criteria = "safe-to-deploy"
 delta = "0.42.0 -> 0.42.1"
 notes = "This is a Windows API bindings library maintained by Microsoft themselves. The diff is just adding license files."
 
-[audits.embark-studios.audits]
+[[audits.embark-studios.audits.epaint]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+violation = "<0.20.0"
+notes = "Specified crate license does not include licenses of embedded fonts if using default features or the `default_fonts` feature. Tracked in: https://github.com/emilk/egui/issues/2321"
 
 [[audits.isrg.audits.block-buffer]]
 who = "David Cook <dcook@divviup.org>"
