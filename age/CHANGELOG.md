@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.9.2] - 2023-06-12
 ### Added
 - `age::Decryptor::{new_buffered, new_async_buffered}`, which are more efficient
   for types implementing `std::io::BufRead` or `futures::io::AsyncBufRead`
