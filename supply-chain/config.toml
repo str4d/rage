@@ -183,10 +183,6 @@ criteria = "safe-to-deploy"
 version = "0.3.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.core-foundation-sys]]
-version = "0.8.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.cpp_demangle]]
 version = "0.3.5"
 criteria = "safe-to-run"
@@ -291,10 +287,6 @@ criteria = "safe-to-deploy"
 version = "0.2.8"
 criteria = "safe-to-deploy"
 
-[[exemptions.errno-dragonfly]]
-version = "0.1.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.fastrand]]
 version = "1.8.0"
 criteria = "safe-to-deploy"
@@ -327,27 +319,7 @@ criteria = "safe-to-deploy"
 version = "0.3.21"
 criteria = "safe-to-deploy"
 
-[[exemptions.futures-channel]]
-version = "0.3.25"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-core]]
-version = "0.3.25"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-executor]]
-version = "0.3.21"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-io]]
-version = "0.3.27"
-criteria = "safe-to-deploy"
-
 [[exemptions.futures-macro]]
-version = "0.3.21"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-sink]]
 version = "0.3.21"
 criteria = "safe-to-deploy"
 
@@ -495,10 +467,6 @@ criteria = "safe-to-deploy"
 version = "0.4.9"
 criteria = "safe-to-deploy"
 
-[[exemptions.malloc_buf]]
-version = "0.0.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.man]]
 version = "0.3.0"
 criteria = "safe-to-run"
@@ -611,10 +579,6 @@ criteria = "safe-to-deploy"
 version = "0.2.9"
 criteria = "safe-to-deploy"
 
-[[exemptions.pin-utils]]
-version = "0.1.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.pinentry]]
 version = "0.5.0"
 criteria = "safe-to-deploy"
@@ -625,10 +589,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.pkcs8]]
 version = "0.9.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.pkg-config]]
-version = "0.3.26"
 criteria = "safe-to-deploy"
 
 [[exemptions.plotters]]
@@ -673,10 +633,6 @@ criteria = "safe-to-run"
 
 [[exemptions.quickcheck]]
 version = "1.0.3"
-criteria = "safe-to-run"
-
-[[exemptions.quickcheck_macros]]
-version = "1.0.0"
 criteria = "safe-to-run"
 
 [[exemptions.rand]]
@@ -799,20 +755,12 @@ criteria = "safe-to-deploy"
 version = "1.0.81"
 criteria = "safe-to-deploy"
 
-[[exemptions.sha1]]
-version = "0.10.5"
-criteria = "safe-to-deploy"
-
 [[exemptions.sha2]]
 version = "0.10.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.signature]]
 version = "1.6.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.slab]]
-version = "0.4.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.smallvec]]
@@ -929,14 +877,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.15.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.unicode-width]]
-version = "0.1.10"
-criteria = "safe-to-deploy"
-
-[[exemptions.unicode-xid]]
-version = "0.2.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.users]]
