@@ -10,8 +10,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
-- `age::Decryptor::new_buffered`, which is more efficient for types implementing
-  `std::io::BufRead` (which includes `&[u8]` slices).
+- `age::Decryptor::{new_buffered, new_async_buffered}`, which are more efficient
+  for types implementing `std::io::BufRead` or `futures::io::AsyncBufRead`
+  (which includes `&[u8]` slices).
 - `impl std::io::BufRead for age::armor::ArmoredReader`
 - `impl futures::io::AsyncBufRead for age::armor::ArmoredReader`
 

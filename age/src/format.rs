@@ -9,7 +9,9 @@ use crate::{
 };
 
 #[cfg(feature = "async")]
-use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use futures::io::{
+    AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
+};
 
 const AGE_MAGIC: &[u8] = b"age-encryption.org/";
 const V1_MAGIC: &[u8] = b"v1";
@@ -138,6 +140,38 @@ impl Header {
                     let new_len = m + n.get();
                     data.resize(new_len, 0);
                     input.read_exact(&mut data[m..new_len]).await?;
+                }
+                Err(_) => {
+                    break Err(DecryptError::InvalidHeader);
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub(crate) async fn read_async_buffered<R: AsyncBufRead + Unpin>(
+        mut input: R,
+    ) -> Result<Self, DecryptError> {
+        let mut data = vec![];
+        loop {
+            match read::header(&data) {
+                Ok((_, mut header)) => {
+                    if let Header::V1(h) = &mut header {
+                        h.encoded_bytes = Some(data);
+                    }
+                    break Ok(header);
+                }
+                Err(nom::Err::Incomplete(nom::Needed::Size(_))) => {
+                    // As we have a buffered reader, we can leverage the fact that the
+                    // currently-defined header formats are newline-separated, to more
+                    // efficiently read data for the parser to consume.
+                    if input.read_until(b'\n', &mut data).await? == 0 {
+                        break Err(DecryptError::Io(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "Incomplete header",
+                        )));
+                    }
                 }
                 Err(_) => {
                     break Err(DecryptError::InvalidHeader);
