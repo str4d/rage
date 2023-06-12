@@ -223,7 +223,7 @@ pub fn read_secret(
 ) -> pinentry::Result<SecretString> {
     // Check for the pinentry environment variable. If it's not present try to use the default
     // binary.
-    let input = if let Ok(pinentry) = std::env::var("RAGE_PINENTRY") {
+    let input = if let Ok(pinentry) = std::env::var("PINENTRY_PROGRAM") {
         PassphraseInput::with_binary(pinentry)
     } else {
         PassphraseInput::with_default_binary()
