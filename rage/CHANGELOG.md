@@ -18,7 +18,7 @@ to 1.0.0 are beta releases.
   or a path. Setting this to the empty string will disable `pinentry` usage and
   fall back to the CLI interface.
 
-## [0.9.1] - 2022-03-24
+## [0.9.1] - 2023-03-24
 ### Added
 - Support for encrypted OpenSSH keys exported from 1Password.
 

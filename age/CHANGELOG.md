@@ -22,7 +22,12 @@ to 1.0.0 are beta releases.
   binary name or a path. Setting this to the empty string will disable `pinentry`
   usage and fall back to the CLI interface.
 
-## [0.9.1] - 2022-03-24
+### Fixed
+- The `AsyncWrite::poll_write` implementation for `age::stream::StreamWriter`
+  now never returns 0 if there is data to write. This makes `StreamWriter`
+  compatible with `futures::io::copy`.
+
+## [0.9.1] - 2023-03-24
 ### Added
 - Support for encrypted OpenSSH keys exported from 1Password.
 
