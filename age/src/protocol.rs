@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[cfg(feature = "async")]
-use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use futures::io::{AsyncBufRead, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub mod decryptor;
 
@@ -229,8 +229,39 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
     /// Attempts to create a decryptor for an age file.
     ///
     /// Returns an error if the input does not contain a valid age file.
+    ///
+    /// # Performance
+    ///
+    /// This constructor will work with any type implementing [`AsyncRead`], and uses a
+    /// slower parser and internal buffering to ensure no overreading occurs. Consider
+    /// using [`Decryptor::new_async_buffered`] for types implementing [`AsyncBufRead`],
+    /// which includes `&[u8]` slices.
     pub async fn new_async(mut input: R) -> Result<Self, DecryptError> {
         let header = Header::read_async(&mut input).await?;
+
+        match header {
+            Header::V1(v1_header) => {
+                let nonce = Nonce::read_async(&mut input).await?;
+                Decryptor::from_v1_header(input, v1_header, nonce)
+            }
+            Header::Unknown(_) => Err(DecryptError::UnknownFormat),
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+impl<R: AsyncBufRead + Unpin> Decryptor<R> {
+    /// Attempts to create a decryptor for an age file.
+    ///
+    /// Returns an error if the input does not contain a valid age file.
+    ///
+    /// # Performance
+    ///
+    /// This constructor is more performant than [`Decryptor::new_async`] for types
+    /// implementing [`AsyncBufRead`], which includes `&[u8]` slices.
+    pub async fn new_async_buffered(mut input: R) -> Result<Self, DecryptError> {
+        let header = Header::read_async_buffered(&mut input).await?;
 
         match header {
             Header::V1(v1_header) => {
