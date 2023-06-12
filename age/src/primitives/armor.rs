@@ -18,6 +18,8 @@ use futures::{
 #[cfg(feature = "async")]
 use std::mem;
 #[cfg(feature = "async")]
+use std::ops::DerefMut;
+#[cfg(feature = "async")]
 use std::pin::Pin;
 #[cfg(feature = "async")]
 use std::str;
@@ -722,28 +724,6 @@ impl<R> ArmoredReader<R> {
         Ok(())
     }
 
-    /// Reads cached data into the given buffer.
-    ///
-    /// Returns the number of bytes read into the buffer, or None if there was no cached
-    /// data.
-    #[cfg(feature = "async")]
-    fn read_cached_data(&mut self, buf: &mut [u8]) -> Option<usize> {
-        if self.byte_start >= self.byte_end {
-            None
-        } else if self.byte_start + buf.len() <= self.byte_end {
-            buf.copy_from_slice(&self.byte_buf[self.byte_start..self.byte_start + buf.len()]);
-            self.byte_start += buf.len();
-            self.data_read += buf.len();
-            Some(buf.len())
-        } else {
-            let to_read = self.byte_end - self.byte_start;
-            buf[..to_read].copy_from_slice(&self.byte_buf[self.byte_start..self.byte_end]);
-            self.byte_start += to_read;
-            self.data_read += to_read;
-            Some(to_read)
-        }
-    }
-
     /// Validates `self.line_buf` and parses it into `self.byte_buf`.
     ///
     /// Returns `true` if this was the last line.
@@ -985,12 +965,8 @@ fn read_line_internal<R: AsyncBufRead + ?Sized>(
 
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<Result<usize, Error>> {
+impl<R: AsyncBufRead + Unpin> AsyncBufRead for ArmoredReader<R> {
+    fn poll_fill_buf(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
         loop {
             match self.is_armored {
                 None => {
@@ -1006,71 +982,135 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
                     self.detect_armor()?
                 }
                 Some(false) => {
-                    // Return any leftover data from armor detection.
-                    return if let Some(read) = self.read_cached_data(buf) {
-                        Poll::Ready(Ok(read))
+                    let ret = if self.byte_start >= self.byte_end {
+                        let this = self.as_mut().project();
+                        let read = ready!(this.inner.poll_read(cx, &mut this.byte_buf[..]))?;
+                        (*this.byte_start) = 0;
+                        (*this.byte_end) = read;
+                        self.count_reader_bytes(read);
+                        &self.get_mut().byte_buf[..read]
                     } else {
-                        self.as_mut().project().inner.poll_read(cx, buf).map(|res| {
-                            res.map(|read| {
-                                self.data_read += read;
-                                self.count_reader_bytes(read)
-                            })
-                        })
+                        let this = self.get_mut();
+                        &this.byte_buf[this.byte_start..this.byte_end]
                     };
+                    break Poll::Ready(Ok(ret));
                 }
-                Some(true) if self.found_end => return Poll::Ready(Ok(0)),
+                Some(true) if self.found_end => return Poll::Ready(Ok(&[])),
                 Some(true) => {
-                    // Output any remaining bytes from the previous line
-                    if let Some(read) = self.read_cached_data(buf) {
-                        return Poll::Ready(Ok(read));
-                    }
-
-                    // Read the next line
-                    {
-                        // Emulates `AsyncBufReadExt::read_line`.
-                        let mut this = self.as_mut().project();
-                        let buf: &mut String = this.line_buf;
-                        let mut bytes = mem::take(buf).into_bytes();
-                        let mut read = 0;
-                        ready!(read_line_internal(
-                            this.inner.as_mut(),
-                            cx,
-                            buf,
-                            &mut bytes,
-                            &mut read,
-                        ))
-                    }
-                    .map(|read| self.count_reader_bytes(read))?;
-
-                    // Parse the line into bytes.
-                    let read = if self.parse_armor_line()? {
-                        // This was the last line! Check for trailing garbage.
-                        let mut this = self.as_mut().project();
-                        loop {
-                            let amt = match ready!(this.inner.as_mut().poll_fill_buf(cx))? {
-                                &[] => break,
-                                buf => {
-                                    if buf.iter().any(|b| !b.is_ascii_whitespace()) {
-                                        return Poll::Ready(Err(io::Error::new(
-                                            io::ErrorKind::InvalidData,
-                                            ArmoredReadError::TrailingGarbage,
-                                        )));
-                                    }
-                                    buf.len()
-                                }
-                            };
-                            this.inner.as_mut().consume(amt);
+                    let ret = if self.byte_start >= self.byte_end {
+                        let last =
+                            ready!(Pin::new(self.deref_mut()).poll_read_next_armor_line(cx))?;
+                        if last {
+                            &[]
+                        } else {
+                            let this = self.get_mut();
+                            &this.byte_buf[this.byte_start..this.byte_end]
                         }
-                        0
                     } else {
-                        // Output as much as we can of this line.
-                        self.read_cached_data(buf).unwrap_or(0)
+                        let this = self.get_mut();
+                        &this.byte_buf[this.byte_start..this.byte_end]
                     };
-
-                    return Poll::Ready(Ok(read));
+                    break Poll::Ready(Ok(ret));
                 }
             }
         }
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        let this = self.as_mut().project();
+        (*this.byte_start) += amt;
+        (*this.data_read) += amt;
+        assert!(this.byte_start <= this.byte_end);
+    }
+}
+
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+impl<R: AsyncBufRead + Unpin> ArmoredReader<R> {
+    /// Fills `self.byte_buf` with the next line of armored data.
+    ///
+    /// Returns `true` if this was the last line.
+    fn poll_read_next_armor_line(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<bool>> {
+        assert_eq!(self.is_armored, Some(true));
+
+        // Read the next line
+        {
+            // Emulates `AsyncBufReadExt::read_line`.
+            let mut this = self.as_mut().project();
+            let buf: &mut String = this.line_buf;
+            let mut bytes = mem::take(buf).into_bytes();
+            let mut read = 0;
+            ready!(read_line_internal(
+                this.inner.as_mut(),
+                cx,
+                buf,
+                &mut bytes,
+                &mut read,
+            ))
+        }
+        .map(|read| self.count_reader_bytes(read))?;
+
+        // Parse the line into bytes.
+        if self.parse_armor_line()? {
+            // This was the last line! Check for trailing garbage.
+            let mut this = self.as_mut().project();
+            loop {
+                let amt = match ready!(this.inner.as_mut().poll_fill_buf(cx))? {
+                    &[] => break,
+                    buf => {
+                        if buf.iter().any(|b| !b.is_ascii_whitespace()) {
+                            return Poll::Ready(Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                ArmoredReadError::TrailingGarbage,
+                            )));
+                        }
+                        buf.len()
+                    }
+                };
+                this.inner.as_mut().consume(amt);
+            }
+            Poll::Ready(Ok(true))
+        } else {
+            Poll::Ready(Ok(false))
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+impl<R: AsyncBufRead + Unpin> AsyncRead for ArmoredReader<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        mut buf: &mut [u8],
+    ) -> Poll<Result<usize, Error>> {
+        let buf_len = buf.len();
+
+        while !buf.is_empty() {
+            match Pin::new(self.deref_mut()).poll_fill_buf(cx) {
+                Poll::Pending if buf_len > buf.len() => break,
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Ready(Ok([])) => break,
+                Poll::Ready(Ok(next)) => {
+                    let read = cmp::min(next.len(), buf.len());
+
+                    if next.len() < buf.len() {
+                        buf[..read].copy_from_slice(next);
+                    } else {
+                        buf.copy_from_slice(&next[..read]);
+                    }
+
+                    Pin::new(self.deref_mut()).consume(read);
+                    buf = &mut buf[read..];
+                }
+            }
+        }
+
+        Poll::Ready(Ok(buf_len - buf.len()))
     }
 }
 
