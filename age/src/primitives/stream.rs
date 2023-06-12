@@ -304,31 +304,57 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
         cx: &mut Context,
         mut buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        ready!(self.as_mut().poll_flush_chunk(cx))?;
-
-        let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
-
-        self.as_mut()
-            .project()
-            .chunk
-            .extend_from_slice(&buf[..to_write]);
-        buf = &buf[to_write..];
-
-        // At this point, either buf is empty, or we have a full chunk.
-        assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
-
-        // Only encrypt the chunk if we have more data to write, as the last
-        // chunk must be written in poll_close().
-        if !buf.is_empty() {
-            let this = self.as_mut().project();
-            *this.encrypted_chunk = Some(EncryptedChunk {
-                bytes: this.stream.encrypt_chunk(this.chunk, false)?,
-                offset: 0,
-            });
-            this.chunk.clear();
+        // If the buffer is empty, return immediately
+        if buf.is_empty() {
+            return Poll::Ready(Ok(0));
         }
 
-        Poll::Ready(Ok(to_write))
+        loop {
+            ready!(self.as_mut().poll_flush_chunk(cx))?;
+
+            // We can encounter one of three cases here:
+            // 1. `0 < buf.len() <= CHUNK_SIZE - self.chunk.len()`: we append to the
+            //    partial chunk and return. This may happen to complete the chunk.
+            // 2. `0 < CHUNK_SIZE - self.chunk.len() < buf.len()`: we consume part of
+            //    `buf` to complete the chunk, encrypt it, and return.
+            // 3. `0 == CHUNK_SIZE - self.chunk.len() < buf.len()`: we hit case 1 in a
+            //    previous invocation. We encrypt the chunk, and then loop around (where
+            //    we are guaranteed to hit case 1).
+            let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
+
+            self.as_mut()
+                .project()
+                .chunk
+                .extend_from_slice(&buf[..to_write]);
+            buf = &buf[to_write..];
+
+            // At this point, either buf is empty, or we have a full chunk.
+            assert!(buf.is_empty() || self.chunk.len() == CHUNK_SIZE);
+
+            // Only encrypt the chunk if we have more data to write, as the last
+            // chunk must be written in poll_close().
+            if !buf.is_empty() {
+                let this = self.as_mut().project();
+                *this.encrypted_chunk = Some(EncryptedChunk {
+                    bytes: this.stream.encrypt_chunk(this.chunk, false)?,
+                    offset: 0,
+                });
+                this.chunk.clear();
+            }
+
+            // If we wrote some data, return how much we wrote
+            if to_write > 0 {
+                return Poll::Ready(Ok(to_write));
+            }
+
+            // If we didn't write any data, loop and write some, to ensure
+            // this function does not return 0. This enables compatibility with
+            // futures::io::copy() and tokio::io::copy(), which will return a
+            // WriteZero error in that case.
+            // Since those functions copy 8K at a time, and CHUNK_SIZE is
+            // a multiple of 8K, this ends up happening once for each chunk
+            // after the first one
+        }
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
@@ -827,6 +853,66 @@ mod tests {
     #[test]
     fn stream_async_round_trip_long() {
         stream_async_round_trip(&[42; 100 * 1024]);
+    }
+
+    #[cfg(feature = "async")]
+    fn stream_async_io_copy(data: &[u8]) {
+        use futures::AsyncWriteExt;
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let mut encrypted = vec![];
+        let result = runtime.block_on(async {
+            let mut w = Stream::encrypt_async(PayloadKey([7; 32].into()), &mut encrypted);
+            match futures::io::copy(data, &mut w).await {
+                Ok(written) => {
+                    w.close().await.unwrap();
+                    Ok(written)
+                }
+                Err(e) => Err(e),
+            }
+        });
+
+        match result {
+            Ok(written) => assert_eq!(written, data.len() as u64),
+            Err(e) => panic!("Unexpected error: {}", e),
+        }
+
+        let decrypted = {
+            let mut buf = vec![];
+            let result = runtime.block_on(async {
+                let r = Stream::decrypt_async(PayloadKey([7; 32].into()), &encrypted[..]);
+                futures::io::copy(r, &mut buf).await
+            });
+
+            match result {
+                Ok(written) => assert_eq!(written, data.len() as u64),
+                Err(e) => panic!("Unexpected error: {}", e),
+            }
+
+            buf
+        };
+
+        assert_eq!(decrypted, data);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_io_copy_short() {
+        stream_async_io_copy(&[42; 1024]);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_io_copy_chunk() {
+        stream_async_io_copy(&[42; CHUNK_SIZE]);
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn stream_async_io_copy_long() {
+        stream_async_io_copy(&[42; 100 * 1024]);
     }
 
     #[test]
