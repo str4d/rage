@@ -312,6 +312,14 @@ impl<W: AsyncWrite> AsyncWrite for StreamWriter<W> {
         loop {
             ready!(self.as_mut().poll_flush_chunk(cx))?;
 
+            // We can encounter one of three cases here:
+            // 1. `0 < buf.len() <= CHUNK_SIZE - self.chunk.len()`: we append to the
+            //    partial chunk and return. This may happen to complete the chunk.
+            // 2. `0 < CHUNK_SIZE - self.chunk.len() < buf.len()`: we consume part of
+            //    `buf` to complete the chunk, encrypt it, and return.
+            // 3. `0 == CHUNK_SIZE - self.chunk.len() < buf.len()`: we hit case 1 in a
+            //    previous invocation. We encrypt the chunk, and then loop around (where
+            //    we are guaranteed to hit case 1).
             let to_write = cmp::min(CHUNK_SIZE - self.chunk.len(), buf.len());
 
             self.as_mut()
