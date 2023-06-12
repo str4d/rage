@@ -147,9 +147,9 @@ impl crate::Recipient for Recipient {
                 let shared_secret =
                     tweak.diffie_hellman(&(*esk.diffie_hellman(&pk).as_bytes()).into());
 
-                let mut salt = vec![];
-                salt.extend_from_slice(epk.as_bytes());
-                salt.extend_from_slice(pk.as_bytes());
+                let mut salt = [0; 64];
+                salt[..32].copy_from_slice(epk.as_bytes());
+                salt[32..].copy_from_slice(pk.as_bytes());
 
                 let enc_key = hkdf(
                     &salt,
