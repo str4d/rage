@@ -76,7 +76,7 @@ version = "1.6.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bcrypt-pbkdf]]
-version = "0.9.0"
+version = "0.10.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bech32]]
@@ -519,6 +519,10 @@ criteria = "safe-to-deploy"
 version = "0.11.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.pbkdf2]]
+version = "0.12.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.percent-encoding]]
 version = "2.3.0"
 criteria = "safe-to-deploy"
@@ -684,7 +688,7 @@ version = "1.1.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.scrypt]]
-version = "0.10.0"
+version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.secrecy]]

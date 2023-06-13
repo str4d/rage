@@ -61,7 +61,7 @@ num-traits = { version = "0.2", optional = true }
 # - Encrypted keys
 aes = { version = "0.8", optional = true }
 aes-gcm = { version = "0.10", optional = true }
-bcrypt-pbkdf = { version = "0.9", optional = true }
+bcrypt-pbkdf = { version = "0.10", optional = true }
 cbc = { version = "0.1", optional = true }
 cipher = { version = "0.4.3", features = ["alloc"], optional = true }
 ctr = { version = "0.9", optional = true }
