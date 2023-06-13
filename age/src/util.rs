@@ -61,7 +61,7 @@ pub(crate) mod read {
                     let c = c as u8;
                     // Substitute the character in twice after AA, so that padding
                     // characters will also be detected as a valid if allowed.
-                    base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
+                    base64::decode_config_slice([65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
                 }),
                 |data| base64::decode_config(data, config),
             )(input)
@@ -83,7 +83,7 @@ pub(crate) mod read {
                         let c = c as u8;
                         // Substitute the character in twice after AA, so that padding
                         // characters will also be detected as a valid if allowed.
-                        base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
+                        base64::decode_config_slice([65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
                     }),
                 ),
                 |chunks| {

@@ -64,7 +64,7 @@ impl Encryptor {
     ///
     /// Returns `None` if no recipients were provided.
     pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
-        (!recipients.is_empty()).then(|| Encryptor(EncryptorType::Keys(recipients)))
+        (!recipients.is_empty()).then_some(Encryptor(EncryptorType::Keys(recipients)))
     }
 
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.

@@ -7,6 +7,11 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `impl Eq for age_core::format::Stanza`
+
+### Changed
+- MSRV is now 1.65.0.
 
 ## [0.9.0] - 2022-10-27
 ### Changed

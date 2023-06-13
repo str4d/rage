@@ -172,7 +172,7 @@ impl Identity {
     pub fn default_for_plugin(plugin_name: &str) -> Self {
         bech32::encode(
             &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
-            &[],
+            [],
             Variant::Bech32,
         )
         .expect("HRP is valid")

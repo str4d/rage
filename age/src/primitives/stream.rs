@@ -60,7 +60,7 @@ impl Nonce {
 
     fn set_last(&mut self, last: bool) -> Result<(), ()> {
         if !self.is_last() {
-            self.0 |= if last { 1 } else { 0 };
+            self.0 |= u128::from(last);
             Ok(())
         } else {
             Err(())

@@ -128,7 +128,7 @@ impl UnencryptedKey {
 ///
 /// The Display impl provides details for each unsupported key as to why we don't support
 /// it, and how a user can migrate to a supported key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UnsupportedKey {
     /// An encrypted `PEM` key.
     EncryptedPem,

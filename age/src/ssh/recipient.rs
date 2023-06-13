@@ -43,7 +43,7 @@ pub(crate) enum ParsedRecipient {
 }
 
 /// Error conditions when parsing an SSH recipient.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParseRecipientKeyError {
     /// The string is a parseable value that should be ignored. This case is for handling
     /// SSH recipient types that may occur in files we want to be able to parse, but that
@@ -74,10 +74,10 @@ impl fmt::Display for Recipient {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Recipient::SshRsa(ssh_key, _) => {
-                write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(&ssh_key))
+                write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(ssh_key))
             }
             Recipient::SshEd25519(ssh_key, _) => {
-                write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(&ssh_key))
+                write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(ssh_key))
             }
         }
     }
@@ -127,7 +127,7 @@ impl crate::Recipient for Recipient {
                     )
                     .expect("pubkey is valid and file key is not too long");
 
-                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_tag = base64::encode_config(ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
 
                 Ok(vec![Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
@@ -138,8 +138,8 @@ impl crate::Recipient for Recipient {
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
-                let mut rng = rand_7::rngs::OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
+                let rng = rand_7::rngs::OsRng;
+                let esk = EphemeralSecret::new(rng);
                 let epk: X25519PublicKey = (&esk).into();
 
                 let tweak: StaticSecret =
@@ -158,7 +158,7 @@ impl crate::Recipient for Recipient {
                 );
                 let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_tag = base64::encode_config(ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
                 let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
 
                 Ok(vec![Stanza {

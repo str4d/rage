@@ -55,8 +55,8 @@ impl std::str::FromStr for Identity {
 impl Identity {
     /// Generates a new secret key.
     pub fn generate() -> Self {
-        let mut rng = OsRng;
-        Identity(StaticSecret::new(&mut rng))
+        let rng = OsRng;
+        Identity(StaticSecret::new(rng))
     }
 
     /// Serializes this secret key as a string.
@@ -185,8 +185,8 @@ impl fmt::Display for Recipient {
 
 impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
-        let mut rng = OsRng;
-        let esk = EphemeralSecret::new(&mut rng);
+        let rng = OsRng;
+        let esk = EphemeralSecret::new(rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
 

@@ -94,7 +94,7 @@ impl crate::Recipient for Recipient {
             scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-        let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
+        let encoded_salt = base64::encode_config(salt, base64::STANDARD_NO_PAD);
 
         Ok(vec![Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),

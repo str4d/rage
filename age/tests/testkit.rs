@@ -583,7 +583,7 @@ fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<x25519::Id
         // `scrypt_uppercase` uses the stanza tag `Scrypt` instead of `scrypt`, so
         // even though there is a valid passphrase, the decryptor treats it as a
         // different recipient stanza kind.
-        if filename == "scrypt_uppercase" { 1 } else { 0 }
+        usize::from(filename == "scrypt_uppercase")
     );
     testfile
         .identities
@@ -612,7 +612,7 @@ fn check_decrypt_success(
 ) {
     match (res, testfile.expect) {
         (Ok(_), Expect::Success { payload_sha256 }) => {
-            assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
+            assert_eq!(Sha256::digest(payload)[..], payload_sha256);
         }
         // These testfile failures are expected, because we maintains support for
         // parsing legacy age stanzas without an explicit short final line.
@@ -642,7 +642,7 @@ fn check_decrypt_success(
             );
             // The tests with this expectation are checking that no partial STREAM
             // blocks are written to the payload.
-            assert_eq!(Sha256::digest(&payload)[..], payload_sha256);
+            assert_eq!(Sha256::digest(payload)[..], payload_sha256);
         }
         (actual, expected) => panic!(
             "Expected {:?}, got {}{}",

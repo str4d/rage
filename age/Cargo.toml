@@ -9,7 +9,7 @@ keywords = ["rage", "encryption"]
 categories = ["cryptography"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.65"
 
 [badges]
 maintenance = { status = "experimental" }
