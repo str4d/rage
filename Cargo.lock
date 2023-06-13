@@ -75,7 +75,6 @@ dependencies = [
  "futures",
  "futures-test",
  "hex",
- "hkdf",
  "hmac",
  "i18n-embed",
  "i18n-embed-fl",
