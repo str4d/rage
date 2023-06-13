@@ -75,7 +75,7 @@ memchr = { version = "2.5", optional = true }
 # Common CLI dependencies
 atty = { version = "0.2", optional = true }
 console = { version = "0.15", optional = true, default-features = false }
-rpassword = { version = "6", optional = true }
+rpassword = { version = "7", optional = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 # Plugin management
