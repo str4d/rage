@@ -20,7 +20,7 @@ jobs:
         name: [linux, armv7, arm64, windows, macos]
         include:
           - name: linux
-            os: ubuntu-18.04
+            os: ubuntu-20.04
             build_deps: >
               libfuse-dev
             build_flags: --features mount
@@ -28,7 +28,7 @@ jobs:
             asset_suffix: x86_64-linux.tar.gz
 
           - name: armv7
-            os: ubuntu-18.04
+            os: ubuntu-20.04
             target: armv7-unknown-linux-gnueabihf
             build_deps: >
               gcc-arm-linux-gnueabihf
@@ -40,7 +40,7 @@ jobs:
             asset_suffix: armv7-linux.tar.gz
 
           - name: arm64
-            os: ubuntu-18.04
+            os: ubuntu-20.04
             target: aarch64-unknown-linux-gnu
             build_deps: >
               gcc-aarch64-linux-gnu
@@ -63,13 +63,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
         with:
-          toolchain: stable
-          override: true
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
-        if: matrix.target != ''
+          targets: ${{ matrix.target }}
+      - run: rustup override set ${{steps.toolchain.outputs.name}}
 
       - name: Install linux build dependencies
         run: sudo apt install ${{ matrix.build_deps }}
@@ -115,7 +113,7 @@ jobs:
 
   deb:
     name: Debian ${{ matrix.name }}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         name: [linux, linux-musl, armv7, armv7-musl, arm64, arm64-musl]
@@ -170,17 +168,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
         with:
-          toolchain: stable
-          override: true
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
+          targets: ${{ matrix.target }}
+      - run: rustup override set ${{steps.toolchain.outputs.name}}
       - name: cargo install cargo-deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-deb
+        run: cargo install cargo-deb
 
       - name: Install build dependencies
         run: sudo apt install ${{ matrix.build_deps }}
@@ -197,26 +191,17 @@ jobs:
         working-directory: ./rage
 
       - name: Generate completions
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --example generate-completions
+        run: cargo run --example generate-completions
 
       - name: Generate manpages
-        uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: --example generate-docs
+        run: cargo run --example generate-docs
 
       - name: Update Debian package config for cross-compile
         run: sed -i '/\/rage-mount/d' rage/Cargo.toml
         if: matrix.name != 'linux'
 
       - name: cargo deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: deb
-          args: --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
+        run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
 
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@2.6.1

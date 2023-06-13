@@ -19,6 +19,7 @@ to 1.0.0 are beta releases.
   the `PINENTRY_PROGRAM` environment variable. It accepts either a binary name
   or a path. Setting this to the empty string will disable `pinentry` usage and
   fall back to the CLI interface.
+- Linux release binaries are now built using Ubuntu 20.04.
 
 ## [0.9.1] - 2023-03-24
 ### Added
