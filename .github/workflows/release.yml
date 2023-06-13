@@ -70,7 +70,7 @@ jobs:
       - run: rustup override set ${{steps.toolchain.outputs.name}}
 
       - name: Install linux build dependencies
-        run: sudo apt install ${{ matrix.build_deps }}
+        run: sudo apt update && sudo apt install ${{ matrix.build_deps }}
         if: matrix.build_deps != ''
 
       - name: Set up .cargo/config
@@ -177,7 +177,7 @@ jobs:
         run: cargo install cargo-deb
 
       - name: Install build dependencies
-        run: sudo apt install ${{ matrix.build_deps }}
+        run: sudo apt update && sudo apt install ${{ matrix.build_deps }}
         if: matrix.build_deps != ''
 
       - name: Set up .cargo/config

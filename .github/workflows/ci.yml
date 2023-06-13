@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev
+        run: sudo apt update && sudo apt install libfuse-dev
       - run: cargo check --all-targets --all-features
 
   clippy:
@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev
+        run: sudo apt update && sudo apt install libfuse-dev
       - name: Clippy check
         uses: actions-rs/clippy-check@v1
         with:
@@ -68,7 +68,7 @@ jobs:
         id: toolchain
       - run: rustup override set ${{steps.toolchain.outputs.name}}
       - name: Install linux build dependencies
-        run: sudo apt install libfuse-dev
+        run: sudo apt update && sudo apt install libfuse-dev
       - name: Generate coverage report
         uses: actions-rs/tarpaulin@v0.1
         with:

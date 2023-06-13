@@ -114,7 +114,7 @@ jobs:
 
       # Prepare the test environment
       - name: Install dos2unix for simulating Windows files
-        run: sudo apt install dos2unix
+        run: sudo apt update && sudo apt install dos2unix
       - name: Write (very not private) age X25519 key
         if: matrix.recipient == 'x25519'
         run: echo "AGE-SECRET-KEY-1TRYTV7PQS5XPUYSTAQZCD7DQCWC7Q77YJD7UVFJRMW4J82Q6930QS70MRX" >key.txt
