@@ -14,7 +14,7 @@ use nom::{
     IResult,
 };
 use rand::rngs::OsRng;
-use rsa::{padding::PaddingScheme, pkcs1::DecodeRsaPrivateKey};
+use rsa::{pkcs1::DecodeRsaPrivateKey, Oaep};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::io;
@@ -60,7 +60,7 @@ impl UnencryptedKey {
                 Some(
                     sk.decrypt_blinded(
                         &mut rng,
-                        PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                         &stanza.body,
                     )
                     .map_err(DecryptError::from)

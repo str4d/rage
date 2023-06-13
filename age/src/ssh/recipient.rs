@@ -16,7 +16,7 @@ use nom::{
     IResult,
 };
 use rand::rngs::OsRng;
-use rsa::{padding::PaddingScheme, PublicKey};
+use rsa::Oaep;
 use sha2::Sha256;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
@@ -136,7 +136,7 @@ impl crate::Recipient for Recipient {
                 let encrypted_file_key = pk
                     .encrypt(
                         &mut rng,
-                        PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                         file_key.expose_secret(),
                     )
                     .expect("pubkey is valid and file key is not too long");

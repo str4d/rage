@@ -14,7 +14,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.65.0.
-- Migrated to `base64 0.21`.
+- Migrated to `base64 0.21`, `rsa 0.9`.
 
 ## [0.9.2] - 2023-06-12
 ### Added

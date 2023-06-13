@@ -27,7 +27,7 @@ rand.workspace = true
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
-rsa = { version = "0.7", default-features = false, optional = true }
+rsa = { version = "0.9", default-features = false, optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
 curve25519-dalek = { version = "3", optional = true }
