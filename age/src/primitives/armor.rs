@@ -1,5 +1,6 @@
 //! I/O helper structs for the age ASCII armor format.
 
+use base64::{prelude::BASE64_STANDARD, Engine};
 use pin_project::pin_project;
 use std::cmp;
 use std::error;
@@ -318,8 +319,9 @@ impl<W: Write> ArmoredWriter<W> {
                 ..
             } => {
                 let byte_buf = byte_buf.unwrap();
-                let encoded =
-                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf[..]);
+                let encoded = BASE64_STANDARD
+                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 inner.write_all(&encoded_buf[..encoded])?;
                 inner.finish()
             }
@@ -361,11 +363,9 @@ impl<W: Write> Write for ArmoredWriter<W> {
                         break;
                     } else {
                         assert_eq!(
-                            base64::encode_config_slice(
-                                &byte_buf,
-                                base64::STANDARD,
-                                &mut encoded_buf[..],
-                            ),
+                            BASE64_STANDARD
+                                .encode_slice(&byte_buf, &mut encoded_buf[..])
+                                .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES"),
                             BASE64_CHUNK_SIZE_COLUMNS
                         );
                         inner.write_all(&encoded_buf[..])?;
@@ -461,11 +461,9 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                     // line must be written in poll_close().
                     if !buf.is_empty() {
                         assert_eq!(
-                            base64::encode_config_slice(
-                                &byte_buf,
-                                base64::STANDARD,
-                                &mut encoded_buf[..],
-                            ),
+                            BASE64_STANDARD
+                                .encode_slice(&byte_buf, &mut encoded_buf[..],)
+                                .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES"),
                             ARMORED_COLUMNS_PER_LINE
                         );
                         *encoded_line = Some(EncodedBytes {
@@ -509,8 +507,9 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
             if let Some(byte_buf) = byte_buf {
                 // Finish the armored format with a partial line (if necessary) and the end
                 // marker.
-                let encoded =
-                    base64::encode_config_slice(&byte_buf, base64::STANDARD, &mut encoded_buf[..]);
+                let encoded = BASE64_STANDARD
+                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 *encoded_line = Some(EncodedBytes {
                     offset: 0,
                     end: encoded,
@@ -533,7 +532,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
 #[derive(Debug)]
 pub enum ArmoredReadError {
     /// An error occurred while parsing Base64.
-    Base64(base64::DecodeError),
+    Base64(base64::DecodeSliceError),
     /// The begin marker for the armor is invalid.
     InvalidBeginMarker,
     /// Invalid UTF-8 characters were encountered between the begin and end marker.
@@ -787,11 +786,9 @@ impl<R> ArmoredReader<R> {
 
         // Decode the line
         self.byte_start = 0;
-        self.byte_end =
-            base64::decode_config_slice(line.as_bytes(), base64::STANDARD, self.byte_buf.as_mut())
-                .map_err(|e| {
-                    io::Error::new(io::ErrorKind::InvalidData, ArmoredReadError::Base64(e))
-                })?;
+        self.byte_end = BASE64_STANDARD
+            .decode_slice(line.as_bytes(), self.byte_buf.as_mut())
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, ArmoredReadError::Base64(e)))?;
 
         // Finished with this buffered line!
         self.line_buf.clear();

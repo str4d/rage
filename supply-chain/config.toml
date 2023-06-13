@@ -71,10 +71,6 @@ criteria = "safe-to-deploy"
 version = "0.7.3"
 criteria = "safe-to-run"
 
-[[exemptions.base64]]
-version = "0.13.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.base64ct]]
 version = "1.6.0"
 criteria = "safe-to-deploy"

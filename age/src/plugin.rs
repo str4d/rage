@@ -6,6 +6,7 @@ use age_core::{
     plugin::{Connection, Reply, Response, IDENTITY_V1, RECIPIENT_V1},
     secrecy::ExposeSecret,
 };
+use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Variant;
 use i18n_embed_fl::fl;
 
@@ -233,7 +234,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
         .args
         .iter()
         .take(2)
-        .map(|s| base64::decode_config(s, base64::STANDARD_NO_PAD));
+        .map(|s| BASE64_STANDARD_NO_PAD.decode(s));
     let (yes_string, no_string) = match (strings.next(), strings.next()) {
         (None, _) => {
             errors.push(PluginError::Other {

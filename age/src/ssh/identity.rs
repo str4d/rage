@@ -3,6 +3,7 @@ use age_core::{
     primitives::{aead_decrypt, hkdf},
     secrecy::{ExposeSecret, Secret},
 };
+use base64::prelude::BASE64_STANDARD;
 use i18n_embed_fl::fl;
 use nom::{
     branch::alt,
@@ -47,7 +48,7 @@ impl UnencryptedKey {
     pub(crate) fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
-                let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.get(0)?)?;
                 if ssh_tag(ssh_key) != tag {
                     return None;
                 }
@@ -72,7 +73,7 @@ impl UnencryptedKey {
                 )
             }
             (UnencryptedKey::SshEd25519(ssh_key, privkey), SSH_ED25519_RECIPIENT_TAG) => {
-                let tag = base64_arg(stanza.args.get(0)?, [0; TAG_LEN_BYTES])?;
+                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.get(0)?)?;
                 if ssh_tag(ssh_key) != tag {
                     return None;
                 }
@@ -81,7 +82,8 @@ impl UnencryptedKey {
                 }
 
                 let epk =
-                    base64_arg(stanza.args.get(1)?, [0; crate::x25519::EPK_LEN_BYTES])?.into();
+                    base64_arg::<_, { crate::x25519::EPK_LEN_BYTES }, 33>(stanza.args.get(1)?)?
+                        .into();
 
                 let sk: StaticSecret = {
                     let mut sk = [0; 32];
@@ -316,7 +318,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
             map_opt(
                 pair(
                     opt(terminated(rsa_pem_encryption_header, line_ending)),
-                    wrapped_str_while_encoded(base64::STANDARD),
+                    wrapped_str_while_encoded(BASE64_STANDARD),
                 ),
                 |(enc_header, privkey)| {
                     if enc_header.is_some() {
@@ -345,7 +347,7 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), line_ending),
         terminated(
-            map_opt(wrapped_str_while_encoded(base64::STANDARD), |privkey| {
+            map_opt(wrapped_str_while_encoded(BASE64_STANDARD), |privkey| {
                 read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
             }),
             pair(line_ending, tag("-----END OPENSSH PRIVATE KEY-----")),

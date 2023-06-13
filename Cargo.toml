@@ -20,7 +20,7 @@ age-core = { version = "0.9.0", path = "age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
-base64 = "0.13"
+base64 = "0.21"
 
 # - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
