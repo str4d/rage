@@ -89,7 +89,7 @@ hex = "0.4"
 i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
 quickcheck = "1"
 quickcheck_macros = "1"
-test-case = "2"
+test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(unix)'.dev-dependencies]
