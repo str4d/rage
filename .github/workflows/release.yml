@@ -102,7 +102,7 @@ jobs:
         if: matrix.name == 'windows'
 
       - name: Upload archive to release
-        uses: svenstaro/upload-release-action@2.6.1
+        uses: svenstaro/upload-release-action@2.7.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.archive_name }}
@@ -204,7 +204,7 @@ jobs:
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
 
       - name: Upload Debian package to release
-        uses: svenstaro/upload-release-action@2.6.1
+        uses: svenstaro/upload-release-action@2.7.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.target }}/debian/*.deb
