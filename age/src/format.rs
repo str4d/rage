@@ -238,7 +238,9 @@ mod read {
                     preceded(
                         pair(tag(MAC_TAG), tag(b" ")),
                         terminated(
-                            map_opt(take(ENCODED_MAC_LENGTH), |tag| base64_arg(&tag, [0; 32])),
+                            map_opt(take(ENCODED_MAC_LENGTH), |tag| {
+                                base64_arg::<_, 32, 33>(&tag)
+                            }),
                             newline,
                         ),
                     ),

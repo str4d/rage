@@ -5,6 +5,7 @@ use age_core::{
     primitives::{aead_decrypt, aead_encrypt, hkdf},
     secrecy::{ExposeSecret, SecretString},
 };
+use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::{ToBase32, Variant};
 use rand_7::rngs::OsRng;
 use std::fmt;
@@ -55,8 +56,8 @@ impl std::str::FromStr for Identity {
 impl Identity {
     /// Generates a new secret key.
     pub fn generate() -> Self {
-        let mut rng = OsRng;
-        Identity(StaticSecret::new(&mut rng))
+        let rng = OsRng;
+        Identity(StaticSecret::new(rng))
     }
 
     /// Serializes this secret key as a string.
@@ -91,7 +92,7 @@ impl crate::Identity for Identity {
         // Enforce valid and canonical stanza format.
         // https://c2sp.org/age#x25519-recipient-stanza
         let ephemeral_share = match &stanza.args[..] {
-            [arg] => match base64_arg(arg, [0; EPK_LEN_BYTES]) {
+            [arg] => match base64_arg::<_, EPK_LEN_BYTES, 33>(arg) {
                 Some(ephemeral_share) => ephemeral_share,
                 None => return Some(Err(DecryptError::InvalidHeader)),
             },
@@ -185,8 +186,8 @@ impl fmt::Display for Recipient {
 
 impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
-        let mut rng = OsRng;
-        let esk = EphemeralSecret::new(&mut rng);
+        let rng = OsRng;
+        let esk = EphemeralSecret::new(rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
 
@@ -211,7 +212,7 @@ impl crate::Recipient for Recipient {
         let enc_key = hkdf(&salt, X25519_RECIPIENT_KEY_LABEL, shared_secret.as_bytes());
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-        let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
+        let encoded_epk = BASE64_STANDARD_NO_PAD.encode(epk.as_bytes());
 
         Ok(vec![Stanza {
             tag: X25519_RECIPIENT_TAG.to_owned(),

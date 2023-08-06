@@ -3,6 +3,10 @@ use age_core::{
     primitives::{aead_encrypt, hkdf},
     secrecy::ExposeSecret,
 };
+use base64::{
+    prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
+    Engine,
+};
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
     branch::alt,
@@ -12,7 +16,7 @@ use nom::{
     IResult,
 };
 use rand::rngs::OsRng;
-use rsa::{padding::PaddingScheme, PublicKey};
+use rsa::Oaep;
 use sha2::Sha256;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
@@ -43,7 +47,7 @@ pub(crate) enum ParsedRecipient {
 }
 
 /// Error conditions when parsing an SSH recipient.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParseRecipientKeyError {
     /// The string is a parseable value that should be ignored. This case is for handling
     /// SSH recipient types that may occur in files we want to be able to parse, but that
@@ -74,10 +78,20 @@ impl fmt::Display for Recipient {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Recipient::SshRsa(ssh_key, _) => {
-                write!(f, "{} {}", SSH_RSA_KEY_PREFIX, base64::encode(&ssh_key))
+                write!(
+                    f,
+                    "{} {}",
+                    SSH_RSA_KEY_PREFIX,
+                    BASE64_STANDARD.encode(ssh_key)
+                )
             }
             Recipient::SshEd25519(ssh_key, _) => {
-                write!(f, "{} {}", SSH_ED25519_KEY_PREFIX, base64::encode(&ssh_key))
+                write!(
+                    f,
+                    "{} {}",
+                    SSH_ED25519_KEY_PREFIX,
+                    BASE64_STANDARD.encode(ssh_key)
+                )
             }
         }
     }
@@ -122,12 +136,12 @@ impl crate::Recipient for Recipient {
                 let encrypted_file_key = pk
                     .encrypt(
                         &mut rng,
-                        PaddingScheme::new_oaep_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
                         file_key.expose_secret(),
                     )
                     .expect("pubkey is valid and file key is not too long");
 
-                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
+                let encoded_tag = BASE64_STANDARD_NO_PAD.encode(ssh_tag(ssh_key));
 
                 Ok(vec![Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
@@ -138,8 +152,8 @@ impl crate::Recipient for Recipient {
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
-                let mut rng = rand_7::rngs::OsRng;
-                let esk = EphemeralSecret::new(&mut rng);
+                let rng = rand_7::rngs::OsRng;
+                let esk = EphemeralSecret::new(rng);
                 let epk: X25519PublicKey = (&esk).into();
 
                 let tweak: StaticSecret =
@@ -158,8 +172,8 @@ impl crate::Recipient for Recipient {
                 );
                 let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-                let encoded_tag = base64::encode_config(&ssh_tag(ssh_key), base64::STANDARD_NO_PAD);
-                let encoded_epk = base64::encode_config(epk.as_bytes(), base64::STANDARD_NO_PAD);
+                let encoded_tag = BASE64_STANDARD_NO_PAD.encode(ssh_tag(ssh_key));
+                let encoded_epk = BASE64_STANDARD_NO_PAD.encode(epk.as_bytes());
 
                 Ok(vec![Stanza {
                     tag: SSH_ED25519_RECIPIENT_TAG.to_owned(),
@@ -175,7 +189,7 @@ fn ssh_rsa_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     preceded(
         pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
         map_opt(
-            str_while_encoded(base64::STANDARD_NO_PAD),
+            str_while_encoded(BASE64_STANDARD_NO_PAD),
             |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk))),
                 Err(_) => None,
@@ -188,7 +202,7 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     preceded(
         pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
         map_opt(
-            encoded_str(51, base64::STANDARD_NO_PAD),
+            encoded_str(51, BASE64_STANDARD_NO_PAD),
             |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
                 Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshEd25519(
                     ssh_key, pk,
@@ -206,7 +220,7 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
         separated_pair(
             is_not(" "),
             tag(" "),
-            str_while_encoded(base64::STANDARD_NO_PAD),
+            str_while_encoded(BASE64_STANDARD_NO_PAD),
         ),
         |(key_type, ssh_key)| {
             read_ssh::string_tag(key_type)(&ssh_key)

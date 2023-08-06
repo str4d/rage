@@ -1,5 +1,6 @@
 //! Core types and encoding operations used by the age file format.
 
+use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
@@ -60,7 +61,7 @@ impl<'a> AgeStanza<'a> {
         data[full_chunks.len() * 64..].copy_from_slice(partial_chunk);
 
         // The chunks are guaranteed to contain Base64 characters by construction.
-        base64::decode_config(&data, base64::STANDARD_NO_PAD).unwrap()
+        BASE64_STANDARD_NO_PAD.decode(&data).unwrap()
     }
 }
 
@@ -68,7 +69,7 @@ impl<'a> AgeStanza<'a> {
 /// recipient.
 ///
 /// This is the owned type; see [`AgeStanza`] for the reference type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Stanza {
     /// A tag identifying this stanza type.
     pub tag: String,
@@ -324,6 +325,7 @@ pub mod read {
 
 /// Encoding operations for age types.
 pub mod write {
+    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
     use cookie_factory::{
         combinator::string,
         multi::separated_list,
@@ -336,7 +338,7 @@ pub mod write {
     use super::STANZA_TAG;
 
     fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
-        let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
+        let encoded = BASE64_STANDARD_NO_PAD.encode(data);
 
         move |mut w: WriteContext<W>| {
             let mut s = encoded.as_str();
@@ -377,6 +379,7 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
+    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
     use nom::error::ErrorKind;
 
     use super::{read, write};
@@ -385,11 +388,9 @@ mod tests {
     fn parse_age_stanza() {
         let test_tag = "X25519";
         let test_args = &["CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20"];
-        let test_body = base64::decode_config(
-            "C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig",
-            base64::STANDARD_NO_PAD,
-        )
-        .unwrap();
+        let test_body = BASE64_STANDARD_NO_PAD
+            .decode("C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig")
+            .unwrap();
 
         // The only body line is short, so we don't need a trailing empty line.
         let test_stanza = "-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
@@ -433,11 +434,9 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
     fn age_stanza_with_full_body() {
         let test_tag = "full-body";
         let test_args = &["some", "arguments"];
-        let test_body = base64::decode_config(
-            "xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA",
-            base64::STANDARD_NO_PAD,
-        )
-        .unwrap();
+        let test_body = BASE64_STANDARD_NO_PAD
+            .decode("xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA")
+            .unwrap();
 
         // The body fills a complete line, so it requires a trailing empty line.
         let test_stanza = "-> full-body some arguments
@@ -460,11 +459,9 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
     fn age_stanza_with_legacy_full_body() {
         let test_tag = "full-body";
         let test_args = &["some", "arguments"];
-        let test_body = base64::decode_config(
-            "xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA",
-            base64::STANDARD_NO_PAD,
-        )
-        .unwrap();
+        let test_body = BASE64_STANDARD_NO_PAD
+            .decode("xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA")
+            .unwrap();
 
         // The body fills a complete line, but lacks a trailing empty line.
         let test_stanza = "-> full-body some arguments

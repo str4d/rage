@@ -430,7 +430,7 @@ mod tests {
                 pipe.0 = pipe.0.split_off(n_out);
                 Ok(n_out)
             } else {
-                (&mut buf[..n_in]).copy_from_slice(&pipe.0);
+                buf[..n_in].copy_from_slice(&pipe.0);
                 pipe.0.clear();
                 Ok(n_in)
             }

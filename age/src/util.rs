@@ -18,6 +18,7 @@ pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
 pub(crate) mod read {
     use std::str::FromStr;
 
+    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
     use nom::{character::complete::digit1, combinator::verify, ParseTo};
 
     #[cfg(feature = "ssh")]
@@ -32,7 +33,7 @@ pub(crate) mod read {
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn encoded_str(
         count: usize,
-        config: base64::Config,
+        engine: impl base64::Engine,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
         use nom::bytes::streaming::take;
 
@@ -41,7 +42,7 @@ pub(crate) mod read {
 
         move |input: &str| {
             let (i, data) = take(encoded_count)(input)?;
-            match base64::decode_config(data, config) {
+            match engine.decode(data) {
                 Ok(decoded) => Ok((i, decoded)),
                 Err(_) => Err(nom::Err::Failure(make_error(input, ErrorKind::Eof))),
             }
@@ -51,7 +52,7 @@ pub(crate) mod read {
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn str_while_encoded(
-        config: base64::Config,
+        engine: impl base64::Engine,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
         use nom::bytes::complete::take_while1;
 
@@ -61,9 +62,9 @@ pub(crate) mod read {
                     let c = c as u8;
                     // Substitute the character in twice after AA, so that padding
                     // characters will also be detected as a valid if allowed.
-                    base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
+                    engine.decode_slice([65, 65, c, c], &mut [0, 0, 0]).is_ok()
                 }),
-                |data| base64::decode_config(data, config),
+                |data| engine.decode(data),
             )(input)
         }
     }
@@ -71,7 +72,7 @@ pub(crate) mod read {
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     pub(crate) fn wrapped_str_while_encoded(
-        config: base64::Config,
+        engine: impl Engine,
     ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
         use nom::{bytes::streaming::take_while1, character::streaming::line_ending};
 
@@ -83,25 +84,28 @@ pub(crate) mod read {
                         let c = c as u8;
                         // Substitute the character in twice after AA, so that padding
                         // characters will also be detected as a valid if allowed.
-                        base64::decode_config_slice(&[65, 65, c, c], config, &mut [0, 0, 0]).is_ok()
+                        engine.decode_slice([65, 65, c, c], &mut [0, 0, 0]).is_ok()
                     }),
                 ),
                 |chunks| {
                     let data = chunks.join("");
-                    base64::decode_config(&data, config)
+                    engine.decode(&data)
                 },
             )(input)
         }
     }
 
-    pub(crate) fn base64_arg<A: AsRef<[u8]>, B: AsMut<[u8]>>(arg: &A, mut buf: B) -> Option<B> {
-        if arg.as_ref().len() != ((4 * buf.as_mut().len()) + 2) / 3 {
+    pub(crate) fn base64_arg<A: AsRef<[u8]>, const N: usize, const B: usize>(
+        arg: &A,
+    ) -> Option<[u8; N]> {
+        if N > B {
             return None;
         }
 
-        match base64::decode_config_slice(arg, base64::STANDARD_NO_PAD, buf.as_mut()) {
-            Ok(_) => Some(buf),
-            Err(_) => None,
+        let mut buf = [0; B];
+        match BASE64_STANDARD_NO_PAD.decode_slice(arg, buf.as_mut()) {
+            Ok(n) if n == N => Some(buf[..N].try_into().unwrap()),
+            _ => None,
         }
     }
 
@@ -114,11 +118,12 @@ pub(crate) mod read {
 }
 
 pub(crate) mod write {
+    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
     use cookie_factory::{combinator::string, SerializeFn};
     use std::io::Write;
 
     pub(crate) fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
-        let encoded = base64::encode_config(data, base64::STANDARD_NO_PAD);
+        let encoded = BASE64_STANDARD_NO_PAD.encode(data);
         string(encoded)
     }
 }

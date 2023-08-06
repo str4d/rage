@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- MSRV is now 1.65.0.
 
 ## [0.9.2] - 2023-06-12
 ### Changed

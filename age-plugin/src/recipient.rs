@@ -5,6 +5,7 @@ use age_core::{
     plugin::{self, BidirSend, Connection},
     secrecy::SecretString,
 };
+use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::FromBase32;
 use std::io;
 
@@ -70,7 +71,7 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
         let metadata: Vec<_> = Some(yes_string)
             .into_iter()
             .chain(no_string)
-            .map(|s| base64::encode_config(s, base64::STANDARD_NO_PAD))
+            .map(|s| BASE64_STANDARD_NO_PAD.encode(s))
             .collect();
         let metadata: Vec<_> = metadata.iter().map(|s| s.as_str()).collect();
 

@@ -3,6 +3,7 @@ use age_core::{
     primitives::{aead_decrypt, aead_encrypt},
     secrecy::{ExposeSecret, SecretString},
 };
+use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use rand::{rngs::OsRng, RngCore};
 use std::time::Duration;
 use zeroize::Zeroize;
@@ -94,7 +95,7 @@ impl crate::Recipient for Recipient {
             scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
-        let encoded_salt = base64::encode_config(&salt, base64::STANDARD_NO_PAD);
+        let encoded_salt = BASE64_STANDARD_NO_PAD.encode(salt);
 
         Ok(vec![Stanza {
             tag: SCRYPT_RECIPIENT_TAG.to_owned(),
@@ -118,7 +119,10 @@ impl<'a> crate::Identity for Identity<'a> {
         // Enforce valid and canonical stanza format.
         // https://c2sp.org/age#scrypt-recipient-stanza
         let (salt, log_n) = match &stanza.args[..] {
-            [salt, log_n] => match (base64_arg(salt, [0; SALT_LEN]), decimal_digit_arg(log_n)) {
+            [salt, log_n] => match (
+                base64_arg::<_, SALT_LEN, 18>(salt),
+                decimal_digit_arg(log_n),
+            ) {
                 (Some(salt), Some(log_n)) => (salt, log_n),
                 _ => return Some(Err(DecryptError::InvalidHeader)),
             },

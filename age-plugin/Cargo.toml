@@ -2,21 +2,26 @@
 name = "age-plugin"
 description = "[BETA] API for writing age plugins."
 version = "0.4.0"
-authors = ["Jack Grigg <thestr4d@gmail.com>"]
-repository = "https://github.com/str4d/rage"
+authors.workspace = true
+repository.workspace = true
 readme = "README.md"
-license = "MIT OR Apache-2.0"
-edition = "2021"
-rust-version = "1.59"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-age-core = { version = "0.9.0", path = "../age-core", features = ["plugin"] }
-base64 = "0.13"
-bech32 = "0.9"
-chrono = "0.4"
+# Dependencies exposed in a public API:
+# (Breaking upgrades to these require a breaking upgrade to this crate.)
+age-core = { workspace = true, features = ["plugin"] }
+
+# Dependencies used internally:
+# (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)
+base64.workspace = true
+bech32.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
-gumdrop = "0.8"
+gumdrop.workspace = true
 
 [lib]
 bench = false

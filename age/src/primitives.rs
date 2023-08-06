@@ -62,7 +62,7 @@ impl Write for HmacWriter {
 ///
 /// [RFC 7914]: https://tools.ietf.org/html/rfc7914
 pub(crate) fn scrypt(salt: &[u8], log_n: u8, password: &str) -> Result<[u8; 32], InvalidParams> {
-    let params = ScryptParams::new(log_n, 8, 1)?;
+    let params = ScryptParams::new(log_n, 8, 1, 32)?;
 
     let mut output = [0; 32];
     scrypt_inner(password.as_bytes(), salt, &params, &mut output)
