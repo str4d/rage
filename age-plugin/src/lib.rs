@@ -147,8 +147,8 @@
 //!         // The plugin was started by an age client; run the state machine.
 //!         run_state_machine(
 //!             &state_machine,
-//!             || RecipientPlugin,
-//!             || IdentityPlugin,
+//!             Some(|| RecipientPlugin),
+//!             Some(|| IdentityPlugin),
 //!         )?;
 //!         return Ok(());
 //!     }
@@ -213,14 +213,32 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
 /// argument when starting the plugin.
 pub fn run_state_machine<R: recipient::RecipientPluginV1, I: identity::IdentityPluginV1>(
     state_machine: &str,
-    recipient_v1: impl FnOnce() -> R,
-    identity_v1: impl FnOnce() -> I,
+    recipient_v1: Option<impl FnOnce() -> R>,
+    identity_v1: Option<impl FnOnce() -> I>,
 ) -> io::Result<()> {
     use age_core::plugin::{IDENTITY_V1, RECIPIENT_V1};
 
     match state_machine {
-        RECIPIENT_V1 => recipient::run_v1(recipient_v1()),
-        IDENTITY_V1 => identity::run_v1(identity_v1()),
+        RECIPIENT_V1 => {
+            if let Some(plugin) = recipient_v1 {
+                recipient::run_v1(plugin())
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "plugin doesn't support recipient-v1 state machine",
+                ))
+            }
+        }
+        IDENTITY_V1 => {
+            if let Some(plugin) = identity_v1 {
+                identity::run_v1(plugin())
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "plugin doesn't support identity-v1 state machine",
+                ))
+            }
+        }
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown plugin state machine",

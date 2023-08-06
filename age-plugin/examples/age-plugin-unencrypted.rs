@@ -152,7 +152,11 @@ fn main() -> io::Result<()> {
     let opts = PluginOptions::parse_args_default_or_exit();
 
     if let Some(state_machine) = opts.age_plugin {
-        run_state_machine(&state_machine, || RecipientPlugin, || IdentityPlugin)
+        run_state_machine(
+            &state_machine,
+            Some(|| RecipientPlugin),
+            Some(|| IdentityPlugin),
+        )
     } else {
         // A real plugin would generate a new identity here.
         print_new_identity(PLUGIN_NAME, &[], &[]);
