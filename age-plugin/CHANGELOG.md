@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Changed
 - MSRV is now 1.65.0.
+- `age_plugin::run_state_machine` now takes optional arguments, to enable the
+  creation of recipient-only or identity-only plugins.
 
 ## [0.4.0] - 2022-10-27
 ### Changed
