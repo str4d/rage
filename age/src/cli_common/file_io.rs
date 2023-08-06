@@ -7,6 +7,7 @@ use std::io::{self, Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
+use is_terminal::IsTerminal;
 use zeroize::Zeroize;
 
 use crate::{fl, util::LINE_ENDING, wfl, wlnfl};
@@ -61,7 +62,7 @@ impl InputReader {
 
     /// Returns true if this input is from a terminal, and a user is likely typing it.
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Stdin(_)) && atty::is(atty::Stream::Stdin)
+        matches!(self, Self::Stdin(_)) && io::stdin().is_terminal()
     }
 }
 
