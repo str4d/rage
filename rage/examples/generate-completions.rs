@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use clap_complete::{generate, shells, Generator};
 use std::fs::{create_dir_all, File};
 
@@ -46,53 +46,57 @@ fn generate_completions(mut app: Command, bin_name: &str) {
 fn rage_completions() {
     let app = Command::new("rage")
         .arg(Arg::new("input"))
-        .arg(Arg::new("encrypt").short('e').long("encrypt"))
-        .arg(Arg::new("decrypt").short('d').long("decrypt"))
-        .arg(Arg::new("passphrase").short('p').long("passphrase"))
         .arg(
-            Arg::new("max-work-factor")
-                .takes_value(true)
-                .long("max-work-factor"),
+            Arg::new("encrypt")
+                .short('e')
+                .long("encrypt")
+                .action(ArgAction::SetTrue),
         )
-        .arg(Arg::new("armor").short('a').long("armor"))
+        .arg(
+            Arg::new("decrypt")
+                .short('d')
+                .long("decrypt")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("passphrase")
+                .short('p')
+                .long("passphrase")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(Arg::new("max-work-factor").long("max-work-factor"))
+        .arg(
+            Arg::new("armor")
+                .short('a')
+                .long("armor")
+                .action(ArgAction::SetTrue),
+        )
         .arg(
             Arg::new("recipient")
-                .takes_value(true)
-                .multiple_occurrences(true)
                 .short('r')
-                .long("recipient"),
+                .long("recipient")
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("recipients-file")
-                .takes_value(true)
-                .multiple_occurrences(true)
                 .short('R')
-                .long("recipients-file"),
+                .long("recipients-file")
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new("identity")
-                .takes_value(true)
-                .multiple_occurrences(true)
                 .short('i')
-                .long("identity"),
+                .long("identity")
+                .action(ArgAction::Append),
         )
-        .arg(
-            Arg::new("output")
-                .takes_value(true)
-                .short('o')
-                .long("output"),
-        );
+        .arg(Arg::new("plugin-name").short('j'))
+        .arg(Arg::new("output").short('o').long("output"));
 
     generate_completions(app, "rage");
 }
 
 fn rage_keygen_completions() {
-    let app = Command::new("rage-keygen").arg(
-        Arg::new("output")
-            .takes_value(true)
-            .short('o')
-            .long("output"),
-    );
+    let app = Command::new("rage-keygen").arg(Arg::new("output").short('o').long("output"));
 
     generate_completions(app, "rage-keygen");
 }
@@ -102,17 +106,12 @@ fn rage_mount_completions() {
         .arg(Arg::new("filename"))
         .arg(Arg::new("mountpoint"))
         .arg(Arg::new("types").short('t').long("types"))
-        .arg(
-            Arg::new("max-work-factor")
-                .takes_value(true)
-                .long("max-work-factor"),
-        )
+        .arg(Arg::new("max-work-factor").long("max-work-factor"))
         .arg(
             Arg::new("identity")
-                .takes_value(true)
-                .multiple_occurrences(true)
                 .short('i')
-                .long("identity"),
+                .long("identity")
+                .action(ArgAction::Append),
         );
 
     generate_completions(app, "rage-mount");
