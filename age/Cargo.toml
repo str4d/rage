@@ -83,7 +83,7 @@ which = { version = "4", optional = true }
 wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5"
 futures-test = "0.3"
 hex = "0.4"
 i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
@@ -93,10 +93,10 @@ test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.10", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.12", features = ["criterion", "flamegraph"] }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dev-dependencies]
-criterion-cycles-per-byte = "0.1"
+criterion-cycles-per-byte = "0.5"
 
 [features]
 default = []
