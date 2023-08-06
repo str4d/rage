@@ -73,8 +73,8 @@ web-sys = { version = "0.3", optional = true, features = ["Window", "Performance
 memchr = { version = "2.5", optional = true }
 
 # Common CLI dependencies
-atty = { version = "0.2", optional = true }
 console = { version = "0.15", optional = true, default-features = false }
+is-terminal = { version = "0.4", optional = true }
 rpassword = { version = "7", optional = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
@@ -102,7 +102,7 @@ criterion-cycles-per-byte = "0.5"
 default = []
 armor = []
 async = ["futures", "memchr"]
-cli-common = ["atty", "console", "pinentry", "rpassword"]
+cli-common = ["console", "is-terminal", "pinentry", "rpassword"]
 plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",
