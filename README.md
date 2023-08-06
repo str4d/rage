@@ -160,6 +160,11 @@ feature flags:
 - `unstable` enables in-development functionality. Anything behind this feature
   flag has no stability or interoperability guarantees.
 
+## Rust Library
+
+Applications wishing to use rage as a library should use the [`age`](https://crates.io/crates/age)
+crate, which rage is built on top of.
+
 ## License
 
 Licensed under either of
