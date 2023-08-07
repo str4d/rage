@@ -189,7 +189,8 @@ fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool
         let term = console::Term::stderr();
         let initial = format!("{}: (y/n) ", query);
         loop {
-            let response = term.read_line_initial_text(&initial)?.to_lowercase();
+            term.write_str(&initial)?;
+            let response = term.read_line()?.to_lowercase();
             if ["y", "yes"].contains(&response.as_str()) {
                 break Ok(true);
             } else if ["n", "no"].contains(&response.as_str()) {
@@ -284,9 +285,8 @@ impl Callbacks for UiCallbacks {
 
     fn request_public_string(&self, description: &str) -> Option<String> {
         let term = console::Term::stderr();
-        term.read_line_initial_text(description)
-            .ok()
-            .filter(|s| !s.is_empty())
+        term.write_str(description).ok()?;
+        term.read_line().ok().filter(|s| !s.is_empty())
     }
 
     fn request_passphrase(&self, description: &str) -> Option<SecretString> {
