@@ -62,7 +62,7 @@ jobs:
             asset_suffix: x86_64-darwin.tar.gz
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
         with:
@@ -167,7 +167,7 @@ jobs:
             deb_flags: --variant=musl
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
         with:

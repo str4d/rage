@@ -11,7 +11,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: cargo fetch
       - name: Build tests
         run: cargo build --workspace --verbose --exclude rage --all-features --tests
@@ -27,7 +27,7 @@ jobs:
           - wasm32-wasi
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Add target
         run: rustup target add ${{ matrix.target }}
       - run: cargo fetch
@@ -39,7 +39,7 @@ jobs:
     name: Bitrot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install linux build dependencies
         run: sudo apt update && sudo apt install libfuse-dev
       - run: cargo check --all-targets --all-features
@@ -48,7 +48,7 @@ jobs:
     name: Clippy (MSRV)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install linux build dependencies
         run: sudo apt update && sudo apt install libfuse-dev
       - name: Clippy check
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
       - run: rustup override set ${{steps.toolchain.outputs.name}}
@@ -83,7 +83,7 @@ jobs:
     name: Intra-doc links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: cargo fetch
       # Requires #![deny(rustdoc::broken_intra_doc_links)] in crates.
       - name: Check intra-doc links
@@ -93,6 +93,6 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check formatting
         run: cargo fmt --all -- --check
