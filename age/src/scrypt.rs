@@ -62,6 +62,7 @@ fn target_scrypt_work_factor() -> u8 {
     };
 
     duration
+        .and_then(|d| (!d.is_zero()).then_some(d))
         .map(|mut d| {
             // Use duration as a proxy for CPU usage, which scales linearly with N.
             while d < ONE_SECOND && log_n < 63 {
