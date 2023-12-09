@@ -184,6 +184,12 @@ impl fmt::Display for Recipient {
     }
 }
 
+impl fmt::Debug for Recipient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         let rng = OsRng;
