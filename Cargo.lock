@@ -871,9 +871,9 @@ dependencies = [
 
 [[package]]
 name = "fuse_mt"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6fb32ee97853a470831e058c0340955c9c773c8a1885aab99b37a2d3131fc06"
+checksum = "e098b8dc4cd32e9ba31d9c8cdfef11271d8191233c64c2a671432ff19d354948"
 dependencies = [
  "fuser",
  "libc",
@@ -883,9 +883,9 @@ dependencies = [
 
 [[package]]
 name = "fuser"
-version = "0.11.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "104ed58f182bc2975062cd3fab229e82b5762de420e26cf5645f661402694599"
+checksum = "21370f84640642c8ea36dfb2a6bfc4c55941f476fcf431f6fef25a5ddcf0169b"
 dependencies = [
  "libc",
  "log",
@@ -893,7 +893,6 @@ dependencies = [
  "page_size",
  "pkg-config",
  "smallvec",
- "users",
  "zerocopy 0.6.6",
 ]
 
@@ -1588,9 +1587,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "page_size"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eebde548fbbf1ea81a99b128872779c437752fb99f217c45245e1a61dcd9edcd"
+checksum = "1b7663cbd190cfd818d08efa8497f6cd383076688c49a391ef7c0d03cd12b561"
 dependencies = [
  "libc",
  "winapi",
@@ -2616,16 +2615,6 @@ checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
  "crypto-common",
  "subtle",
-]
-
-[[package]]
-name = "users"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24cc0f6d6f267b73e5a2cadf007ba8f9bc39c6a6f9666f8cf25ea809a153b032"
-dependencies = [
- "libc",
- "log",
 ]
 
 [[package]]

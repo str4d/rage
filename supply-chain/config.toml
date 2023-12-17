@@ -734,10 +734,6 @@ criteria = "safe-to-deploy"
 version = "1.15.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.users]]
-version = "0.11.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.walkdir]]
 version = "2.3.3"
 criteria = "safe-to-deploy"
