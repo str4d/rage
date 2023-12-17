@@ -558,9 +558,9 @@ dependencies = [
 
 [[package]]
 name = "criterion-cycles-per-byte"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13929cb9262ca80bcd63a664f74e9ca958bef631c3e50a3117c4069119fd9628"
+checksum = "5281161544b8f2397e14942c2045efa3446470348121a65c37263f8e76c1e2ff"
 dependencies = [
  "criterion",
 ]
@@ -1789,9 +1789,9 @@ dependencies = [
 
 [[package]]
 name = "pprof"
-version = "0.12.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "978385d59daf9269189d052ca8a84c1acfd0715c0599a5d5188d4acc078ca46a"
+checksum = "ef5c97c51bd34c7e742402e216abdeb44d415fbe6ae41d56b114723e953711cb"
 dependencies = [
  "backtrace",
  "cfg-if",

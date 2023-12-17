@@ -92,10 +92,10 @@ test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.12", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dev-dependencies]
-criterion-cycles-per-byte = "0.5"
+criterion-cycles-per-byte = "0.6"
 
 [features]
 default = []
