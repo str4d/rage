@@ -489,14 +489,19 @@ mod read_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
+    ///
+    /// Returns `None` if the modulus is larger than `max_size`.
     pub(super) fn rsa_pubkey(
         max_size: usize,
-    ) -> impl Fn(&[u8]) -> IResult<&[u8], rsa::RsaPublicKey> {
+    ) -> impl Fn(&[u8]) -> IResult<&[u8], Option<rsa::RsaPublicKey>> {
         move |input| {
             preceded(
                 string_tag(SSH_RSA_KEY_PREFIX),
                 map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
-                    rsa::RsaPublicKey::new_with_max_size(modulus, exponent, max_size)
+                    match rsa::RsaPublicKey::new_with_max_size(modulus, exponent, max_size) {
+                        Err(rsa::Error::ModulusTooLarge) => Ok(None),
+                        res => res.map(Some),
+                    }
                 }),
             )(input)
         }

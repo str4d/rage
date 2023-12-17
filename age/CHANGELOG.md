@@ -15,6 +15,14 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.65.0.
 - Migrated to `base64 0.21`, `rsa 0.9`.
+- `age::ssh`:
+  - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.
+  - The following trait implementations now return
+    `Err(ParseRecipientKeyError::RsaModulusTooLarge)` instead of
+    `Err(ParseRecipientKeyError::Unsupported(_))` when encountering an RSA
+    public key with a modulus larger than 4096 bits:
+    - `impl FromStr for Recipient`
+    - `impl TryFrom<Identity> for Recipient`
 
 ### Fixed
 - `age::cli_common`:
