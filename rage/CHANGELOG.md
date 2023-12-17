@@ -12,6 +12,10 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.65.0.
 
+### Fixed
+- OpenSSH private keys passed to `-i/--identity` that contain invalid public
+  keys are no longer ignored when encrypting, and instead cause an error.
+
 ## [0.9.2] - 2023-06-12
 ### Changed
 - Increased parsing speed of age file headers. For single-recipient encrypted

@@ -32,6 +32,8 @@ pub(crate) enum EncryptError {
     PassphraseWithoutFileArgument,
     PluginNameFlag,
     #[cfg(feature = "ssh")]
+    RsaModulusTooLarge,
+    #[cfg(feature = "ssh")]
     UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
@@ -128,6 +130,16 @@ impl fmt::Display for EncryptError {
             EncryptError::PluginNameFlag => {
                 wfl!(f, "err-enc-plugin-name-flag")
             }
+            #[cfg(feature = "ssh")]
+            EncryptError::RsaModulusTooLarge => write!(
+                f,
+                "{}",
+                fl!(
+                    crate::LANGUAGE_LOADER,
+                    "err-enc-rsa-modulus-too-large",
+                    max_size = 4096,
+                )
+            ),
             #[cfg(feature = "ssh")]
             EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }

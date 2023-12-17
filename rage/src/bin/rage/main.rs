@@ -52,6 +52,36 @@ macro_rules! warning {
     }};
 }
 
+#[cfg(feature = "ssh")]
+fn parse_ssh_recipient<F, G>(
+    parser: F,
+    invalid: G,
+    filename: &str,
+) -> Result<Option<Box<dyn Recipient + Send>>, error::EncryptError>
+where
+    F: FnOnce() -> Result<age::ssh::Recipient, age::ssh::ParseRecipientKeyError>,
+    G: FnOnce() -> Result<Option<Box<dyn Recipient + Send>>, error::EncryptError>,
+{
+    use age::ssh::{ParseRecipientKeyError, UnsupportedKey};
+
+    match parser() {
+        Ok(pk) => Ok(Some(Box::new(pk))),
+        Err(e) => match e {
+            ParseRecipientKeyError::Ignore => Ok(None),
+            ParseRecipientKeyError::Invalid(_) => invalid(),
+            ParseRecipientKeyError::RsaModulusTooLarge => {
+                Err(error::EncryptError::RsaModulusTooLarge)
+            }
+            ParseRecipientKeyError::Unsupported(key_type) => {
+                Err(error::EncryptError::UnsupportedKey(
+                    filename.to_string(),
+                    UnsupportedKey::Type(key_type),
+                ))
+            }
+        },
+    }
+}
+
 /// Parses a recipient from a string.
 fn parse_recipient(
     filename: &str,
@@ -64,16 +94,7 @@ fn parse_recipient(
     } else if let Some(pk) = {
         #[cfg(feature = "ssh")]
         {
-            match s.parse::<age::ssh::Recipient>() {
-                Ok(pk) => Some(Box::new(pk)),
-                Err(age::ssh::ParseRecipientKeyError::Unsupported(key_type)) => {
-                    return Err(error::EncryptError::UnsupportedKey(
-                        filename.to_string(),
-                        age::ssh::UnsupportedKey::Type(key_type),
-                    ))
-                }
-                _ => None,
-            }
+            parse_ssh_recipient(|| s.parse::<age::ssh::Recipient>(), || Ok(None), filename)?
         }
 
         #[cfg(not(feature = "ssh"))]
@@ -173,8 +194,12 @@ fn read_recipients(
                 return Err(error::EncryptError::UnsupportedKey(filename, k))
             }
             Ok(identity) => {
-                if let Ok(recipient) = age::ssh::Recipient::try_from(identity) {
-                    recipients.push(Box::new(recipient));
+                if let Some(recipient) = parse_ssh_recipient(
+                    || age::ssh::Recipient::try_from(identity),
+                    || Err(error::EncryptError::InvalidRecipient(filename.clone())),
+                    &filename,
+                )? {
+                    recipients.push(recipient);
                     continue;
                 }
             }

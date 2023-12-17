@@ -43,6 +43,7 @@ pub enum Recipient {
 
 pub(crate) enum ParsedRecipient {
     Supported(Recipient),
+    RsaModulusTooLarge,
     Unsupported(String),
 }
 
@@ -55,6 +56,8 @@ pub enum ParseRecipientKeyError {
     Ignore,
     /// The string is not a valid SSH recipient.
     Invalid(&'static str),
+    /// The string is an ssh-rsa public key with a modulus larger than we support.
+    RsaModulusTooLarge,
     /// The string is a parseable value that corresponds to an unsupported SSH key type.
     Unsupported(String),
 }
@@ -64,8 +67,11 @@ impl std::str::FromStr for Recipient {
 
     /// Parses an SSH recipient from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match ssh_recipient(s) {
+        match ssh_recipient(rsa::RsaPublicKey::MAX_SIZE)(s) {
             Ok((_, ParsedRecipient::Supported(pk))) => Ok(pk),
+            Ok((_, ParsedRecipient::RsaModulusTooLarge)) => {
+                Err(ParseRecipientKeyError::RsaModulusTooLarge)
+            }
             Ok((_, ParsedRecipient::Unsupported(key_type))) => {
                 Err(ParseRecipientKeyError::Unsupported(key_type))
             }
@@ -105,8 +111,12 @@ impl TryFrom<Identity> for Recipient {
             Identity::Unencrypted(UnencryptedKey::SshRsa(ssh_key, _))
             | Identity::Unencrypted(UnencryptedKey::SshEd25519(ssh_key, _))
             | Identity::Encrypted(EncryptedKey { ssh_key, .. }) => {
-                if let Ok((_, pk)) = read_ssh::rsa_pubkey(&ssh_key) {
-                    Ok(Recipient::SshRsa(ssh_key, pk))
+                if let Ok((_, pk)) = read_ssh::rsa_pubkey(rsa::RsaPublicKey::MAX_SIZE)(&ssh_key) {
+                    if let Some(pk) = pk {
+                        Ok(Recipient::SshRsa(ssh_key, pk))
+                    } else {
+                        Err(ParseRecipientKeyError::RsaModulusTooLarge)
+                    }
                 } else if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
                     Ok(Recipient::SshEd25519(ssh_key, pk))
                 } else if let Ok((_, key_type)) = read_ssh::string(&ssh_key) {
@@ -184,17 +194,22 @@ impl crate::Recipient for Recipient {
     }
 }
 
-fn ssh_rsa_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
-    preceded(
-        pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
-        map_opt(
-            str_while_encoded(BASE64_STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk))),
-                Err(_) => None,
-            },
-        ),
-    )(input)
+fn ssh_rsa_pubkey(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecipient> {
+    move |input: &str| {
+        preceded(
+            pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
+            map_opt(
+                str_while_encoded(BASE64_STANDARD_NO_PAD),
+                |ssh_key| match read_ssh::rsa_pubkey(max_size)(&ssh_key) {
+                    Ok((_, Some(pk))) => {
+                        Some(ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk)))
+                    }
+                    Ok((_, None)) => Some(ParsedRecipient::RsaModulusTooLarge),
+                    Err(_) => None,
+                },
+            ),
+        )(input)
+    }
 }
 
 fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
@@ -229,8 +244,14 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     )(input)
 }
 
-pub(crate) fn ssh_recipient(input: &str) -> IResult<&str, ParsedRecipient> {
-    alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey))(input)
+pub(crate) fn ssh_recipient(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecipient> {
+    move |input| {
+        alt((
+            ssh_rsa_pubkey(max_size),
+            ssh_ed25519_pubkey,
+            ssh_ignore_pubkey,
+        ))(input)
+    }
 }
 
 #[cfg(test)]

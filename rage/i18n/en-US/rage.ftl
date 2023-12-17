@@ -112,6 +112,13 @@ err-enc-passphrase-without-file = File to encrypt must be passed as an argument 
 
 err-enc-plugin-name-flag = {-flag-plugin-name} can't be used with {-flag-encrypt}.
 
+err-enc-rsa-modulus-too-large =
+    RSA Modulus Too Large
+    ---------------------
+    OpenSSH supports various RSA modulus sizes, but {-rage} only supports public
+    keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
+    when encrypting to untrusted public keys.
+
 ## Decryption errors
 
 err-detected-powershell-corruption = It looks like this file was corrupted by PowerShell redirection.

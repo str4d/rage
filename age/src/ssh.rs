@@ -489,13 +489,22 @@ mod read_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
-    pub(super) fn rsa_pubkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPublicKey> {
-        preceded(
-            string_tag(SSH_RSA_KEY_PREFIX),
-            map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
-                rsa::RsaPublicKey::new(modulus, exponent)
-            }),
-        )(input)
+    ///
+    /// Returns `None` if the modulus is larger than `max_size`.
+    pub(super) fn rsa_pubkey(
+        max_size: usize,
+    ) -> impl Fn(&[u8]) -> IResult<&[u8], Option<rsa::RsaPublicKey>> {
+        move |input| {
+            preceded(
+                string_tag(SSH_RSA_KEY_PREFIX),
+                map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
+                    match rsa::RsaPublicKey::new_with_max_size(modulus, exponent, max_size) {
+                        Err(rsa::Error::ModulusTooLarge) => Ok(None),
+                        res => res.map(Some),
+                    }
+                }),
+            )(input)
+        }
     }
 
     /// An SSH-encoded Ed25519 public key.

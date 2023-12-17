@@ -15,6 +15,14 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.65.0.
 - Migrated to `base64 0.21`, `rsa 0.9`.
+- `age::ssh`:
+  - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.
+  - The following trait implementations now return
+    `Err(ParseRecipientKeyError::RsaModulusTooLarge)` instead of
+    `Err(ParseRecipientKeyError::Unsupported(_))` when encountering an RSA
+    public key with a modulus larger than 4096 bits:
+    - `impl FromStr for Recipient`
+    - `impl TryFrom<Identity> for Recipient`
 
 ### Fixed
 - `age::cli_common`:
@@ -47,6 +55,11 @@ to 1.0.0 are beta releases.
 - Support for encrypted OpenSSH keys exported from 1Password.
 
 ## [0.9.0] - 2022-10-27
+### Security
+- `age::ssh::Recipient::SshRsa` now has a maximum modulus size of 4096 bits, to
+  prevent a Denial of Service (DoS) condition when encrypting to untrusted
+  public keys.
+
 ### Added
 - `age::armor::ArmoredReadError`, used to wrap armor-specific read errors inside
   `std::io::Error`.
@@ -55,6 +68,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.59.0.
+- Migrated to `rsa 0.7`.
 - `age::Encryptor::with_recipients` now returns `Option<Encryptor>`, with `None`
   returned if the provided list of recipients is empty (to prevent files being
   encrypted to no recipients). The `recipients` argument is also now
