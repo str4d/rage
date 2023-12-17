@@ -17,6 +17,8 @@ to 1.0.0 are beta releases.
 - Migrated to `base64 0.21`, `rsa 0.9`.
 
 ### Fixed
+- `age::Encryptor::with_user_passphrase` will now re-measure the `scrypt` work
+  factor until it is measurable, instead of setting the work factor to maximum.
 - `age::cli_common`:
   - `UiCallbacks::confirm` no longer requires erasing the confirmation message
     before it will accept a response.
