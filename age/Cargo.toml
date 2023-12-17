@@ -85,7 +85,7 @@ wsl = { version = "0.1", optional = true }
 criterion = "0.5"
 futures-test = "0.3"
 hex = "0.4"
-i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
+i18n-embed = { workspace = true, features = ["desktop-requester"] }
 quickcheck = "1"
 quickcheck_macros = "1"
 test-case = "3"

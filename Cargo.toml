@@ -54,10 +54,10 @@ subtle = "2"
 zeroize = "1"
 
 # Localization
-i18n-embed = { version = "0.13", features = ["fluent-system"] }
-i18n-embed-fl = "0.6"
+i18n-embed = { version = "0.14", features = ["fluent-system"] }
+i18n-embed-fl = "0.7"
 lazy_static = "1"
-rust-embed = "6"
+rust-embed = "8"
 
 # CLI
 chrono = "0.4"
