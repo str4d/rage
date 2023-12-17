@@ -287,10 +287,6 @@ version = "0.14.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.getrandom]]
-version = "0.1.16"
-criteria = "safe-to-deploy"
-
-[[exemptions.getrandom]]
 version = "0.2.10"
 criteria = "safe-to-deploy"
 
@@ -539,23 +535,7 @@ version = "1.0.3"
 criteria = "safe-to-run"
 
 [[exemptions.rand]]
-version = "0.7.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.rand]]
 version = "0.8.5"
-criteria = "safe-to-deploy"
-
-[[exemptions.rand_chacha]]
-version = "0.2.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.rand_core]]
-version = "0.5.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.rand_hc]]
-version = "0.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.redox_syscall]]
@@ -760,10 +740,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.walkdir]]
 version = "2.3.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasi]]
-version = "0.9.0+wasi-snapshot-preview1"
 criteria = "safe-to-deploy"
 
 [[exemptions.wasi]]

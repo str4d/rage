@@ -129,10 +129,10 @@ impl TryFrom<Identity> for Recipient {
 
 impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+        let mut rng = OsRng;
+
         match self {
             Recipient::SshRsa(ssh_key, pk) => {
-                let mut rng = OsRng;
-
                 let encrypted_file_key = pk
                     .encrypt(
                         &mut rng,
@@ -152,8 +152,7 @@ impl crate::Recipient for Recipient {
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
-                let rng = rand_7::rngs::OsRng;
-                let esk = EphemeralSecret::new(rng);
+                let esk = EphemeralSecret::random_from_rng(rng);
                 let epk: X25519PublicKey = (&esk).into();
 
                 let tweak: StaticSecret =

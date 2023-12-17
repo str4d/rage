@@ -30,7 +30,7 @@ rand.workspace = true
 rsa = { version = "0.9", default-features = false, optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
-curve25519-dalek = { version = "3", optional = true }
+curve25519-dalek = { version = "4", optional = true }
 
 # Async I/O
 futures = { version = "0.3", optional = true }
@@ -46,7 +46,6 @@ cookie-factory.workspace = true
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
 nom.workspace = true
-rand_7.workspace = true
 rust-embed.workspace = true
 scrypt.workspace = true
 sha2.workspace = true
