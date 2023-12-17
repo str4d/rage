@@ -26,7 +26,7 @@ base64 = "0.21"
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 
 # - X25519 from RFC 7748
-x25519-dalek = "1"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
@@ -39,7 +39,6 @@ scrypt = { version = "0.11", default-features = false }
 
 # - CSPRNG
 rand = "0.8"
-rand_7 = { package = "rand", version = "0.7" }
 
 # - Key encoding
 bech32 = "0.9"
@@ -55,10 +54,10 @@ subtle = "2"
 zeroize = "1"
 
 # Localization
-i18n-embed = { version = "0.13", features = ["fluent-system"] }
-i18n-embed-fl = "0.6"
+i18n-embed = { version = "0.14", features = ["fluent-system"] }
+i18n-embed-fl = "0.7"
 lazy_static = "1"
-rust-embed = "6"
+rust-embed = "8"
 
 # CLI
 chrono = "0.4"

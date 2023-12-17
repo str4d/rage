@@ -509,11 +509,9 @@ mod read_ssh {
         preceded(
             string_tag(SSH_ED25519_KEY_PREFIX),
             map_opt(string, |buf| {
-                if buf.len() == 32 {
-                    CompressedEdwardsY::from_slice(buf).decompress()
-                } else {
-                    None
-                }
+                CompressedEdwardsY::from_slice(buf)
+                    .ok()
+                    .and_then(|p| p.decompress())
             }),
         )(input)
     }

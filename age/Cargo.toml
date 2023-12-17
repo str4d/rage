@@ -30,7 +30,7 @@ rand.workspace = true
 rsa = { version = "0.9", default-features = false, optional = true }
 
 # - Conversion of public keys from Ed25519 to X25519
-curve25519-dalek = { version = "3", optional = true }
+curve25519-dalek = { version = "4", optional = true }
 
 # Async I/O
 futures = { version = "0.3", optional = true }
@@ -46,7 +46,6 @@ cookie-factory.workspace = true
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
 nom.workspace = true
-rand_7.workspace = true
 rust-embed.workspace = true
 scrypt.workspace = true
 sha2.workspace = true
@@ -86,17 +85,17 @@ wsl = { version = "0.1", optional = true }
 criterion = "0.5"
 futures-test = "0.3"
 hex = "0.4"
-i18n-embed = { version = "0.13", features = ["desktop-requester", "fluent-system"] }
+i18n-embed = { workspace = true, features = ["desktop-requester"] }
 quickcheck = "1"
 quickcheck_macros = "1"
 test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.12", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dev-dependencies]
-criterion-cycles-per-byte = "0.5"
+criterion-cycles-per-byte = "0.6"
 
 [features]
 default = []

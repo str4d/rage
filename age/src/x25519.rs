@@ -7,7 +7,7 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::{ToBase32, Variant};
-use rand_7::rngs::OsRng;
+use rand::rngs::OsRng;
 use std::fmt;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -57,7 +57,7 @@ impl Identity {
     /// Generates a new secret key.
     pub fn generate() -> Self {
         let rng = OsRng;
-        Identity(StaticSecret::new(rng))
+        Identity(StaticSecret::random_from_rng(rng))
     }
 
     /// Serializes this secret key as a string.
@@ -187,7 +187,7 @@ impl fmt::Display for Recipient {
 impl crate::Recipient for Recipient {
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
         let rng = OsRng;
-        let esk = EphemeralSecret::new(rng);
+        let esk = EphemeralSecret::random_from_rng(rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
 
