@@ -489,6 +489,11 @@ criteria = "safe-to-deploy"
 delta = "0.6.1 -> 0.6.2"
 notes = "No notable changes"
 
+[[audits.fermyon.audits.oorandom]]
+who = "Radu Matei <radu.matei@fermyon.com>"
+criteria = "safe-to-run"
+version = "11.1.3"
+
 [[audits.google.audits.addr2line]]
 who = "George Burgess IV <gbiv@google.com>"
 criteria = "safe-to-run"
