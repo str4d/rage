@@ -25,10 +25,7 @@ const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 ///
 /// Guaranteed to return a valid work factor (less than 64).
 fn target_scrypt_work_factor() -> u8 {
-    // Time a work factor that should always be fast.
-    let mut log_n = 10;
-
-    let duration: Option<Duration> = {
+    let measure_duration = |log_n| {
         // Platforms that have a functional SystemTime::now():
         #[cfg(not(all(target_arch = "wasm32", not(target_os = "wasi"))))]
         {
@@ -60,6 +57,16 @@ fn target_scrypt_work_factor() -> u8 {
             None
         }
     };
+
+    // Time a work factor that should always be fast.
+    let mut log_n = 10;
+    let mut duration: Option<Duration> = measure_duration(log_n);
+    while duration.map(|d| d.is_zero()).unwrap_or(false) {
+        // On some newer platforms, the work factor may be so fast that it is cannot be
+        // measured. Increase the work factor until we can measure something.
+        log_n += 1;
+        duration = measure_duration(log_n);
+    }
 
     duration
         .map(|mut d| {
