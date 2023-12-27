@@ -238,10 +238,6 @@ criteria = "safe-to-deploy"
 version = "1.0.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.errno]]
-version = "0.3.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.filetime]]
 version = "0.2.22"
 criteria = "safe-to-deploy"
@@ -335,10 +331,6 @@ version = "0.1.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.indexmap]]
-version = "1.9.1"
-criteria = "safe-to-run"
-
-[[exemptions.indexmap]]
 version = "2.0.0"
 criteria = "safe-to-deploy"
 
@@ -353,10 +345,6 @@ criteria = "safe-to-deploy"
 [[exemptions.is-terminal]]
 version = "0.4.9"
 criteria = "safe-to-deploy"
-
-[[exemptions.itoa]]
-version = "1.0.9"
-criteria = "safe-to-run"
 
 [[exemptions.jobserver]]
 version = "0.1.26"
@@ -626,10 +614,6 @@ criteria = "safe-to-deploy"
 version = "1.0.181"
 criteria = "safe-to-deploy"
 
-[[exemptions.serde_json]]
-version = "1.0.104"
-criteria = "safe-to-run"
-
 [[exemptions.serde_spanned]]
 version = "0.6.3"
 criteria = "safe-to-deploy"
@@ -693,14 +677,6 @@ criteria = "safe-to-run"
 [[exemptions.test-case-macros]]
 version = "3.1.0"
 criteria = "safe-to-run"
-
-[[exemptions.thiserror]]
-version = "1.0.44"
-criteria = "safe-to-deploy"
-
-[[exemptions.thiserror-impl]]
-version = "1.0.44"
-criteria = "safe-to-deploy"
 
 [[exemptions.threadpool]]
 version = "1.8.1"
