@@ -146,7 +146,7 @@ impl crate::Identity for Identity {
 ///
 /// This recipient type is anonymous, in the sense that an attacker can't tell from the
 /// age-encrypted file alone if it is encrypted to a certain recipient.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Recipient(PublicKey);
 
 impl std::str::FromStr for Recipient {
@@ -181,6 +181,12 @@ impl fmt::Display for Recipient {
             )
             .expect("HRP is valid")
         )
+    }
+}
+
+impl fmt::Debug for Recipient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
