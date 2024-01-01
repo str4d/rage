@@ -20,7 +20,7 @@ jobs:
       - name: cargo build
         run: cargo build --release --features unstable
         working-directory: ./rage
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rage
           path: target/release/rage
@@ -69,7 +69,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/go-age/age
           go build filippo.io/age/cmd/age
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: age
           path: go-age/age/age
@@ -103,10 +103,10 @@ jobs:
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]"}'
 
       # Download the binaries to test
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: rage
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: age
       - run: chmod +x rage
@@ -131,7 +131,7 @@ jobs:
         if: matrix.recipient == 'ssh-rsa' || matrix.recipient == 'ssh-ed25519'
         run: echo "AGE_PUBKEY=-R key.txt.pub" >> $GITHUB_ENV
       - name: Store key.txt in case we need it
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_key.txt
           path: key.txt
@@ -142,7 +142,7 @@ jobs:
       - name: Decrypt from file
         run: ./${{ matrix.bob }} -d -i key.txt test.age | grep -q "^Test string$"
       - name: Store test.age
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test.age
@@ -155,7 +155,7 @@ jobs:
       - name: Decrypt from ASCII-armored file
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store test2.age
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
@@ -166,7 +166,7 @@ jobs:
       - name: Decrypt from ASCII-armored CRLF file
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store CRLF-ed test2.age
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
@@ -175,7 +175,7 @@ jobs:
       - name: Pipes!
         run: echo "Test string 3 - ASCII Drift" | ./${{ matrix.alice }} $AGE_PUBKEY | tee --output-error=warn test3.age | ./${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
       - name: Store test3.age
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test3.age
@@ -186,7 +186,7 @@ jobs:
       - name: Explicit stdin during decryption
         run: cat test4.age | ./${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
       - name: Store test4.age
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
