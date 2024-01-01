@@ -285,6 +285,64 @@ enum ArmorIs<W> {
 }
 
 /// Writer that optionally applies the age ASCII armor format.
+///
+/// # Examples
+///
+/// ```
+/// # use std::io::Read;
+/// use std::io::Write;
+/// # use std::iter;
+///
+/// # fn run_main() -> Result<(), ()> {
+/// # let identity = age::x25519::Identity::generate();
+/// # let load_recipient = || Ok(identity.to_public());
+/// let recipient = load_recipient()?;
+/// let plaintext = b"Hello world!";
+///
+/// # fn encrypt(recipient: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+/// let encrypted = {
+///     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
+///         .expect("we provided a recipient");
+///
+///     let mut encrypted = vec![];
+///     let mut writer = encryptor.wrap_output(
+///         age::armor::ArmoredWriter::wrap_output(
+///             &mut encrypted,
+///             age::armor::Format::AsciiArmor,
+///         )?
+///     )?;
+///     writer.write_all(plaintext)?;
+///     writer.finish()
+///         .and_then(|armor| armor.finish())?;
+///
+///     encrypted
+/// };
+/// # Ok(encrypted)
+/// # }
+/// # fn decrypt(identity: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+/// # let decrypted = {
+/// #     let decryptor = match age::Decryptor::new(
+/// #         age::armor::ArmoredReader::new(&encrypted[..])
+/// #     )? {
+/// #         age::Decryptor::Recipients(d) => d,
+/// #         _ => unreachable!(),
+/// #     };
+/// #     let mut decrypted = vec![];
+/// #     let mut reader = decryptor.decrypt(iter::once(&identity as &dyn age::Identity))?;
+/// #     reader.read_to_end(&mut decrypted);
+/// #     decrypted
+/// # };
+/// # Ok(decrypted)
+/// # }
+/// # let decrypted = decrypt(
+/// #     identity,
+/// #     encrypt(recipient, &plaintext[..]).map_err(|_| ())?
+/// # ).map_err(|_| ())?;
+/// # assert_eq!(decrypted, plaintext);
+/// # Ok(())
+/// # }
+/// # run_main().unwrap();
+/// ```
 #[pin_project]
 pub struct ArmoredWriter<W>(#[pin] ArmorIs<W>);
 
@@ -600,6 +658,62 @@ enum StartPos {
 }
 
 /// Reader that will parse the age ASCII armor format if detected.
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Read;
+/// # use std::io::Write;
+/// use std::iter;
+///
+/// # fn run_main() -> Result<(), ()> {
+/// # fn encrypt(recipient: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+/// # let encrypted = {
+/// #     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
+/// #         .expect("we provided a recipient");
+/// #     let mut encrypted = vec![];
+/// #     let mut writer = encryptor.wrap_output(
+/// #         age::armor::ArmoredWriter::wrap_output(
+/// #             &mut encrypted,
+/// #             age::armor::Format::AsciiArmor,
+/// #         )?
+/// #     )?;
+/// #     writer.write_all(plaintext)?;
+/// #     writer.finish()
+/// #         .and_then(|armor| armor.finish())?;
+/// #     encrypted
+/// # };
+/// # Ok(encrypted)
+/// # }
+/// # let load_identity = || Ok(age::x25519::Identity::generate());
+/// let identity = load_identity()?;
+/// # let plaintext = b"Hello world!";
+/// # let load_encrypted_file = || encrypt(identity.to_public(), &plaintext[..]).map_err(|_| ());
+/// let encrypted = load_encrypted_file()?;
+///
+/// # fn decrypt(identity: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+/// let decrypted = {
+///     let decryptor = match age::Decryptor::new(
+///         age::armor::ArmoredReader::new(&encrypted[..])
+///     )? {
+///         age::Decryptor::Recipients(d) => d,
+///         _ => unreachable!(),
+///     };
+///
+///     let mut decrypted = vec![];
+///     let mut reader = decryptor.decrypt(iter::once(&identity as &dyn age::Identity))?;
+///     reader.read_to_end(&mut decrypted);
+///
+///     decrypted
+/// };
+/// # Ok(decrypted)
+/// # }
+/// # let decrypted = decrypt(identity, encrypted).map_err(|_| ())?;
+/// # assert_eq!(decrypted, plaintext);
+/// # Ok(())
+/// # }
+/// # run_main().unwrap();
+/// ```
 #[pin_project]
 pub struct ArmoredReader<R> {
     #[pin]
