@@ -11,7 +11,7 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `impl Eq for age::ssh::{ParseRecipientKeyError, UnsupportedKey}`
-- `impl {Debug, PartialEq, Eq} for age::x25519::Recipient`
+- `impl {Debug, PartialEq, Eq, Hash} for age::x25519::Recipient`
 
 ### Changed
 - MSRV is now 1.65.0.

@@ -146,7 +146,7 @@ impl crate::Identity for Identity {
 ///
 /// This recipient type is anonymous, in the sense that an attacker can't tell from the
 /// age-encrypted file alone if it is encrypted to a certain recipient.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Recipient(PublicKey);
 
 impl std::str::FromStr for Recipient {
