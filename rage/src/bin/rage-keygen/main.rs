@@ -23,6 +23,10 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
     }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
 }
 
 #[derive(Debug, Options)]
@@ -62,14 +66,7 @@ fn main() {
         match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600, false) {
             Ok(output) => output,
             Err(e) => {
-                error!(
-                    "{}",
-                    i18n_embed_fl::fl!(
-                        LANGUAGE_LOADER,
-                        "err-failed-to-open-output",
-                        err = e.to_string()
-                    )
-                );
+                error!("{}", fl!("err-failed-to-open-output", err = e.to_string()));
                 return;
             }
         };
@@ -91,13 +88,6 @@ fn main() {
         writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
         writeln!(output, "{}", sk.to_string().expose_secret())
     })() {
-        error!(
-            "{}",
-            i18n_embed_fl::fl!(
-                LANGUAGE_LOADER,
-                "err-failed-to-write-output",
-                err = e.to_string()
-            )
-        );
+        error!("{}", fl!("err-failed-to-write-output", err = e.to_string()));
     }
 }

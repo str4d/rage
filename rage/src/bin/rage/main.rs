@@ -35,18 +35,15 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
     }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
 }
 
 macro_rules! warning {
     ($warning_id:literal) => {{
-        eprintln!(
-            "{}",
-            i18n_embed_fl::fl!(
-                $crate::LANGUAGE_LOADER,
-                "warning-msg",
-                warning = fl!($warning_id)
-            )
-        );
+        eprintln!("{}", fl!("warning-msg", warning = fl!($warning_id)));
     }};
 }
 
@@ -627,8 +624,7 @@ fn main() -> Result<(), error::Error> {
 
         println!(
             "{}",
-            i18n_embed_fl::fl!(
-                LANGUAGE_LOADER,
+            fl!(
                 "rage-usage",
                 usage_a = usage_a,
                 usage_b = usage_b,

@@ -28,6 +28,10 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id)
     }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
 }
 
 /// age-localized version of the write! macro.
@@ -37,6 +41,10 @@ macro_rules! wfl {
     ($f:ident, $message_id:literal) => {
         write!($f, "{}", $crate::fl!($message_id))
     };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        write!($f, "{}", $crate::fl!($message_id, $($args), *))
+    };
 }
 
 /// age-localized version of the writeln! macro.
@@ -45,6 +53,10 @@ macro_rules! wfl {
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
         writeln!($f, "{}", $crate::fl!($message_id))
+    };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        writeln!($f, "{}", $crate::fl!($message_id, $($args), *))
     };
 }
 
