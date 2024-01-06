@@ -8,9 +8,7 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
-struct Translations;
-
-const TRANSLATIONS: Translations = Translations {};
+struct Localizations;
 
 lazy_static! {
     pub(crate) static ref LANGUAGE_LOADER: FluentLanguageLoader = {
@@ -18,7 +16,7 @@ lazy_static! {
         // Ensure that the fallback language is always loaded, even if the library user
         // doesn't call `localizer().select(languages)`.
         let fallback: LanguageIdentifier = "en-US".parse().unwrap();
-        language_loader.load_languages(&TRANSLATIONS, &[&fallback]).unwrap();
+        language_loader.load_languages(&Localizations, &[&fallback]).unwrap();
         language_loader
     };
 }
@@ -65,5 +63,5 @@ macro_rules! wlnfl {
 /// age::localizer().select(&requested_languages).unwrap();
 /// ```
 pub fn localizer() -> Box<dyn Localizer> {
-    Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &TRANSLATIONS))
+    Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &Localizations))
 }

@@ -13,9 +13,7 @@ use std::io::Write;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
-struct Translations;
-
-const TRANSLATIONS: Translations = Translations {};
+struct Localizations;
 
 lazy_static! {
     static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
@@ -47,7 +45,7 @@ fn main() {
         .init();
 
     let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
     age::localizer().select(&requested_languages).unwrap();
     // Unfortunately the common Windows terminals don't support Unicode Directionality
     // Isolation Marks, so we disable them for now.
