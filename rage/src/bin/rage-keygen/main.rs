@@ -76,10 +76,6 @@ fn main() -> Result<(), error::Error> {
         let pk = sk.to_public();
 
         (|| {
-            if !output.is_terminal() {
-                eprintln!("{}: {}", fl!("tty-pubkey"), pk);
-            }
-
             writeln!(
                 output,
                 "# {}: {}",
@@ -87,7 +83,13 @@ fn main() -> Result<(), error::Error> {
                 chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
             )?;
             writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
-            writeln!(output, "{}", sk.to_string().expose_secret())
+            writeln!(output, "{}", sk.to_string().expose_secret())?;
+
+            if !output.is_terminal() {
+                eprintln!("{}: {}", fl!("tty-pubkey"), pk);
+            }
+
+            Ok(())
         })()
         .map_err(error::Error::FailedToWriteOutput)
     }
