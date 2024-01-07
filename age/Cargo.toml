@@ -86,8 +86,7 @@ criterion = "0.5"
 futures-test = "0.3"
 hex = "0.4"
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
-quickcheck = "1"
-quickcheck_macros = "1"
+proptest = "1"
 test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 

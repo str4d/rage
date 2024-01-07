@@ -231,8 +231,7 @@ impl crate::Recipient for Recipient {
 #[cfg(test)]
 pub(crate) mod tests {
     use age_core::secrecy::ExposeSecret;
-    use quickcheck::TestResult;
-    use quickcheck_macros::quickcheck;
+    use proptest::prelude::*;
     use x25519_dalek::{PublicKey, StaticSecret};
 
     use super::{Identity, Recipient};
@@ -255,27 +254,27 @@ pub(crate) mod tests {
         assert_eq!(key.to_public().to_string(), TEST_PK);
     }
 
-    #[quickcheck]
-    fn wrap_and_unwrap(sk_bytes: Vec<u8>) -> TestResult {
-        if sk_bytes.len() > 32 {
-            return TestResult::discard();
-        }
+    proptest! {
+        #[test]
+        fn wrap_and_unwrap(sk_bytes in proptest::collection::vec(any::<u8>(), ..=32)) {
+            let file_key = [7; 16].into();
+            let sk = {
+                let mut tmp = [0; 32];
+                tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);
+                StaticSecret::from(tmp)
+            };
 
-        let file_key = [7; 16].into();
-        let sk = {
-            let mut tmp = [0; 32];
-            tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);
-            StaticSecret::from(tmp)
-        };
+            let stanzas = Recipient(PublicKey::from(&sk))
+                .wrap_file_key(&file_key);
+            prop_assert!(stanzas.is_ok());
 
-        let stanzas = Recipient(PublicKey::from(&sk))
-            .wrap_file_key(&file_key)
-            .unwrap();
-        let res = Identity(sk).unwrap_stanzas(&stanzas);
+            let res = Identity(sk).unwrap_stanzas(&stanzas.unwrap());
+            prop_assert!(res.is_some());
+            let res = res.unwrap();
+            prop_assert!(res.is_ok());
+            let res = res.unwrap();
 
-        match res {
-            Some(Ok(res)) => TestResult::from_bool(res.expose_secret() == file_key.expose_secret()),
-            _ => TestResult::from_bool(false),
+            prop_assert_eq!(res.expose_secret(), file_key.expose_secret());
         }
     }
 }
