@@ -17,6 +17,7 @@
 -flag-decrypt = -d/--decrypt
 -flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
+-flag-output = -o/--output
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
@@ -117,7 +118,7 @@ err-enc-plugin-name-flag = {-flag-plugin-name} non può essere usato assieme a {
 ## Decryption errors
 
 err-detected-powershell-corruption = Sembra che questo file sia stato corrotto dalla redirezione in PowerShell.
-rec-detected-powershell-corruption = Usa -o o -a per cifrare file in PowerShell.
+rec-detected-powershell-corruption = Usa {-flag-output} o {-flag-armor} per cifrare file in PowerShell.
 
 rec-dec-excessive-work = Per decifrare, riprova usando {-flag-max-work-factor} {$wf}
 
