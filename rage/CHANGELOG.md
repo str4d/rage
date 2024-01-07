@@ -15,6 +15,9 @@ to 1.0.0 are beta releases.
 ### Fixed
 - OpenSSH private keys passed to `-i/--identity` that contain invalid public
   keys are no longer ignored when encrypting, and instead cause an error.
+- `rage-keygen` now prints fatal errors directly instead of them being hidden
+  behind the `RUST_LOG=error` environment variable. It also now sets its return
+  code appropriately instead of always returning 0.
 
 ## [0.9.2] - 2023-06-12
 ### Changed
