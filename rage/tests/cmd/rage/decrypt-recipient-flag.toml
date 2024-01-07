@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "--decrypt -r foobar"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -r/--recipient can't be used with -d/--decrypt.
+Did you mean to use -i/--identity to specify a private key?
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

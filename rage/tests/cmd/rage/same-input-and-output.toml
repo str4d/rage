@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-r foobar -o same.txt same.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Input and output are the same file 'same.txt'.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

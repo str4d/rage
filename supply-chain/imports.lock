@@ -447,6 +447,12 @@ who = "Pat Hickey <phickey@fastly.com>"
 criteria = "safe-to-deploy"
 version = "1.0.8"
 
+[[audits.embark-studios.audits.colorchoice]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "1.0.0"
+notes = "No unsafe usage or ambient capabilities"
+
 [[audits.embark-studios.audits.thiserror]]
 who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"
@@ -464,6 +470,12 @@ who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"
 delta = "0.6.1 -> 0.6.2"
 notes = "No notable changes"
+
+[[audits.embark-studios.audits.utf8parse]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.2.1"
+notes = "Single unsafe usage that looks sound, no ambient capabilities"
 
 [[audits.fermyon.audits.oorandom]]
 who = "Radu Matei <radu.matei@fermyon.com>"
@@ -522,6 +534,12 @@ that the RNG here is not cryptographically secure.
 """
 aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
 
+[[audits.google.audits.glob]]
+who = "George Burgess IV <gbiv@google.com>"
+criteria = "safe-to-deploy"
+version = "0.3.1"
+aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
+
 [[audits.google.audits.itertools]]
 who = "ChromeOS"
 criteria = "safe-to-run"
@@ -565,6 +583,12 @@ Issues:
 - https://github.com/nix-rust/nix/pull/1993
 """
 aggregated-from = "https://fuchsia.googlesource.com/fuchsia/+/refs/heads/main/third_party/rust_crates/supply-chain/audits.toml?format=TEXT"
+
+[[audits.google.audits.normalize-line-endings]]
+who = "Max Lee <endlesspring@google.com>"
+criteria = "safe-to-run"
+version = "0.3.0"
+aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
 
 [[audits.google.audits.pin-project-lite]]
 who = "David Koloski <dkoloski@google.com>"

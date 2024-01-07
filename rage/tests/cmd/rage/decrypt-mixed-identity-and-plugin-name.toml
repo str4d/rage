@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--decrypt --identity key.txt -j plugin-name"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -i/--identity can't be used with -j.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--encrypt -R foobar.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: No such file or directory (os error 2)
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

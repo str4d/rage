@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--encrypt -i key.age.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Identity file 'key.age.txt' is encrypted with age but not with a passphrase.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

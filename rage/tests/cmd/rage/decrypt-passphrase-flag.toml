@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "--decrypt --passphrase"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -p/--passphrase can't be used with -d/--decrypt.
+Note that passphrase-encrypted files are detected automatically.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

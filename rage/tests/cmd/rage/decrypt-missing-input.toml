@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--decrypt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: failed to fill whole buffer
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""
