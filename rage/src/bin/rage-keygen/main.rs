@@ -10,6 +10,8 @@ use lazy_static::lazy_static;
 use log::error;
 use rust_embed::RustEmbed;
 use std::io::Write;
+use std::path::Path;
+
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
@@ -60,6 +62,13 @@ fn main() {
     if opts.version {
         println!("rage-keygen {}", env!("CARGO_PKG_VERSION"));
         return;
+    }
+		
+		if let Some(ref output) = opts.output {
+      if Path::new(output).exists() {
+        eprintln!("{}", fl!("err-failed-to-write-output", err = format!("Outputfile '{}' already exists.", output)));
+        return; 
+      }
     }
 
     let mut output =
