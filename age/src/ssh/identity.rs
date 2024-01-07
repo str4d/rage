@@ -4,7 +4,6 @@ use age_core::{
     secrecy::{ExposeSecret, Secret},
 };
 use base64::prelude::BASE64_STANDARD;
-use i18n_embed_fl::fl;
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
@@ -27,8 +26,9 @@ use super::{
 };
 use crate::{
     error::DecryptError,
+    fl,
     util::read::{base64_arg, wrapped_str_while_encoded},
-    Callbacks,
+    wlnfl, Callbacks,
 };
 
 /// An SSH private key for decrypting an age file.
@@ -144,53 +144,31 @@ impl UnsupportedKey {
     /// Prints details about this unsupported key.
     pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
         if let Some(name) = filename {
-            writeln!(
-                f,
-                "{}",
-                fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "ssh-unsupported-key",
-                    name = name
-                )
-            )?;
+            wlnfl!(f, "ssh-unsupported-key", name = name)?;
             writeln!(f)?;
         }
         match self {
-            UnsupportedKey::EncryptedPem => writeln!(
+            UnsupportedKey::EncryptedPem => wlnfl!(
                 f,
-                "{}",
-                fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "ssh-insecure-key-format",
-                    change_passphrase = "ssh-keygen -o -p",
-                    gen_new = "ssh-keygen -o"
-                )
+                "ssh-insecure-key-format",
+                change_passphrase = "ssh-keygen -o -p",
+                gen_new = "ssh-keygen -o",
             )?,
             UnsupportedKey::EncryptedSsh(cipher) => {
                 let new_issue = format!(
                     "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{}",
                     cipher,
                 );
-                writeln!(
+                wlnfl!(
                     f,
-                    "{}",
-                    fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "ssh-unsupported-cipher",
-                        cipher = cipher.as_str(),
-                        new_issue = new_issue.as_str()
-                    )
+                    "ssh-unsupported-cipher",
+                    cipher = cipher.as_str(),
+                    new_issue = new_issue.as_str(),
                 )?;
             }
-            UnsupportedKey::Type(key_type) => writeln!(
-                f,
-                "{}",
-                fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "ssh-unsupported-key-type",
-                    key_type = key_type.as_str(),
-                )
-            )?,
+            UnsupportedKey::Type(key_type) => {
+                wlnfl!(f, "ssh-unsupported-key-type", key_type = key_type.as_str())?
+            }
         }
         Ok(())
     }
@@ -289,7 +267,6 @@ impl<C: Callbacks> crate::Identity for DecryptableIdentity<C> {
             Identity::Unencrypted(key) => key.unwrap_stanza(stanza),
             Identity::Encrypted(enc) => {
                 let passphrase = self.callbacks.request_passphrase(&fl!(
-                    crate::i18n::LANGUAGE_LOADER,
                     "ssh-passphrase-prompt",
                     filename = enc.filename.as_deref().unwrap_or_default()
                 ))?;

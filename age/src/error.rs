@@ -1,6 +1,5 @@
 //! Error type.
 
-use i18n_embed_fl::fl;
 use std::fmt;
 use std::io;
 
@@ -61,30 +60,22 @@ impl fmt::Display for PluginError {
             PluginError::Identity {
                 binary_name,
                 message,
-            } => write!(
+            } => wfl!(
                 f,
-                "{}",
-                fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "err-plugin-identity",
-                    plugin_name = binary_name.as_str(),
-                    message = message.as_str()
-                )
+                "err-plugin-identity",
+                plugin_name = binary_name.as_str(),
+                message = message.as_str(),
             ),
             PluginError::Recipient {
                 binary_name,
                 recipient,
                 message,
-            } => write!(
+            } => wfl!(
                 f,
-                "{}",
-                fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "err-plugin-recipient",
-                    plugin_name = binary_name.as_str(),
-                    recipient = recipient.as_str(),
-                    message = message.as_str()
-                )
+                "err-plugin-recipient",
+                plugin_name = binary_name.as_str(),
+                recipient = recipient.as_str(),
+                message = message.as_str(),
             ),
             PluginError::Other {
                 kind,
@@ -153,15 +144,7 @@ impl fmt::Display for EncryptError {
             EncryptError::Io(e) => e.fmt(f),
             #[cfg(feature = "plugin")]
             EncryptError::MissingPlugin { binary_name } => {
-                writeln!(
-                    f,
-                    "{}",
-                    fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "err-missing-plugin",
-                        plugin_name = binary_name.as_str()
-                    )
-                )?;
+                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
             }
             #[cfg(feature = "plugin")]
@@ -258,14 +241,10 @@ impl fmt::Display for DecryptError {
             DecryptError::DecryptionFailed => wfl!(f, "err-decryption-failed"),
             DecryptError::ExcessiveWork { required, target } => {
                 wlnfl!(f, "err-excessive-work")?;
-                write!(
+                wfl!(
                     f,
-                    "{}",
-                    fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "rec-excessive-work",
-                        duration = (1 << (required - target))
-                    )
+                    "rec-excessive-work",
+                    duration = (1 << (required - target)),
                 )
             }
             DecryptError::InvalidHeader => wfl!(f, "err-header-invalid"),
@@ -274,15 +253,7 @@ impl fmt::Display for DecryptError {
             DecryptError::KeyDecryptionFailed => wfl!(f, "err-key-decryption"),
             #[cfg(feature = "plugin")]
             DecryptError::MissingPlugin { binary_name } => {
-                writeln!(
-                    f,
-                    "{}",
-                    fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "err-missing-plugin",
-                        plugin_name = binary_name.as_str()
-                    )
-                )?;
+                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
             }
             DecryptError::NoMatchingKeys => wfl!(f, "err-no-matching-keys"),

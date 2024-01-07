@@ -17,9 +17,11 @@
 -flag-decrypt = -d/--decrypt
 -flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
+-flag-output = -o/--output
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
+-flag-plugin-name = -j
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
 

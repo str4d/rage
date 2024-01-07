@@ -26,9 +26,7 @@ mod zip;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
-struct Translations;
-
-const TRANSLATIONS: Translations = Translations {};
+struct Localizations;
 
 lazy_static! {
     static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
@@ -36,7 +34,11 @@ lazy_static! {
 
 macro_rules! fl {
     ($message_id:literal) => {{
-        i18n_embed_fl::fl!(LANGUAGE_LOADER, $message_id)
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+    }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
     }};
 }
 
@@ -44,11 +46,19 @@ macro_rules! wfl {
     ($f:ident, $message_id:literal) => {
         write!($f, "{}", fl!($message_id))
     };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        write!($f, "{}", fl!($message_id, $($args), *))
+    };
 }
 
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
         writeln!($f, "{}", fl!($message_id))
+    };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        writeln!($f, "{}", fl!($message_id, $($args), *))
     };
 }
 
@@ -89,15 +99,7 @@ impl fmt::Debug for Error {
             Error::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
-                    write!(
-                        f,
-                        "{}",
-                        i18n_embed_fl::fl!(
-                            LANGUAGE_LOADER,
-                            "rec-dec-excessive-work",
-                            wf = required
-                        )
-                    )
+                    wfl!(f, "rec-dec-excessive-work", wf = required)
                 }
                 _ => write!(f, "{}", e),
             },
@@ -110,15 +112,7 @@ impl fmt::Debug for Error {
             }
             Error::MissingMountpoint => wfl!(f, "err-mnt-missing-mountpoint"),
             Error::MissingType => wfl!(f, "err-mnt-missing-types"),
-            Error::UnknownType(t) => write!(
-                f,
-                "{}",
-                i18n_embed_fl::fl!(
-                    LANGUAGE_LOADER,
-                    "err-mnt-unknown-type",
-                    fs_type = t.as_str()
-                )
-            ),
+            Error::UnknownType(t) => wfl!(f, "err-mnt-unknown-type", fs_type = t.as_str()),
         }?;
         writeln!(f)?;
         writeln!(f, "[ {} ]", fl!("err-ux-A"))?;
@@ -219,7 +213,7 @@ fn main() -> Result<(), Error> {
         .init();
 
     let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
     age::localizer().select(&requested_languages).unwrap();
     // Unfortunately the common Windows terminals don't support Unicode Directionality
     // Isolation Marks, so we disable them for now.
@@ -255,11 +249,7 @@ fn main() -> Result<(), Error> {
 
     info!(
         "{}",
-        i18n_embed_fl::fl!(
-            LANGUAGE_LOADER,
-            "info-decrypting",
-            filename = opts.filename.as_str()
-        )
+        fl!("info-decrypting", filename = opts.filename.as_str()),
     );
     let file = File::open(opts.filename)?;
 

@@ -8,9 +8,7 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
-struct Translations;
-
-const TRANSLATIONS: Translations = Translations {};
+struct Localizations;
 
 lazy_static! {
     pub(crate) static ref LANGUAGE_LOADER: FluentLanguageLoader = {
@@ -18,7 +16,7 @@ lazy_static! {
         // Ensure that the fallback language is always loaded, even if the library user
         // doesn't call `localizer().select(languages)`.
         let fallback: LanguageIdentifier = "en-US".parse().unwrap();
-        language_loader.load_languages(&TRANSLATIONS, &[&fallback]).unwrap();
+        language_loader.load_languages(&Localizations, &[&fallback]).unwrap();
         language_loader
     };
 }
@@ -30,6 +28,10 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id)
     }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
 }
 
 /// age-localized version of the write! macro.
@@ -39,6 +41,10 @@ macro_rules! wfl {
     ($f:ident, $message_id:literal) => {
         write!($f, "{}", $crate::fl!($message_id))
     };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        write!($f, "{}", $crate::fl!($message_id, $($args), *))
+    };
 }
 
 /// age-localized version of the writeln! macro.
@@ -47,6 +53,10 @@ macro_rules! wfl {
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
         writeln!($f, "{}", $crate::fl!($message_id))
+    };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        writeln!($f, "{}", $crate::fl!($message_id, $($args), *))
     };
 }
 
@@ -65,5 +75,5 @@ macro_rules! wlnfl {
 /// age::localizer().select(&requested_languages).unwrap();
 /// ```
 pub fn localizer() -> Box<dyn Localizer> {
-    Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &TRANSLATIONS))
+    Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &Localizations))
 }

@@ -1,4 +1,3 @@
-use i18n_embed_fl::fl;
 use std::fmt;
 use std::io;
 
@@ -6,11 +5,19 @@ macro_rules! wfl {
     ($f:ident, $message_id:literal) => {
         write!($f, "{}", $crate::fl!($message_id))
     };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        write!($f, "{}", $crate::fl!($message_id, $($args), *))
+    };
 }
 
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
         writeln!($f, "{}", $crate::fl!($message_id))
+    };
+
+    ($f:ident, $message_id:literal, $($args:expr),* $(,)?) => {
+        writeln!($f, "{}", $crate::fl!($message_id, $($args), *))
     };
 }
 
@@ -58,56 +65,28 @@ impl fmt::Display for EncryptError {
             EncryptError::Age(e) => write!(f, "{}", e),
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
-                    writeln!(
-                        f,
-                        "{}",
-                        fl!(
-                            crate::LANGUAGE_LOADER,
-                            "err-enc-broken-stdout",
-                            err = source.to_string()
-                        )
-                    )?;
+                    wlnfl!(f, "err-enc-broken-stdout", err = source.to_string())?;
                     wfl!(f, "rec-enc-broken-stdout")
                 } else {
-                    write!(
-                        f,
-                        "{}",
-                        fl!(
-                            crate::LANGUAGE_LOADER,
-                            "err-enc-broken-file",
-                            err = source.to_string()
-                        )
-                    )
+                    wfl!(f, "err-enc-broken-file", err = source.to_string())
                 }
             }
             EncryptError::IdentityEncryptedWithoutPassphrase(filename) => {
-                write!(
+                wfl!(
                     f,
-                    "{}",
-                    fl!(
-                        crate::LANGUAGE_LOADER,
-                        "err-dec-identity-encrypted-without-passphrase",
-                        filename = filename.as_str()
-                    )
+                    "err-dec-identity-encrypted-without-passphrase",
+                    filename = filename.as_str(),
                 )
             }
-            EncryptError::IdentityNotFound(filename) => write!(
+            EncryptError::IdentityNotFound(filename) => wfl!(
                 f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-dec-identity-not-found",
-                    filename = filename.as_str()
-                )
+                "err-dec-identity-not-found",
+                filename = filename.as_str(),
             ),
-            EncryptError::InvalidRecipient(recipient) => write!(
+            EncryptError::InvalidRecipient(recipient) => wfl!(
                 f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-enc-invalid-recipient",
-                    recipient = recipient.as_str()
-                )
+                "err-enc-invalid-recipient",
+                recipient = recipient.as_str(),
             ),
             EncryptError::Io(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
@@ -131,15 +110,9 @@ impl fmt::Display for EncryptError {
                 wfl!(f, "err-enc-plugin-name-flag")
             }
             #[cfg(feature = "ssh")]
-            EncryptError::RsaModulusTooLarge => write!(
-                f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-enc-rsa-modulus-too-large",
-                    max_size = 4096,
-                )
-            ),
+            EncryptError::RsaModulusTooLarge => {
+                wfl!(f, "err-enc-rsa-modulus-too-large", max_size = 4096)
+            }
             #[cfg(feature = "ssh")]
             EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
@@ -198,15 +171,7 @@ impl fmt::Display for DecryptError {
             DecryptError::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
                     writeln!(f, "{}", e)?;
-                    write!(
-                        f,
-                        "{}",
-                        fl!(
-                            crate::LANGUAGE_LOADER,
-                            "rec-dec-excessive-work",
-                            wf = required
-                        )
-                    )
+                    wfl!(f, "rec-dec-excessive-work", wf = required)
                 }
                 _ => write!(f, "{}", e),
             },
@@ -276,15 +241,9 @@ impl fmt::Debug for Error {
             Error::Encryption(e) => writeln!(f, "{}", e)?,
             Error::IdentityFlagAmbiguous => wlnfl!(f, "err-identity-ambiguous")?,
             Error::MixedEncryptAndDecrypt => wlnfl!(f, "err-mixed-encrypt-decrypt")?,
-            Error::SameInputAndOutput(filename) => writeln!(
-                f,
-                "{}",
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "err-same-input-and-output",
-                    filename = filename.as_str()
-                )
-            )?,
+            Error::SameInputAndOutput(filename) => {
+                wlnfl!(f, "err-same-input-and-output", filename = filename.as_str())?
+            }
         }
         writeln!(f)?;
         writeln!(f, "[ {} ]", crate::fl!("err-ux-A"))?;

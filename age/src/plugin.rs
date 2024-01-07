@@ -8,7 +8,6 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Variant;
-use i18n_embed_fl::fl;
 
 use std::borrow::Borrow;
 use std::fmt;
@@ -22,6 +21,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     error::{DecryptError, EncryptError, PluginError},
+    fl,
     util::parse_bech32,
     Callbacks,
 };
@@ -68,7 +68,6 @@ impl SlowPluginGuard {
                 match SystemTime::now().duration_since(start) {
                     Ok(end) if end >= TEN_SECONDS => {
                         callbacks.display_message(&fl!(
-                            crate::i18n::LANGUAGE_LOADER,
                             "plugin-waiting-on-binary",
                             binary_name = plugin_binary_name,
                         ));

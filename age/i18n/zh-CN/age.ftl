@@ -10,6 +10,8 @@
 
 -age = age
 -rage = rage
+-ssh-rsa = ssh-rsa
+-ssh-ed25519 = ssh-ed25519
 
 ## CLI helpers
 

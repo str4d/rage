@@ -24,9 +24,7 @@ mod error;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
-struct Translations;
-
-const TRANSLATIONS: Translations = Translations {};
+struct Localizations;
 
 lazy_static! {
     static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
@@ -37,18 +35,15 @@ macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
     }};
+
+    ($message_id:literal, $($args:expr),* $(,)?) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
 }
 
 macro_rules! warning {
     ($warning_id:literal) => {{
-        eprintln!(
-            "{}",
-            i18n_embed_fl::fl!(
-                $crate::LANGUAGE_LOADER,
-                "warning-msg",
-                warning = fl!($warning_id)
-            )
-        );
+        eprintln!("{}", fl!("warning-msg", warning = fl!($warning_id)));
     }};
 }
 
@@ -590,7 +585,7 @@ fn main() -> Result<(), error::Error> {
         .init();
 
     let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &TRANSLATIONS, &requested_languages).unwrap();
+    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
     age::localizer().select(&requested_languages).unwrap();
     // Unfortunately the common Windows terminals don't support Unicode Directionality
     // Isolation Marks, so we disable them for now.
@@ -629,8 +624,7 @@ fn main() -> Result<(), error::Error> {
 
         println!(
             "{}",
-            i18n_embed_fl::fl!(
-                LANGUAGE_LOADER,
+            fl!(
                 "rage-usage",
                 usage_a = usage_a,
                 usage_b = usage_b,

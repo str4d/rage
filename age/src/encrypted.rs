@@ -2,11 +2,9 @@
 
 use std::{cell::Cell, io};
 
-use i18n_embed_fl::fl;
-
 use crate::{
-    decryptor::PassphraseDecryptor, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile,
-    IdentityFileEntry,
+    decryptor::PassphraseDecryptor, fl, Callbacks, DecryptError, Decryptor, EncryptError,
+    IdentityFile, IdentityFileEntry,
 };
 
 /// The state of the encrypted age identity.
@@ -46,7 +44,6 @@ impl<R: io::Read> IdentityState<R> {
                 max_work_factor,
             } => {
                 let passphrase = match callbacks.request_passphrase(&fl!(
-                    crate::i18n::LANGUAGE_LOADER,
                     "encrypted-passphrase-prompt",
                     filename = filename.unwrap_or_default()
                 )) {
@@ -169,7 +166,6 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
                 // matched, warn the user.
                 if requested_passphrase && result.is_none() {
                     self.callbacks.display_message(&fl!(
-                        crate::i18n::LANGUAGE_LOADER,
                         "encrypted-warn-no-match",
                         filename = self.filename.as_deref().unwrap_or_default()
                     ));

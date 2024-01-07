@@ -17,6 +17,7 @@
 -flag-decrypt = -d/--decrypt
 -flag-encrypt = -e/--encrypt
 -flag-identity = -i/--identity
+-flag-output = -o/--output
 -flag-recipient = -r/--recipient
 -flag-recipients-file = -R/--recipients-file
 -flag-passphrase = -p/--passphrase
@@ -122,7 +123,7 @@ err-enc-rsa-modulus-too-large =
 ## Decryption errors
 
 err-detected-powershell-corruption = It looks like this file was corrupted by PowerShell redirection.
-rec-detected-powershell-corruption = Consider using -o or -a to encrypt files in PowerShell.
+rec-detected-powershell-corruption = Consider using {-flag-output} or {-flag-armor} to encrypt files in PowerShell.
 
 rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
 

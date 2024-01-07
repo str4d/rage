@@ -13,7 +13,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use subtle::ConstantTimeEq;
 
-use crate::{fl, identity::IdentityFile, wfl, Callbacks, Identity};
+use crate::{fl, identity::IdentityFile, wfl, wlnfl, Callbacks, Identity};
 
 #[cfg(feature = "armor")]
 use crate::armor::ArmoredReader;
@@ -55,37 +55,21 @@ impl fmt::Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ReadError::IdentityEncryptedWithoutPassphrase(filename) => {
-                write!(
+                wfl!(
                     f,
-                    "{}",
-                    i18n_embed_fl::fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "err-read-identity-encrypted-without-passphrase",
-                        filename = filename.as_str()
-                    )
+                    "err-read-identity-encrypted-without-passphrase",
+                    filename = filename.as_str(),
                 )
             }
-            ReadError::IdentityNotFound(filename) => write!(
+            ReadError::IdentityNotFound(filename) => wfl!(
                 f,
-                "{}",
-                i18n_embed_fl::fl!(
-                    crate::i18n::LANGUAGE_LOADER,
-                    "err-read-identity-not-found",
-                    filename = filename.as_str()
-                )
+                "err-read-identity-not-found",
+                filename = filename.as_str(),
             ),
             ReadError::Io(e) => write!(f, "{}", e),
             #[cfg(feature = "plugin")]
             ReadError::MissingPlugin { binary_name } => {
-                writeln!(
-                    f,
-                    "{}",
-                    i18n_embed_fl::fl!(
-                        crate::i18n::LANGUAGE_LOADER,
-                        "err-missing-plugin",
-                        plugin_name = binary_name.as_str()
-                    )
-                )?;
+                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
             }
             #[cfg(feature = "ssh")]
