@@ -63,9 +63,14 @@ fn main() -> Result<(), error::Error> {
         println!("rage-keygen {}", env!("CARGO_PKG_VERSION"));
         Ok(())
     } else {
-        let mut output =
-            file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600, false)
-                .map_err(error::Error::FailedToOpenOutput)?;
+        let mut output = file_io::OutputWriter::new(
+            opts.output,
+            false,
+            file_io::OutputFormat::Text,
+            0o600,
+            false,
+        )
+        .map_err(error::Error::FailedToOpenOutput)?;
 
         let sk = age::x25519::Identity::generate();
         let pk = sk.to_public();

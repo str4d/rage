@@ -34,6 +34,8 @@ rec-detected-binary = Force with '{-output-stdout}'.
 err-deny-binary-output = refusing to output binary to the terminal.
 rec-deny-binary-output = Did you mean to use {-flag-armor}? {rec-detected-binary}
 
+err-deny-overwrite-file = refusing to overwrite existing file '{$filename}'.
+
 ## Errors
 
 err-decryption-failed = Decryption failed
