@@ -541,12 +541,16 @@ criteria = "safe-to-deploy"
 version = "1.0.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.quick-xml]]
-version = "0.26.0"
+[[exemptions.proptest]]
+version = "1.2.0"
 criteria = "safe-to-run"
 
-[[exemptions.quickcheck]]
-version = "1.0.3"
+[[exemptions.quick-error]]
+version = "1.2.3"
+criteria = "safe-to-run"
+
+[[exemptions.quick-xml]]
+version = "0.26.0"
 criteria = "safe-to-run"
 
 [[exemptions.rand]]
@@ -604,6 +608,10 @@ criteria = "safe-to-deploy"
 [[exemptions.rustix]]
 version = "0.38.28"
 criteria = "safe-to-deploy"
+
+[[exemptions.rusty-fork]]
+version = "0.3.0"
+criteria = "safe-to-run"
 
 [[exemptions.ryu]]
 version = "1.0.15"
@@ -761,6 +769,10 @@ criteria = "safe-to-deploy"
 version = "1.15.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.unarray]]
+version = "0.1.4"
+criteria = "safe-to-run"
+
 [[exemptions.unic-langid]]
 version = "0.9.4"
 criteria = "safe-to-deploy"
@@ -771,6 +783,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.uuid]]
 version = "1.6.1"
+criteria = "safe-to-run"
+
+[[exemptions.wait-timeout]]
+version = "0.2.0"
 criteria = "safe-to-run"
 
 [[exemptions.walkdir]]
