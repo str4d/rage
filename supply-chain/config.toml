@@ -2,7 +2,7 @@
 # cargo-vet config file
 
 [cargo-vet]
-version = "0.8"
+version = "0.9"
 
 [imports.bytecode-alliance]
 url = "https://raw.githubusercontent.com/bytecodealliance/wasmtime/main/supply-chain/audits.toml"
@@ -179,10 +179,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.cookie-factory]]
 version = "0.3.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.core-foundation-sys]]
-version = "0.8.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.cpp_demangle]]
@@ -363,14 +359,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-impl]]
 version = "0.8.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.iana-time-zone]]
-version = "0.1.59"
-criteria = "safe-to-deploy"
-
-[[exemptions.iana-time-zone-haiku]]
-version = "0.1.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.indexmap]]
