@@ -7,9 +7,10 @@ use i18n_embed::{
     DesktopLanguageRequester,
 };
 use lazy_static::lazy_static;
-use log::error;
 use rust_embed::RustEmbed;
 use std::io::Write;
+
+mod error;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
@@ -19,6 +20,7 @@ lazy_static! {
     static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
 }
 
+#[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{
         i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
@@ -41,7 +43,7 @@ struct AgeOptions {
     output: Option<String>,
 }
 
-fn main() {
+fn main() -> Result<(), error::Error> {
     env_logger::builder()
         .format_timestamp(None)
         .filter_level(log::LevelFilter::Off)
@@ -59,35 +61,36 @@ fn main() {
 
     if opts.version {
         println!("rage-keygen {}", env!("CARGO_PKG_VERSION"));
-        return;
-    }
+        Ok(())
+    } else {
+        let mut output = file_io::OutputWriter::new(
+            opts.output,
+            false,
+            file_io::OutputFormat::Text,
+            0o600,
+            false,
+        )
+        .map_err(error::Error::FailedToOpenOutput)?;
 
-    let mut output =
-        match file_io::OutputWriter::new(opts.output, file_io::OutputFormat::Text, 0o600, false) {
-            Ok(output) => output,
-            Err(e) => {
-                error!("{}", fl!("err-failed-to-open-output", err = e.to_string()));
-                return;
+        let sk = age::x25519::Identity::generate();
+        let pk = sk.to_public();
+
+        (|| {
+            writeln!(
+                output,
+                "# {}: {}",
+                fl!("identity-file-created"),
+                chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+            )?;
+            writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
+            writeln!(output, "{}", sk.to_string().expose_secret())?;
+
+            if !output.is_terminal() {
+                eprintln!("{}: {}", fl!("tty-pubkey"), pk);
             }
-        };
 
-    let sk = age::x25519::Identity::generate();
-    let pk = sk.to_public();
-
-    if let Err(e) = (|| {
-        if !output.is_terminal() {
-            eprintln!("{}: {}", fl!("tty-pubkey"), pk);
-        }
-
-        writeln!(
-            output,
-            "# {}: {}",
-            fl!("identity-file-created"),
-            chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-        )?;
-        writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
-        writeln!(output, "{}", sk.to_string().expose_secret())
-    })() {
-        error!("{}", fl!("err-failed-to-write-output", err = e.to_string()));
+            Ok(())
+        })()
+        .map_err(error::Error::FailedToWriteOutput)
     }
 }

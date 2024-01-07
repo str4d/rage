@@ -192,6 +192,15 @@ jobs:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
           path: test4.age
 
+      - name: Keygen prevents overwriting an existing file
+        run: |
+          touch do_not_overwrite_key.txt
+          if $(${{ matrix.alice }}-keygen -o do_not_overwrite_key.txt); then
+              false
+          else
+              true
+          fi
+
       - name: Update FiloSottile/age status with result
         if: always() && github.event.action == 'age-interop-request'
         run: |

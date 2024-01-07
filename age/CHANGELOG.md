@@ -10,12 +10,18 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age::cli_common::file_io`:
+  - `impl Debug for {LazyFile, OutputFormat, OutputWriter, StdoutWriter}`
 - `impl Eq for age::ssh::{ParseRecipientKeyError, UnsupportedKey}`
 - `impl {Debug, PartialEq, Eq, Hash} for age::x25519::Recipient`
 
 ### Changed
 - MSRV is now 1.65.0.
 - Migrated to `base64 0.21`, `rsa 0.9`.
+- `age::cli_common::file_io::OutputWriter::new` now takes an `allow_overwrite`
+  boolean argument. If `OutputWriter` will write to a file, this boolean enables
+  the caller to control whether the file will be overwritten if it exists
+  (instead of the implicit behaviour that was previously changed in 0.6.0).
 - `age::ssh`:
   - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.
   - The following trait implementations now return

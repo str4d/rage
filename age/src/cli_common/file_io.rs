@@ -3,6 +3,7 @@
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
+use std::path::Path;
 
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
@@ -37,6 +38,17 @@ impl fmt::Display for DetectedBinaryOutputError {
 }
 
 impl std::error::Error for DetectedBinaryOutputError {}
+
+#[derive(Debug)]
+struct DenyOverwriteFileError(String);
+
+impl fmt::Display for DenyOverwriteFileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        wfl!(f, "err-deny-overwrite-file", filename = self.0.as_str())
+    }
+}
+
+impl std::error::Error for DenyOverwriteFileError {}
 
 /// Wrapper around either a file or standard input.
 pub enum InputReader {
@@ -76,6 +88,7 @@ impl Read for InputReader {
 }
 
 /// A stdout write that optionally buffers the entire output before writing.
+#[derive(Debug)]
 enum StdoutBuffer {
     Direct(io::Stdout),
     Buffered(Vec<u8>),
@@ -135,6 +148,7 @@ impl Drop for StdoutBuffer {
 }
 
 /// The data format being written out.
+#[derive(Debug)]
 pub enum OutputFormat {
     /// Binary data that should not be sent to a TTY by default.
     Binary,
@@ -145,6 +159,7 @@ pub enum OutputFormat {
 }
 
 /// Writer that wraps standard output to handle TTYs nicely.
+#[derive(Debug)]
 pub struct StdoutWriter {
     inner: StdoutBuffer,
     count: usize,
@@ -243,8 +258,10 @@ impl Write for StdoutWriter {
 
 /// A lazy [`File`] that is not opened until the first call to [`Write::write`] or
 /// [`Write::flush`].
+#[derive(Debug)]
 pub struct LazyFile {
     filename: String,
+    allow_overwrite: bool,
     #[cfg(unix)]
     mode: u32,
     file: Option<io::Result<File>>,
@@ -256,7 +273,15 @@ impl LazyFile {
 
         if self.file.is_none() {
             let mut options = OpenOptions::new();
-            options.write(true).create(true).truncate(true);
+            options.write(true);
+            if self.allow_overwrite {
+                options.create(true).truncate(true);
+            } else {
+                // In addition to the check in `OutputWriter::new`, we enforce this at
+                // file opening time to avoid a race condition with the file being
+                // separately created between `OutputWriter` construction and usage.
+                options.create_new(true);
+            }
 
             #[cfg(unix)]
             options.mode(self.mode);
@@ -283,6 +308,7 @@ impl io::Write for LazyFile {
 }
 
 /// Wrapper around either a file or standard output.
+#[derive(Debug)]
 pub enum OutputWriter {
     /// Wrapper around a file.
     File(LazyFile),
@@ -291,9 +317,16 @@ pub enum OutputWriter {
 }
 
 impl OutputWriter {
-    /// Writes output to the given filename, or standard output if `None` or `Some("-")`.
+    /// Constructs a new `OutputWriter`.
+    ///
+    /// Writes to the file at path `output`, or standard output if `output` is `None` or
+    /// `Some("-")`.
+    ///
+    /// If `allow_overwrite` is `true`, the file at path `output` will be overwritten if
+    /// it exists. This option has no effect if `output` is `None` or `Some("-")`.
     pub fn new(
         output: Option<String>,
+        allow_overwrite: bool,
         mut format: OutputFormat,
         _mode: u32,
         input_is_tty: bool,
@@ -303,8 +336,19 @@ impl OutputWriter {
             // Respect the Unix convention that "-" as an output filename
             // parameter is an explicit request to use standard output.
             if filename != "-" {
+                // We open the file lazily, but as we don't want the caller to assume
+                // this, we eagerly confirm that the file does not exist if we can't
+                // overwrite it.
+                if !allow_overwrite && Path::new(&filename).exists() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::AlreadyExists,
+                        DenyOverwriteFileError(filename),
+                    ));
+                }
+
                 return Ok(OutputWriter::File(LazyFile {
                     filename,
+                    allow_overwrite,
                     #[cfg(unix)]
                     mode: _mode,
                     file: None,
@@ -362,9 +406,10 @@ pub(crate) mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn lazy_existing_file() {
+    fn lazy_existing_file_allow_overwrite() {
         OutputWriter::new(
             Some("/dev/null".to_string()),
+            true,
             OutputFormat::Text,
             0o600,
             false,
@@ -372,5 +417,21 @@ pub(crate) mod tests {
         .unwrap()
         .flush()
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn lazy_existing_file_forbid_overwrite() {
+        use std::io;
+
+        let e = OutputWriter::new(
+            Some("/dev/null".to_string()),
+            false,
+            OutputFormat::Text,
+            0o600,
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(e.kind(), io::ErrorKind::AlreadyExists);
     }
 }
