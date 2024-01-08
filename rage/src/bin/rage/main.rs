@@ -111,7 +111,7 @@ fn read_recipients_list<R: BufRead>(
     buf: R,
     recipients: &mut Vec<Box<dyn Recipient + Send>>,
     plugin_recipients: &mut Vec<plugin::Recipient>,
-) -> io::Result<()> {
+) -> Result<(), error::EncryptError> {
     for (line_number, line) in buf.lines().enumerate() {
         let line = line?;
 
@@ -121,19 +121,15 @@ fn read_recipients_list<R: BufRead>(
         } else if let Err(e) = parse_recipient(filename, line, recipients, plugin_recipients) {
             #[cfg(feature = "ssh")]
             if matches!(e, error::EncryptError::UnsupportedKey(_, _)) {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()).into());
             }
 
             // Return a line number in place of the line, so we don't leak the file
             // contents in error messages.
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "recipients file {} contains non-recipient data on line {}",
-                    filename,
-                    line_number + 1
-                ),
-            ));
+            return Err(error::EncryptError::InvalidRecipientsFile {
+                filename: filename.to_owned(),
+                line_number: line_number + 1,
+            });
         }
     }
 

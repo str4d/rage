@@ -103,6 +103,9 @@ err-enc-broken-file = Could not write to file: {$err}
 
 err-enc-invalid-recipient = Invalid recipient '{$recipient}'
 
+err-enc-invalid-recipients-file =
+    recipients file {$filename} contains non-recipient data on line {$line_number}
+
 err-enc-missing-recipients = Missing recipients.
 rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
 
