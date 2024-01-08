@@ -23,7 +23,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rage
-          path: target/release/rage
+          path: |
+            target/release/rage
+            target/release/rage-keygen
 
       - name: Update FiloSottile/age status with result
         if: always() && github.event.action == 'age-interop-request'
@@ -69,10 +71,13 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/go-age/age
           go build filippo.io/age/cmd/age
+          go build filippo.io/age/cmd/age-keygen
       - uses: actions/upload-artifact@v4
         with:
           name: age
-          path: go-age/age/age
+          path: |
+            go-age/age/age
+            go-age/age/age-keygen
 
       - name: Update FiloSottile/age status with result
         if: always() && github.event.action == 'age-interop-request'
@@ -110,7 +115,9 @@ jobs:
         with:
           name: age
       - run: chmod +x rage
+      - run: chmod +x rage-keygen
       - run: chmod +x age
+      - run: chmod +x age-keygen
 
       # Prepare the test environment
       - name: Install dos2unix for simulating Windows files
@@ -195,7 +202,7 @@ jobs:
       - name: Keygen prevents overwriting an existing file
         run: |
           touch do_not_overwrite_key.txt
-          if $(${{ matrix.alice }}-keygen -o do_not_overwrite_key.txt); then
+          if $(./${{ matrix.alice }}-keygen -o do_not_overwrite_key.txt); then
               false
           else
               true
