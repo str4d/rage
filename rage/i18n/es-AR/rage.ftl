@@ -95,15 +95,15 @@ rec-enc-broken-stdout = Estás enviando por pipe a un programa que no está leye
 
 err-enc-broken-file = No se pudo escribir al archivo: {$err}
 
-err-enc-invalid-recipient = Destinatario inválido '{$recipient}'
+err-enc-invalid-recipient = Destinatario inválido '{$recipient}'.
 
 err-enc-missing-recipients = No se encontraron destinatarios.
 rec-enc-missing-recipients = ¿Te olvidaste de especificar {-flag-recipient}?
 
 err-enc-mixed-identity-passphrase = {-flag-identity} no puede ser usado con {-flag-passphrase}.
-err-enc-mixed-recipient-passphrase = {-flag-recipient} no puede ser usado con {-flag-passphrase}
-err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} no puede ser usado con {-flag-passphrase}
-err-enc-passphrase-without-file = El archivo a encriptar debe ser pasado como argumento cuando se utiliza {-flag-passphrase}
+err-enc-mixed-recipient-passphrase = {-flag-recipient} no puede ser usado con {-flag-passphrase}.
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} no puede ser usado con {-flag-passphrase}.
+err-enc-passphrase-without-file = El archivo a encriptar debe ser pasado como argumento cuando se utiliza {-flag-passphrase}.
 
 ## Decryption errors
 

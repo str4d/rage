@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-e -j plugin-name"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -j can't be used with -e/--encrypt.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

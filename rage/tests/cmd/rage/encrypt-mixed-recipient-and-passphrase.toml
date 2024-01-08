@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-e -r foobar -p"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -r/--recipient can't be used with -p/--passphrase.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

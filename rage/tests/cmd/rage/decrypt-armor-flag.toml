@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "--decrypt --armor"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -a/--armor can't be used with -d/--decrypt.
+Note that armored files are detected automatically.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

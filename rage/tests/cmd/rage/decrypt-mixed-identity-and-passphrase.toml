@@ -1,0 +1,20 @@
+bin.name = "rage"
+args = "--decrypt --identity key.txt"
+status = "failed"
+# Passphrase: foobar
+stdin = """
+-----BEGIN AGE ENCRYPTED FILE-----
+YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNjcnlwdCBXWDZGUHRENjJxeGt5M1hU
+cG83QjZnIDE5CkNDaXFUTnNNMzRaUzJwQzI1SnYxemg0dVdPY2hOTHJWWlhpT0ow
+MXpqSFEKLS0tIFZpdUNKcGpiS3hoM0dqK0hrV2crN1FWTlgzMnI2WFQralQxMFRT
+ZEE2STgKP9mM/XiDG/1ywkJwinSSQVzTCEt3v6BvjO9DyDg7l2uF60qdzXCY5qL/
+3jdrkFSp
+-----END AGE ENCRYPTED FILE-----
+"""
+stdout = ""
+stderr = """
+Error: -i/--identity can't be used with passphrase-encrypted files.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

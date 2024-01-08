@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-i key.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: -i/--identity requires either -e/--encrypt or -d/--decrypt.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

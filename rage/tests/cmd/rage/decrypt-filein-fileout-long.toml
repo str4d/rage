@@ -1,0 +1,5 @@
+bin.name = "rage"
+args = "--decrypt --identity key.txt --output file.txt file.age.txt"
+stdin = ""
+stdout = ""
+stderr = ""

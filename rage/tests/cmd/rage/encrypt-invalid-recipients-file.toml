@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--encrypt -R recipients.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Recipients file 'recipients.txt' contains non-recipient data on line 1.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

@@ -120,7 +120,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         index: usize,
         plugin_name: &str,
         bytes: &[u8]
-    ) -> Result<(), identityw::Error> {
+    ) -> Result<(), identity::Error> {
         todo!()
     }
 
@@ -149,8 +149,8 @@ fn main() -> io::Result<()> {
         // The plugin was started by an age client; run the state machine.
         run_state_machine(
             &state_machine,
-            || RecipientPlugin,
-            || IdentityPlugin,
+            Some(|| RecipientPlugin),
+            Some(|| IdentityPlugin),
         )?;
         return Ok(());
     }

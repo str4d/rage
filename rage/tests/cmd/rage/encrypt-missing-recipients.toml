@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "--encrypt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Missing recipients.
+Did you forget to specify -r/--recipient?
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

@@ -30,6 +30,10 @@ pub(crate) enum EncryptError {
     IdentityEncryptedWithoutPassphrase(String),
     IdentityNotFound(String),
     InvalidRecipient(String),
+    InvalidRecipientsFile {
+        filename: String,
+        line_number: usize,
+    },
     Io(io::Error),
     MissingRecipients,
     MixedIdentityAndPassphrase,
@@ -87,6 +91,15 @@ impl fmt::Display for EncryptError {
                 f,
                 "err-enc-invalid-recipient",
                 recipient = recipient.as_str(),
+            ),
+            EncryptError::InvalidRecipientsFile {
+                filename,
+                line_number,
+            } => wfl!(
+                f,
+                "err-enc-invalid-recipients-file",
+                filename = filename.as_str(),
+                line_number = line_number,
             ),
             EncryptError::Io(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
@@ -183,7 +196,7 @@ impl fmt::Display for DecryptError {
             DecryptError::Io(e) => write!(f, "{}", e),
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
-                wlnfl!(f, "rec-dec-missing-identities")
+                wfl!(f, "rec-dec-missing-identities")
             }
             DecryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-dec-mixed-identity-passphrase")

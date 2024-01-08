@@ -1,0 +1,3 @@
+# created: 20[..]-[..]-[..]T[..]:[..]:[..]Z
+# public key: age1[..]
+AGE-SECRET-KEY-1[..]

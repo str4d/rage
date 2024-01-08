@@ -1,0 +1,6 @@
+bin.name = "rage-keygen"
+args = "-o key.txt"
+stdout = ""
+stderr = """
+Public key: age1[..]
+"""

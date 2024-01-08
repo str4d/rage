@@ -80,6 +80,7 @@ clap = { version = "4", default-features = false }
 clap_complete = "4"
 flate2 = "1"
 man = "0.3"
+trycmd = "0.14"
 
 [features]
 default = ["ssh"]

@@ -93,7 +93,7 @@ rec-enc-broken-stdout = 您是否輸出至非從 stdin 讀取數據的程序？
 
 err-enc-broken-file = 未能寫入文件： {$err}
 
-err-enc-invalid-recipient = 無效接收方 '{$recipient}'
+err-enc-invalid-recipient = 無效接收方 '{$recipient}'。
 
 err-enc-missing-recipients = 缺少接收方。
 rec-enc-missing-recipients = 您是否忘記指定 {-flag-recipient} 標記？
@@ -101,7 +101,7 @@ rec-enc-missing-recipients = 您是否忘記指定 {-flag-recipient} 標記？
 err-enc-mixed-identity-passphrase = {-flag-identity} 和 {-flag-passphrase} 標記不可聯用。
 err-enc-mixed-recipient-passphrase = {-flag-recipient} 和 {-flag-passphrase} 標記不可聯用。
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} 和 {-flag-passphrase} 標記不可聯用。
-err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 時， 必將要加密的文件傳遞為參數
+err-enc-passphrase-without-file = 在使用 {-flag-passphrase} 時， 必將要加密的文件傳遞為參數。
 
 ## Decryption errors
 

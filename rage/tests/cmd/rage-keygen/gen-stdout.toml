@@ -1,0 +1,11 @@
+bin.name = "rage-keygen"
+args = ""
+stdout = """
+# created: 20[..]-[..]-[..]T[..]:[..]:[..]Z
+# public key: age1[..]
+AGE-SECRET-KEY-1[..]
+"""
+# Because trycmd isn't a terminal, rage-keygen thinks stdout is piped to a file.
+stderr = """
+Public key: age1[..]
+"""
