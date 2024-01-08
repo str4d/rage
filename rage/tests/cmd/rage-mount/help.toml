@@ -12,6 +12,6 @@ Options:
   -V, --version               Print version info and exit.
   -t, --types <TYPES>         Indicates the filesystem type (one of "tar", "zip").
       --max-work-factor <WF>  Maximum work factor to allow for passphrase decryption.
-  -i, --identity <IDENTITY>   Use the private key file at IDENTITY. May be repeated.
+  -i, --identity <IDENTITY>   Use the identity file at IDENTITY. May be repeated.
 """
 stderr = ""

@@ -9,7 +9,7 @@ use age::{
     secrecy::ExposeSecret,
     Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
-use clap::{ArgAction, CommandFactory, Parser};
+use clap::{builder::Styles, ArgAction, CommandFactory, Parser};
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DesktopLanguageRequester,
@@ -247,9 +247,14 @@ fn binary_name() -> String {
 
 fn usage() -> String {
     let binary_name = binary_name();
+    let recipient = fl!("recipient");
+    let identity = fl!("identity");
+    let input = fl!("input");
+    let output = fl!("output");
+
     format!(
-        "{binary_name} [--encrypt] -r RECIPIENT [-i IDENTITY] [-a] [-o OUTPUT] [INPUT]\n       \
-        {binary_name} --decrypt [-i IDENTITY] [-o OUTPUT] [INPUT]",
+        "{binary_name} [--encrypt] -r {recipient} [-i {identity}] [-a] [-o {output}] [{input}]\n       \
+        {binary_name} --decrypt [-i {identity}] [-o {output}] [{input}]",
     )
 }
 
@@ -279,60 +284,77 @@ fn after_help() -> String {
 
 #[derive(Debug, Parser)]
 #[command(version)]
+#[command(help_template = format!("\
+{{before-help}}{{about-with-newline}}
+{}{}:{} {{usage}}
+
+{{all-args}}{{after-help}}\
+    ",
+    Styles::default().get_usage().render(),
+    fl!("usage-header"),
+    Styles::default().get_usage().render_reset()))]
 #[command(override_usage(usage()))]
+#[command(next_help_heading = fl!("flags-header"))]
 #[command(disable_help_flag(true))]
 #[command(disable_version_flag(true))]
 #[command(after_help(after_help()))]
 struct AgeOptions {
-    #[arg(help = "Path to a file to read from.")]
+    #[arg(help_heading = fl!("args-header"))]
+    #[arg(value_name = fl!("input"))]
+    #[arg(help = fl!("help-arg-input"))]
     input: Option<String>,
 
     #[arg(action = ArgAction::Help, short, long)]
-    #[arg(help = "Print this help message and exit.")]
+    #[arg(help = fl!("help-flag-help"))]
     help: Option<bool>,
 
     #[arg(action = ArgAction::Version, short = 'V', long)]
-    #[arg(help = "Print version info and exit.")]
+    #[arg(help = fl!("help-flag-version"))]
     version: Option<bool>,
 
     #[arg(short, long)]
-    #[arg(help = "Encrypt the input (the default).")]
+    #[arg(help = fl!("help-flag-encrypt"))]
     encrypt: bool,
 
     #[arg(short, long)]
-    #[arg(help = "Decrypt the input.")]
+    #[arg(help = fl!("help-flag-decrypt"))]
     decrypt: bool,
 
     #[arg(short, long)]
-    #[arg(help = "Encrypt with a passphrase instead of recipients.")]
+    #[arg(help = fl!("help-flag-passphrase"))]
     passphrase: bool,
 
     #[arg(long, value_name = "WF")]
-    #[arg(help = "Maximum work factor to allow for passphrase decryption.")]
+    #[arg(help = fl!("help-flag-max-work-factor"))]
     max_work_factor: Option<u8>,
 
     #[arg(short, long)]
-    #[arg(help = "Encrypt to a PEM encoded format.")]
+    #[arg(help = fl!("help-flag-armor"))]
     armor: bool,
 
     #[arg(short, long)]
-    #[arg(help = "Encrypt to the specified RECIPIENT. May be repeated.")]
+    #[arg(value_name = fl!("recipient"))]
+    #[arg(help = fl!("help-flag-recipient"))]
     recipient: Vec<String>,
 
-    #[arg(short = 'R', long, value_name = "PATH")]
-    #[arg(help = "Encrypt to the recipients listed at PATH. May be repeated.")]
+    #[arg(short = 'R', long)]
+    #[arg(value_name = fl!("recipients-file"))]
+    #[arg(help = fl!("help-flag-recipients-file"))]
     recipients_file: Vec<String>,
 
     #[arg(short, long)]
-    #[arg(help = "Use the identity file at IDENTITY. May be repeated.")]
+    #[arg(value_name = fl!("identity"))]
+    #[arg(help = fl!("help-flag-identity"))]
     identity: Vec<String>,
 
-    #[arg(short = 'j', value_name = "PLUGIN-NAME")]
-    #[arg(help = "Use age-plugin-PLUGIN-NAME in its default mode as an identity.")]
+    #[arg(short = 'j')]
+    #[arg(value_name = fl!("plugin-name"))]
+    #[arg(help = fl!("help-flag-plugin-name"))]
     plugin_name: Option<String>,
 
     #[arg(short, long)]
-    #[arg(help = "Write the result to the file at path OUTPUT.")]
+    #[arg(value_name = fl!("output"))]
+    #[arg(help = fl!("help-flag-output"))]
     output: Option<String>,
 }
 

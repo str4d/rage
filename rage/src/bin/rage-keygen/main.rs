@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use age::{cli_common::file_io, secrecy::ExposeSecret};
-use clap::{ArgAction, Parser};
+use clap::{builder::Styles, ArgAction, Parser};
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DesktopLanguageRequester,
@@ -35,19 +35,30 @@ macro_rules! fl {
 #[command(display_name = "rage-keygen")]
 #[command(name = "rage-keygen")]
 #[command(version)]
+#[command(help_template = format!("\
+{{before-help}}{{about-with-newline}}
+{}{}:{} {{usage}}
+
+{{all-args}}{{after-help}}\
+    ",
+    Styles::default().get_usage().render(),
+    fl!("usage-header"),
+    Styles::default().get_usage().render_reset()))]
+#[command(next_help_heading = fl!("flags-header"))]
 #[command(disable_help_flag(true))]
 #[command(disable_version_flag(true))]
 struct AgeOptions {
     #[arg(action = ArgAction::Help, short, long)]
-    #[arg(help = "Print this help message and exit.")]
+    #[arg(help = fl!("help-flag-help"))]
     help: Option<bool>,
 
     #[arg(action = ArgAction::Version, short = 'V', long)]
-    #[arg(help = "Print version info and exit.")]
+    #[arg(help = fl!("help-flag-version"))]
     version: Option<bool>,
 
     #[arg(short, long)]
-    #[arg(help = "Write the result to the file at path OUTPUT. Defaults to standard output.")]
+    #[arg(value_name = fl!("output"))]
+    #[arg(help = fl!("keygen-help-flag-output"))]
     output: Option<String>,
 }
 

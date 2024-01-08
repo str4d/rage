@@ -56,7 +56,7 @@ maintenance = { status = "experimental" }
 # rage and rage-keygen dependencies
 age = { workspace = true, features = ["armor", "cli-common", "plugin"] }
 chrono.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["string", "unstable-styles"] }
 console.workspace = true
 env_logger.workspace = true
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
