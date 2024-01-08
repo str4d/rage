@@ -16,7 +16,6 @@ stderr = """
 Error: Missing identities.
 Did you forget to specify -i/--identity?
 
-
 [ Did rage not do what you expected? Could an error be more useful? ]
 [ Tell us: https://str4d.xyz/rage/report                            ]
 """

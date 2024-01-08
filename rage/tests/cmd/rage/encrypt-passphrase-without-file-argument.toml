@@ -4,7 +4,7 @@ status = "failed"
 stdin = ""
 stdout = ""
 stderr = """
-Error: File to encrypt must be passed as an argument when using -p/--passphrase
+Error: File to encrypt must be passed as an argument when using -p/--passphrase.
 
 [ Did rage not do what you expected? Could an error be more useful? ]
 [ Tell us: https://str4d.xyz/rage/report                            ]

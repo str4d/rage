@@ -103,15 +103,15 @@ rec-enc-broken-stdout = Stai usando una pipe verso un programma che non sta legg
 
 err-enc-broken-file = Impossibile scrivere sul file: {$err}
 
-err-enc-invalid-recipient = Destinatario '{$recipient}' invalido
+err-enc-invalid-recipient = Destinatario '{$recipient}' invalido.
 
 err-enc-missing-recipients = Destinatari mancanti.
 rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
 err-enc-mixed-identity-passphrase = {-flag-identity} non può essere usato assieme a {-flag-passphrase}.
-err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}
-err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} non può essere usato assieme a {-flag-passphrase}
-err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}
+err-enc-mixed-recipient-passphrase = {-flag-recipient} non può essere usato assieme a {-flag-passphrase}.
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} non può essere usato assieme a {-flag-passphrase}.
+err-enc-passphrase-without-file = Il file da cifrare deve essere passato come argomento quando si usa {-flag-passphrase}.
 
 err-enc-plugin-name-flag = {-flag-plugin-name} non può essere usato assieme a {-flag-encrypt}.
 

@@ -4,7 +4,7 @@ status = "failed"
 stdin = ""
 stdout = ""
 stderr = """
-Error: Invalid recipient 'foobar'
+Error: Invalid recipient 'foobar'.
 
 [ Did rage not do what you expected? Could an error be more useful? ]
 [ Tell us: https://str4d.xyz/rage/report                            ]

@@ -196,7 +196,7 @@ impl fmt::Display for DecryptError {
             DecryptError::Io(e) => write!(f, "{}", e),
             DecryptError::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;
-                wlnfl!(f, "rec-dec-missing-identities")
+                wfl!(f, "rec-dec-missing-identities")
             }
             DecryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-dec-mixed-identity-passphrase")
