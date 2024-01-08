@@ -61,7 +61,7 @@ rust-embed = "8"
 
 # CLI
 chrono = "0.4"
+clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.15", default-features = false }
 env_logger = "0.10"
-gumdrop = "0.8"
 log = "0.4"

@@ -35,13 +35,7 @@
 
 usage-header = Usage:
 
-rage-usage =
-    {usage-header}
-    {"  "}{$usage_a}
-    {"  "}{$usage_b}
-
-    {$flags}
-
+rage-after-help =
     {-input} 默認為標準輸入 （stdin）, 而 {-output} 默認為標準輸出 （stdout） 。
 
     {-recipient} 可為：

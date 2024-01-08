@@ -35,13 +35,7 @@
 
 usage-header = Usage:
 
-rage-usage =
-    {usage-header}
-    {"  "}{$usage_a}
-    {"  "}{$usage_b}
-
-    {$flags}
-
+rage-after-help =
     {-input} ha come valore predefinito lo standard input, e {-output} ha come
     valore predefinito lo standard output.
 

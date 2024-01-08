@@ -21,7 +21,7 @@ bech32.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]
-gumdrop.workspace = true
+clap.workspace = true
 
 [lib]
 bench = false
