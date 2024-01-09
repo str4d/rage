@@ -6,6 +6,11 @@ use std::path::PathBuf;
 
 use clap::{Command, CommandFactory, ValueEnum};
 use clap_complete::{generate_to, Shell};
+use clap_mangen::{
+    roff::{Inline, Roff},
+    Man,
+};
+use flate2::{write::GzEncoder, Compression};
 
 mod i18n {
     include!("src/bin/rage/i18n.rs");
@@ -29,6 +34,47 @@ macro_rules! fl {
     ($message_id:literal, $($args:expr),* $(,)?) => {{
         i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
     }};
+}
+
+struct Example {
+    text: String,
+    cmd: &'static str,
+    output: Option<String>,
+}
+
+impl Example {
+    const fn new(text: String, cmd: &'static str, output: Option<String>) -> Self {
+        Self { text, cmd, output }
+    }
+}
+
+struct Examples<const N: usize>([Example; N]);
+
+impl<const N: usize> Examples<N> {
+    fn render(self, w: &mut impl io::Write) -> io::Result<()> {
+        let mut roff = Roff::default();
+        roff.control("SH", ["EXAMPLES"]);
+        for example in self.0 {
+            roff.control("TP", []);
+            roff.text(
+                [
+                    Inline::Roman(format!("{}:", example.text)),
+                    Inline::LineBreak,
+                    Inline::Bold(format!("$ {}", example.cmd)),
+                    Inline::LineBreak,
+                ]
+                .into_iter()
+                .chain(
+                    example
+                        .output
+                        .into_iter()
+                        .flat_map(|output| [Inline::Roman(output), Inline::LineBreak]),
+                )
+                .collect::<Vec<_>>(),
+            );
+        }
+        roff.to_writer(w)
+    }
 }
 
 #[derive(Clone)]
@@ -58,6 +104,120 @@ impl Cli {
 
         Ok(())
     }
+
+    fn generate_manpages(self, out_dir: &Path) -> io::Result<()> {
+        fs::create_dir_all(out_dir)?;
+
+        fn generate_manpage(
+            out_dir: &Path,
+            name: &str,
+            cmd: Command,
+            custom: impl FnOnce(&Man, &mut GzEncoder<fs::File>) -> io::Result<()>,
+        ) -> io::Result<()> {
+            let file = fs::File::create(out_dir.join(format!("{}.1.gz", name)))?;
+            let mut w = GzEncoder::new(file, Compression::best());
+
+            let man = Man::new(cmd);
+            man.render_title(&mut w)?;
+            man.render_name_section(&mut w)?;
+            man.render_synopsis_section(&mut w)?;
+            man.render_options_section(&mut w)?;
+            custom(&man, &mut w)?;
+            man.render_version_section(&mut w)?;
+            man.render_authors_section(&mut w)
+        }
+
+        generate_manpage(
+            out_dir,
+            "rage",
+            self.rage
+                .about(fl!("man-rage-about"))
+                .after_help(rage::after_help_content("rage-keygen")),
+            |man, w| {
+                man.render_extra_section(w)?;
+                Examples([
+                    Example::new(
+                        fl!("man-rage-example-enc-single"),
+                        "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-enc-multiple"),
+                        "echo \"_o/\" | rage -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
+                                -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum > hello.age",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-enc-password"),
+                        "rage -p -o hello.txt.age hello.txt",
+                        Some(format!("{}:", fl!("type-passphrase"))),
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-enc-list"),
+                        "tar cv ~/xxx | rage -R recipients.txt > xxx.tar.age",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-enc-identities"),
+                        "tar cv ~/xxx | rage -e -i keyA.txt -i keyB.txt > xxx.tar.age",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-enc-url"),
+                        "echo \"_o/\" | rage -o hello.age -R <(curl https://github.com/str4d.keys)",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-rage-example-dec-identities"),
+                        "rage -d -o hello -i keyA.txt -i keyB.txt hello.age",
+                        None,
+                    ),
+                ])
+                .render(w)
+            },
+        )?;
+        generate_manpage(
+            out_dir,
+            "rage-keygen",
+            self.rage_keygen.about(fl!("man-keygen-about")),
+            |_, w| {
+                Examples([
+                    Example::new(fl!("man-keygen-example-stdout"), "rage-keygen", None),
+                    Example::new(
+                        fl!("man-keygen-example-file"),
+                        "rage-keygen -o key.txt",
+                        Some(format!(
+                            "{}: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+                            fl!("tty-pubkey")
+                        )),
+                    ),
+                ])
+                .render(w)
+            },
+        )?;
+        generate_manpage(
+            out_dir,
+            "rage-mount",
+            self.rage_mount.about(fl!("man-mount-about")),
+            |_, w| {
+                Examples([
+                    Example::new(
+                        fl!("man-mount-example-identity"),
+                        "rage-mount -t tar -i key.txt encrypted.tar.age ./tmp",
+                        None,
+                    ),
+                    Example::new(
+                        fl!("man-mount-example-passphrase"),
+                        "rage-mount -t zip encrypted.zip.age ./tmp",
+                        Some(format!("{}:", fl!("type-passphrase"))),
+                    ),
+                ])
+                .render(w)
+            },
+        )?;
+
+        Ok(())
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -77,6 +237,7 @@ fn main() -> io::Result<()> {
 
     let mut cli = Cli::build();
     cli.generate_completions(&out_dir.join("completions"))?;
+    cli.generate_manpages(&out_dir.join("manpages"))?;
 
     Ok(())
 }

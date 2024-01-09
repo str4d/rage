@@ -189,6 +189,10 @@ criteria = "safe-to-deploy"
 version = "0.5.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.clap_mangen]]
+version = "0.2.12"
+criteria = "safe-to-deploy"
+
 [[exemptions.console]]
 version = "0.15.7"
 criteria = "safe-to-deploy"
@@ -433,10 +437,6 @@ criteria = "safe-to-deploy"
 version = "0.4.11"
 criteria = "safe-to-deploy"
 
-[[exemptions.man]]
-version = "0.3.0"
-criteria = "safe-to-run"
-
 [[exemptions.memchr]]
 version = "2.6.3"
 criteria = "safe-to-deploy"
@@ -610,8 +610,8 @@ version = "0.8.37"
 criteria = "safe-to-run"
 
 [[exemptions.roff]]
-version = "0.1.0"
-criteria = "safe-to-run"
+version = "0.2.1"
+criteria = "safe-to-deploy"
 
 [[exemptions.rpassword]]
 version = "7.3.1"

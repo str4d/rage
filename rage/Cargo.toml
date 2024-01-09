@@ -33,9 +33,9 @@ assets = [
     ["target/release/completions/_rage", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["target/release/completions/_rage-keygen", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["target/release/completions/_rage-mount", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["../target/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
     ["../README.md", "usr/share/doc/rage/README.md", "644"],
 ]
 features = ["mount"]
@@ -78,14 +78,14 @@ zip = { version = "0.6.2", optional = true }
 [build-dependencies]
 clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
+clap_mangen = "0.2"
+flate2 = "1"
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
 rust-embed.workspace = true
 
 [dev-dependencies]
-flate2 = "1"
-man = "0.3"
 trycmd = "0.14"
 
 [features]

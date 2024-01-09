@@ -29,6 +29,15 @@ fn usage() -> String {
     )
 }
 
+pub(crate) fn after_help_content(keygen_name: &str) -> String {
+    fl!(
+        "rage-after-help-content",
+        keygen_name = keygen_name,
+        example_age_pubkey = "\"age1...\"",
+        example_ssh_pubkey = "\"ssh-ed25519 AAAA...\", \"ssh-rsa AAAA...\"",
+    )
+}
+
 fn after_help() -> String {
     let binary_name = binary_name();
     let keygen_name = format!("{}-keygen", binary_name);
@@ -43,18 +52,21 @@ fn after_help() -> String {
         binary_name,
     );
 
-    fl!(
-        "rage-after-help",
-        keygen_name = keygen_name,
-        example_a = example_a,
-        example_a_output = example_a_output,
-        example_b = example_b,
-        example_c = example_c,
+    format!(
+        "{}\n\n{}",
+        after_help_content(&keygen_name),
+        fl!(
+            "rage-after-help-example",
+            example_a = example_a,
+            example_a_output = example_a_output,
+            example_b = example_b,
+            example_c = example_c,
+        ),
     )
 }
 
 #[derive(Debug, Parser)]
-#[command(version)]
+#[command(author, version)]
 #[command(help_template = format!("\
 {{before-help}}{{about-with-newline}}
 {}{}:{} {{usage}}

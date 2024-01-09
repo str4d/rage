@@ -37,13 +37,13 @@ plugin-name = PLUGIN-NAME
 input = INPUT
 output = OUTPUT
 
-rage-after-help =
+rage-after-help-content =
     {input} ha come valore predefinito lo standard input, e {output} ha come
     valore predefinito lo standard output.
 
     {recipient} può essere:
-    - Una chiave pubblica {-age}, come generata da {$keygen_name} ("age1...").
-    - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
+    - Una chiave pubblica {-age}, come generata da {$keygen_name} ({$example_age_pubkey}).
+    - Una chiave pubblica SSH ({$example_ssh_pubkey}).
 
     {recipients-file} è il percorso ad un file contenente dei destinatari {-age},
     uno per riga (ignorando i commenti che iniziano con "#" e le righe vuote).
@@ -54,6 +54,7 @@ rage-after-help =
     I file di identità possono essere cifrati con {-age} e una passphrase.
     Possono essere fornite più identità, quelle inutilizzate verranno ignorate.
 
+rage-after-help-example =
     Esempio:
     {"  "}{$example_a}
     {"  "}{tty-pubkey}: {$example_a_output}
