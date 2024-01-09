@@ -179,7 +179,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.clap_complete]]
 version = "4.3.2"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.clap_derive]]
 version = "4.3.12"
