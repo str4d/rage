@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use age::{cli_common::file_io, secrecy::ExposeSecret};
-use clap::{builder::Styles, ArgAction, Parser};
+use clap::Parser;
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DesktopLanguageRequester,
@@ -10,6 +10,7 @@ use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
 use std::io::Write;
 
+mod cli;
 mod error;
 
 #[derive(RustEmbed)]
@@ -31,37 +32,6 @@ macro_rules! fl {
     }};
 }
 
-#[derive(Debug, Parser)]
-#[command(display_name = "rage-keygen")]
-#[command(name = "rage-keygen")]
-#[command(version)]
-#[command(help_template = format!("\
-{{before-help}}{{about-with-newline}}
-{}{}:{} {{usage}}
-
-{{all-args}}{{after-help}}\
-    ",
-    Styles::default().get_usage().render(),
-    fl!("usage-header"),
-    Styles::default().get_usage().render_reset()))]
-#[command(next_help_heading = fl!("flags-header"))]
-#[command(disable_help_flag(true))]
-#[command(disable_version_flag(true))]
-struct AgeOptions {
-    #[arg(action = ArgAction::Help, short, long)]
-    #[arg(help = fl!("help-flag-help"))]
-    help: Option<bool>,
-
-    #[arg(action = ArgAction::Version, short = 'V', long)]
-    #[arg(help = fl!("help-flag-version"))]
-    version: Option<bool>,
-
-    #[arg(short, long)]
-    #[arg(value_name = fl!("output"))]
-    #[arg(help = fl!("keygen-help-flag-output"))]
-    output: Option<String>,
-}
-
 fn main() -> Result<(), error::Error> {
     env_logger::builder()
         .format_timestamp(None)
@@ -76,7 +46,7 @@ fn main() -> Result<(), error::Error> {
     // Isolation Marks, so we disable them for now.
     LANGUAGE_LOADER.set_use_isolating(false);
 
-    let opts = AgeOptions::parse();
+    let opts = cli::AgeOptions::parse();
 
     let mut output = file_io::OutputWriter::new(
         opts.output,
