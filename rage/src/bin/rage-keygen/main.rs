@@ -2,33 +2,24 @@
 
 use age::{cli_common::file_io, secrecy::ExposeSecret};
 use clap::Parser;
-use i18n_embed::{
-    fluent::{fluent_language_loader, FluentLanguageLoader},
-    DesktopLanguageRequester,
-};
-use lazy_static::lazy_static;
-use rust_embed::RustEmbed;
+
 use std::io::Write;
 
 mod cli;
 mod error;
 
-#[derive(RustEmbed)]
-#[folder = "i18n"]
-struct Localizations;
-
-lazy_static! {
-    static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+mod i18n {
+    include!("../rage/i18n.rs");
 }
 
 #[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id)
     }};
 
     ($message_id:literal, $($args:expr),* $(,)?) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
     }};
 }
 
@@ -39,12 +30,8 @@ fn main() -> Result<(), error::Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
+    let requested_languages = i18n::load_languages();
     age::localizer().select(&requested_languages).unwrap();
-    // Unfortunately the common Windows terminals don't support Unicode Directionality
-    // Isolation Marks, so we disable them for now.
-    LANGUAGE_LOADER.set_use_isolating(false);
 
     let opts = cli::AgeOptions::parse();
 
