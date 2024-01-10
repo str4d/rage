@@ -67,7 +67,7 @@ users will use identity files containing identities that specify that plugin nam
 
 ## Example plugin binary
 
-The following example uses `gumdrop` to parse CLI arguments, but any argument parsing
+The following example uses `clap` to parse CLI arguments, but any argument parsing
 logic will work as long as it can detect the `--age-plugin=STATE_MACHINE` flag.
 
 ```rust
@@ -78,7 +78,8 @@ use age_plugin::{
     recipient::{self, RecipientPluginV1},
     Callbacks, run_state_machine,
 };
-use gumdrop::Options;
+use clap::Parser;
+
 use std::collections::HashMap;
 use std::io;
 
@@ -133,17 +134,14 @@ impl IdentityPluginV1 for IdentityPlugin {
     }
 }
 
-#[derive(Debug, Options)]
+#[derive(Debug, Parser)]
 struct PluginOptions {
-    #[options(help = "print help message")]
-    help: bool,
-
-    #[options(help = "run the given age plugin state machine", no_short)]
+    #[arg(help = "run the given age plugin state machine", long)]
     age_plugin: Option<String>,
 }
 
 fn main() -> io::Result<()> {
-    let opts = PluginOptions::parse_args_default_or_exit();
+    let opts = PluginOptions::parse();
 
     if let Some(state_machine) = opts.age_plugin {
         // The plugin was started by an age client; run the state machine.

@@ -9,6 +9,7 @@
 ### Localization for strings in the rage CLI tools
 
 -age = age
+-age-plugin- = age-plugin-
 -rage = rage
 
 ## CLI flags
@@ -27,31 +28,26 @@
 
 ## Usage
 
--input = INPUT
--output = OUTPUT
--identity = IDENTITY
--recipient = RECIPIENT
--recipients-file = PATH
+usage-header = Usage
 
-usage-header = Usage:
+recipient = RECIPIENT
+recipients-file = PATH
+identity = IDENTITY
+plugin-name = PLUGIN-NAME
+input = INPUT
+output = OUTPUT
 
-rage-usage =
-    {usage-header}
-    {"  "}{$usage_a}
-    {"  "}{$usage_b}
+rage-after-help =
+    {input} 默認為標準輸入 （stdin）, 而 {output} 默認為標準輸出 （stdout） 。
 
-    {$flags}
-
-    {-input} 默認為標準輸入 （stdin）, 而 {-output} 默認為標準輸出 （stdout） 。
-
-    {-recipient} 可為：
+    {recipient} 可為：
     - 一把以 {$keygen_name} 生成的 {-age} 公鑰 ("age1...")。
     - 一把 SSH 公鑰 ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...")。
 
-    {-recipients-file} 是一個文件路徑。該文件應含有 {-age} 接收方, 每行一個
+    {recipients-file} 是一個文件路徑。該文件應含有 {-age} 接收方, 每行一個
     （前綴為 "#" 的注釋以及空行將被忽略）。
 
-    {-identity} 是一個文件路徑。該文件或含 {-age} 身份, 每行一個（前綴為 "#" 的注釋以及空行將被忽略），
+    {identity} 是一個文件路徑。該文件或含 {-age} 身份, 每行一個（前綴為 "#" 的注釋以及空行將被忽略），
     亦或為 SSH 密鑰文件。
     Passphrase-encrypted {-age} identity files can be used as identity files.
     您可提供多份身份, 未使用的身份將被忽略。

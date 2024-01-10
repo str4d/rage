@@ -8,7 +8,7 @@ use age_plugin::{
     recipient::{self, RecipientPluginV1},
     run_state_machine, Callbacks,
 };
-use gumdrop::Options;
+use clap::Parser;
 
 use std::collections::HashMap;
 use std::env;
@@ -139,17 +139,14 @@ impl IdentityPluginV1 for IdentityPlugin {
     }
 }
 
-#[derive(Debug, Options)]
+#[derive(Debug, Parser)]
 struct PluginOptions {
-    #[options(help = "print help message")]
-    help: bool,
-
-    #[options(help = "run the given age plugin state machine", no_short)]
+    #[arg(help = "run the given age plugin state machine", long)]
     age_plugin: Option<String>,
 }
 
 fn main() -> io::Result<()> {
-    let opts = PluginOptions::parse_args_default_or_exit();
+    let opts = PluginOptions::parse();
 
     if let Some(state_machine) = opts.age_plugin {
         run_state_machine(

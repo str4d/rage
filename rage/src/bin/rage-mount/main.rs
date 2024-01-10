@@ -5,9 +5,9 @@ use age::{
     cli_common::{read_identities, read_secret},
     stream::StreamReader,
 };
+use clap::{builder::Styles, ArgAction, CommandFactory, Parser};
 use fuse_mt::FilesystemMT;
 use fuser::MountOption;
-use gumdrop::Options;
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DesktopLanguageRequester,
@@ -125,31 +125,53 @@ impl fmt::Debug for Error {
     }
 }
 
-#[derive(Debug, Options)]
+#[derive(Debug, Parser)]
+#[command(display_name = "rage-mount")]
+#[command(name = "rage-mount")]
+#[command(version)]
+#[command(help_template = format!("\
+{{before-help}}{{about-with-newline}}
+{}{}:{} {{usage}}
+
+{{all-args}}{{after-help}}\
+    ",
+    Styles::default().get_usage().render(),
+    fl!("usage-header"),
+    Styles::default().get_usage().render_reset()))]
+#[command(next_help_heading = fl!("flags-header"))]
+#[command(disable_help_flag(true))]
+#[command(disable_version_flag(true))]
 struct AgeMountOptions {
-    #[options(free, help = "The encrypted filesystem to mount.")]
+    #[arg(help_heading = fl!("args-header"))]
+    #[arg(value_name = fl!("mnt-filename"))]
+    #[arg(help = fl!("help-arg-mnt-filename"))]
     filename: String,
 
-    #[options(free, help = "The directory to mount the filesystem at.")]
+    #[arg(help_heading = fl!("args-header"))]
+    #[arg(value_name = fl!("mnt-mountpoint"))]
+    #[arg(help = fl!("help-arg-mnt-mountpoint"))]
     mountpoint: String,
 
-    #[options(help = "Print this help message and exit.")]
-    help: bool,
+    #[arg(action = ArgAction::Help, short, long)]
+    #[arg(help = fl!("help-flag-help"))]
+    help: Option<bool>,
 
-    #[options(help = "Print version info and exit.", short = "V")]
-    version: bool,
+    #[arg(action = ArgAction::Version, short = 'V', long)]
+    #[arg(help = fl!("help-flag-version"))]
+    version: Option<bool>,
 
-    #[options(help = "Indicates the filesystem type (one of \"tar\", \"zip\").")]
+    #[arg(short, long)]
+    #[arg(value_name = fl!("mnt-types"))]
+    #[arg(help = fl!("help-arg-mnt-types", types = "\"tar\", \"zip\""))]
     types: String,
 
-    #[options(
-        help = "Maximum work factor to allow for passphrase decryption.",
-        meta = "WF",
-        no_short
-    )]
+    #[arg(long, value_name = "WF")]
+    #[arg(help = fl!("help-flag-max-work-factor"))]
     max_work_factor: Option<u8>,
 
-    #[options(help = "Use the private key file at IDENTITY. May be repeated.")]
+    #[arg(short, long)]
+    #[arg(value_name = fl!("identity"))]
+    #[arg(help = fl!("help-flag-identity"))]
     identity: Vec<String>,
 }
 
@@ -219,24 +241,13 @@ fn main() -> Result<(), Error> {
     // Isolation Marks, so we disable them for now.
     LANGUAGE_LOADER.set_use_isolating(false);
 
-    let args = args().collect::<Vec<_>>();
-
-    if console::user_attended() && args.len() == 1 {
-        // If gumdrop ever merges that PR, that can be used here
-        // instead.
-        println!("{} {} [OPTIONS]", fl!("usage-header"), args[0]);
-        println!();
-        println!("{}", AgeMountOptions::usage());
-
+    if console::user_attended() && args().len() == 1 {
+        AgeMountOptions::command().print_help()?;
         return Ok(());
     }
 
-    let opts = AgeMountOptions::parse_args_default_or_exit();
+    let opts = AgeMountOptions::parse();
 
-    if opts.version {
-        println!("rage-mount {}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
-    }
     if opts.filename.is_empty() {
         return Err(Error::MissingFilename);
     }

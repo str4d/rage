@@ -9,7 +9,7 @@ use age::{
     secrecy::ExposeSecret,
     Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
-use gumdrop::{Options, ParsingStyle};
+use clap::{builder::Styles, ArgAction, CommandFactory, Parser};
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DesktopLanguageRequester,
@@ -233,56 +233,128 @@ fn read_recipients(
     Ok(recipients)
 }
 
-#[derive(Debug, Options)]
+fn binary_name() -> String {
+    if let Some(arg) = std::env::args_os().next() {
+        Path::new(&arg)
+            .file_name()
+            .expect("is not directory")
+            .to_string_lossy()
+            .to_string()
+    } else {
+        "rage".into()
+    }
+}
+
+fn usage() -> String {
+    let binary_name = binary_name();
+    let recipient = fl!("recipient");
+    let identity = fl!("identity");
+    let input = fl!("input");
+    let output = fl!("output");
+
+    format!(
+        "{binary_name} [--encrypt] -r {recipient} [-i {identity}] [-a] [-o {output}] [{input}]\n       \
+        {binary_name} --decrypt [-i {identity}] [-o {output}] [{input}]",
+    )
+}
+
+fn after_help() -> String {
+    let binary_name = binary_name();
+    let keygen_name = format!("{}-keygen", binary_name);
+    let example_a = format!("$ {} -o key.txt", keygen_name);
+    let example_a_output = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
+    let example_b = format!(
+        "$ tar cvz ~/data | {} -r {} > data.tar.gz.age",
+        binary_name, example_a_output,
+    );
+    let example_c = format!(
+        "$ {} -d -i key.txt -o data.tar.gz data.tar.gz.age",
+        binary_name,
+    );
+
+    fl!(
+        "rage-after-help",
+        keygen_name = keygen_name,
+        example_a = example_a,
+        example_a_output = example_a_output,
+        example_b = example_b,
+        example_c = example_c,
+    )
+}
+
+#[derive(Debug, Parser)]
+#[command(version)]
+#[command(help_template = format!("\
+{{before-help}}{{about-with-newline}}
+{}{}:{} {{usage}}
+
+{{all-args}}{{after-help}}\
+    ",
+    Styles::default().get_usage().render(),
+    fl!("usage-header"),
+    Styles::default().get_usage().render_reset()))]
+#[command(override_usage(usage()))]
+#[command(next_help_heading = fl!("flags-header"))]
+#[command(disable_help_flag(true))]
+#[command(disable_version_flag(true))]
+#[command(after_help(after_help()))]
 struct AgeOptions {
-    #[options(free, help = "Path to a file to read from.")]
+    #[arg(help_heading = fl!("args-header"))]
+    #[arg(value_name = fl!("input"))]
+    #[arg(help = fl!("help-arg-input"))]
     input: Option<String>,
 
-    #[options(help = "Print this help message and exit.")]
-    help: bool,
+    #[arg(action = ArgAction::Help, short, long)]
+    #[arg(help = fl!("help-flag-help"))]
+    help: Option<bool>,
 
-    #[options(help = "Print version info and exit.", short = "V")]
-    version: bool,
+    #[arg(action = ArgAction::Version, short = 'V', long)]
+    #[arg(help = fl!("help-flag-version"))]
+    version: Option<bool>,
 
-    #[options(help = "Encrypt the input (the default).")]
+    #[arg(short, long)]
+    #[arg(help = fl!("help-flag-encrypt"))]
     encrypt: bool,
 
-    #[options(help = "Decrypt the input.")]
+    #[arg(short, long)]
+    #[arg(help = fl!("help-flag-decrypt"))]
     decrypt: bool,
 
-    #[options(help = "Encrypt with a passphrase instead of recipients.")]
+    #[arg(short, long)]
+    #[arg(help = fl!("help-flag-passphrase"))]
     passphrase: bool,
 
-    #[options(
-        help = "Maximum work factor to allow for passphrase decryption.",
-        meta = "WF",
-        no_short
-    )]
+    #[arg(long, value_name = "WF")]
+    #[arg(help = fl!("help-flag-max-work-factor"))]
     max_work_factor: Option<u8>,
 
-    #[options(help = "Encrypt to a PEM encoded format.")]
+    #[arg(short, long)]
+    #[arg(help = fl!("help-flag-armor"))]
     armor: bool,
 
-    #[options(help = "Encrypt to the specified RECIPIENT. May be repeated.")]
+    #[arg(short, long)]
+    #[arg(value_name = fl!("recipient"))]
+    #[arg(help = fl!("help-flag-recipient"))]
     recipient: Vec<String>,
 
-    #[options(
-        help = "Encrypt to the recipients listed at PATH. May be repeated.",
-        meta = "PATH"
-    )]
+    #[arg(short = 'R', long)]
+    #[arg(value_name = fl!("recipients-file"))]
+    #[arg(help = fl!("help-flag-recipients-file"))]
     recipients_file: Vec<String>,
 
-    #[options(help = "Use the identity file at IDENTITY. May be repeated.")]
+    #[arg(short, long)]
+    #[arg(value_name = fl!("identity"))]
+    #[arg(help = fl!("help-flag-identity"))]
     identity: Vec<String>,
 
-    #[options(
-        help = "Use age-plugin-PLUGIN-NAME in its default mode as an identity.",
-        no_long,
-        short = "j"
-    )]
-    plugin_name: String,
+    #[arg(short = 'j')]
+    #[arg(value_name = fl!("plugin-name"))]
+    #[arg(help = fl!("help-flag-plugin-name"))]
+    plugin_name: Option<String>,
 
-    #[options(help = "Write the result to the file at path OUTPUT.")]
+    #[arg(short, long)]
+    #[arg(value_name = fl!("output"))]
+    #[arg(help = fl!("help-flag-output"))]
     output: Option<String>,
 }
 
@@ -344,7 +416,7 @@ impl<R: io::Read, const N: usize> io::Read for ReadChecker<R, N> {
 }
 
 fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
-    if !opts.plugin_name.is_empty() {
+    if opts.plugin_name.is_some() {
         return Err(error::EncryptError::PluginNameFlag);
     }
 
@@ -479,7 +551,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         return Err(error::DecryptError::RecipientsFileFlag);
     }
 
-    if !(opts.identity.is_empty() || opts.plugin_name.is_empty()) {
+    if !(opts.identity.is_empty() || opts.plugin_name.is_none()) {
         return Err(error::DecryptError::MixedIdentityAndPluginName);
     }
 
@@ -549,13 +621,14 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = if opts.plugin_name.is_empty() {
+            let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
+            let identities = if plugin_name.is_empty() {
                 read_identities(opts.identity, opts.max_work_factor)?
             } else {
                 // Construct the default plugin.
                 vec![Box::new(plugin::IdentityPluginV1::new(
-                    &opts.plugin_name,
-                    &[plugin::Identity::default_for_plugin(&opts.plugin_name)],
+                    plugin_name,
+                    &[plugin::Identity::default_for_plugin(plugin_name)],
                     UiCallbacks,
                 )?) as Box<dyn Identity>]
             };
@@ -588,82 +661,39 @@ fn main() -> Result<(), error::Error> {
     // Isolation Marks, so we disable them for now.
     LANGUAGE_LOADER.set_use_isolating(false);
 
-    let args = args().collect::<Vec<_>>();
-
-    let opts = AgeOptions::parse_args(&args[1..], ParsingStyle::default()).unwrap_or_else(|e| {
-        eprintln!("{}: {}", args[0], e);
-        std::process::exit(2);
-    });
-
     // If you are piping input with no other args, this will not allow
     // it.
-    if (console::user_attended() && args.len() == 1) || opts.help_requested() {
-        let binary_name = args[0].as_str();
-        let keygen_name = format!("{}-keygen", binary_name);
-        let usage_a = format!(
-            "{} [--encrypt] -r RECIPIENT [-i IDENTITY] [-a] [-o OUTPUT] [INPUT]",
-            binary_name
-        );
-        let usage_b = format!(
-            "{} --decrypt [-i IDENTITY] [-o OUTPUT] [INPUT]",
-            binary_name
-        );
-        let example_a = format!("$ {} -o key.txt", keygen_name);
-        let example_a_output = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
-        let example_b = format!(
-            "$ tar cvz ~/data | {} -r {} > data.tar.gz.age",
-            binary_name, example_a_output
-        );
-        let example_c = format!(
-            "$ {} -d -i key.txt -o data.tar.gz data.tar.gz.age",
-            binary_name
-        );
-
-        println!(
-            "{}",
-            fl!(
-                "rage-usage",
-                usage_a = usage_a,
-                usage_b = usage_b,
-                flags = AgeOptions::usage(),
-                keygen_name = keygen_name,
-                example_a = example_a,
-                example_a_output = example_a_output,
-                example_b = example_b,
-                example_c = example_c,
-            )
-        );
-
+    if console::user_attended() && args().len() == 1 {
+        AgeOptions::command()
+            .print_help()
+            .map_err(error::EncryptError::Io)?;
         return Ok(());
     }
 
-    if opts.version {
-        println!("rage {}", env!("CARGO_PKG_VERSION"));
-        Ok(())
-    } else {
-        if opts.encrypt && opts.decrypt {
-            return Err(error::Error::MixedEncryptAndDecrypt);
-        }
-        if !(opts.identity.is_empty() || opts.encrypt || opts.decrypt) {
-            return Err(error::Error::IdentityFlagAmbiguous);
-        }
+    let opts = AgeOptions::parse();
 
-        if let (Some(in_file), Some(out_file)) = (&opts.input, &opts.output) {
-            // Check that the given filenames do not correspond to the same file.
-            let in_path = Path::new(&in_file);
-            let out_path = Path::new(&out_file);
-            match (in_path.canonicalize(), out_path.canonicalize()) {
-                (Ok(in_abs), Ok(out_abs)) if in_abs == out_abs => {
-                    return Err(error::Error::SameInputAndOutput(out_file.clone()));
-                }
-                _ => (),
+    if opts.encrypt && opts.decrypt {
+        return Err(error::Error::MixedEncryptAndDecrypt);
+    }
+    if !(opts.identity.is_empty() || opts.encrypt || opts.decrypt) {
+        return Err(error::Error::IdentityFlagAmbiguous);
+    }
+
+    if let (Some(in_file), Some(out_file)) = (&opts.input, &opts.output) {
+        // Check that the given filenames do not correspond to the same file.
+        let in_path = Path::new(&in_file);
+        let out_path = Path::new(&out_file);
+        match (in_path.canonicalize(), out_path.canonicalize()) {
+            (Ok(in_abs), Ok(out_abs)) if in_abs == out_abs => {
+                return Err(error::Error::SameInputAndOutput(out_file.clone()));
             }
+            _ => (),
         }
+    }
 
-        if opts.decrypt {
-            decrypt(opts).map_err(error::Error::from)
-        } else {
-            encrypt(opts).map_err(error::Error::from)
-        }
+    if opts.decrypt {
+        decrypt(opts).map_err(error::Error::from)
+    } else {
+        encrypt(opts).map_err(error::Error::from)
     }
 }

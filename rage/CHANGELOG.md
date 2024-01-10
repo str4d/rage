@@ -11,6 +11,7 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Changed
 - MSRV is now 1.65.0.
+- Migrated from `gumdrop` to `clap` for argument parsing.
 
 ### Fixed
 - OpenSSH private keys passed to `-i/--identity` that contain invalid public

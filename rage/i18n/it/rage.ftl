@@ -9,6 +9,7 @@
 ### Localization for strings in the rage CLI tools
 
 -age = age
+-age-plugin- = age-plugin-
 -rage = rage
 
 ## CLI flags
@@ -27,32 +28,27 @@
 
 ## Usage
 
--input = INPUT
--output = OUTPUT
--identity = IDENTITY
--recipient = RECIPIENT
--recipients-file = PATH
+usage-header = Usage
 
-usage-header = Usage:
+recipient = RECIPIENT
+recipients-file = PATH
+identity = IDENTITY
+plugin-name = PLUGIN-NAME
+input = INPUT
+output = OUTPUT
 
-rage-usage =
-    {usage-header}
-    {"  "}{$usage_a}
-    {"  "}{$usage_b}
-
-    {$flags}
-
-    {-input} ha come valore predefinito lo standard input, e {-output} ha come
+rage-after-help =
+    {input} ha come valore predefinito lo standard input, e {output} ha come
     valore predefinito lo standard output.
 
-    {-recipient} può essere:
+    {recipient} può essere:
     - Una chiave pubblica {-age}, come generata da {$keygen_name} ("age1...").
     - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
 
-    {-recipients-file} è il percorso ad un file contenente dei destinatari {-age},
+    {recipients-file} è il percorso ad un file contenente dei destinatari {-age},
     uno per riga (ignorando i commenti che iniziano con "#" e le righe vuote).
 
-    {-identity} è il percorso ad un file contenente identità {-age}, una per
+    {identity} è il percorso ad un file contenente identità {-age}, una per
     riga (ignorando i commenti che iniziano con "#" e le righe vuote), o ad un
     file contenente una chiave SSH.
     I file di identità possono essere cifrati con {-age} e una passphrase.

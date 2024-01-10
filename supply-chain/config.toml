@@ -67,23 +67,23 @@ criteria = "safe-to-deploy"
 
 [[exemptions.anstream]]
 version = "0.3.2"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.anstyle]]
 version = "1.0.2"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.anstyle-parse]]
 version = "0.2.1"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.anstyle-query]]
 version = "1.0.0"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.anstyle-wincon]]
 version = "1.0.2"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.arc-swap]]
 version = "1.6.0"
@@ -171,15 +171,23 @@ criteria = "safe-to-deploy"
 
 [[exemptions.clap]]
 version = "4.3.24"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.clap_builder]]
 version = "4.3.24"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.clap_complete]]
 version = "4.3.2"
 criteria = "safe-to-run"
+
+[[exemptions.clap_derive]]
+version = "4.3.12"
+criteria = "safe-to-deploy"
+
+[[exemptions.clap_lex]]
+version = "0.5.0"
+criteria = "safe-to-deploy"
 
 [[exemptions.console]]
 version = "0.15.7"
@@ -340,14 +348,6 @@ criteria = "safe-to-deploy"
 [[exemptions.gimli]]
 version = "0.28.1"
 criteria = "safe-to-run"
-
-[[exemptions.gumdrop]]
-version = "0.8.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.gumdrop_derive]]
-version = "0.8.1"
-criteria = "safe-to-deploy"
 
 [[exemptions.hashbrown]]
 version = "0.14.3"

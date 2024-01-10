@@ -56,9 +56,9 @@ maintenance = { status = "experimental" }
 # rage and rage-keygen dependencies
 age = { workspace = true, features = ["armor", "cli-common", "plugin"] }
 chrono.workspace = true
+clap = { workspace = true, features = ["string", "unstable-styles"] }
 console.workspace = true
 env_logger.workspace = true
-gumdrop.workspace = true
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
@@ -76,7 +76,6 @@ time = { version = ">=0.3.7, <0.3.24", optional = true } # time 0.3.24 has MSRV 
 zip = { version = "0.6.2", optional = true }
 
 [dev-dependencies]
-clap = { version = "4", default-features = false }
 clap_complete = "4"
 flate2 = "1"
 man = "0.3"
