@@ -37,12 +37,12 @@ plugin-name = PLUGIN-NAME
 input = INPUT
 output = OUTPUT
 
-rage-after-help =
+rage-after-help-content =
     {input} 默認為標準輸入 （stdin）, 而 {output} 默認為標準輸出 （stdout） 。
 
     {recipient} 可為：
-    - 一把以 {$keygen_name} 生成的 {-age} 公鑰 ("age1...")。
-    - 一把 SSH 公鑰 ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...")。
+    - 一把以 {$keygen_name} 生成的 {-age} 公鑰 ({$example_age_pubkey})。
+    - 一把 SSH 公鑰 ({$example_ssh_pubkey})。
 
     {recipients-file} 是一個文件路徑。該文件應含有 {-age} 接收方, 每行一個
     （前綴為 "#" 的注釋以及空行將被忽略）。
@@ -52,6 +52,7 @@ rage-after-help =
     Passphrase-encrypted {-age} identity files can be used as identity files.
     您可提供多份身份, 未使用的身份將被忽略。
 
+rage-after-help-example =
     Example:
     {"  "}{$example_a}
     {"  "}{tty-pubkey}: {$example_a_output}

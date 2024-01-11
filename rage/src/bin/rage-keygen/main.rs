@@ -1,65 +1,26 @@
 #![forbid(unsafe_code)]
 
 use age::{cli_common::file_io, secrecy::ExposeSecret};
-use clap::{builder::Styles, ArgAction, Parser};
-use i18n_embed::{
-    fluent::{fluent_language_loader, FluentLanguageLoader},
-    DesktopLanguageRequester,
-};
-use lazy_static::lazy_static;
-use rust_embed::RustEmbed;
+use clap::Parser;
+
 use std::io::Write;
 
+mod cli;
 mod error;
 
-#[derive(RustEmbed)]
-#[folder = "i18n"]
-struct Localizations;
-
-lazy_static! {
-    static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+mod i18n {
+    include!("../rage/i18n.rs");
 }
 
 #[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id)
     }};
 
     ($message_id:literal, $($args:expr),* $(,)?) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
     }};
-}
-
-#[derive(Debug, Parser)]
-#[command(display_name = "rage-keygen")]
-#[command(name = "rage-keygen")]
-#[command(version)]
-#[command(help_template = format!("\
-{{before-help}}{{about-with-newline}}
-{}{}:{} {{usage}}
-
-{{all-args}}{{after-help}}\
-    ",
-    Styles::default().get_usage().render(),
-    fl!("usage-header"),
-    Styles::default().get_usage().render_reset()))]
-#[command(next_help_heading = fl!("flags-header"))]
-#[command(disable_help_flag(true))]
-#[command(disable_version_flag(true))]
-struct AgeOptions {
-    #[arg(action = ArgAction::Help, short, long)]
-    #[arg(help = fl!("help-flag-help"))]
-    help: Option<bool>,
-
-    #[arg(action = ArgAction::Version, short = 'V', long)]
-    #[arg(help = fl!("help-flag-version"))]
-    version: Option<bool>,
-
-    #[arg(short, long)]
-    #[arg(value_name = fl!("output"))]
-    #[arg(help = fl!("keygen-help-flag-output"))]
-    output: Option<String>,
 }
 
 fn main() -> Result<(), error::Error> {
@@ -69,14 +30,10 @@ fn main() -> Result<(), error::Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
+    let requested_languages = i18n::load_languages();
     age::localizer().select(&requested_languages).unwrap();
-    // Unfortunately the common Windows terminals don't support Unicode Directionality
-    // Isolation Marks, so we disable them for now.
-    LANGUAGE_LOADER.set_use_isolating(false);
 
-    let opts = AgeOptions::parse();
+    let opts = cli::AgeOptions::parse();
 
     let mut output = file_io::OutputWriter::new(
         opts.output,

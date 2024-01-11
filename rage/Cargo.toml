@@ -24,18 +24,18 @@ assets = [
     ["target/release/rage", "usr/bin/", "755"],
     ["target/release/rage-keygen", "usr/bin/", "755"],
     ["target/release/rage-mount", "usr/bin/", "755"],
-    ["../target/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
-    ["../target/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
-    ["../target/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
-    ["../target/completions/rage.fish", "usr/share/fish/completions/", "644"],
-    ["../target/completions/rage-keygen.fish", "usr/share/fish/completions/", "644"],
-    ["../target/completions/rage-mount.fish", "usr/share/fish/completions/", "644"],
-    ["../target/completions/rage.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["../target/completions/rage-keygen.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["../target/completions/rage-mount.zsh", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["../target/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
-    ["../target/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
+    ["target/release/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
+    ["target/release/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
+    ["target/release/completions/rage.fish", "usr/share/fish/completions/", "644"],
+    ["target/release/completions/rage-keygen.fish", "usr/share/fish/completions/", "644"],
+    ["target/release/completions/rage-mount.fish", "usr/share/fish/completions/", "644"],
+    ["target/release/completions/_rage", "usr/share/zsh/functions/Completion/Debian/", "644"],
+    ["target/release/completions/_rage-keygen", "usr/share/zsh/functions/Completion/Debian/", "644"],
+    ["target/release/completions/_rage-mount", "usr/share/zsh/functions/Completion/Debian/", "644"],
+    ["target/release/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
     ["../README.md", "usr/share/doc/rage/README.md", "644"],
 ]
 features = ["mount"]
@@ -75,10 +75,17 @@ tar = { version = "0.4", optional = true }
 time = { version = ">=0.3.7, <0.3.24", optional = true } # time 0.3.24 has MSRV 1.67
 zip = { version = "0.6.2", optional = true }
 
-[dev-dependencies]
+[build-dependencies]
+clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
+clap_mangen = "0.2"
 flate2 = "1"
-man = "0.3"
+i18n-embed = { workspace = true, features = ["desktop-requester"] }
+i18n-embed-fl.workspace = true
+lazy_static.workspace = true
+rust-embed.workspace = true
+
+[dev-dependencies]
 trycmd = "0.14"
 
 [features]

@@ -5,40 +5,32 @@ use age::{
     cli_common::{read_identities, read_secret},
     stream::StreamReader,
 };
-use clap::{builder::Styles, ArgAction, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 use fuse_mt::FilesystemMT;
 use fuser::MountOption;
-use i18n_embed::{
-    fluent::{fluent_language_loader, FluentLanguageLoader},
-    DesktopLanguageRequester,
-};
-use lazy_static::lazy_static;
 use log::info;
-use rust_embed::RustEmbed;
 
 use std::fmt;
 use std::fs::File;
 use std::io;
 use std::sync::mpsc;
 
+mod cli;
 mod tar;
 mod zip;
 
-#[derive(RustEmbed)]
-#[folder = "i18n"]
-struct Localizations;
-
-lazy_static! {
-    static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
+mod i18n {
+    include!("../rage/i18n.rs");
 }
 
+#[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id)
     }};
 
     ($message_id:literal, $($args:expr),* $(,)?) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args), *)
     }};
 }
 
@@ -125,56 +117,6 @@ impl fmt::Debug for Error {
     }
 }
 
-#[derive(Debug, Parser)]
-#[command(display_name = "rage-mount")]
-#[command(name = "rage-mount")]
-#[command(version)]
-#[command(help_template = format!("\
-{{before-help}}{{about-with-newline}}
-{}{}:{} {{usage}}
-
-{{all-args}}{{after-help}}\
-    ",
-    Styles::default().get_usage().render(),
-    fl!("usage-header"),
-    Styles::default().get_usage().render_reset()))]
-#[command(next_help_heading = fl!("flags-header"))]
-#[command(disable_help_flag(true))]
-#[command(disable_version_flag(true))]
-struct AgeMountOptions {
-    #[arg(help_heading = fl!("args-header"))]
-    #[arg(value_name = fl!("mnt-filename"))]
-    #[arg(help = fl!("help-arg-mnt-filename"))]
-    filename: String,
-
-    #[arg(help_heading = fl!("args-header"))]
-    #[arg(value_name = fl!("mnt-mountpoint"))]
-    #[arg(help = fl!("help-arg-mnt-mountpoint"))]
-    mountpoint: String,
-
-    #[arg(action = ArgAction::Help, short, long)]
-    #[arg(help = fl!("help-flag-help"))]
-    help: Option<bool>,
-
-    #[arg(action = ArgAction::Version, short = 'V', long)]
-    #[arg(help = fl!("help-flag-version"))]
-    version: Option<bool>,
-
-    #[arg(short, long)]
-    #[arg(value_name = fl!("mnt-types"))]
-    #[arg(help = fl!("help-arg-mnt-types", types = "\"tar\", \"zip\""))]
-    types: String,
-
-    #[arg(long, value_name = "WF")]
-    #[arg(help = fl!("help-flag-max-work-factor"))]
-    max_work_factor: Option<u8>,
-
-    #[arg(short, long)]
-    #[arg(value_name = fl!("identity"))]
-    #[arg(help = fl!("help-flag-identity"))]
-    identity: Vec<String>,
-}
-
 fn mount_fs<T: FilesystemMT + Send + Sync + 'static, F>(
     open: F,
     mountpoint: String,
@@ -234,19 +176,15 @@ fn main() -> Result<(), Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested_languages).unwrap();
+    let requested_languages = i18n::load_languages();
     age::localizer().select(&requested_languages).unwrap();
-    // Unfortunately the common Windows terminals don't support Unicode Directionality
-    // Isolation Marks, so we disable them for now.
-    LANGUAGE_LOADER.set_use_isolating(false);
 
     if console::user_attended() && args().len() == 1 {
-        AgeMountOptions::command().print_help()?;
+        cli::AgeMountOptions::command().print_help()?;
         return Ok(());
     }
 
-    let opts = AgeMountOptions::parse();
+    let opts = cli::AgeMountOptions::parse();
 
     if opts.filename.is_empty() {
         return Err(Error::MissingFilename);

@@ -190,12 +190,6 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
         working-directory: ./rage
 
-      - name: Generate completions
-        run: cargo run --example generate-completions
-
-      - name: Generate manpages
-        run: cargo run --example generate-docs
-
       - name: Update Debian package config for cross-compile
         run: sed -i '/\/rage-mount/d' rage/Cargo.toml
         if: matrix.name != 'linux'
