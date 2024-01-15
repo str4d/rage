@@ -205,6 +205,14 @@ impl Cli {
                             fl!("tty-pubkey")
                         )],
                     ),
+                    Example::new(
+                        fl!("man-keygen-example-convert"),
+                        "rage-keygen -y key.txt",
+                        vec![
+                            "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+                                .to_owned(),
+                        ],
+                    ),
                 ])
                 .render(w)
             },

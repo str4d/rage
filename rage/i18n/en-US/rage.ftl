@@ -79,6 +79,7 @@ rage-after-help-example =
     {"  "}{$example_c}
 
 keygen-help-flag-output = {help-flag-output} Defaults to standard output.
+keygen-help-flag-convert = Convert an identity file to a recipients file.
 
 ## Formatting
 
@@ -100,7 +101,9 @@ warn-double-encrypting = Encrypting an already-encrypted file
 
 ## General errors
 
+err-failed-to-open-input = Failed to open input: {$err}
 err-failed-to-open-output = Failed to open output: {$err}
+err-failed-to-read-input = Failed to read from input: {$err}
 err-failed-to-write-output = Failed to write to output: {$err}
 err-identity-ambiguous = {-flag-identity} requires either {-flag-encrypt} or {-flag-decrypt}.
 err-mixed-encrypt-decrypt = {-flag-encrypt} can't be used with {-flag-decrypt}.
@@ -111,6 +114,14 @@ err-ux-A = Did {-rage} not do what you expected? Could an error be more useful?
 err-ux-B = Tell us
 # Put (len(A) - len(B) - 32) spaces here.
 err-ux-C = {"                          "}
+
+## Keygen errors
+
+err-identity-file-contains-plugin = Identity file '{$filename}' contains identities for '{-age-plugin-}{$plugin_name}'.
+rec-identity-file-contains-plugin = Try using '{-age-plugin-}{$plugin_name}' to convert this identity to a recipient.
+
+err-no-identities-in-file = No identities found in file '{$filename}'.
+err-no-identities-in-stdin = No identities found in standard input.
 
 ## Encryption errors
 
@@ -215,6 +226,7 @@ man-keygen-about = Generate age-compatible encryption key pairs
 
 man-keygen-example-stdout = Generate a new key pair
 man-keygen-example-file = Generate a new key pair and save it to a file
+man-keygen-example-convert = Convert an identity file to a recipient
 
 man-mount-about = Mount an age-encrypted filesystem
 

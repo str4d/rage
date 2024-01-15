@@ -19,6 +19,11 @@ use crate::fl;
 #[command(disable_help_flag(true))]
 #[command(disable_version_flag(true))]
 pub(crate) struct AgeOptions {
+    #[arg(help_heading = fl!("args-header"))]
+    #[arg(value_name = fl!("input"))]
+    #[arg(help = fl!("help-arg-input"))]
+    pub(crate) input: Option<String>,
+
     #[arg(action = ArgAction::Help, short, long)]
     #[arg(help = fl!("help-flag-help"))]
     pub(crate) help: Option<bool>,
@@ -31,4 +36,8 @@ pub(crate) struct AgeOptions {
     #[arg(value_name = fl!("output"))]
     #[arg(help = fl!("keygen-help-flag-output"))]
     pub(crate) output: Option<String>,
+
+    #[arg(short = 'y')]
+    #[arg(help = fl!("keygen-help-flag-convert"))]
+    pub(crate) convert: bool,
 }

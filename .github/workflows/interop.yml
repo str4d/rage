@@ -208,6 +208,13 @@ jobs:
               true
           fi
 
+      - name: Keygen supports conversion from stdin
+        run: ./${{ matrix.alice }}-keygen | ./${{ matrix.bob }}-keygen -y
+
+      - name: Keygen supports conversion from file
+        if: matrix.recipient == 'x25519'
+        run: ./${{ matrix.alice }}-keygen -y key.txt
+
       - name: Update FiloSottile/age status with result
         if: always() && github.event.action == 'age-interop-request'
         run: |
