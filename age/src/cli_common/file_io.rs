@@ -50,10 +50,16 @@ impl fmt::Display for DenyOverwriteFileError {
 
 impl std::error::Error for DenyOverwriteFileError {}
 
+/// Wrapper around a [`File`].
+pub struct FileReader {
+    inner: File,
+    filename: String,
+}
+
 /// Wrapper around either a file or standard input.
 pub enum InputReader {
     /// Wrapper around a file.
-    File(File),
+    File(FileReader),
     /// Wrapper around standard input.
     Stdin(io::Stdin),
 }
@@ -65,7 +71,10 @@ impl InputReader {
             // Respect the Unix convention that "-" as an input filename
             // parameter is an explicit request to use standard input.
             if filename != "-" {
-                return Ok(InputReader::File(File::open(filename)?));
+                return Ok(InputReader::File(FileReader {
+                    inner: File::open(&filename)?,
+                    filename,
+                }));
             }
         }
 
@@ -76,12 +85,20 @@ impl InputReader {
     pub fn is_terminal(&self) -> bool {
         matches!(self, Self::Stdin(_)) && io::stdin().is_terminal()
     }
+
+    pub(crate) fn filename(&self) -> Option<&str> {
+        if let Self::File(f) = self {
+            Some(&f.filename)
+        } else {
+            None
+        }
+    }
 }
 
 impl Read for InputReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
-            InputReader::File(f) => f.read(buf),
+            InputReader::File(f) => f.inner.read(buf),
             InputReader::Stdin(handle) => handle.read(buf),
         }
     }
