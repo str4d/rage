@@ -39,11 +39,11 @@ macro_rules! fl {
 struct Example {
     text: String,
     cmd: &'static str,
-    output: Option<String>,
+    output: Vec<String>,
 }
 
 impl Example {
-    const fn new(text: String, cmd: &'static str, output: Option<String>) -> Self {
+    const fn new(text: String, cmd: &'static str, output: Vec<String>) -> Self {
         Self { text, cmd, output }
     }
 }
@@ -139,38 +139,38 @@ impl Cli {
                     Example::new(
                         fl!("man-rage-example-enc-single"),
                         "echo \"_o/\" | rage -o hello.age -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-rage-example-enc-multiple"),
                         "echo \"_o/\" | rage -r age1uvscypafkkxt6u2gkguxet62cenfmnpc0smzzlyun0lzszfatawq4kvf2u \
                                 -r age1ex4ty8ppg02555at009uwu5vlk5686k3f23e7mac9z093uvzfp8sxr5jum > hello.age",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-rage-example-enc-password"),
                         "rage -p -o hello.txt.age hello.txt",
-                        Some(format!("{}:", fl!("type-passphrase"))),
+                        vec![format!("{}:", fl!("type-passphrase"))],
                     ),
                     Example::new(
                         fl!("man-rage-example-enc-list"),
                         "tar cv ~/xxx | rage -R recipients.txt > xxx.tar.age",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-rage-example-enc-identities"),
                         "tar cv ~/xxx | rage -e -i keyA.txt -i keyB.txt > xxx.tar.age",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-rage-example-enc-url"),
                         "echo \"_o/\" | rage -o hello.age -R <(curl https://github.com/str4d.keys)",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-rage-example-dec-identities"),
                         "rage -d -o hello -i keyA.txt -i keyB.txt hello.age",
-                        None,
+                        vec![],
                     ),
                 ])
                 .render(w)
@@ -182,14 +182,36 @@ impl Cli {
             self.rage_keygen.about(fl!("man-keygen-about")),
             |_, w| {
                 Examples([
-                    Example::new(fl!("man-keygen-example-stdout"), "rage-keygen", None),
+                    Example::new(
+                        fl!("man-keygen-example-stdout"),
+                        "rage-keygen",
+                        vec![
+                            format!(
+                                "# {}: 2021-01-02T15:30:45+01:00",
+                                fl!("identity-file-created"),
+                            ),
+                            format!(
+                                "# {}: age1lvyvwawkr0mcnnnncaghunadrqkmuf9e6507x9y920xxpp866cnql7dp2z",
+                                fl!("identity-file-pubkey"),
+                            ),
+                            "AGE-SECRET-KEY-1N9JEPW6DWJ0ZQUDX63F5A03GX8QUW7PXDE39N8UYF82VZ9PC8UFS3M7XA9".to_owned(),
+                        ],
+                    ),
                     Example::new(
                         fl!("man-keygen-example-file"),
                         "rage-keygen -o key.txt",
-                        Some(format!(
+                        vec![format!(
                             "{}: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
                             fl!("tty-pubkey")
-                        )),
+                        )],
+                    ),
+                    Example::new(
+                        fl!("man-keygen-example-convert"),
+                        "rage-keygen -y key.txt",
+                        vec![
+                            "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+                                .to_owned(),
+                        ],
                     ),
                 ])
                 .render(w)
@@ -204,12 +226,12 @@ impl Cli {
                     Example::new(
                         fl!("man-mount-example-identity"),
                         "rage-mount -t tar -i key.txt encrypted.tar.age ./tmp",
-                        None,
+                        vec![],
                     ),
                     Example::new(
                         fl!("man-mount-example-passphrase"),
                         "rage-mount -t zip encrypted.zip.age ./tmp",
-                        Some(format!("{}:", fl!("type-passphrase"))),
+                        vec![format!("{}:", fl!("type-passphrase"))],
                     ),
                 ])
                 .render(w)

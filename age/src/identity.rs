@@ -3,6 +3,9 @@ use std::io;
 
 use crate::{x25519, Callbacks, DecryptError, EncryptError};
 
+#[cfg(feature = "cli-common")]
+use crate::cli_common::file_io::InputReader;
+
 #[cfg(feature = "plugin")]
 use crate::plugin;
 
@@ -68,6 +71,13 @@ impl IdentityFile {
     /// Parses one or more identities from a buffered input containing valid UTF-8.
     pub fn from_buffer<R: io::BufRead>(data: R) -> io::Result<Self> {
         Self::parse_identities(None, data)
+    }
+
+    /// Parses one or more identities from an [`InputReader`];
+    #[cfg(feature = "cli-common")]
+    pub fn from_input_reader(reader: InputReader) -> io::Result<Self> {
+        let filename = reader.filename().map(String::from);
+        Self::parse_identities(filename, io::BufReader::new(reader))
     }
 
     fn parse_identities<R: io::BufRead>(filename: Option<String>, data: R) -> io::Result<Self> {
