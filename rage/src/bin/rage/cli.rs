@@ -4,20 +4,32 @@ use clap::{builder::Styles, ArgAction, Parser};
 
 use crate::fl;
 
-fn binary_name() -> String {
+fn binary_name(suffix: Option<&str>) -> String {
     if let Some(arg) = std::env::args_os().next() {
-        Path::new(&arg)
-            .file_name()
-            .expect("is not directory")
-            .to_string_lossy()
-            .to_string()
+        let path = Path::new(&arg);
+        if let Some(suffix) = suffix {
+            let stem = path
+                .file_stem()
+                .expect("is not directory")
+                .to_string_lossy();
+            let extension = path
+                .extension()
+                .map(|extension| format!(".{}", extension.to_string_lossy()))
+                .unwrap_or_default();
+            format!("{}{}{}", stem, suffix, extension)
+        } else {
+            path.file_name()
+                .expect("is not directory")
+                .to_string_lossy()
+                .to_string()
+        }
     } else {
-        "rage".into()
+        format!("rage{}", suffix.unwrap_or_default())
     }
 }
 
 fn usage() -> String {
-    let binary_name = binary_name();
+    let binary_name = binary_name(None);
     let recipient = fl!("recipient");
     let identity = fl!("identity");
     let input = fl!("input");
@@ -39,8 +51,8 @@ pub(crate) fn after_help_content(keygen_name: &str) -> String {
 }
 
 fn after_help() -> String {
-    let binary_name = binary_name();
-    let keygen_name = format!("{}-keygen", binary_name);
+    let keygen_name = binary_name(Some("-keygen"));
+    let binary_name = binary_name(None);
     let example_a = format!("$ {} -o key.txt", keygen_name);
     let example_a_output = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
     let example_b = format!(

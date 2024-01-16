@@ -26,7 +26,7 @@ INPUT ha come valore predefinito lo standard input, e OUTPUT ha come
 valore predefinito lo standard output.
 
 RECIPIENT può essere:
-- Una chiave pubblica age, come generata da rage-keygen ("age1...").
+- Una chiave pubblica age, come generata da rage-keygen[EXE] ("age1...").
 - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
 
 PATH è il percorso ad un file contenente dei destinatari age,
@@ -39,9 +39,9 @@ I file di identità possono essere cifrati con age e una passphrase.
 Possono essere fornite più identità, quelle inutilizzate verranno ignorate.
 
 Esempio:
-  $ rage-keygen -o key.txt
+  $ rage-keygen[EXE] -o key.txt
   Chiave pubblica: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
-  $ tar cvz ~/data | rage -r age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p > data.tar.gz.age
-  $ rage -d -i key.txt -o data.tar.gz data.tar.gz.age
+  $ tar cvz ~/data | rage[EXE] -r age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p > data.tar.gz.age
+  $ rage[EXE] -d -i key.txt -o data.tar.gz data.tar.gz.age
 """
 stderr = ""
