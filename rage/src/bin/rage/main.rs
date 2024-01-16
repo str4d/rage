@@ -102,6 +102,21 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         return Err(error::EncryptError::PluginNameFlag);
     }
 
+    let (format, output_format) = if opts.armor {
+        (Format::AsciiArmor, file_io::OutputFormat::Text)
+    } else {
+        (Format::Binary, file_io::OutputFormat::Binary)
+    };
+
+    let has_file_argument = opts.input.is_some();
+
+    let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
+
+    let is_stdout = match output {
+        file_io::OutputWriter::File(..) => false,
+        file_io::OutputWriter::Stdout(..) => true,
+    };
+
     let encryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
             return Err(error::EncryptError::MixedIdentityAndPassphrase);
@@ -113,7 +128,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::MixedRecipientsFileAndPassphrase);
         }
 
-        if opts.input.is_none() {
+        if !has_file_argument {
             return Err(error::EncryptError::PassphraseWithoutFileArgument);
         }
 
@@ -157,19 +172,6 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             Some(encryptor) => encryptor,
             None => return Err(error::EncryptError::MissingRecipients),
         }
-    };
-
-    let (format, output_format) = if opts.armor {
-        (Format::AsciiArmor, file_io::OutputFormat::Text)
-    } else {
-        (Format::Binary, file_io::OutputFormat::Binary)
-    };
-
-    let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
-
-    let is_stdout = match output {
-        file_io::OutputWriter::File(..) => false,
-        file_io::OutputWriter::Stdout(..) => true,
     };
 
     let mut output = encryptor.wrap_output(ArmoredWriter::wrap_output(output, format)?)?;
