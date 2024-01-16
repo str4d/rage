@@ -39,6 +39,11 @@ macro_rules! warning {
     }};
 }
 
+/// Handles error mapping for the given SSH recipient parser.
+///
+/// Returns `Ok(None)` if the parser finds a parseable value that should be ignored. This
+/// case is for handling SSH recipient types that may occur in files we want to be able to
+/// parse, but that we do not directly support.
 #[cfg(feature = "ssh")]
 fn parse_ssh_recipient<F, G>(
     parser: F,
@@ -174,14 +179,14 @@ fn read_recipients(
                 return Err(error::EncryptError::UnsupportedKey(filename, k))
             }
             Ok(identity) => {
-                if let Some(recipient) = parse_ssh_recipient(
+                let recipient = parse_ssh_recipient(
                     || age::ssh::Recipient::try_from(identity),
                     || Err(error::EncryptError::InvalidRecipient(filename.clone())),
                     &filename,
-                )? {
-                    recipients.push(recipient);
-                    continue;
-                }
+                )?
+                .expect("unsupported identities were already handled");
+                recipients.push(recipient);
+                continue;
             }
             Err(_) => (),
         }
