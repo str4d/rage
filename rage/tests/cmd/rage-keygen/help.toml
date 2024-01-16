@@ -1,11 +1,15 @@
 bin.name = "rage-keygen"
 args = "--help"
 stdout = """
-Usage: rage-keygen[EXE] [OPTIONS]
+Usage: rage-keygen[EXE] [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Path to a file to read from.
 
 Options:
   -h, --help             Print this help message and exit.
   -V, --version          Print version info and exit.
   -o, --output <OUTPUT>  Write the result to the file at path OUTPUT. Defaults to standard output.
+  -y                     Convert an identity file to a recipients file.
 """
 stderr = ""
