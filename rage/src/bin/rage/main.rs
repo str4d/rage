@@ -157,14 +157,11 @@ fn read_recipients(
             UiCallbacks,
             max_work_factor,
         ) {
-            if let Some(identity) = identity {
-                recipients.extend(identity.recipients()?);
-                continue;
-            } else {
-                return Err(error::EncryptError::IdentityEncryptedWithoutPassphrase(
-                    filename,
-                ));
-            }
+            let identity = identity.ok_or(
+                error::EncryptError::IdentityEncryptedWithoutPassphrase(filename),
+            )?;
+            recipients.extend(identity.recipients()?);
+            continue;
         }
 
         // Try parsing as a single multi-line SSH identity.
