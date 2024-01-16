@@ -12,11 +12,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - run: cargo fetch
-      - name: Build tests
-        run: cargo build --workspace --verbose --exclude rage --all-features --tests
       - name: Run tests
-        run: cargo test --workspace --verbose --exclude rage --all-features
+        run: >
+          cargo test
+          --workspace
+          --features '
+          armor
+          async
+          cli-common
+          plugin
+          ssh
+          unstable
+          '
+      - name: Verify working directory is clean
+        run: git diff --exit-code
 
   build:
     name: Build target ${{ matrix.target }}
