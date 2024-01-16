@@ -152,7 +152,7 @@ fn read_recipients(
     for filename in identity_strings {
         // Try parsing as an encrypted age identity.
         if let Ok(identity) = age::encrypted::Identity::from_buffer(
-            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            ArmoredReader::new(File::open(&filename)?),
             Some(filename.clone()),
             UiCallbacks,
             max_work_factor,
