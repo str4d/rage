@@ -59,6 +59,11 @@ rec-missing-plugin = Have you installed the plugin?
 
 err-plugin-identity = '{$plugin_name}' couldn't use an identity: {$message}
 err-plugin-recipient = '{$plugin_name}' couldn't use recipient {$recipient}: {$message}
+
+err-plugin-died = '{$plugin_name}' unexpectedly died.
+rec-plugin-died-1 = If you are developing a plugin, run with {$env_var} for more information.
+rec-plugin-died-2 = Warning: this prints private encryption key material to standard error.
+
 err-plugin-multiple = Plugin returned multiple errors:
 
 err-read-identity-encrypted-without-passphrase =

@@ -3,7 +3,7 @@
 use age_core::{
     format::{FileKey, Stanza},
     io::{DebugReader, DebugWriter},
-    plugin::{Connection, Reply, Response, IDENTITY_V1, RECIPIENT_V1},
+    plugin::{Connection, Reply, Response, UnidirSend, IDENTITY_V1, RECIPIENT_V1},
     secrecy::ExposeSecret,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
@@ -23,7 +23,7 @@ use crate::{
     error::{DecryptError, EncryptError, PluginError},
     fl,
     util::parse_bech32,
-    Callbacks,
+    wfl, wlnfl, Callbacks,
 };
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
@@ -214,13 +214,71 @@ impl Plugin {
         }
     }
 
-    fn connect(
-        &self,
-        state_machine: &str,
-    ) -> io::Result<Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>> {
-        Connection::open(&self.path, state_machine)
+    fn connect(&self, state_machine: &str) -> io::Result<BlastFurnace> {
+        let conn = Connection::open(&self.path, state_machine)?;
+        Ok(BlastFurnace {
+            binary_name: self.binary_name.clone(),
+            conn,
+        })
     }
 }
+
+/// Wraps a connection and gracefully handles plugin explosions.
+struct BlastFurnace {
+    binary_name: String,
+    conn: Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>,
+}
+
+impl BlastFurnace {
+    fn handle_errors(&self, res: io::Result<()>) -> io::Result<()> {
+        res.map_err(|e| match e.kind() {
+            io::ErrorKind::UnexpectedEof => io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                PluginDiedError {
+                    binary_name: self.binary_name.clone(),
+                },
+            ),
+            _ => e,
+        })
+    }
+
+    fn unidir_send<
+        P: FnOnce(UnidirSend<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>) -> io::Result<()>,
+    >(
+        &mut self,
+        phase_steps: P,
+    ) -> io::Result<()> {
+        let res = self.conn.unidir_send(phase_steps);
+        self.handle_errors(res)
+    }
+
+    fn bidir_receive<H>(&mut self, commands: &[&str], handler: H) -> io::Result<()>
+    where
+        H: FnMut(Stanza, Reply<DebugReader<ChildStdout>, DebugWriter<ChildStdin>>) -> Response,
+    {
+        let res = self.conn.bidir_receive(commands, handler);
+        self.handle_errors(res)
+    }
+}
+
+#[derive(Debug)]
+struct PluginDiedError {
+    binary_name: String,
+}
+
+impl fmt::Display for PluginDiedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        wlnfl!(
+            f,
+            "err-plugin-died",
+            plugin_name = self.binary_name.as_str(),
+        )?;
+        wlnfl!(f, "rec-plugin-died-1", env_var = "AGEDEBUG=plugin")?;
+        wfl!(f, "rec-plugin-died-2")
+    }
+}
+
+impl std::error::Error for PluginDiedError {}
 
 fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
     command: Stanza,
