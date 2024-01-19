@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `rage-keygen -y IDENTITY_FILE` to convert identity files to recipients.
+- Elvish completions to the Debian package. These are not automatically
+  discovered; Elvish users will need to manually import them.
 
 ### Changed
 - MSRV is now 1.65.0.
