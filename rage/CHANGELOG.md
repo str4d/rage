@@ -27,6 +27,8 @@ to 1.0.0 are beta releases.
 - `rage-keygen` now prints fatal errors directly instead of them being hidden
   behind the `RUST_LOG=error` environment variable. It also now sets its return
   code appropriately instead of always returning 0.
+- The Debian package now uses the correct installation paths for fish and Zsh
+  completions.
 
 ## [0.9.2] - 2023-06-12
 ### Changed

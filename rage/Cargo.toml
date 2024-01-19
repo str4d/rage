@@ -37,12 +37,31 @@ assets = [
     ["target/release/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
     ["target/release/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
     ["target/release/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
-    ["target/release/completions/rage.fish", "usr/share/fish/completions/", "644"],
-    ["target/release/completions/rage-keygen.fish", "usr/share/fish/completions/", "644"],
-    ["target/release/completions/rage-mount.fish", "usr/share/fish/completions/", "644"],
-    ["target/release/completions/_rage", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["target/release/completions/_rage-keygen", "usr/share/zsh/functions/Completion/Debian/", "644"],
-    ["target/release/completions/_rage-mount", "usr/share/zsh/functions/Completion/Debian/", "644"],
+
+    # From https://fishshell.com/docs/current/completions.html#where-to-put-completions:
+    # > By default, Fish searches the following for completions, using the first available
+    # > file that it finds:
+    # > [..]
+    # > - A directory for third-party software vendors to ship their own completions for
+    # >   their software, usually `/usr/share/fish/vendor_completions.d`;
+    # > [..]
+    # > If you are developing another program and would like to ship completions with your
+    # > program, install them to the “vendor” completions directory. As this path may vary
+    # > from system to system, the `pkgconfig` framework should be used to discover this
+    # > path with the output of `pkg-config --variable completionsdir fish`.
+    ["target/release/completions/rage.fish", "usr/share/fish/vendor_completions.d/", "644"],
+    ["target/release/completions/rage-keygen.fish", "usr/share/fish/vendor_completions.d/", "644"],
+    ["target/release/completions/rage-mount.fish", "usr/share/fish/vendor_completions.d/", "644"],
+
+    # The best reference I can find for the Zsh completions path is
+    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=921236#17 from February 2019:
+    # > As a rule, completion functions (first line is "#compdef") should be
+    # > installed to /usr/share/zsh/vendor-completions and autoloadable
+    # > functions (first line is "#autoload") to /usr/share/zsh/vendor-functions;
+    # > both of these paths are Debian-specific.
+    ["target/release/completions/_rage", "usr/share/zsh/vendor-completions/", "644"],
+    ["target/release/completions/_rage-keygen", "usr/share/zsh/vendor-completions/", "644"],
+    ["target/release/completions/_rage-mount", "usr/share/zsh/vendor-completions/", "644"],
 
     # From the default `/etc/manpath.config` created by the `man-db` package:
     # > MANPATH_MAP     /usr/bin                /usr/share/man
