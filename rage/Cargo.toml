@@ -24,6 +24,16 @@ assets = [
     ["target/release/rage", "usr/bin/", "755"],
     ["target/release/rage-keygen", "usr/bin/", "755"],
     ["target/release/rage-mount", "usr/bin/", "755"],
+
+    # From the bash-completion FAQ (https://github.com/scop/bash-completion/blob/master/README.md#faq):
+    # > Q. I author/maintain package X and would like to maintain my own completion code
+    # >    for this package. Where should I put it to be sure that interactive bash shells
+    # >    will find it and source it?
+    # > A. Install it in one of the directories pointed to by bash-completion's `pkgconfig`
+    # >    file variables. [..] The recommended directory is `completionsdir`, which you
+    # >    can get with `pkg-config --variable=completionsdir bash-completion`.
+    #
+    # On Ubuntu 22.04 this resolves to `/usr/share/bash-completion/completions`.
     ["target/release/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
     ["target/release/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
     ["target/release/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
@@ -33,6 +43,9 @@ assets = [
     ["target/release/completions/_rage", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["target/release/completions/_rage-keygen", "usr/share/zsh/functions/Completion/Debian/", "644"],
     ["target/release/completions/_rage-mount", "usr/share/zsh/functions/Completion/Debian/", "644"],
+
+    # From the default `/etc/manpath.config` created by the `man-db` package:
+    # > MANPATH_MAP     /usr/bin                /usr/share/man
     ["target/release/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
     ["target/release/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
     ["target/release/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
