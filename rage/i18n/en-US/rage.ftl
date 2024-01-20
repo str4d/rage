@@ -138,6 +138,8 @@ err-enc-invalid-recipients-file =
 err-enc-missing-recipients = Missing recipients.
 rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
 
+err-enc-missing-recipients-file = Recipients file not found: {$filename}
+
 err-enc-mixed-identity-passphrase = {-flag-identity} can't be used with {-flag-passphrase}.
 err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag-passphrase}.
 err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} can't be used with {-flag-passphrase}.
