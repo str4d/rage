@@ -147,10 +147,15 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
+        let not_found_error = |e: io::Error| match e.kind() {
+            io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename.clone()),
+            _ => e.into(),
+        };
+
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
         if let Ok(identity) = crate::encrypted::Identity::from_buffer(
-            ArmoredReader::new(File::open(&filename)?),
+            ArmoredReader::new(File::open(&filename).map_err(not_found_error)?),
             Some(filename.clone()),
             UiCallbacks,
             max_work_factor,
@@ -165,7 +170,7 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
         match crate::ssh::Identity::from_buffer(
-            BufReader::new(File::open(&filename)?),
+            BufReader::new(File::open(&filename).map_err(not_found_error)?),
             Some(filename.clone()),
         ) {
             Ok(crate::ssh::Identity::Unsupported(k)) => {
@@ -179,11 +184,7 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         }
 
         // Try parsing as multiple single-line age identities.
-        let identity_file =
-            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
-                _ => e.into(),
-            })?;
+        let identity_file = IdentityFile::from_file(filename.clone()).map_err(not_found_error)?;
 
         for entry in identity_file.into_identities() {
             identity_file_entry(ctx, entry)?;
