@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `rage-keygen -y IDENTITY_FILE` to convert identity files to recipients.
+- Elvish completions to the Debian package. These are not automatically
+  discovered; Elvish users will need to manually import them.
 
 ### Changed
 - MSRV is now 1.65.0.
@@ -27,6 +29,8 @@ to 1.0.0 are beta releases.
 - `rage-keygen` now prints fatal errors directly instead of them being hidden
   behind the `RUST_LOG=error` environment variable. It also now sets its return
   code appropriately instead of always returning 0.
+- The Debian package now uses the correct installation paths for fish and Zsh
+  completions.
 
 ## [0.9.2] - 2023-06-12
 ### Changed
