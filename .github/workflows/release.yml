@@ -191,7 +191,7 @@ jobs:
         working-directory: ./rage
 
       - name: Update Debian package config for cross-compile
-        run: sed -i '/\/rage-mount/d' rage/Cargo.toml
+        run: sed -i '/\/_\?rage-mount/d' rage/Cargo.toml
         if: matrix.name != 'linux'
 
       - name: cargo deb
