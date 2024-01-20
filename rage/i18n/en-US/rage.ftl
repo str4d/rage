@@ -162,11 +162,6 @@ rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
 err-dec-armor-flag = {-flag-armor} can't be used with {-flag-decrypt}.
 rec-dec-armor-flag = Note that armored files are detected automatically.
 
-err-dec-identity-encrypted-without-passphrase =
-    Identity file '{$filename}' is encrypted with {-age} but not with a passphrase.
-
-err-dec-identity-not-found = Identity file not found: {$filename}
-
 err-dec-missing-identities = Missing identities.
 rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
 

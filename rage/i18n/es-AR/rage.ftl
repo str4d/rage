@@ -109,8 +109,6 @@ rec-dec-excessive-work = Para desencriptar, intenta con {-flag-max-work-factor} 
 err-dec-armor-flag = {-flag-armor} no puede ser usado con {-flag-decrypt}.
 rec-dec-armor-flag = Nota que los archivos blindados son detectados automáticamente.
 
-err-dec-identity-not-found = Archivo identidad no encontrado: {$filename}
-
 err-dec-missing-identities = No se encontraron las identidades.
 rec-dec-missing-identities = ¿Te olvidaste de especificar {-flag-identity}?
 

@@ -107,8 +107,6 @@ rec-dec-excessive-work = 請重試採用 {-flag-max-work-factor} {$wf} 以解密
 err-dec-armor-flag = {-flag-armor} 和 {-flag-decrypt} 標記不可聯用。
 rec-dec-armor-flag = 請注意，裝甲文件 （armored files） 會被自動檢測。
 
-err-dec-identity-not-found = 未搜索到身份文件： {$filename}
-
 err-dec-missing-identities = 缺少身份。
 rec-dec-missing-identities = 您是否忘記指定 {-flag-identity} 標記？
 
