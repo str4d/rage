@@ -147,19 +147,36 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
-        let not_found_error = |e: io::Error| match e.kind() {
-            io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename.clone()),
-            _ => e.into(),
-        };
+        let mut reader = PeekableReader::new(BufReader::new(File::open(&filename).map_err(
+            |e| match e.kind() {
+                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename.clone()),
+                _ => e.into(),
+            },
+        )?));
 
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
-        if let Ok(identity) = crate::encrypted::Identity::from_buffer(
-            ArmoredReader::new(File::open(&filename).map_err(not_found_error)?),
+        if crate::encrypted::Identity::from_buffer(
+            ArmoredReader::new_buffered(&mut reader),
             Some(filename.clone()),
             UiCallbacks,
             max_work_factor,
-        ) {
+        )
+        .is_ok()
+        {
+            // Re-parse while taking ownership of the reader. This will always succeed
+            // because the age ciphertext header size is less than the underlying buffer
+            // size, but the manual reset here ensures this fails gracefully if for
+            // whatever reason the underlying buffer size changes unexpectedly.
+            reader.reset()?;
+            let identity = crate::encrypted::Identity::from_buffer(
+                ArmoredReader::new_buffered(reader.inner),
+                Some(filename.clone()),
+                UiCallbacks,
+                max_work_factor,
+            )
+            .expect("already parsed the age ciphertext header");
+
             encrypted_identity(
                 ctx,
                 identity.ok_or(ReadError::IdentityEncryptedWithoutPassphrase(filename))?,
@@ -167,12 +184,12 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
             continue;
         }
 
+        #[cfg(feature = "armor")]
+        reader.reset()?;
+
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
-        match crate::ssh::Identity::from_buffer(
-            BufReader::new(File::open(&filename).map_err(not_found_error)?),
-            Some(filename.clone()),
-        ) {
+        match crate::ssh::Identity::from_buffer(&mut reader, Some(filename.clone())) {
             Ok(crate::ssh::Identity::Unsupported(k)) => {
                 return Err(ReadError::UnsupportedKey(filename, k).into())
             }
@@ -183,8 +200,11 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
             Err(_) => (),
         }
 
+        #[cfg(feature = "ssh")]
+        reader.reset()?;
+
         // Try parsing as multiple single-line age identities.
-        let identity_file = IdentityFile::from_file(filename.clone()).map_err(not_found_error)?;
+        let identity_file = IdentityFile::from_buffer(reader)?;
 
         for entry in identity_file.into_identities() {
             identity_file_entry(ctx, entry)?;
@@ -192,6 +212,84 @@ pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     }
 
     Ok(())
+}
+
+enum PeekState {
+    Peeking { consumed: usize },
+    Reading,
+}
+
+pub(crate) struct PeekableReader<R: io::BufRead> {
+    inner: R,
+    state: PeekState,
+}
+
+impl<R: io::BufRead> PeekableReader<R> {
+    fn new(inner: R) -> Self {
+        Self {
+            inner,
+            state: PeekState::Peeking { consumed: 0 },
+        }
+    }
+
+    fn reset(&mut self) -> io::Result<()> {
+        match &mut self.state {
+            PeekState::Peeking { consumed } => {
+                *consumed = 0;
+                Ok(())
+            }
+            PeekState::Reading => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Tried to reset after the underlying buffer was exceeded.",
+            )),
+        }
+    }
+}
+
+impl<R: io::BufRead> io::Read for PeekableReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self.state {
+            PeekState::Peeking { .. } => {
+                // Perform a read that will never exceed the size of the inner buffer.
+                use std::io::BufRead;
+                let nread = {
+                    let mut rem = self.fill_buf()?;
+                    rem.read(buf)?
+                };
+                self.consume(nread);
+                Ok(nread)
+            }
+            PeekState::Reading => self.inner.read(buf),
+        }
+    }
+}
+
+impl<R: io::BufRead> io::BufRead for PeekableReader<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        match self.state {
+            PeekState::Peeking { consumed } => {
+                if consumed < self.inner.fill_buf()?.len() {
+                    // Re-call so we aren't extending the lifetime of the mutable borrow
+                    // on `self.inner` to outside the conditional, which would prevent us
+                    // from performing other mutable operations on the other side.
+                    Ok(&self.inner.fill_buf()?[consumed..])
+                } else {
+                    // We're done peeking.
+                    self.inner.consume(consumed);
+                    self.state = PeekState::Reading;
+                    self.inner.fill_buf()
+                }
+            }
+            PeekState::Reading => self.inner.fill_buf(),
+        }
+    }
+
+    fn consume(&mut self, amt: usize) {
+        match &mut self.state {
+            PeekState::Peeking { consumed, .. } => *consumed += amt,
+            PeekState::Reading => self.inner.consume(amt),
+        }
+    }
 }
 
 fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool> {

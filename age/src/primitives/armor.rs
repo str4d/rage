@@ -737,6 +737,14 @@ impl<R: Read> ArmoredReader<BufReader<R>> {
     }
 }
 
+#[cfg(feature = "cli-common")]
+impl<R: BufRead> ArmoredReader<R> {
+    /// Wraps a buffered reader that may contain an armored age file.
+    pub(crate) fn new_buffered(reader: R) -> Self {
+        ArmoredReader::with_buffered(reader)
+    }
+}
+
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + Unpin> ArmoredReader<AsyncBufReader<R>> {
