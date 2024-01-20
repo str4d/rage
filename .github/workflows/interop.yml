@@ -199,6 +199,19 @@ jobs:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
           path: test4.age
 
+      - name: Generate a file to encrypt
+        run: echo "Test 5" > test5.txt
+      - name: Encrypt to identity in a named pipe
+        run: ./${{ matrix.alice }} -e -i <(cat key.txt) -o test.age test5.txt
+      - name: Decrypt with identity in a named pipe
+        run: ./${{ matrix.bob }} -d -i <(cat key.txt) test.age | grep -q "^Test 5$"
+      - name: Store test5.age
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test5.age
+          path: test5.age
+
       - name: Keygen prevents overwriting an existing file
         run: |
           touch do_not_overwrite_key.txt
