@@ -83,9 +83,10 @@ assets = [
 
     # From the default `/etc/manpath.config` created by the `man-db` package:
     # > MANPATH_MAP     /usr/bin                /usr/share/man
-    ["target/release/manpages/rage.1.gz", "usr/share/man/man1/", "644"],
-    ["target/release/manpages/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
-    ["target/release/manpages/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/**/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/**/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/**/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+
     ["../README.md", "usr/share/doc/rage/README.md", "644"],
 ]
 features = ["mount"]
@@ -130,7 +131,7 @@ clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
 clap_mangen = "0.2"
 flate2 = "1"
-i18n-embed = { workspace = true, features = ["desktop-requester"] }
+i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
 rust-embed.workspace = true

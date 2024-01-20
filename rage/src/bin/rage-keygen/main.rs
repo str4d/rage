@@ -2,6 +2,7 @@
 
 use age::{cli_common::file_io, secrecy::ExposeSecret};
 use clap::Parser;
+use i18n_embed::DesktopLanguageRequester;
 
 use std::io::{self, Write};
 
@@ -30,8 +31,9 @@ fn main() -> Result<(), error::Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = i18n::load_languages();
-    age::localizer().select(&requested_languages).unwrap();
+    let supported_languages =
+        i18n::load_languages(&DesktopLanguageRequester::requested_languages());
+    age::localizer().select(&supported_languages).unwrap();
 
     let opts = cli::AgeOptions::parse();
 
