@@ -11,6 +11,7 @@ use clap_mangen::{
     Man,
 };
 use flate2::{write::GzEncoder, Compression};
+use i18n_embed::unic_langid::LanguageIdentifier;
 
 mod i18n {
     include!("src/bin/rage/i18n.rs");
@@ -243,8 +244,6 @@ impl Cli {
 }
 
 fn main() -> io::Result<()> {
-    i18n::load_languages();
-
     // `OUT_DIR` is "intentionally opaque as it is only intended for `rustc` interaction"
     // (https://github.com/rust-lang/cargo/issues/9858). Peek into the black box and use
     // it to figure out where the target directory is.
@@ -257,9 +256,38 @@ fn main() -> io::Result<()> {
             .to_path_buf(),
     };
 
-    let mut cli = Cli::build();
-    cli.generate_completions(&out_dir.join("completions"))?;
-    cli.generate_manpages(&out_dir.join("manpages"))?;
+    // Generate the completions in English, because these aren't easily localizable.
+    i18n::load_languages(&[]);
+    Cli::build().generate_completions(&out_dir.join("completions"))?;
+
+    // Generate manpages for all supported languages.
+    let manpage_dir = out_dir.join("manpages");
+    for lang_dir in fs::read_dir("./i18n")? {
+        let lang_dir = lang_dir?.file_name();
+        let lang: LanguageIdentifier = lang_dir
+            .to_str()
+            .expect("should be valid Unicode")
+            .parse()
+            .expect("should be valid language identifier");
+
+        // Render the manpages into the correct folder structure, so that local checks can
+        // be performed with `man -M target/debug/manpages BINARY_NAME`.
+        let mut out_dir = if lang.language.as_str() == "en" {
+            manpage_dir.clone()
+        } else {
+            let mut lang_str = lang.language.as_str().to_owned();
+            if let Some(region) = lang.region {
+                // Locales for manpages use the POSIX format with underscores.
+                lang_str += "_";
+                lang_str += region.as_str();
+            }
+            manpage_dir.join(lang_str)
+        };
+        out_dir.push("man1");
+
+        i18n::load_languages(&[lang]);
+        Cli::build().generate_manpages(&out_dir)?;
+    }
 
     Ok(())
 }

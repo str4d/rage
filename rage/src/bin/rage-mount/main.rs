@@ -8,6 +8,7 @@ use age::{
 use clap::{CommandFactory, Parser};
 use fuse_mt::FilesystemMT;
 use fuser::MountOption;
+use i18n_embed::DesktopLanguageRequester;
 use log::info;
 
 use std::fmt;
@@ -176,8 +177,9 @@ fn main() -> Result<(), Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = i18n::load_languages();
-    age::localizer().select(&requested_languages).unwrap();
+    let supported_languages =
+        i18n::load_languages(&DesktopLanguageRequester::requested_languages());
+    age::localizer().select(&supported_languages).unwrap();
 
     if console::user_attended() && args().len() == 1 {
         cli::AgeMountOptions::command().print_help()?;

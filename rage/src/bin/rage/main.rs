@@ -10,6 +10,7 @@ use age::{
     Identity, IdentityFile, IdentityFileEntry, Recipient,
 };
 use clap::{CommandFactory, Parser};
+use i18n_embed::DesktopLanguageRequester;
 
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -523,8 +524,9 @@ fn main() -> Result<(), error::Error> {
         .parse_default_env()
         .init();
 
-    let requested_languages = i18n::load_languages();
-    age::localizer().select(&requested_languages).unwrap();
+    let supported_languages =
+        i18n::load_languages(&DesktopLanguageRequester::requested_languages());
+    age::localizer().select(&supported_languages).unwrap();
 
     // If you are piping input with no other args, this will not allow
     // it.

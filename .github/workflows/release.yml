@@ -101,6 +101,13 @@ jobs:
         shell: bash
         if: matrix.name == 'windows'
 
+      - name: Upload archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rage-${{ matrix.asset_suffix }}
+          path: ${{ matrix.archive_name }}
+        if: github.event.inputs.test == 'true'
+
       - name: Upload archive to release
         uses: svenstaro/upload-release-action@2.7.0
         with:
@@ -191,11 +198,18 @@ jobs:
         working-directory: ./rage
 
       - name: Update Debian package config for cross-compile
-        run: sed -i '/\/rage-mount/d' rage/Cargo.toml
+        run: sed -i '/\/_\?rage-mount/d' rage/Cargo.toml
         if: matrix.name != 'linux'
 
       - name: cargo deb
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
+
+      - name: Upload Debian package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rage-${{ matrix.name }}.deb
+          path: target/${{ matrix.target }}/debian/*.deb
+        if: github.event.inputs.test == 'true'
 
       - name: Upload Debian package to release
         uses: svenstaro/upload-release-action@2.7.0
