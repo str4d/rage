@@ -24,7 +24,11 @@ The reference interoperable Go implementation is available at
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
 
-Help from new packagers is very welcome.
+> Help from new packagers is very welcome. Please use the package name `rage`;
+> the fallback package name `rage-encryption` should be used only when there are
+> *unavoidable* name conflicts in package systems that use global namespaces. Do
+> not rename any binaries; instead use your package system's conflicting package
+> mechanism to prevent installation of both packages at once.
 
 ## Usage
 
