@@ -98,17 +98,15 @@ pub fn read_identities(
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
         if let Ok(identity) = crate::encrypted::Identity::from_buffer(
-            ArmoredReader::new(BufReader::new(File::open(&filename)?)),
+            ArmoredReader::new(File::open(&filename)?),
             Some(filename.clone()),
             UiCallbacks,
             max_work_factor,
         ) {
-            if let Some(identity) = identity {
-                identities.push(Box::new(identity));
-                continue;
-            } else {
-                return Err(ReadError::IdentityEncryptedWithoutPassphrase(filename));
-            }
+            identities.push(Box::new(
+                identity.ok_or(ReadError::IdentityEncryptedWithoutPassphrase(filename))?,
+            ));
+            continue;
         }
 
         // Try parsing as a single multi-line SSH identity.

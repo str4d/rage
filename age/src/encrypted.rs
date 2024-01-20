@@ -206,7 +206,6 @@ impl<R: io::Read, C: Callbacks> crate::Identity for Identity<R, C> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::BufReader;
     use std::sync::{Arc, Mutex};
 
     use age_core::secrecy::{ExposeSecret, SecretString};
@@ -272,7 +271,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         // Unwrapping with the wrong passphrase fails.
         {
-            let buf = ArmoredReader::new(BufReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes()));
+            let buf = ArmoredReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes());
             let identity =
                 Identity::from_buffer(buf, None, MockCallbacks::new("wrong passphrase"), None)
                     .unwrap()
@@ -285,7 +284,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
             }
         }
 
-        let buf = ArmoredReader::new(BufReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes()));
+        let buf = ArmoredReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes());
         let identity = Identity::from_buffer(
             buf,
             None,
