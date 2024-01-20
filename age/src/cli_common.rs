@@ -94,47 +94,19 @@ pub fn read_identities(
 ) -> Result<Vec<Box<dyn Identity>>, ReadError> {
     let mut identities: Vec<Box<dyn Identity>> = Vec::with_capacity(filenames.len());
 
-    for filename in filenames {
-        #[cfg(feature = "armor")]
-        // Try parsing as an encrypted age identity.
-        if let Ok(identity) = crate::encrypted::Identity::from_buffer(
-            ArmoredReader::new(File::open(&filename)?),
-            Some(filename.clone()),
-            UiCallbacks,
-            max_work_factor,
-        ) {
-            identities.push(Box::new(
-                identity.ok_or(ReadError::IdentityEncryptedWithoutPassphrase(filename))?,
-            ));
-            continue;
-        }
-
-        // Try parsing as a single multi-line SSH identity.
-        #[cfg(feature = "ssh")]
-        match crate::ssh::Identity::from_buffer(
-            BufReader::new(File::open(&filename)?),
-            Some(filename.clone()),
-        ) {
-            Ok(crate::ssh::Identity::Unsupported(k)) => {
-                return Err(ReadError::UnsupportedKey(filename, k))
-            }
-            Ok(identity) => {
-                identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
-                continue;
-            }
-            Err(_) => (),
-        }
-        // IdentityFileEntry::into_identity will never return a MissingPlugin error
-        // when plugin feature is not enabled.
-
-        // Try parsing as multiple single-line age identities.
-        let identity_file =
-            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
-                _ => e.into(),
-            })?;
-
-        for entry in identity_file.into_identities() {
+    parse_identity_files::<_, ReadError>(
+        filenames,
+        max_work_factor,
+        &mut identities,
+        |identities, identity| {
+            identities.push(Box::new(identity));
+            Ok(())
+        },
+        |identities, _, identity| {
+            identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
+            Ok(())
+        },
+        |identities, entry| {
             let entry = entry.into_identity(UiCallbacks);
 
             #[cfg(feature = "plugin")]
@@ -148,14 +120,77 @@ pub fn read_identities(
                 _ => unreachable!(),
             })?;
 
+            // IdentityFileEntry::into_identity will never return a MissingPlugin error
+            // when plugin feature is not enabled.
             #[cfg(not(feature = "plugin"))]
             let entry = entry.unwrap();
 
             identities.push(entry);
+
+            Ok(())
+        },
+    )?;
+
+    Ok(identities)
+}
+
+/// Parses the provided identity files.
+pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
+    filenames: Vec<String>,
+    max_work_factor: Option<u8>,
+    ctx: &mut Ctx,
+    #[cfg(feature = "armor")] encrypted_identity: impl Fn(
+        &mut Ctx,
+        crate::encrypted::Identity<ArmoredReader<BufReader<File>>, UiCallbacks>,
+    ) -> Result<(), E>,
+    #[cfg(feature = "ssh")] ssh_identity: impl Fn(&mut Ctx, &str, crate::ssh::Identity) -> Result<(), E>,
+    identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
+) -> Result<(), E> {
+    for filename in filenames {
+        #[cfg(feature = "armor")]
+        // Try parsing as an encrypted age identity.
+        if let Ok(identity) = crate::encrypted::Identity::from_buffer(
+            ArmoredReader::new(File::open(&filename)?),
+            Some(filename.clone()),
+            UiCallbacks,
+            max_work_factor,
+        ) {
+            encrypted_identity(
+                ctx,
+                identity.ok_or(ReadError::IdentityEncryptedWithoutPassphrase(filename))?,
+            )?;
+            continue;
+        }
+
+        // Try parsing as a single multi-line SSH identity.
+        #[cfg(feature = "ssh")]
+        match crate::ssh::Identity::from_buffer(
+            BufReader::new(File::open(&filename)?),
+            Some(filename.clone()),
+        ) {
+            Ok(crate::ssh::Identity::Unsupported(k)) => {
+                return Err(ReadError::UnsupportedKey(filename, k).into())
+            }
+            Ok(identity) => {
+                ssh_identity(ctx, &filename, identity)?;
+                continue;
+            }
+            Err(_) => (),
+        }
+
+        // Try parsing as multiple single-line age identities.
+        let identity_file =
+            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
+                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename),
+                _ => e.into(),
+            })?;
+
+        for entry in identity_file.into_identities() {
+            identity_file_entry(ctx, entry)?;
         }
     }
 
-    Ok(identities)
+    Ok(())
 }
 
 fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool> {

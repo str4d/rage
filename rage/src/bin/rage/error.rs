@@ -27,8 +27,7 @@ pub(crate) enum EncryptError {
         is_stdout: bool,
         source: io::Error,
     },
-    IdentityEncryptedWithoutPassphrase(String),
-    IdentityNotFound(String),
+    IdentityRead(age::cli_common::ReadError),
     InvalidRecipient(String),
     InvalidRecipientsFile {
         filename: String,
@@ -57,6 +56,12 @@ impl From<age::EncryptError> for EncryptError {
     }
 }
 
+impl From<age::cli_common::ReadError> for EncryptError {
+    fn from(e: age::cli_common::ReadError) -> Self {
+        EncryptError::IdentityRead(e)
+    }
+}
+
 impl From<io::Error> for EncryptError {
     fn from(e: io::Error) -> Self {
         EncryptError::Io(e)
@@ -75,18 +80,7 @@ impl fmt::Display for EncryptError {
                     wfl!(f, "err-enc-broken-file", err = source.to_string())
                 }
             }
-            EncryptError::IdentityEncryptedWithoutPassphrase(filename) => {
-                wfl!(
-                    f,
-                    "err-dec-identity-encrypted-without-passphrase",
-                    filename = filename.as_str(),
-                )
-            }
-            EncryptError::IdentityNotFound(filename) => wfl!(
-                f,
-                "err-dec-identity-not-found",
-                filename = filename.as_str(),
-            ),
+            EncryptError::IdentityRead(e) => write!(f, "{}", e),
             EncryptError::InvalidRecipient(recipient) => wfl!(
                 f,
                 "err-enc-invalid-recipient",

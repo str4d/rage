@@ -3,11 +3,12 @@
 use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
-        file_io, read_identities, read_or_generate_passphrase, read_secret, Passphrase, UiCallbacks,
+        file_io, parse_identity_files, read_identities, read_or_generate_passphrase, read_secret,
+        Passphrase, UiCallbacks,
     },
     plugin,
     secrecy::ExposeSecret,
-    Identity, IdentityFile, IdentityFileEntry, Recipient,
+    Identity, IdentityFileEntry, Recipient,
 };
 use clap::{CommandFactory, Parser};
 use i18n_embed::DesktopLanguageRequester;
@@ -155,56 +156,32 @@ fn read_recipients(
         read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
     }
 
-    for filename in identity_strings {
-        // Try parsing as an encrypted age identity.
-        if let Ok(identity) = age::encrypted::Identity::from_buffer(
-            ArmoredReader::new(File::open(&filename)?),
-            Some(filename.clone()),
-            UiCallbacks,
-            max_work_factor,
-        ) {
-            let identity = identity.ok_or(
-                error::EncryptError::IdentityEncryptedWithoutPassphrase(filename),
-            )?;
+    parse_identity_files::<_, error::EncryptError>(
+        identity_strings,
+        max_work_factor,
+        &mut (&mut recipients, &mut plugin_identities),
+        |(recipients, _), identity| {
             recipients.extend(identity.recipients()?);
-            continue;
-        }
-
-        // Try parsing as a single multi-line SSH identity.
-        #[cfg(feature = "ssh")]
-        match age::ssh::Identity::from_buffer(
-            BufReader::new(File::open(&filename)?),
-            Some(filename.clone()),
-        ) {
-            Ok(age::ssh::Identity::Unsupported(k)) => {
-                return Err(error::EncryptError::UnsupportedKey(filename, k))
-            }
-            Ok(identity) => {
-                let recipient = parse_ssh_recipient(
-                    || age::ssh::Recipient::try_from(identity),
-                    || Err(error::EncryptError::InvalidRecipient(filename.clone())),
-                    &filename,
-                )?
-                .expect("unsupported identities were already handled");
-                recipients.push(recipient);
-                continue;
-            }
-            Err(_) => (),
-        }
-
-        // Try parsing as multiple single-line age identities.
-        let identity_file =
-            IdentityFile::from_file(filename.clone()).map_err(|e| match e.kind() {
-                io::ErrorKind::NotFound => error::EncryptError::IdentityNotFound(filename),
-                _ => e.into(),
-            })?;
-        for entry in identity_file.into_identities() {
+            Ok(())
+        },
+        |(recipients, _), filename, identity| {
+            let recipient = parse_ssh_recipient(
+                || age::ssh::Recipient::try_from(identity),
+                || Err(error::EncryptError::InvalidRecipient(filename.to_owned())),
+                filename,
+            )?
+            .expect("unsupported identities were already handled");
+            recipients.push(recipient);
+            Ok(())
+        },
+        |(recipients, plugin_identities), entry| {
             match entry {
                 IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
                 IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
             }
-        }
-    }
+            Ok(())
+        },
+    )?;
 
     // Collect the names of the required plugins.
     let mut plugin_names = plugin_recipients

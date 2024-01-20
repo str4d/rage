@@ -10,9 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
-- `age::cli_common::file_io`:
-  - `FileReader`
-  - `impl Debug for {LazyFile, OutputFormat, OutputWriter, StdoutWriter}`
+- `age::cli_common`:
+  - `file_io`:
+    - `FileReader`
+    - `impl Debug for {LazyFile, OutputFormat, OutputWriter, StdoutWriter}`
+  - `parse_identity_files` (a generalisation of `read_identities`).
 - `age::identity::IdentityFile::from_input_reader` (behind `cli-common` feature
   flag).
 - `impl Eq for age::ssh::{ParseRecipientKeyError, UnsupportedKey}`
