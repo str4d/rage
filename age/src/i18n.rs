@@ -1,7 +1,7 @@
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     unic_langid::LanguageIdentifier,
-    DefaultLocalizer, LanguageLoader, Localizer,
+    I18nEmbedError, LanguageLoader, Localizer,
 };
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
@@ -75,5 +75,29 @@ macro_rules! wlnfl {
 /// age::localizer().select(&requested_languages).unwrap();
 /// ```
 pub fn localizer() -> Box<dyn Localizer> {
-    Box::from(DefaultLocalizer::new(&*LANGUAGE_LOADER, &Localizations))
+    Box::from(AgeLocalizer)
+}
+
+struct AgeLocalizer;
+
+impl Localizer for AgeLocalizer {
+    fn language_loader(&self) -> &'_ dyn LanguageLoader {
+        &*LANGUAGE_LOADER
+    }
+
+    fn i18n_assets(&self) -> &'_ dyn i18n_embed::I18nAssets {
+        &Localizations
+    }
+
+    fn select(
+        &self,
+        requested_languages: &[LanguageIdentifier],
+    ) -> Result<Vec<LanguageIdentifier>, I18nEmbedError> {
+        let supported_languages =
+            i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, requested_languages)?;
+        // Unfortunately the common Windows terminals don't support Unicode Directionality
+        // Isolation Marks, so we disable them for now.
+        LANGUAGE_LOADER.set_use_isolating(false);
+        Ok(supported_languages)
+    }
 }
