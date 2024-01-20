@@ -1,6 +1,6 @@
 bin.name = "rage-keygen"
 args = "--help"
-env.add.LANG = "it"
+env.add.LC_ALL = "it"
 stdout = """
 Usage: rage-keygen[EXE] [OPTIONS] [INPUT]
 

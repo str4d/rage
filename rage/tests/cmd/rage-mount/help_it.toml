@@ -1,6 +1,6 @@
 bin.name = "rage-mount"
 args = "--help"
-env.add.LANG = "it"
+env.add.LC_ALL = "it"
 stdout = """
 Usage: rage-mount[EXE] [OPTIONS] --types <TYPES> <FILENAME> <MOUNTPOINT>
 
