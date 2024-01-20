@@ -4,7 +4,7 @@ status = "failed"
 stdin = ""
 stdout = ""
 stderr = """
-Error: No such file or directory (os error 2)
+Error: Recipients file not found: foobar.txt
 
 [ Did rage not do what you expected? Could an error be more useful? ]
 [ Tell us: https://str4d.xyz/rage/report                            ]

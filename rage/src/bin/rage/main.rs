@@ -151,7 +151,10 @@ fn read_recipients(
     }
 
     for arg in recipients_file_strings {
-        let f = File::open(&arg)?;
+        let f = File::open(&arg).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => error::EncryptError::MissingRecipientsFile(arg.clone()),
+            _ => e.into(),
+        })?;
         let buf = BufReader::new(f);
         read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
     }

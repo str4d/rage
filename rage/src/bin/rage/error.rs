@@ -35,6 +35,7 @@ pub(crate) enum EncryptError {
     },
     Io(io::Error),
     MissingRecipients,
+    MissingRecipientsFile(String),
     MixedIdentityAndPassphrase,
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
@@ -100,6 +101,11 @@ impl fmt::Display for EncryptError {
                 wlnfl!(f, "err-enc-missing-recipients")?;
                 wfl!(f, "rec-enc-missing-recipients")
             }
+            EncryptError::MissingRecipientsFile(filename) => wfl!(
+                f,
+                "err-enc-missing-recipients-file",
+                filename = filename.as_str(),
+            ),
             EncryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-enc-mixed-identity-passphrase")
             }
