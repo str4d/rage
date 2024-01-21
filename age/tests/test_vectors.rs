@@ -5,6 +5,8 @@ use std::io::Read;
 #[test]
 #[cfg(feature = "cli-common")]
 fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
+    use age::cli_common::StdinGuard;
+
     for test_vector in fs::read_dir("./tests/testdata")?.filter(|res| {
         res.as_ref()
             .map(|e| {
@@ -29,6 +31,7 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
                         name
                     )],
                     None,
+                    &mut StdinGuard::new(false),
                 )?;
                 d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
             }

@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-e -R - -i - file.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Standard input can't be used for multiple purposes.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

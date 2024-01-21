@@ -1,6 +1,6 @@
-use std::fs::File;
 use std::io::{self, BufReader};
 
+use super::StdinGuard;
 use super::{identities::parse_identity_files, ReadError, UiCallbacks};
 use crate::{x25519, EncryptError, IdentityFileEntry, Recipient};
 
@@ -101,11 +101,16 @@ fn read_recipients_list<R: io::BufRead>(
 }
 
 /// Reads recipients from the provided arguments.
+///
+/// `recipients_file_strings` and `identity_strings` may collectively contain at most one
+/// entry of `"-"`, which will be interpreted as reading from standard input. An error
+/// will be returned if `stdin_guard` is guarding an existing usage of standard input.
 pub fn read_recipients(
     recipient_strings: Vec<String>,
     recipients_file_strings: Vec<String>,
     identity_strings: Vec<String>,
     max_work_factor: Option<u8>,
+    stdin_guard: &mut StdinGuard,
 ) -> Result<Vec<Box<dyn Recipient + Send>>, ReadError> {
     let mut recipients: Vec<Box<dyn Recipient + Send>> = vec![];
     let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
@@ -116,9 +121,11 @@ pub fn read_recipients(
     }
 
     for arg in recipients_file_strings {
-        let f = File::open(&arg).map_err(|e| match e.kind() {
-            io::ErrorKind::NotFound => ReadError::MissingRecipientsFile(arg.clone()),
-            _ => e.into(),
+        let f = stdin_guard.open(arg.clone()).map_err(|e| match e {
+            ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
+                ReadError::MissingRecipientsFile(arg.clone())
+            }
+            _ => e,
         })?;
         let buf = BufReader::new(f);
         read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
@@ -127,6 +134,7 @@ pub fn read_recipients(
     parse_identity_files::<_, ReadError>(
         identity_strings,
         max_work_factor,
+        stdin_guard,
         &mut (&mut recipients, &mut plugin_identities),
         |(recipients, _), identity| {
             recipients.extend(identity.recipients().map_err(|e| {

@@ -77,6 +77,8 @@ err-read-invalid-recipients-file =
 
 err-read-missing-recipients-file = Recipients file not found: {$filename}
 
+err-read-multiple-stdin = Standard input can't be used for multiple purposes.
+
 err-read-rsa-modulus-too-large =
     RSA Modulus Too Large
     ---------------------

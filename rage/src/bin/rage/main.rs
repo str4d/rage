@@ -4,7 +4,7 @@ use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_recipients, read_secret,
-        Passphrase, UiCallbacks,
+        Passphrase, StdinGuard, UiCallbacks,
     },
     plugin,
     secrecy::ExposeSecret,
@@ -102,6 +102,27 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         return Err(error::EncryptError::PluginNameFlag);
     }
 
+    let (format, output_format) = if opts.armor {
+        (Format::AsciiArmor, file_io::OutputFormat::Text)
+    } else {
+        (Format::Binary, file_io::OutputFormat::Binary)
+    };
+
+    let has_file_argument = opts.input.is_some();
+
+    let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
+
+    let is_stdin = match input {
+        file_io::InputReader::File(_) => false,
+        file_io::InputReader::Stdin(_) => true,
+    };
+    let mut stdin_guard = StdinGuard::new(is_stdin);
+
+    let is_stdout = match output {
+        file_io::OutputWriter::File(..) => false,
+        file_io::OutputWriter::Stdout(..) => true,
+    };
+
     let encryptor = if opts.passphrase {
         if !opts.identity.is_empty() {
             return Err(error::EncryptError::MixedIdentityAndPassphrase);
@@ -113,7 +134,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::MixedRecipientsFileAndPassphrase);
         }
 
-        if opts.input.is_none() {
+        if !has_file_argument {
             return Err(error::EncryptError::PassphraseWithoutFileArgument);
         }
 
@@ -153,23 +174,11 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             opts.recipients_file,
             opts.identity,
             opts.max_work_factor,
+            &mut stdin_guard,
         )?) {
             Some(encryptor) => encryptor,
             None => return Err(error::EncryptError::MissingRecipients),
         }
-    };
-
-    let (format, output_format) = if opts.armor {
-        (Format::AsciiArmor, file_io::OutputFormat::Text)
-    } else {
-        (Format::Binary, file_io::OutputFormat::Binary)
-    };
-
-    let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
-
-    let is_stdout = match output {
-        file_io::OutputWriter::File(..) => false,
-        file_io::OutputWriter::Stdout(..) => true,
     };
 
     let mut output = encryptor.wrap_output(ArmoredWriter::wrap_output(output, format)?)?;
@@ -242,6 +251,26 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     let (input, output) = set_up_io(opts.input, opts.output, file_io::OutputFormat::Unknown)?;
 
+    let is_stdin = match input {
+        file_io::InputReader::File(_) => false,
+        file_io::InputReader::Stdin(_) => true,
+    };
+    let mut stdin_guard = StdinGuard::new(is_stdin);
+
+    let identities_were_provided = !opts.identity.is_empty();
+    let stdin_identity = opts.identity.iter().any(|s| s == "-");
+    let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
+    let identities = if plugin_name.is_empty() {
+        read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?
+    } else {
+        // Construct the default plugin.
+        vec![Box::new(plugin::IdentityPluginV1::new(
+            plugin_name,
+            &[plugin::Identity::default_for_plugin(plugin_name)],
+            UiCallbacks,
+        )?) as Box<dyn Identity>]
+    };
+
     // CRLF_MANGLED_INTRO and UTF16_MANGLED_INTRO are the intro lines of the age format after
     // mangling by various versions of PowerShell redirection, truncated to the length of the
     // correct intro line. See https://github.com/FiloSottile/age/issues/290 for more info.
@@ -265,7 +294,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     match age::Decryptor::new_buffered(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
-            if !opts.identity.is_empty() {
+            if identities_were_provided {
                 return Err(error::DecryptError::MixedIdentityAndPassphrase);
             }
 
@@ -303,20 +332,8 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
-            let identities = if plugin_name.is_empty() {
-                read_identities(opts.identity, opts.max_work_factor)?
-            } else {
-                // Construct the default plugin.
-                vec![Box::new(plugin::IdentityPluginV1::new(
-                    plugin_name,
-                    &[plugin::Identity::default_for_plugin(plugin_name)],
-                    UiCallbacks,
-                )?) as Box<dyn Identity>]
-            };
-
             if identities.is_empty() {
-                return Err(error::DecryptError::MissingIdentities);
+                return Err(error::DecryptError::MissingIdentities { stdin_identity });
             }
 
             decryptor

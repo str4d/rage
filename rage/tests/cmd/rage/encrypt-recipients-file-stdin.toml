@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "-e -R - -a file.txt"
+stdin = """
+age1g8g50ksmsfxuv4rpyhlnau8tx87y2xz8v4agzs2vltcxlssy2qwqq6qc4t
+"""
+stdout = """
+-----BEGIN AGE ENCRYPTED FILE-----
+...
+-----END AGE ENCRYPTED FILE-----
+"""
+stderr = ""

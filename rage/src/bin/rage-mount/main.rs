@@ -2,7 +2,7 @@
 
 use age::{
     armor::ArmoredReader,
-    cli_common::{read_identities, read_secret},
+    cli_common::{read_identities, read_secret, StdinGuard},
     stream::StreamReader,
 };
 use clap::{CommandFactory, Parser};
@@ -207,6 +207,8 @@ fn main() -> Result<(), Error> {
     let types = opts.types;
     let mountpoint = opts.mountpoint;
 
+    let mut stdin_guard = StdinGuard::new(false);
+
     match age::Decryptor::new_buffered(ArmoredReader::new(file))? {
         age::Decryptor::Passphrase(decryptor) => {
             match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
@@ -218,7 +220,8 @@ fn main() -> Result<(), Error> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let identities = read_identities(opts.identity, opts.max_work_factor)?;
+            let identities =
+                read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?;
 
             if identities.is_empty() {
                 return Err(Error::MissingIdentities);
