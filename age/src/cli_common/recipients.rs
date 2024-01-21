@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{self, BufReader};
 
-use super::{parse_identity_files, ReadError, UiCallbacks};
+use super::{identities::parse_identity_files, ReadError, UiCallbacks};
 use crate::{x25519, EncryptError, IdentityFileEntry, Recipient};
 
 #[cfg(feature = "plugin")]
