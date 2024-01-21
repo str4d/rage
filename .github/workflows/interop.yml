@@ -125,6 +125,9 @@ jobs:
       - name: Write (very not private) age X25519 key
         if: matrix.recipient == 'x25519'
         run: echo "AGE-SECRET-KEY-1TRYTV7PQS5XPUYSTAQZCD7DQCWC7Q77YJD7UVFJRMW4J82Q6930QS70MRX" >key.txt
+      - name: Save the corresponding age x25519 recipient
+        if: matrix.recipient == 'x25519'
+        run: echo "age1y8m84r6pwd4da5d45zzk03rlgv2xr7fn9px80suw3psrahul44ashl0usm" >key.txt.pub
       - name: Set the corresponding age x25519 recipient
         if: matrix.recipient == 'x25519'
         run: echo "AGE_PUBKEY=-r age1y8m84r6pwd4da5d45zzk03rlgv2xr7fn9px80suw3psrahul44ashl0usm" >> $GITHUB_ENV
@@ -202,15 +205,26 @@ jobs:
       - name: Generate a file to encrypt
         run: echo "Test 5" > test5.txt
       - name: Encrypt to identity in a named pipe
-        run: ./${{ matrix.alice }} -e -i <(cat key.txt) -o test.age test5.txt
+        run: ./${{ matrix.alice }} -e -i <(cat key.txt) -o test5.age test5.txt
       - name: Decrypt with identity in a named pipe
-        run: ./${{ matrix.bob }} -d -i <(cat key.txt) test.age | grep -q "^Test 5$"
+        run: ./${{ matrix.bob }} -d -i <(cat key.txt) test5.age | grep -q "^Test 5$"
       - name: Store test5.age
         uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test5.age
           path: test5.age
+
+      - name: Encrypt to recipient in standard input
+        run: cat key.txt.pub | ./${{ matrix.alice }} -e -R - -o test6.age test5.txt
+      - name: Decrypt with identity in standard input
+        run: cat key.txt | ./${{ matrix.bob }} -d -i - test6.age | grep -q "^Test 5$"
+      - name: Store test6.age
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test6.age
+          path: test6.age
 
       - name: Keygen prevents overwriting an existing file
         run: |

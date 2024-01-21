@@ -32,6 +32,8 @@ pub enum ReadError {
     },
     /// The given recipients file could not be found.
     MissingRecipientsFile(String),
+    /// Standard input was used by multiple files.
+    MultipleStdin,
     /// A recipient is an `ssh-rsa`` public key with a modulus larger than we support.
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
@@ -90,6 +92,7 @@ impl fmt::Display for ReadError {
                 "err-read-missing-recipients-file",
                 filename = filename.as_str(),
             ),
+            ReadError::MultipleStdin => wfl!(f, "err-read-multiple-stdin"),
             #[cfg(feature = "ssh")]
             ReadError::RsaModulusTooLarge => {
                 wfl!(f, "err-read-rsa-modulus-too-large", max_size = 4096)

@@ -4,7 +4,7 @@ use age::{
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
         file_io, read_identities, read_or_generate_passphrase, read_recipients, read_secret,
-        Passphrase, UiCallbacks,
+        Passphrase, StdinGuard, UiCallbacks,
     },
     plugin,
     secrecy::ExposeSecret,
@@ -112,6 +112,12 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
 
     let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
 
+    let is_stdin = match input {
+        file_io::InputReader::File(_) => false,
+        file_io::InputReader::Stdin(_) => true,
+    };
+    let mut stdin_guard = StdinGuard::new(is_stdin);
+
     let is_stdout = match output {
         file_io::OutputWriter::File(..) => false,
         file_io::OutputWriter::Stdout(..) => true,
@@ -168,6 +174,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             opts.recipients_file,
             opts.identity,
             opts.max_work_factor,
+            &mut stdin_guard,
         )?) {
             Some(encryptor) => encryptor,
             None => return Err(error::EncryptError::MissingRecipients),
@@ -244,10 +251,17 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     let (input, output) = set_up_io(opts.input, opts.output, file_io::OutputFormat::Unknown)?;
 
+    let is_stdin = match input {
+        file_io::InputReader::File(_) => false,
+        file_io::InputReader::Stdin(_) => true,
+    };
+    let mut stdin_guard = StdinGuard::new(is_stdin);
+
     let identities_were_provided = !opts.identity.is_empty();
+    let stdin_identity = opts.identity.iter().any(|s| s == "-");
     let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
     let identities = if plugin_name.is_empty() {
-        read_identities(opts.identity, opts.max_work_factor)?
+        read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?
     } else {
         // Construct the default plugin.
         vec![Box::new(plugin::IdentityPluginV1::new(
@@ -319,7 +333,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         }
         age::Decryptor::Recipients(decryptor) => {
             if identities.is_empty() {
-                return Err(error::DecryptError::MissingIdentities);
+                return Err(error::DecryptError::MissingIdentities { stdin_identity });
             }
 
             decryptor

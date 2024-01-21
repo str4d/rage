@@ -152,6 +152,7 @@ rec-dec-armor-flag = Note that armored files are detected automatically.
 
 err-dec-missing-identities = Missing identities.
 rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
+rec-dec-missing-identities-stdin = Did you forget to provide the identity over standard input?
 
 err-dec-mixed-identity-passphrase = {-flag-identity} can't be used with passphrase-encrypted files.
 

@@ -18,6 +18,13 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.65.0.
 - Migrated from `gumdrop` to `clap` for argument parsing.
+- `-R/--recipients-file` and `-i/--identity` now support "read-once" files, like
+  those used by process substitution (`-i <(other_binary get-age-identity)`) and
+  named pipes.
+- The filename `-` (hyphen) is now treated as an explicit request to read from
+  standard input when used with `-R/--recipients-file` or `-i/--identity`. It
+  must only occur once across the `-R/--recipients-file` and `-i/--identity`
+  flags, and the input file. It cannot be used if the input file is omitted.
 
 ### Fixed
 - OpenSSH private keys passed to `-i/--identity` that contain invalid public

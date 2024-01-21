@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "-d -i - file.age.txt"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Missing identities.
+Did you forget to provide the identity over standard input?
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

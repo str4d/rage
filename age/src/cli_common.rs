@@ -27,6 +27,34 @@ pub use recipients::read_recipients;
 
 const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
+/// A guard that helps to ensure that standard input is only used once.
+pub struct StdinGuard {
+    stdin_used: bool,
+}
+
+impl StdinGuard {
+    /// Constructs a new `StdinGuard`.
+    ///
+    /// `input_is_stdin` should be set to `true` if standard input is being used for
+    /// plaintext input during encryption, or ciphertext input during decryption.
+    pub fn new(input_is_stdin: bool) -> Self {
+        Self {
+            stdin_used: input_is_stdin,
+        }
+    }
+
+    fn open(&mut self, filename: String) -> Result<file_io::InputReader, ReadError> {
+        let input = file_io::InputReader::new(Some(filename))?;
+        if matches!(input, file_io::InputReader::Stdin(_)) {
+            if self.stdin_used {
+                return Err(ReadError::MultipleStdin);
+            }
+            self.stdin_used = true;
+        }
+        Ok(input)
+    }
+}
+
 fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool> {
     if let Some(mut input) = ConfirmationDialog::with_default_binary() {
         // pinentry binary is available!

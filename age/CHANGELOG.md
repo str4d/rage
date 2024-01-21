@@ -14,6 +14,7 @@ to 1.0.0 are beta releases.
   - `file_io`:
     - `FileReader`
     - `impl Debug for {LazyFile, OutputFormat, OutputWriter, StdoutWriter}`
+  - `StdinGuard`
   - `read_recipients`
 - `age::identity::IdentityFile::from_input_reader` (behind `cli-common` feature
   flag).
@@ -31,11 +32,15 @@ to 1.0.0 are beta releases.
       `OutputWriter` will write to a file, this boolean enables the caller to
       control whether the file will be overwritten if it exists (instead of the
       implicit behaviour that was previously changed in 0.6.0).
+  - `read_identities` now takes an `&mut StdinGuard` argument, and `filenames`
+    may now contain at most one entry of `"-"`, which will be interpreted as
+    reading from standard input.
   - `ReadError` has new variants:
     - `EncryptedIdentities`
     - `InvalidRecipient`
     - `InvalidRecipientsFile`
     - `MissingRecipientsFile`
+    - `MultipleStdin`
     - `RsaModulusTooLarge`
 - `age::ssh`:
   - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.

@@ -1,22 +1,27 @@
-use std::fs::File;
 use std::io::{self, BufReader};
 
-use super::{ReadError, UiCallbacks};
+use super::{file_io::InputReader, ReadError, StdinGuard, UiCallbacks};
 use crate::{identity::IdentityFile, Identity};
 
 #[cfg(feature = "armor")]
 use crate::armor::ArmoredReader;
 
 /// Reads identities from the provided files.
+///
+/// `filenames` may contain at most one entry of `"-"`, which will be interpreted as
+/// reading from standard input. An error will be returned if `stdin_guard` is guarding an
+/// existing usage of standard input.
 pub fn read_identities(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
+    stdin_guard: &mut StdinGuard,
 ) -> Result<Vec<Box<dyn Identity>>, ReadError> {
     let mut identities: Vec<Box<dyn Identity>> = Vec::with_capacity(filenames.len());
 
     parse_identity_files::<_, ReadError>(
         filenames,
         max_work_factor,
+        stdin_guard,
         &mut identities,
         |identities, identity| {
             identities.push(Box::new(identity));
@@ -58,21 +63,24 @@ pub fn read_identities(
 pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
+    stdin_guard: &mut StdinGuard,
     ctx: &mut Ctx,
     #[cfg(feature = "armor")] encrypted_identity: impl Fn(
         &mut Ctx,
-        crate::encrypted::Identity<ArmoredReader<BufReader<File>>, UiCallbacks>,
+        crate::encrypted::Identity<ArmoredReader<BufReader<InputReader>>, UiCallbacks>,
     ) -> Result<(), E>,
     #[cfg(feature = "ssh")] ssh_identity: impl Fn(&mut Ctx, &str, crate::ssh::Identity) -> Result<(), E>,
     identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
-        let mut reader = PeekableReader::new(BufReader::new(File::open(&filename).map_err(
-            |e| match e.kind() {
-                io::ErrorKind::NotFound => ReadError::IdentityNotFound(filename.clone()),
-                _ => e.into(),
-            },
-        )?));
+        let mut reader = PeekableReader::new(BufReader::new(
+            stdin_guard.open(filename.clone()).map_err(|e| match e {
+                ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
+                    ReadError::IdentityNotFound(filename.clone())
+                }
+                _ => e,
+            })?,
+        ));
 
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
@@ -188,7 +196,14 @@ impl<R: io::BufRead> io::BufRead for PeekableReader<R> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         match self.state {
             PeekState::Peeking { consumed } => {
-                if consumed < self.inner.fill_buf()?.len() {
+                let inner_len = self.inner.fill_buf()?.len();
+                if inner_len == 0 {
+                    // This state only occurs when the underlying data source is empty.
+                    // Don't fall through to change the state to `Reading`, because we can
+                    // always reset an empty stream.
+                    assert_eq!(consumed, 0);
+                    Ok(&[])
+                } else if consumed < inner_len {
                     // Re-call so we aren't extending the lifetime of the mutable borrow
                     // on `self.inner` to outside the conditional, which would prevent us
                     // from performing other mutable operations on the other side.

@@ -1,0 +1,15 @@
+bin.name = "rage"
+args = "--decrypt -i -"
+status = "failed"
+stdin = """
+# created: 2024-01-07T22:30:16Z
+# public key: age1g8g50ksmsfxuv4rpyhlnau8tx87y2xz8v4agzs2vltcxlssy2qwqq6qc4t
+AGE-SECRET-KEY-1SRQGS50G584HFA5JG9D6D9S6639VVHJUE5XHHKJET9DRU76HK4RQP0X5Q3
+"""
+stdout = ""
+stderr = """
+Error: Standard input can't be used for multiple purposes.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""
