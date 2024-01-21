@@ -244,6 +244,19 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     let (input, output) = set_up_io(opts.input, opts.output, file_io::OutputFormat::Unknown)?;
 
+    let identities_were_provided = !opts.identity.is_empty();
+    let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
+    let identities = if plugin_name.is_empty() {
+        read_identities(opts.identity, opts.max_work_factor)?
+    } else {
+        // Construct the default plugin.
+        vec![Box::new(plugin::IdentityPluginV1::new(
+            plugin_name,
+            &[plugin::Identity::default_for_plugin(plugin_name)],
+            UiCallbacks,
+        )?) as Box<dyn Identity>]
+    };
+
     // CRLF_MANGLED_INTRO and UTF16_MANGLED_INTRO are the intro lines of the age format after
     // mangling by various versions of PowerShell redirection, truncated to the length of the
     // correct intro line. See https://github.com/FiloSottile/age/issues/290 for more info.
@@ -267,7 +280,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
 
     match age::Decryptor::new_buffered(ArmoredReader::new(input))? {
         age::Decryptor::Passphrase(decryptor) => {
-            if !opts.identity.is_empty() {
+            if identities_were_provided {
                 return Err(error::DecryptError::MixedIdentityAndPassphrase);
             }
 
@@ -305,18 +318,6 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
         }
         age::Decryptor::Recipients(decryptor) => {
-            let plugin_name = opts.plugin_name.as_deref().unwrap_or_default();
-            let identities = if plugin_name.is_empty() {
-                read_identities(opts.identity, opts.max_work_factor)?
-            } else {
-                // Construct the default plugin.
-                vec![Box::new(plugin::IdentityPluginV1::new(
-                    plugin_name,
-                    &[plugin::Identity::default_for_plugin(plugin_name)],
-                    UiCallbacks,
-                )?) as Box<dyn Identity>]
-            };
-
             if identities.is_empty() {
                 return Err(error::DecryptError::MissingIdentities);
             }
