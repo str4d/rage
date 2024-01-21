@@ -70,6 +70,20 @@ err-read-identity-encrypted-without-passphrase =
     Identity file '{$filename}' is encrypted with {-age} but not with a passphrase.
 err-read-identity-not-found = Identity file not found: {$filename}
 
+err-read-invalid-recipient = Invalid recipient '{$recipient}'.
+
+err-read-invalid-recipients-file =
+    Recipients file '{$filename}' contains non-recipient data on line {$line_number}.
+
+err-read-missing-recipients-file = Recipients file not found: {$filename}
+
+err-read-rsa-modulus-too-large =
+    RSA Modulus Too Large
+    ---------------------
+    OpenSSH supports various RSA modulus sizes, but {-rage} only supports public
+    keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
+    when encrypting to untrusted public keys.
+
 err-stream-last-chunk-empty = Last STREAM chunk is empty. Please report this, and/or try an older {-rage} version.
 
 ## Encrypted identities

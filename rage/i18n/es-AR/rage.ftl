@@ -92,8 +92,6 @@ rec-enc-broken-stdout = Estás enviando por pipe a un programa que no está leye
 
 err-enc-broken-file = No se pudo escribir al archivo: {$err}
 
-err-enc-invalid-recipient = Destinatario inválido '{$recipient}'.
-
 err-enc-missing-recipients = No se encontraron destinatarios.
 rec-enc-missing-recipients = ¿Te olvidaste de especificar {-flag-recipient}?
 

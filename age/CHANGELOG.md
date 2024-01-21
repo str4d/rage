@@ -14,7 +14,7 @@ to 1.0.0 are beta releases.
   - `file_io`:
     - `FileReader`
     - `impl Debug for {LazyFile, OutputFormat, OutputWriter, StdoutWriter}`
-  - `parse_identity_files` (a generalisation of `read_identities`).
+  - `read_recipients`
 - `age::identity::IdentityFile::from_input_reader` (behind `cli-common` feature
   flag).
 - `impl Eq for age::ssh::{ParseRecipientKeyError, UnsupportedKey}`
@@ -23,13 +23,20 @@ to 1.0.0 are beta releases.
 ### Changed
 - MSRV is now 1.65.0.
 - Migrated to `base64 0.21`, `rsa 0.9`.
-- `age::cli_common::file_io`:
-  - `InputReader::File` enum variant now contains `FileReader` instead of
-    `std::fs::File`.
-  - `OutputWriter::new` now takes an `allow_overwrite` boolean argument. If
-    `OutputWriter` will write to a file, this boolean enables the caller to
-    control whether the file will be overwritten if it exists (instead of the
-    implicit behaviour that was previously changed in 0.6.0).
+- `age::cli_common`:
+  - `file_io`:
+    - `InputReader::File` enum variant now contains `FileReader` instead of
+      `std::fs::File`.
+    - `OutputWriter::new` now takes an `allow_overwrite` boolean argument. If
+      `OutputWriter` will write to a file, this boolean enables the caller to
+      control whether the file will be overwritten if it exists (instead of the
+      implicit behaviour that was previously changed in 0.6.0).
+  - `ReadError` has new variants:
+    - `EncryptedIdentities`
+    - `InvalidRecipient`
+    - `InvalidRecipientsFile`
+    - `MissingRecipientsFile`
+    - `RsaModulusTooLarge`
 - `age::ssh`:
   - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.
   - The following trait implementations now return

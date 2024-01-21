@@ -130,15 +130,8 @@ rec-enc-broken-stdout = Are you piping to a program that isn't reading from stdi
 
 err-enc-broken-file = Could not write to file: {$err}
 
-err-enc-invalid-recipient = Invalid recipient '{$recipient}'.
-
-err-enc-invalid-recipients-file =
-    Recipients file '{$filename}' contains non-recipient data on line {$line_number}.
-
 err-enc-missing-recipients = Missing recipients.
 rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
-
-err-enc-missing-recipients-file = Recipients file not found: {$filename}
 
 err-enc-mixed-identity-passphrase = {-flag-identity} can't be used with {-flag-passphrase}.
 err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag-passphrase}.
@@ -146,13 +139,6 @@ err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} can't be used
 err-enc-passphrase-without-file = File to encrypt must be passed as an argument when using {-flag-passphrase}.
 
 err-enc-plugin-name-flag = {-flag-plugin-name} can't be used with {-flag-encrypt}.
-
-err-enc-rsa-modulus-too-large =
-    RSA Modulus Too Large
-    ---------------------
-    OpenSSH supports various RSA modulus sizes, but {-rage} only supports public
-    keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
-    when encrypting to untrusted public keys.
 
 ## Decryption errors
 

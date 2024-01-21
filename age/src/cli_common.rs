@@ -23,6 +23,9 @@ pub use error::ReadError;
 
 pub mod file_io;
 
+mod recipients;
+pub use recipients::read_recipients;
+
 const BIP39_WORDLIST: &str = include_str!("../assets/bip39-english.txt");
 
 /// Reads identities from the provided files.
@@ -73,7 +76,7 @@ pub fn read_identities(
 }
 
 /// Parses the provided identity files.
-pub fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
+fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
     ctx: &mut Ctx,
