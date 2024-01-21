@@ -3,6 +3,7 @@ class Rage < Formula
     homepage "https://str4d.xyz/rage"
     url "https://github.com/str4d/rage/archive/refs/tags/v0.9.2.tar.gz"
     sha256 "3bd287372eb6226b246459c1b5c39ecdb36b3495d7af4d2bee93bb3aad9ccf65"
+    license any_of: ["MIT", "Apache-2.0"]
     version "0.9.2"
 
     depends_on "rust" => :build
