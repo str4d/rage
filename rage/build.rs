@@ -22,6 +22,7 @@ mod rage {
 mod rage_keygen {
     include!("src/bin/rage-keygen/cli.rs");
 }
+#[cfg(feature = "mount")]
 mod rage_mount {
     include!("src/bin/rage-mount/cli.rs");
 }
@@ -82,6 +83,7 @@ impl<const N: usize> Examples<N> {
 struct Cli {
     rage: Command,
     rage_keygen: Command,
+    #[cfg(feature = "mount")]
     rage_mount: Command,
 }
 
@@ -90,6 +92,7 @@ impl Cli {
         Self {
             rage: rage::AgeOptions::command(),
             rage_keygen: rage_keygen::AgeOptions::command(),
+            #[cfg(feature = "mount")]
             rage_mount: rage_mount::AgeMountOptions::command(),
         }
     }
@@ -100,6 +103,7 @@ impl Cli {
         for &shell in Shell::value_variants() {
             generate_to(shell, &mut self.rage, "rage", out_dir)?;
             generate_to(shell, &mut self.rage_keygen, "rage-keygen", out_dir)?;
+            #[cfg(feature = "mount")]
             generate_to(shell, &mut self.rage_mount, "rage-mount", out_dir)?;
         }
 
@@ -218,6 +222,7 @@ impl Cli {
                 .render(w)
             },
         )?;
+        #[cfg(feature = "mount")]
         generate_manpage(
             out_dir,
             "rage-mount",
