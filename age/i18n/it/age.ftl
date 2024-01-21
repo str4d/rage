@@ -63,6 +63,8 @@ err-read-identity-encrypted-without-passphrase =
     Il file di identità '{$filename}' è cifrato con {-age} ma non con una passphrase.
 err-read-identity-not-found = File di identità non trovato: {$filename}
 
+err-read-invalid-recipient = Destinatario '{$recipient}' invalido.
+
 ## Encrypted identities
 
 encrypted-passphrase-prompt = Inserisci la passphrase per l'identità cifrata '{$filename}'

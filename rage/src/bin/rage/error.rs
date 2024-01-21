@@ -23,29 +23,16 @@ macro_rules! wlnfl {
 
 pub(crate) enum EncryptError {
     Age(age::EncryptError),
-    BrokenPipe {
-        is_stdout: bool,
-        source: io::Error,
-    },
+    BrokenPipe { is_stdout: bool, source: io::Error },
     IdentityRead(age::cli_common::ReadError),
-    InvalidRecipient(String),
-    InvalidRecipientsFile {
-        filename: String,
-        line_number: usize,
-    },
     Io(io::Error),
     MissingRecipients,
-    MissingRecipientsFile(String),
     MixedIdentityAndPassphrase,
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
     PassphraseWithoutFileArgument,
     PluginNameFlag,
-    #[cfg(feature = "ssh")]
-    RsaModulusTooLarge,
-    #[cfg(feature = "ssh")]
-    UnsupportedKey(String, age::ssh::UnsupportedKey),
 }
 
 impl From<age::EncryptError> for EncryptError {
@@ -82,30 +69,11 @@ impl fmt::Display for EncryptError {
                 }
             }
             EncryptError::IdentityRead(e) => write!(f, "{}", e),
-            EncryptError::InvalidRecipient(recipient) => wfl!(
-                f,
-                "err-enc-invalid-recipient",
-                recipient = recipient.as_str(),
-            ),
-            EncryptError::InvalidRecipientsFile {
-                filename,
-                line_number,
-            } => wfl!(
-                f,
-                "err-enc-invalid-recipients-file",
-                filename = filename.as_str(),
-                line_number = line_number,
-            ),
             EncryptError::Io(e) => write!(f, "{}", e),
             EncryptError::MissingRecipients => {
                 wlnfl!(f, "err-enc-missing-recipients")?;
                 wfl!(f, "rec-enc-missing-recipients")
             }
-            EncryptError::MissingRecipientsFile(filename) => wfl!(
-                f,
-                "err-enc-missing-recipients-file",
-                filename = filename.as_str(),
-            ),
             EncryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-enc-mixed-identity-passphrase")
             }
@@ -122,12 +90,6 @@ impl fmt::Display for EncryptError {
             EncryptError::PluginNameFlag => {
                 wfl!(f, "err-enc-plugin-name-flag")
             }
-            #[cfg(feature = "ssh")]
-            EncryptError::RsaModulusTooLarge => {
-                wfl!(f, "err-enc-rsa-modulus-too-large", max_size = 4096)
-            }
-            #[cfg(feature = "ssh")]
-            EncryptError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),
         }
     }
 }

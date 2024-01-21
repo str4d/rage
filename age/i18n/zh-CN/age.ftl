@@ -54,6 +54,8 @@ rec-unknown-format = 您尝试更新至最新版本了吗？
 
 err-read-identity-not-found = 未搜索到身份文件： {$filename}
 
+err-read-invalid-recipient = 无效接收方 '{$recipient}'。
+
 ## SSH identities
 
 ssh-passphrase-prompt = 输入 OpenSSH 密钥 '{$filename}' 的密码短语

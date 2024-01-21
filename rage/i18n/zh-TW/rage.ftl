@@ -90,8 +90,6 @@ rec-enc-broken-stdout = 您是否輸出至非從 stdin 讀取數據的程序？
 
 err-enc-broken-file = 未能寫入文件： {$err}
 
-err-enc-invalid-recipient = 無效接收方 '{$recipient}'。
-
 err-enc-missing-recipients = 缺少接收方。
 rec-enc-missing-recipients = 您是否忘記指定 {-flag-recipient} 標記？
 

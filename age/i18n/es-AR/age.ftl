@@ -54,6 +54,8 @@ rec-unknown-format = ¿Has intentado actualizar a la última versión?
 
 err-read-identity-not-found = Archivo identidad no encontrado: {$filename}
 
+err-read-invalid-recipient = Destinatario inválido '{$recipient}'.
+
 ## SSH identities
 
 ssh-passphrase-prompt = Escribe frase contraseña para clave OpenSSH '{$filename}'
