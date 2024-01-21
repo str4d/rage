@@ -10,6 +10,23 @@ class Rage < Formula
 
     def install
         system "cargo", "install", *std_cargo_args(path: './rage')
+
+        install_completions("rage")
+        install_completions("rage-keygen")
+
+        man.install Dir["target/release/manpages/*"]
+    end
+
+    def install_completions(base_name)
+        src_dir = "target/release/completions"
+
+        bash_completion.install { "#{src_dir}/#{base_name}.bash" => base_name}
+        fish_completion.install "#{src_dir}/#{base_name}.fish"
+        zsh_completion.install "#{src_dir}/_#{base_name}"
+    end
+
+    def caveats
+        "rage bash completion depends on the bash-completion package"
     end
 
     test do
