@@ -33,6 +33,7 @@ where
             ParseRecipientKeyError::Ignore => Ok(None),
             ParseRecipientKeyError::Invalid(_) => invalid(),
             ParseRecipientKeyError::RsaModulusTooLarge => Err(ReadError::RsaModulusTooLarge),
+            ParseRecipientKeyError::RsaModulusTooSmall => Err(ReadError::RsaModulusTooSmall),
             ParseRecipientKeyError::Unsupported(key_type) => Err(ReadError::UnsupportedKey(
                 filename.to_string(),
                 UnsupportedKey::Type(key_type),
@@ -84,8 +85,13 @@ fn read_recipients_list<R: io::BufRead>(
             continue;
         } else if let Err(e) = parse_recipient(filename, line, recipients, plugin_recipients) {
             #[cfg(feature = "ssh")]
-            if matches!(e, ReadError::UnsupportedKey(_, _)) {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()).into());
+            match e {
+                ReadError::RsaModulusTooLarge
+                | ReadError::RsaModulusTooSmall
+                | ReadError::UnsupportedKey(_, _) => {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()).into());
+                }
+                _ => (),
             }
 
             // Return a line number in place of the line, so we don't leak the file

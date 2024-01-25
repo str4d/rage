@@ -86,6 +86,8 @@ err-read-rsa-modulus-too-large =
     keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
     when encrypting to untrusted public keys.
 
+err-read-rsa-modulus-too-small = RSA key size is too small.
+
 err-stream-last-chunk-empty = Last STREAM chunk is empty. Please report this, and/or try an older {-rage} version.
 
 ## Encrypted identities

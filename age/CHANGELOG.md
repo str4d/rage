@@ -42,8 +42,11 @@ to 1.0.0 are beta releases.
     - `MissingRecipientsFile`
     - `MultipleStdin`
     - `RsaModulusTooLarge`
+    - `RsaModulusTooSmall`
 - `age::ssh`:
-  - `ParseRecipientKeyError` has a new variant `RsaModulusTooLarge`.
+  - `ParseRecipientKeyError` has new variants:
+    - `RsaModulusTooLarge`
+    - `RsaModulusTooSmall`
   - The following trait implementations now return
     `Err(ParseRecipientKeyError::RsaModulusTooLarge)` instead of
     `Err(ParseRecipientKeyError::Unsupported(_))` when encountering an RSA
@@ -59,6 +62,10 @@ to 1.0.0 are beta releases.
     before it will accept a response.
   - `UiCallbacks::request_public_string` no longer prepends the description to
     the response string.
+- Weak `ssh-rsa` public keys that are smaller than 2048 bits are now rejected
+  from all string-parsing APIs. The `Recipient::SshRsa` enum variant can still
+  be manually constructed with such keys; this will be fixed in a future crate
+  refactor.
 
 ## [0.9.2] - 2023-06-12
 ### Added
