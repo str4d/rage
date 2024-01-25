@@ -29,6 +29,7 @@ to 1.0.0 are beta releases.
 ### Fixed
 - OpenSSH private keys passed to `-i/--identity` that contain invalid public
   keys are no longer ignored when encrypting, and instead cause an error.
+- Weak `ssh-rsa` public keys that are smaller than 2048 bits are now rejected.
 - `rage-keygen` no longer overwrites existing key files with the `-o/--output`
   flag. This was its behaviour prior to 0.6.0, but was unintentionally changed
   when `rage` was modified to overwrite existing files. Key file overwriting can

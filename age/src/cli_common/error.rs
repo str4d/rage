@@ -34,10 +34,14 @@ pub enum ReadError {
     MissingRecipientsFile(String),
     /// Standard input was used by multiple files.
     MultipleStdin,
-    /// A recipient is an `ssh-rsa`` public key with a modulus larger than we support.
+    /// A recipient is an `ssh-rsa` public key with a modulus larger than we support.
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
     RsaModulusTooLarge,
+    /// A recipient is a weak `ssh-rsa` public key with a modulus smaller than 2048 bits.
+    #[cfg(feature = "ssh")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
+    RsaModulusTooSmall,
     /// The given identity file contains an SSH key that we know how to parse, but that we
     /// do not support.
     #[cfg(feature = "ssh")]
@@ -96,6 +100,10 @@ impl fmt::Display for ReadError {
             #[cfg(feature = "ssh")]
             ReadError::RsaModulusTooLarge => {
                 wfl!(f, "err-read-rsa-modulus-too-large", max_size = 4096)
+            }
+            #[cfg(feature = "ssh")]
+            ReadError::RsaModulusTooSmall => {
+                wfl!(f, "err-read-rsa-modulus-too-small")
             }
             #[cfg(feature = "ssh")]
             ReadError::UnsupportedKey(filename, k) => k.display(f, Some(filename.as_str())),

@@ -16,7 +16,7 @@ use nom::{
     IResult,
 };
 use rand::rngs::OsRng;
-use rsa::Oaep;
+use rsa::{traits::PublicKeyParts, Oaep};
 use sha2::Sha256;
 use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
@@ -44,6 +44,7 @@ pub enum Recipient {
 pub(crate) enum ParsedRecipient {
     Supported(Recipient),
     RsaModulusTooLarge,
+    RsaModulusTooSmall,
     Unsupported(String),
 }
 
@@ -56,8 +57,10 @@ pub enum ParseRecipientKeyError {
     Ignore,
     /// The string is not a valid SSH recipient.
     Invalid(&'static str),
-    /// The string is an ssh-rsa public key with a modulus larger than we support.
+    /// The string is an `ssh-rsa` public key with a modulus larger than we support.
     RsaModulusTooLarge,
+    /// The string is a weak `ssh-rsa` public key with a modulus smaller than 2048 bits.
+    RsaModulusTooSmall,
     /// The string is a parseable value that corresponds to an unsupported SSH key type.
     Unsupported(String),
 }
@@ -71,6 +74,9 @@ impl std::str::FromStr for Recipient {
             Ok((_, ParsedRecipient::Supported(pk))) => Ok(pk),
             Ok((_, ParsedRecipient::RsaModulusTooLarge)) => {
                 Err(ParseRecipientKeyError::RsaModulusTooLarge)
+            }
+            Ok((_, ParsedRecipient::RsaModulusTooSmall)) => {
+                Err(ParseRecipientKeyError::RsaModulusTooSmall)
             }
             Ok((_, ParsedRecipient::Unsupported(key_type))) => {
                 Err(ParseRecipientKeyError::Unsupported(key_type))
@@ -201,9 +207,11 @@ fn ssh_rsa_pubkey(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecip
             map_opt(
                 str_while_encoded(BASE64_STANDARD_NO_PAD),
                 |ssh_key| match read_ssh::rsa_pubkey(max_size)(&ssh_key) {
-                    Ok((_, Some(pk))) => {
-                        Some(ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk)))
-                    }
+                    Ok((_, Some(pk))) => Some(if pk.n().bits() < 2048 {
+                        ParsedRecipient::RsaModulusTooSmall
+                    } else {
+                        ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk))
+                    }),
                     Ok((_, None)) => Some(ParsedRecipient::RsaModulusTooLarge),
                     Err(_) => None,
                 },
