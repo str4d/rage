@@ -2,6 +2,8 @@ use clap::{builder::Styles, ArgAction, Parser};
 
 use crate::fl;
 
+pub(crate) const TYPES: &str = "\"tar\", \"zip\"";
+
 #[derive(Debug, Parser)]
 #[command(display_name = "rage-mount")]
 #[command(name = "rage-mount")]
@@ -39,7 +41,7 @@ pub(crate) struct AgeMountOptions {
 
     #[arg(short, long)]
     #[arg(value_name = fl!("mnt-types"))]
-    #[arg(help = fl!("help-arg-mnt-types", types = "\"tar\", \"zip\""))]
+    #[arg(help = fl!("help-arg-mnt-types", types = TYPES))]
     pub(crate) types: String,
 
     #[arg(long, value_name = "WF")]

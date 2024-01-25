@@ -19,6 +19,8 @@
 -identity-prefix = AGE-SECRET-KEY-1
 -armor-pem-type = AGE ENCRYPTED FILE
 
+-rage-mount = rage-mount
+
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
 -ssh-authorized-keys = authorized_keys

@@ -19,6 +19,8 @@
 -identity-prefix = AGE-SECRET-KEY-1
 -armor-pem-type = AGE ENCRYPTED FILE
 
+-rage-mount = rage-mount
+
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
 -ssh-authorized-keys = authorized_keys
@@ -480,7 +482,28 @@ man-keygen-example-convert = Convert an identity to a recipient
 
 ## rage-mount manpage
 
-man-mount-about = Mount an age-encrypted filesystem
+man-mount-about = Mount an {-age} encrypted filesystem
+
+man-mount-description =
+    {-rage-mount} decrypts the {-age} encrypted filesystem at {mnt-filename} on the
+    fly, and mounts it as a directory on the local filesystem at {mnt-mountpoint}.
+
+    Passphrase-encrypted files are detected automatically and the passphrase is
+    requested interactively. Otherwise, one or more {identities} specified with
+    {-flag-identity} are used to decrypt the file.
+
+    The previous contents (if any) and owner and mode of {mnt-mountpoint} become
+    invisible, and as long as this filesystem remains mounted, the pathname
+    {mnt-mountpoint} refers to the root of the filesystem on {mnt-filename}.
+
+man-mount-flag-types =
+    Set the filesystem type. The following types are currently supported: {$types}.
+
+    This option is required. {-rage-mount} does not attempt to guess the filesystem
+    format.
+
+    In theory, any efficiently-seekable filesystem format can be supported. At
+    present, {-rage-mount} only supports seekable archive formats.
 
 man-mount-example-identity = Mounting an archive encrypted to a recipient
 man-mount-example-passphrase = Mounting an archive encrypted with a passphrase

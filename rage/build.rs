@@ -389,7 +389,18 @@ impl Cli {
             out_dir,
             "rage-mount",
             "rage-keygen(1), rage(1)",
-            self.rage_mount.about(fl!("man-mount-about")),
+            self.rage_mount
+                .about(fl!("man-mount-about"))
+                .long_about(fl!("man-mount-description"))
+                .mut_arg("types", |a| {
+                    a.long_help(fl!(
+                        "man-mount-flag-types",
+                        types = crate::rage_mount::TYPES,
+                    ))
+                })
+                .mut_arg("identity", |a| {
+                    a.long_help(fl!("man-rage-flag-identity-decrypt"))
+                }),
             |_, w| {
                 Examples([
                     Example::new(fl!("man-mount-example-identity"))
