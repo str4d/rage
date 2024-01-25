@@ -129,9 +129,9 @@ impl TryFrom<Identity> for Recipient {
                     ))
                 }
             }
-            Identity::Unsupported(UnsupportedKey::Type(key_type)) => {
-                Err(ParseRecipientKeyError::Unsupported(key_type))
-            }
+            Identity::Unsupported(
+                UnsupportedKey::Hardware(key_type) | UnsupportedKey::Type(key_type),
+            ) => Err(ParseRecipientKeyError::Unsupported(key_type)),
             Identity::Unsupported(_) => Err(ParseRecipientKeyError::Ignore),
         }
     }

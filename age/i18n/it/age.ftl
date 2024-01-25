@@ -17,6 +17,9 @@
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 

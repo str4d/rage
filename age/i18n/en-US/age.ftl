@@ -17,6 +17,9 @@
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 
@@ -148,3 +151,19 @@ ssh-unsupported-key-type =
     subset of these for backwards compatibility, specifically the '{-ssh-rsa}'
     and '{-ssh-ed25519}' key types. This SSH key uses the unsupported key type
     '{$key_type}'.
+
+ssh-unsupported-security-key =
+    Unsupported SSH Hardware Authenticator
+    --------------------------------------
+    {-openssh} version 8.2p1 added support for {-fido-u2f} hardware authenticators,
+    including hardware security keys such as {-yubikeys}. {-rage} does not work with
+    these SSH key types, because their protocol does not support encryption.
+    This SSH key uses the incompatible type '{$key_type}'.
+
+    If you have a compatible hardware security key, you should use this plugin:
+
+    {$age_plugin_yubikey_url}
+
+    A hardware security key used with both {-openssh} and this plugin will have a
+    separate SSH public key and {-age} encryption recipient, because the plugin
+    implements the {-piv} protocol.
