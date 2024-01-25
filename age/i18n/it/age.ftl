@@ -8,10 +8,18 @@
 
 ### Localization for strings in the age library crate
 
+## Terms (not to be localized)
+
 -age = age
 -rage = rage
+
+-openssh = OpenSSH
+-ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 
@@ -77,24 +85,24 @@ plugin-waiting-on-binary = In attesa di {$binary_name}...
 
 ## SSH identities
 
-ssh-passphrase-prompt = Inserisci la passphrase per la chiave OpenSSH '{$filename}'
+ssh-passphrase-prompt = Inserisci la passphrase per la chiave {-openssh} '{$filename}'
 
 ssh-unsupported-key = Chiave SSH non supportata: {$name}
 
 ssh-insecure-key-format =
     Formato della Chiave Crittografica Non Sicuro
     ---------------------------------------------
-    Precedentemente alla versione 7.8 di OpenSSH, se una password veniva
-    impostata quando si generava una nuova chiave DSA, ECDSA, o RSA, ssh-keygen
+    Precedentemente alla versione 7.8 di {-openssh}, se una password veniva
+    impostata quando si generava una nuova chiave DSA, ECDSA, o RSA, {-ssh-keygen}
     avrebbe crittografato la chiave usando un formato PEM cifrato.
 
     Puoi migrare la tua chiave nel formato della chiave privata SSH
-    crittografata (supportato dalla versione 6.5 di OpenSSH in poi, rilasciata
+    crittografata (supportato dalla versione 6.5 di {-openssh} in poi, rilasciata
     nel gennaio 2014) cambiando la passphrase associata con il seguente comando:
 
     {"    "}{$change_passphrase}
 
-    Se stai usando una versione di OpenSSH tra 6.5 e 7.7 (come quella
+    Se stai usando una versione di {-openssh} tra 6.5 e 7.7 (come quella
     predefinita di Ubuntu 18.04 LTS), puoi usare il comando seguente per forzare
     la generazione delle chiavi nel nuovo formato:
 
@@ -103,9 +111,9 @@ ssh-insecure-key-format =
 ssh-unsupported-cipher =
     Cifrario Non Supportato per la Chiave SSH Crittografata
     -------------------------------------------------------
-    OpenSSH supporta internamente diversi cifrari per chiavi crittografate, ma
+    {-openssh} supporta internamente diversi cifrari per chiavi crittografate, ma
     ne ha generate direttamente solo alcune di queste. {-rage} supporta tutti i
-    cifrari che ssh-keygen potrebbe generare, e viene aggiornato caso per caso
+    cifrari che {-ssh-keygen} potrebbe generare, e viene aggiornato caso per caso
     con il supporto a cifrari non standard. La tua chiave usa un cifrario
     attualmente non supportato ({$cipher}).
 
@@ -117,6 +125,6 @@ ssh-unsupported-cipher =
 ssh-unsupported-key-type =
     Tipo di Chiave SSH Non Supportato
     ---------------------------------
-    OpenSSH supporta diversi tipi di chiavi, ma {-rage} ne supporta solo alcuni;
+    {-openssh} supporta diversi tipi di chiavi, ma {-rage} ne supporta solo alcuni;
     specificatamente, i tipi '{-ssh-rsa}' e '{-ssh-ed25519}'. Questa chiave SSH
     è del tipo '{$key_type}', che non è supportato.

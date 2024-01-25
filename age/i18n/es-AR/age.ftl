@@ -8,10 +8,18 @@
 
 ### Localization for strings in the age library crate
 
+## Terms (not to be localized)
+
 -age = age
 -rage = rage
+
+-openssh = OpenSSH
+-ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 
@@ -58,25 +66,25 @@ err-read-invalid-recipient = Destinatario inválido '{$recipient}'.
 
 ## SSH identities
 
-ssh-passphrase-prompt = Escribe frase contraseña para clave OpenSSH '{$filename}'
+ssh-passphrase-prompt = Escribe frase contraseña para clave {-openssh} '{$filename}'
 
 ssh-unsupported-key = Clave SSH no soportada: {$name}
 
 ssh-insecure-key-format =
     Formato de Clave Encriptada inseguro
     ------------------------------------
-    Antes de OpenSSH version 7.8, su una contraseña era establecida al generar
-    una nueva clave DS, ECDSA o RSA, ssh-keygen encriptaría dicha clave utilizando
+    Antes de {-openssh} version 7.8, su una contraseña era establecida al generar
+    una nueva clave DS, ECDSA o RSA, {-ssh-keygen} encriptaría dicha clave utilizando
     el formato PEM. Este formato de encripción es inseguro y no debería utilizarse
     más.
 
     Puedes migrar tu clave al formato de Clave Privada SSH (que has sido soportado
-    por OpenSSH desde la versión 6.5, lanzada en enero de 2014) cambiado su frase
+    por {-openssh} desde la versión 6.5, lanzada en enero de 2014) cambiado su frase
     contraseña (passphrase) con el siguiente comando:
 
     {"    "}{$change_passphrase}
 
-    Si estas utilizando OpenSSH entre las versiones 6.5 y 7.7 (tal como el OpenSSH
+    Si estas utilizando {-openssh} entre las versiones 6.5 y 7.7 (tal como el {-openssh}
     provisto por defecto en Ubuntu 18.04 LTS), puedes usar el siguiente comando para
     forzar la generación de claves utilizando el nuevo formato:
     
@@ -85,9 +93,9 @@ ssh-insecure-key-format =
 ssh-unsupported-cipher =
     Cifrado no soportado para Clave Encriptada SHH
     ----------------------------------------------
-    OpenSSH soporta internamente varios cifrados diferentes para claves encriptadas,
+    {-openssh} soporta internamente varios cifrados diferentes para claves encriptadas,
     pero solo ha soportado solo algunos de pocos de ellos. {-rage} soporta todos
-    los cifrados que ssh-keygen pudiera generar, y esta siendo actualizado
+    los cifrados que {-ssh-keygen} pudiera generar, y esta siendo actualizado
     caso a caso para soportar aquellos cifrados no-estándar. Tu clave utiliza
     un cifrado no soportado actualmente: ({$cipher}).
     

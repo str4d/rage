@@ -31,12 +31,14 @@ fn binary_name(suffix: Option<&str>) -> String {
 fn usage() -> String {
     let binary_name = binary_name(None);
     let recipient = fl!("recipient");
+    let recipients_file = fl!("recipients-file");
     let identity = fl!("identity");
     let input = fl!("input");
     let output = fl!("output");
 
     format!(
-        "{binary_name} [--encrypt] -r {recipient} [-i {identity}] [-a] [-o {output}] [{input}]\n       \
+        "{binary_name} [--encrypt] (-r {recipient} | -R {recipients_file})... [-i {identity}] [-a] [-o {output}] [{input}]\n       \
+        {binary_name} [--encrypt] --passphrase [-a] [-o {output}] [{input}]\n       \
         {binary_name} --decrypt [-i {identity}] [-o {output}] [{input}]",
     )
 }

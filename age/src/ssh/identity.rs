@@ -28,7 +28,7 @@ use crate::{
     error::DecryptError,
     fl,
     util::read::{base64_arg, wrapped_str_while_encoded},
-    wlnfl, Callbacks,
+    wfl, wlnfl, Callbacks,
 };
 
 /// An SSH private key for decrypting an age file.
@@ -136,11 +136,21 @@ pub enum UnsupportedKey {
     EncryptedPem,
     /// An encrypted SSH key using a specific cipher.
     EncryptedSsh(String),
+    /// An SSH key type we believe to be stored on a hardware security key.
+    Hardware(String),
     /// An SSH key type that we do not support.
     Type(String),
 }
 
 impl UnsupportedKey {
+    pub(crate) fn from_key_type(key_type: String) -> Self {
+        if key_type.starts_with("sk-ssh-") {
+            Self::Hardware(key_type)
+        } else {
+            Self::Type(key_type)
+        }
+    }
+
     /// Prints details about this unsupported key.
     pub fn display(&self, f: &mut fmt::Formatter, filename: Option<&str>) -> fmt::Result {
         if let Some(name) = filename {
@@ -148,7 +158,7 @@ impl UnsupportedKey {
             writeln!(f)?;
         }
         match self {
-            UnsupportedKey::EncryptedPem => wlnfl!(
+            UnsupportedKey::EncryptedPem => wfl!(
                 f,
                 "ssh-insecure-key-format",
                 change_passphrase = "ssh-keygen -o -p",
@@ -159,15 +169,21 @@ impl UnsupportedKey {
                     "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{}",
                     cipher,
                 );
-                wlnfl!(
+                wfl!(
                     f,
                     "ssh-unsupported-cipher",
                     cipher = cipher.as_str(),
                     new_issue = new_issue.as_str(),
                 )?;
             }
+            UnsupportedKey::Hardware(key_type) => wfl!(
+                f,
+                "ssh-unsupported-security-key",
+                key_type = key_type.as_str(),
+                age_plugin_yubikey_url = "https://str4d.xyz/age-plugin-yubikey",
+            )?,
             UnsupportedKey::Type(key_type) => {
-                wlnfl!(f, "ssh-unsupported-key-type", key_type = key_type.as_str())?
+                wfl!(f, "ssh-unsupported-key-type", key_type = key_type.as_str())?
             }
         }
         Ok(())

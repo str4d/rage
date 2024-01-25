@@ -8,11 +8,35 @@
 
 ### Localization for strings in the rage CLI tools
 
+## Terms (not to be localized)
+
 -age = age
 -age-plugin- = age-plugin-
 -rage = rage
+-rage-keygen = rage-keygen
+-stdin = "-"
+-recipient-prefix = age1
+-identity-prefix = AGE-SECRET-KEY-1
+-armor-pem-type = AGE ENCRYPTED FILE
 
-## CLI flags
+-rage-mount = rage-mount
+
+-ssh-rsa = ssh-rsa
+-ssh-ed25519 = ssh-ed25519
+-ssh-authorized-keys = authorized_keys
+-dot-keys = .keys
+-ssh = ssh(1)
+-authorized-keys-file-format = AUTHORIZED_KEYS FILE FORMAT
+-sshd = sshd(8)
+-ssh-agent = ssh-agent(1)
+
+-example = example
+-example-r = age1example1
+-example-i = AGE-PLUGIN-EXAMPLE-1
+
+-yubikey = yubikey
+
+## CLI flags (not to be localized)
 
 -flag-armor = -a/--armor
 -flag-decrypt = -d/--decrypt
@@ -25,6 +49,10 @@
 -flag-plugin-name = -j
 -flag-max-work-factor = --max-work-factor
 -flag-unstable = --features unstable
+
+-flag-convert = -y
+
+-flag-mnt-types = -t/--types
 
 ## Usage
 

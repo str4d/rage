@@ -8,10 +8,18 @@
 
 ### Localization for strings in the age library crate
 
+## Terms (not to be localized)
+
 -age = age
 -rage = rage
+
+-openssh = OpenSSH
+-ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 
@@ -82,7 +90,7 @@ err-read-multiple-stdin = Standard input can't be used for multiple purposes.
 err-read-rsa-modulus-too-large =
     RSA Modulus Too Large
     ---------------------
-    OpenSSH supports various RSA modulus sizes, but {-rage} only supports public
+    {-openssh} supports various RSA modulus sizes, but {-rage} only supports public
     keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
     when encrypting to untrusted public keys.
 
@@ -100,25 +108,25 @@ plugin-waiting-on-binary = Waiting for {$binary_name}...
 
 ## SSH identities
 
-ssh-passphrase-prompt = Type passphrase for OpenSSH key '{$filename}'
+ssh-passphrase-prompt = Type passphrase for {-openssh} key '{$filename}'
 
 ssh-unsupported-key = Unsupported SSH key: {$name}
 
 ssh-insecure-key-format =
     Insecure Encrypted Key Format
     -----------------------------
-    Prior to OpenSSH version 7.8, if a password was set when generating a new
-    DSA, ECDSA, or RSA key, ssh-keygen would encrypt the key using the encrypted
+    Prior to {-openssh} version 7.8, if a password was set when generating a new
+    DSA, ECDSA, or RSA key, {-ssh-keygen} would encrypt the key using the encrypted
     PEM format. This encryption format is insecure and should no longer be used.
 
     You can migrate your key to the encrypted SSH private key format (which has
-    been supported by OpenSSH since version 6.5, released in January 2014) by
+    been supported by {-openssh} since version 6.5, released in January 2014) by
     changing its passphrase with the following command:
 
     {"    "}{$change_passphrase}
 
-    If you are using an OpenSSH version between 6.5 and 7.7 (such as the default
-    OpenSSH provided on Ubuntu 18.04 LTS), you can use the following command to
+    If you are using an {-openssh} version between 6.5 and 7.7 (such as the default
+    {-openssh} provided on Ubuntu 18.04 LTS), you can use the following command to
     force keys to be generated using the new format:
 
     {"    "}{$gen_new}
@@ -126,9 +134,9 @@ ssh-insecure-key-format =
 ssh-unsupported-cipher =
     Unsupported Cipher for Encrypted SSH Key
     ----------------------------------------
-    OpenSSH internally supports several different ciphers for encrypted keys,
+    {-openssh} internally supports several different ciphers for encrypted keys,
     but it has only ever directly generated a few of them. {-rage} supports all
-    ciphers that ssh-keygen might generate, and is being updated on a
+    ciphers that {-ssh-keygen} might generate, and is being updated on a
     case-by-case basis with support for non-standard ciphers. Your key uses a
     currently-unsupported cipher ({$cipher}).
 
@@ -139,7 +147,23 @@ ssh-unsupported-cipher =
 ssh-unsupported-key-type =
     Unsupported SSH Key Type
     ------------------------
-    OpenSSH supports various different key types, but {-rage} only supports a
+    {-openssh} supports various different key types, but {-rage} only supports a
     subset of these for backwards compatibility, specifically the '{-ssh-rsa}'
     and '{-ssh-ed25519}' key types. This SSH key uses the unsupported key type
     '{$key_type}'.
+
+ssh-unsupported-security-key =
+    Unsupported SSH Hardware Authenticator
+    --------------------------------------
+    {-openssh} version 8.2p1 added support for {-fido-u2f} hardware authenticators,
+    including hardware security keys such as {-yubikeys}. {-rage} does not work with
+    these SSH key types, because their protocol does not support encryption.
+    This SSH key uses the incompatible type '{$key_type}'.
+
+    If you have a compatible hardware security key, you should use this plugin:
+
+    {$age_plugin_yubikey_url}
+
+    A hardware security key used with both {-openssh} and this plugin will have a
+    separate SSH public key and {-age} encryption recipient, because the plugin
+    implements the {-piv} protocol.

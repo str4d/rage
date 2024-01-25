@@ -35,7 +35,7 @@ where
             ParseRecipientKeyError::RsaModulusTooLarge => Err(ReadError::RsaModulusTooLarge),
             ParseRecipientKeyError::Unsupported(key_type) => Err(ReadError::UnsupportedKey(
                 filename.to_string(),
-                UnsupportedKey::Type(key_type),
+                UnsupportedKey::from_key_type(key_type),
             )),
         },
     }

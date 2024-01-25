@@ -8,10 +8,18 @@
 
 ### Localization for strings in the age library crate
 
+## Terms (not to be localized)
+
 -age = age
 -rage = rage
+
+-openssh = OpenSSH
+-ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
 -ssh-ed25519 = ssh-ed25519
+-fido-u2f = FIDO/U2F
+-yubikeys = YubiKeys
+-piv = PIV
 
 ## CLI helpers
 
@@ -58,22 +66,22 @@ err-read-invalid-recipient = 無效接收方 '{$recipient}'。
 
 ## SSH identities
 
-ssh-passphrase-prompt = 輸入 OpenSSH 密鑰 '{$filename}' 的密碼短語
+ssh-passphrase-prompt = 輸入 {-openssh} 密鑰 '{$filename}' 的密碼短語
 
 ssh-unsupported-key = 該 SSH 身份不受支持： {$name}
 
 ssh-insecure-key-format =
     不安全的私鑰格式
     --------------
-    在 OpenSSH 7.8 版本之前，若在生成新 DSA、ECDSA、或 RSA 密鑰時設定口令, ssh-keygen 會使用 PEM 加密格式
+    在 {-openssh} 7.8 版本之前，若在生成新 DSA、ECDSA、或 RSA 密鑰時設定口令, {-ssh-keygen} 會使用 PEM 加密格式
     來加密密鑰。 該加密格式是不安全的，且不應繼續使用。
 
-    若您想將密鑰遷移至加密 SSH 私鑰格式 (該格式從 2014 一月份的 OpenSSH 6.5 版本已受支持)， 可採用此命令以更換
+    若您想將密鑰遷移至加密 SSH 私鑰格式 (該格式從 2014 一月份的 {-openssh} 6.5 版本已受支持)， 可採用此命令以更換
     它的密碼短語:
 
     {"    "}{$change_passphrase}
 
-    若您目前使用的是 OpenSSH 6.5 —— 7.7 版本 (例如 Ubuntu 18.04 LTS 默認提供的 OpenSSH）, 可採用此命令以
+    若您目前使用的是 {-openssh} 6.5 —— 7.7 版本 (例如 Ubuntu 18.04 LTS 默認提供的 {-openssh}）, 可採用此命令以
     強制使用新格式生成密鑰：
 
     {"    "}{$gen_new}
@@ -81,8 +89,8 @@ ssh-insecure-key-format =
 ssh-unsupported-cipher =
     未受支持的 SSH 加密密鑰密碼
     ------------------------
-    OpenSSH 內部支持幾種不同的加密鑰密碼 （ciphers）,但其中只有少數是直接生成的。{-rage} 支持所有
-    ssh-keygen 可生成的密碼， 並且正在進行更新，以在個案基礎上擴展非標準密碼支持。您的密鑰使用的密碼 ({$cipher})
+    {-openssh} 內部支持幾種不同的加密鑰密碼 （ciphers）,但其中只有少數是直接生成的。{-rage} 支持所有
+    {-ssh-keygen} 可生成的密碼， 並且正在進行更新，以在個案基礎上擴展非標準密碼支持。您的密鑰使用的密碼 ({$cipher})
     當前不受支持。
 
     若您希望該密鑰類型可受支持, 請在此創建新議題 （issue）：

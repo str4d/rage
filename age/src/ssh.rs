@@ -415,7 +415,8 @@ mod read_ssh {
                     UnencryptedKey::SshEd25519(ssh_key_ed25519.clone(), privkey).into()
                 }),
                 map(string, |key_type| {
-                    UnsupportedKey::Type(String::from_utf8_lossy(key_type).to_string()).into()
+                    UnsupportedKey::from_key_type(String::from_utf8_lossy(key_type).to_string())
+                        .into()
                 }),
             )),
         )
