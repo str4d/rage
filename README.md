@@ -28,6 +28,7 @@ For more plugins, implementations, tools, and integrations, check out the
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |
 | openSUSE Tumbleweed | `zypper install rage-encryption` |
 | Ubuntu 20.04+ | [Debian packages](https://github.com/str4d/rage/releases) |
+| FreeBSD | `pkg install rage-encryption` |
 
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
