@@ -25,10 +25,14 @@ For more plugins, implementations, tools, and integrations, check out the
 |-------------|-------------|
 | Cargo (Rust 1.65+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| Alpine Linux (edge) | `apk add rage` |
+| Arch Linux | `pacman -S rage-encryption` |
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |
+| NixOS | Add to config: `environment.systemPackages = [ pkgs.rage ];`<br>Or run `nix-env -i rage` |
 | openSUSE Tumbleweed | `zypper install rage-encryption` |
 | Ubuntu 20.04+ | [Debian packages](https://github.com/str4d/rage/releases) |
 | FreeBSD | `pkg install rage-encryption` |
+| Scoop (Windows) | `scoop bucket add main`<br>`scoop install main/rage` |
 
 On Windows, Linux, and macOS, you can use the
 [pre-built binaries](https://github.com/str4d/rage/releases).
