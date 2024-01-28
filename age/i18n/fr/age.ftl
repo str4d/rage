@@ -23,56 +23,56 @@
 
 ## CLI helpers
 
-cli-secret-input-required = Input is required
-cli-secret-input-mismatch = Inputs do not match
+cli-secret-input-required = Entrée requise
+cli-secret-input-mismatch = Les entrées ne correspondent pas
 
-cli-passphrase-desc = Type passphrase (leave empty to autogenerate a secure one)
-cli-passphrase-prompt = Passphrase
-cli-passphrase-confirm = Confirm passphrase
+cli-passphrase-desc = Tapez votre phrase secrète (laissez vide pour en générer une très sure automatiquement)
+cli-passphrase-prompt = Phrase secrète
+cli-passphrase-confirm = Confirmez votre phrase secrète
 
 -flag-armor = -a/--armor
 -flag-output = -o/--output
 -output-stdout = -o -
 
-cli-truncated-tty = truncated; use a pipe, a redirect, or {-flag-output} to decrypt the entire file
+cli-truncated-tty = tronqué; utilisez un pipe, une redirection ou {-flag-output} pour déchiffrer l'entièreté du fichier
 
-err-detected-binary = detected unprintable data; refusing to output to the terminal.
-rec-detected-binary = Force with '{-output-stdout}'.
+err-detected-binary = données non impressibles détectées; par précaution, pas d'impression dans le terminal.
+rec-detected-binary = Forcez l'impression avec '{-output-stdout}'.
 
-err-deny-binary-output = refusing to output binary to the terminal.
-rec-deny-binary-output = Did you mean to use {-flag-armor}? {rec-detected-binary}
+err-deny-binary-output = refus d'impression de valeurs binaires dans le terminal.
+rec-deny-binary-output = Est-ce que vous vouliez utiliser {-flag-armor}? {rec-detected-binary}
 
-err-deny-overwrite-file = refusing to overwrite existing file '{$filename}'.
+err-deny-overwrite-file = refus d'écraser le fichier existant '{$filename}'.
 
 ## Errors
 
-err-decryption-failed = Decryption failed
+err-decryption-failed = Echec du déchiffrement
 
-err-excessive-work = Excessive work parameter for passphrase.
-rec-excessive-work = Decryption would take around {$duration} seconds.
+err-excessive-work = Facteur d'effort trop grand pour la phrase secrète.
+rec-excessive-work = Le déchiffrement prendrait environ {$duration} seconds.
 
-err-header-invalid = Header is invalid
+err-header-invalid = En-tête non valable
 
-err-header-mac-invalid = Header MAC is invalid
+err-header-mac-invalid = Le MAC de l'en-tête est invalide
 
-err-key-decryption = Failed to decrypt an encrypted key
+err-key-decryption = Echec du déchiffrement d'une clef chiffrée
 
-err-no-matching-keys = No matching keys found
+err-no-matching-keys = Aucune clef correspondante n'a été trouvée
 
-err-unknown-format = Unknown {-age} format.
-rec-unknown-format = Have you tried upgrading to the latest version?
+err-unknown-format = Format {-age} inconnu.
+rec-unknown-format = Avez-vous tenté de mettre jour vers la dernière version ?
 
-err-missing-plugin = Could not find '{$plugin_name}' on the PATH.
-rec-missing-plugin = Have you installed the plugin?
+err-missing-plugin = Impossible de trouver '{$plugin_name}' dans le PATH.
+rec-missing-plugin = Avez-vous installé le plugin ?
 
-err-plugin-identity = '{$plugin_name}' couldn't use an identity: {$message}
-err-plugin-recipient = '{$plugin_name}' couldn't use recipient {$recipient}: {$message}
+err-plugin-identity = '{$plugin_name}' n'a pas pu utiliser une identité: {$message}
+err-plugin-recipient = '{$plugin_name}' n'a pas pu utiliser le destinataire {$recipient}: {$message}
 
-err-plugin-died = '{$plugin_name}' unexpectedly died.
-rec-plugin-died-1 = If you are developing a plugin, run with {$env_var} for more information.
-rec-plugin-died-2 = Warning: this prints private encryption key material to standard error.
+err-plugin-died = '{$plugin_name}' est mort de manière inopinée.
+rec-plugin-died-1 = Si vous développez un plugin, utilisez {$env_var} pour plus d'informations.
+rec-plugin-died-2 = Attention: ceci imprime des informations de clef privées sur la sortie d'erreur standard.
 
-err-plugin-multiple = Plugin returned multiple errors:
+err-plugin-multiple = Le plugin a retourné de multiples erreurs:
 
 err-read-identity-encrypted-without-passphrase =
     Identity file '{$filename}' is encrypted with {-age} but not with a passphrase.

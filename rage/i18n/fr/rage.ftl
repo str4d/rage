@@ -54,6 +54,11 @@
 
 -flag-mnt-types = -t/--types
 
+## Helper variables, to be localized
+
+# Used throughout to indicate that a flag X cannot be used with another flag Y
+-cantuse = ne peut pas être utilisé avec
+
 ## Usage
 
 usage-header = Utilisation
@@ -73,7 +78,7 @@ flags-header = Options
 
 help-flag-help = Affiche ce message d'aide et quitte.
 help-flag-version = Affiche les informations de version et quitte.
-help-flag-encrypt = "Chiffre l'input (l'option par défaut)."
+help-flag-encrypt = Chiffre l'input (l'option par défaut).
 help-flag-decrypt = Déchiffre l'input.
 help-flag-passphrase = Chiffre avec une phrase secrète au lieu de destinataires.
 help-flag-max-work-factor = Facteur d'effort maximum à autoriser pour déchiffrer avec une phrase secrète.
@@ -137,7 +142,7 @@ err-failed-to-open-output = Echec d'ouverture de la sortie: {$err}
 err-failed-to-read-input = Echec de lecture de l'entrée: {$err}
 err-failed-to-write-output = Echec d'écriture vers la sortie: {$err}
 err-identity-ambiguous = {-flag-identity} nécessite {-flag-encrypt} ou {-flag-decrypt}.
-err-mixed-encrypt-decrypt = {-flag-encrypt} ne peut pas être utilisé avec {-flag-decrypt}.
+err-mixed-encrypt-decrypt = {-flag-encrypt} {-cantuse} {-flag-decrypt}.
 err-passphrase-timed-out = Délai dépassé lors de l'attente d'entrée de la phrase secrète.
 err-same-input-and-output = L'entrée et la sortie sont le même fichier {$filename}'.
 
@@ -148,58 +153,58 @@ err-ux-C = {"                                                    "}
 
 ## Keygen errors
 
-err-identity-file-contains-plugin = Identity file '{$filename}' contains identities for '{-age-plugin-}{$plugin_name}'.
-rec-identity-file-contains-plugin = Try using '{-age-plugin-}{$plugin_name}' to convert this identity to a recipient.
+err-identity-file-contains-plugin = Le ficher d'identité '{$filename}' contient des identités pour '{-age-plugin-}{$plugin_name}'.
+rec-identity-file-contains-plugin = Essayez d'utiliser {-age-plugin-}{$plugin_name}' pour convertir cette identité en un destinataire.
 
-err-no-identities-in-file = No identities found in file '{$filename}'.
-err-no-identities-in-stdin = No identities found in standard input.
+err-no-identities-in-file = Aucune identité trouvée dans le fichier '{$filename}'.
+err-no-identities-in-stdin = Aucune identité trouvée dans l'entrée standard (stdin).
 
 ## Encryption errors
 
-err-enc-broken-stdout = Could not write to stdout: {$err}
-rec-enc-broken-stdout = Are you piping to a program that isn't reading from stdin?
+err-enc-broken-stdout = N'a pas pu écrire sur stdout: {$err}
+rec-enc-broken-stdout = Etes-vous en train de piper vers programme qui ne lit pas depuis stdin ?
 
-err-enc-broken-file = Could not write to file: {$err}
+err-enc-broken-file = N'a pas pu écrire dans le fichier: {$err}
 
-err-enc-missing-recipients = Missing recipients.
-rec-enc-missing-recipients = Did you forget to specify {-flag-recipient}?
+err-enc-missing-recipients = Destinataires manquants.
+rec-enc-missing-recipients = Avez-vous oublié de spécifier {-flag-recipient} ?
 
-err-enc-mixed-identity-passphrase = {-flag-identity} can't be used with {-flag-passphrase}.
-err-enc-mixed-recipient-passphrase = {-flag-recipient} can't be used with {-flag-passphrase}.
-err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} can't be used with {-flag-passphrase}.
-err-enc-passphrase-without-file = File to encrypt must be passed as an argument when using {-flag-passphrase}.
+err-enc-mixed-identity-passphrase = {-flag-identity} {-cantuse} {-flag-passphrase}.
+err-enc-mixed-recipient-passphrase = {-flag-recipient} {-cantuse} {-flag-passphrase}.
+err-enc-mixed-recipients-file-passphrase = {-flag-recipients-file} {-cantuse} {-flag-passphrase}.
+err-enc-passphrase-without-file = Un fichier à chiffrer doit être passé en argument lors de l'utilisation de {-flag-passphrase}.
 
-err-enc-plugin-name-flag = {-flag-plugin-name} can't be used with {-flag-encrypt}.
+err-enc-plugin-name-flag = {-flag-plugin-name} {-cantuse} {-flag-encrypt}.
 
 ## Decryption errors
 
-err-detected-powershell-corruption = It looks like this file was corrupted by PowerShell redirection.
-rec-detected-powershell-corruption = Consider using {-flag-output} or {-flag-armor} to encrypt files in PowerShell.
+err-detected-powershell-corruption = Il semblerait que ce fichier ait été corrompu par une redirection PowerShell.
+rec-detected-powershell-corruption = Essayez d'utiliser {-flag-output} ou {-flag-armor} pour chiffrer des fichiers dans PowerShell.
 
-rec-dec-excessive-work = To decrypt, retry with {-flag-max-work-factor} {$wf}
+rec-dec-excessive-work = Pour déchiffrer, réessayez avec {-flag-max-work-factor} {$wf}
 
-err-dec-armor-flag = {-flag-armor} can't be used with {-flag-decrypt}.
+err-dec-armor-flag = {-flag-armor} {-cantuse} {-flag-decrypt}.
 rec-dec-armor-flag = Note that armored files are detected automatically.
 
-err-dec-missing-identities = Missing identities.
-rec-dec-missing-identities = Did you forget to specify {-flag-identity}?
-rec-dec-missing-identities-stdin = Did you forget to provide the identity over standard input?
+err-dec-missing-identities = Identités manquantes.
+rec-dec-missing-identities = Avez-vous oublié de spécifier {-flag-identity} ?
+rec-dec-missing-identities-stdin = Avez-vous oublié de fournir une identité via l'entrée standard ?
 
-err-dec-mixed-identity-passphrase = {-flag-identity} can't be used with passphrase-encrypted files.
+err-dec-mixed-identity-passphrase = {-flag-identity} {-cantuse} des fichiers chiffrés avec une phrase secrète.
 
-err-mixed-identity-and-plugin-name = {-flag-identity} can't be used with {-flag-plugin-name}.
+err-mixed-identity-and-plugin-name = {-flag-identity} {-cantuse} {-flag-plugin-name}.
 
-err-dec-passphrase-flag = {-flag-passphrase} can't be used with {-flag-decrypt}.
-rec-dec-passphrase-flag = Note that passphrase-encrypted files are detected automatically.
+err-dec-passphrase-flag = {-flag-passphrase} {-cantuse} {-flag-decrypt}.
+rec-dec-passphrase-flag = Notez que les fichiers chiffrés avec une phrase secrète sont détectés automatiquement.
 
 err-dec-passphrase-without-file-win =
-    This file requires a passphrase, and on Windows the
-    file to decrypt must be passed as a positional argument
-    when decrypting with a passphrase.
+    Ce fichier requière une phrase secrète, et, sur Windows,
+    le fichier à déchiffrer doit être passé en tant qu'argument
+    positionnel pour déchiffrer avec une phrase secrète.
 
-err-dec-recipient-flag = {-flag-recipient} can't be used with {-flag-decrypt}.
-err-dec-recipients-file-flag = {-flag-recipients-file} can't be used with {-flag-decrypt}.
-rec-dec-recipient-flag = Did you mean to use {-flag-identity} to specify a private key?
+err-dec-recipient-flag = {-flag-recipient} {-cantuse} {-flag-decrypt}.
+err-dec-recipients-file-flag = {-flag-recipients-file} {-cantuse} {-flag-decrypt}.
+rec-dec-recipient-flag = Vouliez-vous peut-être utiliser {-flag-identity} pour spécifier une clef privée ?
 
 ## rage-mount strings
 
@@ -207,28 +212,28 @@ mnt-filename = FILENAME
 mnt-mountpoint = MOUNTPOINT
 mnt-types = TYPES
 
-help-arg-mnt-filename = The encrypted filesystem to mount.
-help-arg-mnt-mountpoint = The directory to mount the filesystem at.
-help-arg-mnt-types = Indicates the filesystem type (one of {$types}).
+help-arg-mnt-filename = Le système de fichier chiffré à monter.
+help-arg-mnt-mountpoint = Le dossier vers lequel monter le système de fichier.
+help-arg-mnt-types = Indique le type de système de fichier (parmis {$types}).
 
-info-decrypting = Decrypting {$filename}
-info-mounting-as-fuse = Mounting as FUSE filesystem
+info-decrypting = Déchiffrement de {$filename}
+info-mounting-as-fuse = Montage en tant que système de fichier FUSE
 
-err-mnt-missing-filename = Missing filename.
-err-mnt-missing-mountpoint = Missing mountpoint.
-err-mnt-missing-types = Missing {-flag-mnt-types}.
-err-mnt-unknown-type = Unknown filesystem type "{$fs_type}"
+err-mnt-missing-filename = Il manque un nom de fichier.
+err-mnt-missing-mountpoint = Il manque un point de montage.
+err-mnt-missing-types = Il manque le fanion {-flag-mnt-types}.
+err-mnt-unknown-type = Type de système de fichier inconnu "{$fs_type}"
 
 ## Unstable features
 
-test-unstable = To test this, build {-rage} with {-flag-unstable}.
+test-unstable = Pour tester cela, il faut compiler {-rage} avec {-flag-unstable}.
 
 ## rage manpage
 
 recipients = RECIPIENTS
 identities = IDENTITIES
 
-man-rage-about = A simple, secure, and modern encryption tool
+man-rage-about = Un outil de chiffrement simple, sécurisé et moderne.
 
 man-rage-description =
     {-rage} encrypts or decrypts {input} to {output}. The {input} argument is
@@ -282,7 +287,7 @@ man-rage-flag-passphrase =
     Encrypt with a passphrase, requested interactively from the terminal.
     {-rage} will offer to auto-generate a secure passphrase.
 
-    This option can't be used with other recipient flags.
+    Cette option ne peut pas être utilisée avec d'autre fanion (flag).
 
 man-rage-flag-armor =
     Encrypt to an ASCII-only "armored" encoding.
