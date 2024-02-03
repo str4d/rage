@@ -218,7 +218,7 @@ version = "0.4.3"
 criteria = "safe-to-run"
 
 [[exemptions.cpufeatures]]
-version = "0.2.9"
+version = "0.2.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.crc32fast]]
@@ -238,7 +238,7 @@ version = "0.4.5"
 criteria = "safe-to-run"
 
 [[exemptions.crossbeam-utils]]
-version = "0.8.16"
+version = "0.8.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.ctr]]
@@ -414,7 +414,7 @@ version = "0.1.26"
 criteria = "safe-to-deploy"
 
 [[exemptions.js-sys]]
-version = "0.3.64"
+version = "0.3.60"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]

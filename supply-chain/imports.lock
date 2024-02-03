@@ -286,6 +286,15 @@ The changes here are all typical bindings updates: new functions, types, and
 constants. I have not audited all the bindings for ABI conformance.
 """
 
+[[audits.bytecode-alliance.audits.cpufeatures]]
+who = "Alex Crichton <alex@alexcrichton.com>"
+criteria = "safe-to-deploy"
+delta = "0.2.2 -> 0.2.7"
+notes = """
+This is a minor update that looks to add some more detected CPU features and
+various other minor portability fixes such as MIRI support.
+"""
+
 [[audits.bytecode-alliance.audits.criterion]]
 who = "Pat Hickey <phickey@fastly.com>"
 criteria = "safe-to-deploy"
@@ -1065,6 +1074,25 @@ criteria = "safe-to-deploy"
 delta = "1.0.78 -> 1.0.83"
 aggregated-from = "https://raw.githubusercontent.com/mozilla/glean/main/supply-chain/audits.toml"
 
+[[audits.mozilla.audits.cpufeatures]]
+who = "Gabriele Svelto <gsvelto@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "0.2.7 -> 0.2.8"
+notes = "This release contains a single fix for an issue that affected Firefox"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.crossbeam-utils]]
+who = "Mike Hommey <mh+mozilla@glandium.org>"
+criteria = "safe-to-deploy"
+delta = "0.8.8 -> 0.8.11"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.crossbeam-utils]]
+who = "Mike Hommey <mh+mozilla@glandium.org>"
+criteria = "safe-to-deploy"
+delta = "0.8.11 -> 0.8.14"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
 [[audits.mozilla.audits.crypto-common]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
@@ -1694,6 +1722,12 @@ aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/suppl
 [[audits.zcash.audits.cpufeatures]]
 who = "Jack Grigg <jack@electriccoin.co>"
 criteria = "safe-to-deploy"
+delta = "0.2.8 -> 0.2.9"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.cpufeatures]]
+who = "Jack Grigg <jack@electriccoin.co>"
+criteria = "safe-to-deploy"
 delta = "0.2.9 -> 0.2.11"
 notes = """
 New `unsafe` block is to call `libc::getauxval(libc::AT_HWCAP)` on Linux for
@@ -1722,6 +1756,27 @@ delta = "0.9.16 -> 0.9.17"
 notes = """
 Changes to `unsafe` code are to replace manual pointer logic with equivalent
 `unsafe` stdlib methods, now that MSRV is high enough to use them.
+"""
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.crossbeam-utils]]
+who = "Jack Grigg <jack@electriccoin.co>"
+criteria = "safe-to-deploy"
+delta = "0.8.14 -> 0.8.15"
+notes = """
+- Fixes a wrapping overflow for large timeouts.
+- Marks some BPF and Sony Vita targets as not having atomics.
+"""
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.crossbeam-utils]]
+who = "Jack Grigg <jack@electriccoin.co>"
+criteria = "safe-to-deploy"
+delta = "0.8.15 -> 0.8.16"
+notes = """
+- Fixes cache line alignment for some targets.
+- Replaces `mem::replace` with `Option::take` inside `unsafe` blocks.
+- Unmarks some ARMv7r and Sony Vita targets as not having 64-bit atomics.
 """
 aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
@@ -1861,6 +1916,23 @@ aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/suppl
 who = "Jack Grigg <jack@electriccoin.co>"
 criteria = "safe-to-deploy"
 delta = "1.0.9 -> 1.0.10"
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.js-sys]]
+who = "Jack Grigg <jack@z.cash>"
+criteria = "safe-to-deploy"
+delta = "0.3.60 -> 0.3.61"
+notes = """
+- Adds `i64` variants of existing `Atomics` methods, which I checked them against.
+- Adds `Array.length` setter and `Intl.RelativeTimeFormat`; I checked these against their
+  MDN documentation.
+"""
+aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
+
+[[audits.zcash.audits.js-sys]]
+who = "Jack Grigg <jack@electriccoin.co>"
+criteria = "safe-to-deploy"
+delta = "0.3.61 -> 0.3.64"
 aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/supply-chain/audits.toml"
 
 [[audits.zcash.audits.js-sys]]
