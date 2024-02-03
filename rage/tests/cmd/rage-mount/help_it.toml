@@ -2,17 +2,17 @@ bin.name = "rage-mount"
 args = "--help"
 env.add.LC_ALL = "it"
 stdout = """
-Usage: rage-mount[EXE] [OPTIONS] --types <TYPES> <FILENAME> <MOUNTPOINT>
+Utilizzo: rage-mount[EXE] [OPTIONS] --types <TIPI> <PERCORSO> <MOUNTPOINT>
 
-Arguments:
-  <FILENAME>    The encrypted filesystem to mount.
-  <MOUNTPOINT>  The directory to mount the filesystem at.
+Argomenti:
+  <PERCORSO>    Il filesystem cifrato da montare.
+  <MOUNTPOINT>  La cartella su cui montare il filesystem.
 
-Options:
-  -h, --help                  Print this help message and exit.
-  -V, --version               Print version info and exit.
-  -t, --types <TYPES>         Indicates the filesystem type (one of "tar", "zip").
-      --max-work-factor <WF>  Maximum work factor to allow for passphrase decryption.
-  -i, --identity <IDENTITY>   Use the identity file at IDENTITY. May be repeated.
+Opzioni:
+  -h, --help                  Presenta questo messaggio e esci.
+  -V, --version               Presenta la versione e esci.
+  -t, --types <TIPI>          Il tipo del filesystem (uno di "tar", "zip").
+      --max-work-factor <WF>  Fattore di complessità massima per decifrare passphrase.
+  -i, --identity <IDENTITÀ>   Usa il file IDENTITÀ. Può essere ripetuto.
 """
 stderr = ""

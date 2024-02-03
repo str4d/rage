@@ -2,38 +2,38 @@ bin.name = "rage"
 args = "--help"
 env.add.LC_ALL = "it"
 stdout = """
-Usage: rage[EXE] [--encrypt] (-r RECIPIENT | -R PATH)... [-i IDENTITY] [-a] [-o OUTPUT] [INPUT]
+Utilizzo: rage[EXE] [--encrypt] (-r DESTINATARIO | -R PERCORSO)... [-i IDENTITÀ] [-a] [-o OUTPUT] [INPUT]
        rage[EXE] [--encrypt] --passphrase [-a] [-o OUTPUT] [INPUT]
-       rage[EXE] --decrypt [-i IDENTITY] [-o OUTPUT] [INPUT]
+       rage[EXE] --decrypt [-i IDENTITÀ] [-o OUTPUT] [INPUT]
 
-Arguments:
-  [INPUT]  Path to a file to read from.
+Argomenti:
+  [INPUT]  Posizione di un file di input.
 
-Options:
-  -h, --help                    Print this help message and exit.
-  -V, --version                 Print version info and exit.
-  -e, --encrypt                 Encrypt the input (the default).
-  -d, --decrypt                 Decrypt the input.
-  -p, --passphrase              Encrypt with a passphrase instead of recipients.
-      --max-work-factor <WF>    Maximum work factor to allow for passphrase decryption.
-  -a, --armor                   Encrypt to a PEM encoded format.
-  -r, --recipient <RECIPIENT>   Encrypt to the specified RECIPIENT. May be repeated.
-  -R, --recipients-file <PATH>  Encrypt to the recipients listed at PATH. May be repeated.
-  -i, --identity <IDENTITY>     Use the identity file at IDENTITY. May be repeated.
-  -j <PLUGIN-NAME>              Use age-plugin-PLUGIN-NAME in its default mode as an identity.
-  -o, --output <OUTPUT>         Write the result to the file at path OUTPUT.
+Opzioni:
+  -h, --help                        Presenta questo messaggio e esci.
+  -V, --version                     Presenta la versione e esci.
+  -e, --encrypt                     Cifra l'input (il default).
+  -d, --decrypt                     Decifra l'input.
+  -p, --passphrase                  Cifra con una passphrase invece che con i destinatari.
+      --max-work-factor <WF>        Fattore di complessità massima per decifrare passphrase.
+  -a, --armor                       Codifica l'output della cifratura in PEM.
+  -r, --recipient <DESTINATARIO>    Cifra al DESTINATARIO specificato. Può essere ripetuto.
+  -R, --recipients-file <PERCORSO>  Cifra ai destinatari elencati in PERCORSO. Può essere ripetuto.
+  -i, --identity <IDENTITÀ>         Usa il file IDENTITÀ. Può essere ripetuto.
+  -j <NOME-PLUGIN>                  Usa age-plugin-NOME-PLUGIN in modalità di default come identità.
+  -o, --output <OUTPUT>             Scrivi l'output al file OUTPUT.
 
 INPUT ha come valore predefinito lo standard input, e OUTPUT ha come
 valore predefinito lo standard output.
 
-RECIPIENT può essere:
+DESTINATARIO può essere:
 - Una chiave pubblica age, come generata da rage-keygen[EXE] ("age1...").
 - Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
 
-PATH è il percorso ad un file contenente dei destinatari age,
+PERCORSO è il percorso ad un file contenente dei destinatari age,
 uno per riga (ignorando i commenti che iniziano con "#" e le righe vuote).
 
-IDENTITY è il percorso ad un file contenente identità age, una per
+IDENTITÀ è il percorso ad un file contenente identità age, una per
 riga (ignorando i commenti che iniziano con "#" e le righe vuote), o ad un
 file contenente una chiave SSH.
 I file di identità possono essere cifrati con age e una passphrase.
