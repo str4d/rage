@@ -353,9 +353,9 @@ fn main() -> Result<(), error::Error> {
         .parse_default_env()
         .init();
 
-    let supported_languages =
-        i18n::load_languages(&DesktopLanguageRequester::requested_languages());
-    age::localizer().select(&supported_languages).unwrap();
+    let requested_languages = DesktopLanguageRequester::requested_languages();
+    i18n::load_languages(&requested_languages);
+    age::localizer().select(&requested_languages).unwrap();
 
     // If you are piping input with no other args, this will not allow
     // it.
