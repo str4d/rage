@@ -118,6 +118,83 @@ jobs:
           prerelease: true
         if: github.event.inputs.test != 'true'
 
+  test:
+    name: Test rage-${{ matrix.asset_suffix }} on ${{ matrix.os }}
+    needs: build
+    if: github.event.inputs.test == 'true'
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - windows-2019
+          - windows-2022
+          - macos-11
+          - macos-12
+          - macos-13
+
+        include:
+          - os: ubuntu-20.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: ubuntu-22.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: windows-2019
+            name: windows
+            archive_name: rage.zip
+            asset_suffix: x86_64-windows.zip
+
+          - os: windows-2022
+            name: windows
+            archive_name: rage.zip
+            asset_suffix: x86_64-windows.zip
+
+          - os: macos-11
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+          - os: macos-12
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+          - os: macos-13
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+    steps:
+      - name: Download archive
+        uses: actions/download-artifact@v4
+        with:
+          name: rage-${{ matrix.asset_suffix }}
+
+      - name: Extract archive
+        run: tar xzf ${{ matrix.archive_name }}
+        if: matrix.name != 'windows'
+
+      - name: Extract archive [Windows]
+        run: 7z.exe x ${{ matrix.archive_name }}
+        shell: bash
+        if: matrix.name == 'windows'
+
+      - name: Test key generation
+        run: ./rage/rage-keygen -o key.txt
+      - name: Test encryption
+        run: |
+          echo "Hello World!" > test.txt
+          ./rage/rage -e -i key.txt -o test.txt.age test.txt
+      - name: Test decryption
+        run: ./rage/rage -d -i key.txt test.txt.age
+
   deb:
     name: Debian ${{ matrix.name }}
     runs-on: ubuntu-20.04
@@ -220,3 +297,30 @@ jobs:
           file_glob: true
           prerelease: true
         if: github.event.inputs.test != 'true'
+
+  test-deb:
+    name: Test rage-${{ matrix.variant }}.deb on ${{ matrix.os }}
+    needs: deb
+    if: github.event.inputs.test == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+        variant: [linux, linux-musl]
+
+    steps:
+      - name: Download Debian package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rage-${{ matrix.variant }}.deb
+      - name: Install Debian package
+        run: sudo apt install ./rage*.deb
+
+      - name: Test key generation
+        run: rage-keygen -o key.txt
+      - name: Test encryption
+        run: |
+          echo "Hello World!" > test.txt
+          rage -e -i key.txt -o test.txt.age test.txt
+      - name: Test decryption
+        run: rage -d -i key.txt test.txt.age
