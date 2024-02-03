@@ -87,6 +87,7 @@ jobs:
         uses: codecov/codecov-action@v4.0.1
         with:
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   doc-links:
     name: Intra-doc links
