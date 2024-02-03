@@ -56,14 +56,33 @@
 
 ## Usage
 
-usage-header = Usage
+usage-header = Utilizzo
 
-recipient = RECIPIENT
-recipients-file = PATH
-identity = IDENTITY
-plugin-name = PLUGIN-NAME
+recipient = DESTINATARIO
+recipients-file = PERCORSO
+identity = IDENTITÀ
+plugin-name = NOME-PLUGIN
 input = INPUT
 output = OUTPUT
+
+args-header = Argomenti
+
+help-arg-input = Posizione di un file di input.
+
+flags-header = Opzioni
+
+help-flag-help = Presenta questo messaggio e esci.
+help-flag-version = Presenta la versione e esci.
+help-flag-encrypt = Cifra l'input (il default).
+help-flag-decrypt = Decifra l'input.
+help-flag-passphrase = Cifra con una passphrase invece che con i destinatari.
+help-flag-max-work-factor = Fattore di complessità massima per decifrare passphrase.
+help-flag-armor = Codifica l'output della cifratura in PEM.
+help-flag-recipient = Cifra al {recipient} specificato. Può essere ripetuto.
+help-flag-recipients-file = Cifra ai destinatari elencati in {recipients-file}. Può essere ripetuto.
+help-flag-identity = Usa il file {identity}. Può essere ripetuto.
+help-flag-plugin-name = Usa {-age-plugin-}{plugin-name} in modalità di default come identità.
+help-flag-output = Scrivi l'output al file {output}.
 
 rage-after-help-content =
     {input} ha come valore predefinito lo standard input, e {output} ha come
@@ -89,6 +108,9 @@ rage-after-help-example =
     {"  "}{$example_b}
     {"  "}{$example_c}
 
+keygen-help-flag-output = {help-flag-output} Standard output di default.
+keygen-help-flag-convert = Converti un file di identità in un file di destinatari.
+
 ## Formatting
 
 warning-msg = Attenzione: {$warning}
@@ -109,7 +131,9 @@ warn-double-encrypting = Sta venendo cifrato un file già cifrato
 
 ## General errors
 
+err-failed-to-open-input = Impossibile aprire l'input: {$err}
 err-failed-to-open-output = Impossibile aprire l'output: {$err}
+err-failed-to-read-input = Impossibile leggere dall'input: {$err}
 err-failed-to-write-output = Impossibile scrivere sull'output: {$err}
 err-identity-ambiguous = {-flag-identity} richiede esplicitamente {-flag-encrypt} o {-flag-decrypt}.
 err-mixed-encrypt-decrypt = {-flag-encrypt} non può essere usato assieme a {-flag-decrypt}.
@@ -120,6 +144,14 @@ err-ux-A = Qualcosa è andato storto? Un errore potrebbe essere più chiaro?
 err-ux-B = Faccelo sapere
 # Put (len(A) - len(B) - 32) spaces here.
 err-ux-C = {"                 "}
+
+## Keygen errors
+
+err-identity-file-contains-plugin = Il file '{$filename}' contiene identità per '{-age-plugin-}{$plugin_name}'.
+rec-identity-file-contains-plugin = Prova a usare '{-age-plugin-}{$plugin_name}' per convertire questa identità in destinatario.
+
+err-no-identities-in-file = Nessuna identità trovata nel file '{$filename}'.
+err-no-identities-in-stdin = Nessuna identità trovata tramite standard input.
 
 ## Encryption errors
 
@@ -150,6 +182,7 @@ rec-dec-armor-flag = Nota che i file armored vengono rilevati automaticamente.
 
 err-dec-missing-identities = Identità mancanti.
 rec-dec-missing-identities = Hai dimenticato di specificare {-flag-identity}?
+rec-dec-missing-identities-stdin = Hai dimenticato di passare l'identità tramite standard input?
 
 err-dec-mixed-identity-passphrase = {-flag-identity} non può essere usato con file cifrati con una passphrase.
 
@@ -169,7 +202,13 @@ rec-dec-recipient-flag = Intendevi usare {-flag-identity} per specificare una ch
 
 ## rage-mount strings
 
--flag-mnt-types = -t/--types
+mnt-filename = PERCORSO
+mnt-mountpoint = MOUNTPOINT
+mnt-types = TIPI
+
+help-arg-mnt-filename = Il filesystem cifrato da montare.
+help-arg-mnt-mountpoint = La cartella su cui montare il filesystem.
+help-arg-mnt-types = Il tipo del filesystem (uno di {$types}).
 
 info-decrypting = Decifrando {$filename}
 info-mounting-as-fuse = Montando come filesystem FUSE

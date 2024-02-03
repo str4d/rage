@@ -42,6 +42,8 @@ rec-detected-binary = Puoi forzarlo con '{-output-stdout}'.
 err-deny-binary-output = rifiuto l'invio di output binario al terminale.
 rec-deny-binary-output = Intendevi usare {-flag-armor}? {rec-detected-binary}
 
+err-deny-overwrite-file = rifiuto di sovrascrivere il file esistente '{$filename}'.
+
 ## Errors
 
 err-decryption-failed = Decifrazione fallita
@@ -65,6 +67,11 @@ rec-missing-plugin = Hai installato il plugin?
 
 err-plugin-identity = '{$plugin_name}' ha fallito gestendo un'identità: {$message}
 err-plugin-recipient = '{$plugin_name}' ha fallito gestendo il destinatario {$recipient}: {$message}
+
+err-plugin-died = '{$plugin_name}' ha terminato inaspettatamente.
+rec-plugin-died-1 = Se stai sviluppando un plugin, usa {$env_var} per avere più informazioni.
+rec-plugin-died-2 = Attenzione: questa opzione stampa chiavi crittografiche private su standard error.
+
 err-plugin-multiple = Il plugin ha riportato errori multipli:
 
 err-read-identity-encrypted-without-passphrase =
@@ -72,6 +79,24 @@ err-read-identity-encrypted-without-passphrase =
 err-read-identity-not-found = File di identità non trovato: {$filename}
 
 err-read-invalid-recipient = Destinatario '{$recipient}' invalido.
+
+err-read-invalid-recipients-file =
+    Il file di destinatari '{$filename}' contiene un destinatario invalido alla riga {$line_number}.
+
+err-read-missing-recipients-file = File di destinatari non trovato: {$filename}
+
+err-read-multiple-stdin = Standard input non può essere usato per più funzioni contemporaneamente.
+
+err-read-rsa-modulus-too-large =
+    Modulo RSA Troppo Grande
+    ---------------------
+    {-openssh} supporta varie dimentioni di modulo RSA, ma {-rage} supporta solo
+    chiavi di {$max_size} bit al massimo, per evitare di consumare risorse eccessive
+    quando si usano destinatari non fidati.
+
+err-read-rsa-modulus-too-small = Chiave RSA troppo piccola.
+
+err-stream-last-chunk-empty = L'ultimo blocco STREAM è vuoto. Per favore segnala questo evento, e/o prova una versione precedente di {-rage}.
 
 ## Encrypted identities
 
@@ -128,3 +153,20 @@ ssh-unsupported-key-type =
     {-openssh} supporta diversi tipi di chiavi, ma {-rage} ne supporta solo alcuni;
     specificatamente, i tipi '{-ssh-rsa}' e '{-ssh-ed25519}'. Questa chiave SSH
     è del tipo '{$key_type}', che non è supportato.
+
+
+ssh-unsupported-security-key =
+    Chiave di Sicurezza SSH Non Supportata
+    --------------------------------------
+    {-openssh} versione 8.2p1 ha introdotto supporto per gli autenticatori {-fido-u2f},
+    incluse le chiavi di sicurezza come le {-yubikeys}. {-rage} non funziona con questo
+    tipo di chiavi SSH, perché il loro protocollo non supporta la cifratura.
+    Questa chiave SSH è del tipo incompatibile '{$key_type}'.
+
+    Se hai una chiave di sicurezza compatibile, puoi usare questo plugin:
+
+    {$age_plugin_yubikey_url}
+
+    Una chiave di sicurezza usata sia con {-openssh} sia con questo plugin avrà
+    chiavi pubbliche SSH e {-age} separate, perché questo plugin si basa sul
+    protocollo {-piv}.
