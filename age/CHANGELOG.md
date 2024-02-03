@@ -10,6 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Russian translation!
 - `age::cli_common`:
   - `file_io`:
     - `FileReader`
