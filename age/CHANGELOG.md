@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.10.0] - 2024-02-04
 ### Added
 - Russian translation!
 - `age::cli_common`:

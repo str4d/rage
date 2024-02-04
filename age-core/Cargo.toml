@@ -1,7 +1,7 @@
 [package]
 name = "age-core"
 description = "[BETA] Common functions used across the age crates"
-version = "0.9.0"
+version = "0.10.0"
 authors.workspace = true
 repository.workspace = true
 readme = "README.md"

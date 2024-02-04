@@ -9,8 +9,11 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.5.0] - 2024-02-04
 ### Changed
 - MSRV is now 1.65.0.
+- Migrated to `age-core 0.10`.
 - `age_plugin::run_state_machine` now takes optional arguments, to enable the
   creation of recipient-only or identity-only plugins.
 
