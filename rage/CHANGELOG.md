@@ -9,7 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.10.0] - 2024-02-04
 ### Added
+- Russian translation!
 - `rage-keygen -y IDENTITY_FILE` to convert identity files to recipients.
 - Elvish completions to the Debian package. These are not automatically
   discovered; Elvish users will need to manually import them.
