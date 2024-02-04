@@ -75,28 +75,28 @@ rec-plugin-died-2 = Attention: ceci imprime des informations de clef privées su
 err-plugin-multiple = Le plugin a retourné de multiples erreurs:
 
 err-read-identity-encrypted-without-passphrase =
-    Identity file '{$filename}' is encrypted with {-age} but not with a passphrase.
-err-read-identity-not-found = Identity file not found: {$filename}
+    Le fichier d'identité '{$filename}' est chiffré avec {-age} mais pas avec une phrase secrète.
+err-read-identity-not-found = Fichier d'identité introuvable: {$filename}
 
-err-read-invalid-recipient = Invalid recipient '{$recipient}'.
+err-read-invalid-recipient = Destinataire invalide: '{$recipient}'.
 
 err-read-invalid-recipients-file =
-    Recipients file '{$filename}' contains non-recipient data on line {$line_number}.
+    Le fichier de destinataires '{$filename}' contient des données autres que des destinataires à la ligne {$line_number}.
 
-err-read-missing-recipients-file = Recipients file not found: {$filename}
+err-read-missing-recipients-file = Fichier de destinataires introuvable: {$filename}
 
-err-read-multiple-stdin = Standard input can't be used for multiple purposes.
+err-read-multiple-stdin = L'entrée standard (stdin) ne peut pas être utilisée pour plus d'une chose.
 
 err-read-rsa-modulus-too-large =
-    RSA Modulus Too Large
+    Module RSA Trop Grand
     ---------------------
-    {-openssh} supports various RSA modulus sizes, but {-rage} only supports public
-    keys of at most {$max_size} bits, to prevent a Denial of Service (DoS) condition
-    when encrypting to untrusted public keys.
+    {-openssh} supporte de nombreuses tailles de modules RSA, mais {-rage} ne supporte que des clefs
+    publiques d'au plus {$max_size} bits, pour éviter les risques de déni de service (DoS) lors du
+    chiffrement vers des clefs publiques inconnues.
 
-err-read-rsa-modulus-too-small = RSA key size is too small.
+err-read-rsa-modulus-too-small = Taille de clef RSA trop petite.
 
-err-stream-last-chunk-empty = Last STREAM chunk is empty. Please report this, and/or try an older {-rage} version.
+err-stream-last-chunk-empty = Le dernier morceau du STREAM est vide. chunk is empty. S'il vous plait, faites un bug report, et/ou essayez avec une version plus ancienne de {-rage}.
 
 ## Encrypted identities
 
