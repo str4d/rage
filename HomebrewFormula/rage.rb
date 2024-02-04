@@ -1,14 +1,32 @@
 class Rage < Formula
     desc "[BETA] A simple, secure, and modern encryption tool."
     homepage "https://str4d.xyz/rage"
-    url "https://github.com/str4d/rage/archive/refs/tags/v0.9.2.tar.gz"
-    sha256 "3bd287372eb6226b246459c1b5c39ecdb36b3495d7af4d2bee93bb3aad9ccf65"
-    version "0.9.2"
+    url "https://github.com/str4d/rage/archive/refs/tags/v0.10.0.tar.gz"
+    sha256 "34c39c28f8032c144a43aea96e58159fe69526f5ff91cb813083530adcaa6ea4"
+    license any_of: ["MIT", "Apache-2.0"]
+    version "0.10.0"
 
     depends_on "rust" => :build
 
     def install
         system "cargo", "install", *std_cargo_args(path: './rage')
+
+        install_completions("rage")
+        install_completions("rage-keygen")
+
+        man.install Dir["target/release/manpages/*"]
+    end
+
+    def install_completions(base_name)
+        src_dir = "target/release/completions"
+
+        bash_completion.install { "#{src_dir}/#{base_name}.bash" => base_name}
+        fish_completion.install "#{src_dir}/#{base_name}.fish"
+        zsh_completion.install "#{src_dir}/_#{base_name}"
+    end
+
+    def caveats
+        "rage bash completion depends on the bash-completion package"
     end
 
     test do
