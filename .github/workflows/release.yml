@@ -109,7 +109,7 @@ jobs:
         if: github.event.inputs.test == 'true'
 
       - name: Upload archive to release
-        uses: svenstaro/upload-release-action@2.7.0
+        uses: svenstaro/upload-release-action@2.9.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.archive_name }}
@@ -289,7 +289,7 @@ jobs:
         if: github.event.inputs.test == 'true'
 
       - name: Upload Debian package to release
-        uses: svenstaro/upload-release-action@2.7.0
+        uses: svenstaro/upload-release-action@2.9.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.target }}/debian/*.deb
