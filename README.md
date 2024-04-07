@@ -24,7 +24,7 @@ For more plugins, implementations, tools, and integrations, check out the
 | Environment | CLI command |
 |-------------|-------------|
 | Cargo (Rust 1.65+) | `cargo install rage` |
-| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| Homebrew (macOS or Linux) | `brew install rage` |
 | Alpine Linux (edge) | `apk add rage` |
 | Arch Linux | `pacman -S rage-encryption` |
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |
