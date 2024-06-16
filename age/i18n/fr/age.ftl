@@ -155,17 +155,17 @@ ssh-unsupported-key-type =
     '{$key_type}'.
 
 ssh-unsupported-security-key =
-    Unsupported SSH Hardware Authenticator
+    Authenficateur physique SSH non supporté
     --------------------------------------
-    {-openssh} version 8.2p1 added support for {-fido-u2f} hardware authenticators,
-    including hardware security keys such as {-yubikeys}. {-rage} does not work with
-    these SSH key types, because their protocol does not support encryption.
-    This SSH key uses the incompatible type '{$key_type}'.
+    {-openssh} version 8.2p1 a ajouté le support pour les authentificateurs physique {-fido-u2f}
+    y compris les clefs de sécurité physiques telles que {-yubikeys}. {-rage} ne fonctionne pas
+    avec ce type de clef SSH, parcque leur protocole ne supporte pas le chiffrement.
+    Cette clef SSH est du type '{$key_type}' qui n'est pas compatible.
 
-    If you have a compatible hardware security key, you should use this plugin:
+    Si vous avez une clef de sécurité physique, vous devriez utiliser ce plugin:
 
     {$age_plugin_yubikey_url}
 
-    A hardware security key used with both {-openssh} and this plugin will have a
-    separate SSH public key and {-age} encryption recipient, because the plugin
-    implements the {-piv} protocol.
+    Une clef de sécurité utilisée avec à la fois {-openssh} et ce plugin aura
+    une clef SSH publique différente de sa clef destinataire {-age}, car ce plugin
+    implémente le protocol {-piv}.
