@@ -798,10 +798,11 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
 
         // Cache the length for future calls.
         *this.plaintext_len = Some(pt_len);
-        return Poll::Ready(Ok(pt_len));
+        Poll::Ready(Ok(pt_len))
     }
 }
 
+#[cfg(feature = "async")]
 #[derive(Debug)]
 enum StreamSeekState {
     NoSeek,
