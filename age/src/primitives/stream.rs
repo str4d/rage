@@ -1417,4 +1417,88 @@ mod tests {
         r.read_exact(&mut buf).await.unwrap();
         assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
     }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn async_seek_from_end_fails_on_truncation() {
+        use futures::{AsyncReadExt, AsyncSeekExt};
+        // The plaintext is the string "hello" followed by 65536 zeros, just enough to
+        // give us some bytes to play with in the second chunk.
+        let mut plaintext: Vec<u8> = b"hello".to_vec();
+        plaintext.extend_from_slice(&[0; 65536]);
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+
+        // First check the correct behavior of seeks relative to EOF. Create a decrypting
+        // reader, and move it one byte forward from the start, using SeekFrom::End.
+        // Confirm that reading 4 bytes from that point gives us "ello", as it should.
+        let mut reader = Stream::decrypt_async(
+            PayloadKey([7; 32].into()),
+            futures::io::Cursor::new(&encrypted),
+        );
+        let eof_relative_offset = 1_i64 - plaintext.len() as i64;
+        reader
+            .seek(SeekFrom::End(eof_relative_offset))
+            .await
+            .unwrap();
+        let mut buf = [0; 4];
+        reader.read_exact(&mut buf).await.unwrap();
+        assert_eq!(&buf, b"ello", "This is correct.");
+
+        // Do the same thing again, except this time truncate the ciphertext by one byte
+        // first. This should cause some sort of error, instead of a successful read that
+        // returns the wrong plaintext.
+        let truncated_ciphertext = &encrypted[..encrypted.len() - 1];
+        let mut truncated_reader = Stream::decrypt_async(
+            PayloadKey([7; 32].into()),
+            futures::io::Cursor::new(truncated_ciphertext),
+        );
+        // Use the same seek target as above.
+        match truncated_reader
+            .seek(SeekFrom::End(eof_relative_offset))
+            .await
+        {
+            Err(e) => {
+                assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+                assert_eq!(
+                    &e.to_string(),
+                    "Last chunk is invalid, stream might be truncated",
+                );
+            }
+            Ok(_) => panic!("This is a security issue."),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn async_seek_from_end_with_exact_chunk() {
+        use futures::{AsyncReadExt, AsyncSeekExt};
+        let plaintext: Vec<u8> = vec![42; 65536];
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+
+        // Seek to the end of the plaintext before decrypting.
+        let mut reader = Stream::decrypt_async(
+            PayloadKey([7; 32].into()),
+            futures::io::Cursor::new(&encrypted),
+        );
+        reader.seek(SeekFrom::End(0)).await.unwrap();
+
+        // Reading should return no bytes, because we're already at EOF.
+        let mut buf = Vec::new();
+        reader.read_to_end(&mut buf).await.unwrap();
+        assert_eq!(buf.len(), 0);
+    }
 }
