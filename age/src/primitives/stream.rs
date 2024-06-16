@@ -683,6 +683,7 @@ impl<R: Read + Seek> Seek for StreamReader<R> {
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
+    /// async poll alternative to the [StreamReader::start] function
     fn poll_start(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
         match self.start {
             StartPos::Implicit(offset) => {
@@ -699,6 +700,10 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
         }
     }
 
+    /// async poll-able implementation of the [StreamReader::len] function
+    ///
+    /// The current state of the len function is governed by the various input arguments,
+    /// so for each poll the same arguments have to be reused for this function to work as intended
     fn poll_len(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -713,6 +718,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
         }
         let mut this = self.project();
 
+        // Cache the current position and nonce,
         let (cur_pos, cur_nonce) = match cur_pos_nonce {
             Some(s) => *s,
             m => {
@@ -722,6 +728,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
             }
         };
 
+        // and then grab the end ciphertext position.
         let ct_end = match ct_end {
             Some(s) => *s,
             m => {
@@ -735,6 +742,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
         // Use ceiling division to determine the number of chunks.
         let num_chunks = (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
 
+        // seek to the last chunk, and then allocate the buffer for it
         let buf = match buf {
             Some(s) => s,
             m => {
@@ -750,6 +758,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
         };
 
         if !*done_reading {
+            // read the last chunk
             let mut int_buf = [0u8; ENCRYPTED_CHUNK_SIZE];
             loop {
                 let read = ready!(this.inner.as_mut().poll_read(cx, &mut int_buf))?;
@@ -759,6 +768,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
                     buf.extend_from_slice(&int_buf[..read]);
                 }
             }
+            // Authenticate the ciphertext length by checking that we can successfully
+            // decrypt the last chunk _as_ a last chunk.
             *done_reading = true;
             this.stream.nonce.set_counter(num_chunks - 1);
             this.stream
@@ -776,8 +787,11 @@ impl<R: AsyncRead + AsyncSeek + Unpin> StreamReader<R> {
         let total_tag_size = num_chunks * TAG_SIZE as u64;
         let pt_len = ct_len - total_tag_size;
 
+        // Return to the original position and restore the nonce.
         ready!(this.inner.poll_seek(cx, SeekFrom::Start(cur_pos)))?;
         this.stream.nonce = Nonce(cur_nonce);
+
+        // Cache the length for future calls.
         *this.plaintext_len = Some(pt_len);
         return Poll::Ready(Ok(pt_len));
     }
@@ -820,6 +834,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
             let tmp_state = std::mem::replace(&mut self.seek_state, StreamSeekState::NoSeek);
 
             let (next_state, pending) = match tmp_state {
+                // get the starting position
                 StreamSeekState::NoSeek => match self.as_mut().poll_start(cx) {
                     Poll::Ready(r) => (
                         StreamSeekState::LenCalc {
@@ -833,6 +848,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                     ),
                     Poll::Pending => (StreamSeekState::NoSeek, true),
                 },
+                // calculate the length of the plaintext
                 StreamSeekState::LenCalc {
                     start,
                     mut cur_pos_nonce,
@@ -840,6 +856,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                     mut buf,
                     mut done_reading,
                 } => {
+                    // calculate the length of the plaintext
                     match self.as_mut().poll_len(
                         cx,
                         start,
@@ -851,6 +868,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                         Poll::Ready(pt_len) => {
                             let pt_len = pt_len?;
 
+                            // Convert the offset into the target position within the plaintext
                             let target_pos = match pos {
                                 SeekFrom::Start(offset) => offset,
                                 SeekFrom::Current(offset) => {
@@ -885,6 +903,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                                 self.cur_plaintext_pos = target_pos;
                                 (StreamSeekState::Done { target_pos }, false)
                             } else {
+                                // clear the current chunk and start the seek op
                                 self.chunk = None;
                                 (
                                     StreamSeekState::Seeking {
@@ -908,6 +927,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                         ),
                     }
                 }
+                // do the seeking operation
                 StreamSeekState::Seeking {
                     ct_start,
                     pt_len,
@@ -957,6 +977,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                         ),
                     }
                 }
+                // read the offset into the target chunk
                 StreamSeekState::ReadChunk {
                     target_pos,
                     mut buffer,
@@ -990,6 +1011,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
                     }
                     (StreamSeekState::Done { target_pos }, false)
                 }
+                // should not be reachable but for good measure
                 StreamSeekState::Done { target_pos } => {
                     (StreamSeekState::Done { target_pos }, false)
                 }
