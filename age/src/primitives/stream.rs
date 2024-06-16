@@ -401,6 +401,11 @@ enum StartPos {
 }
 
 /// Provides access to a decrypted age file.
+///
+/// ### AsyncSeek implementation note
+///
+/// Starting a `seek()` future and then dropping the future before it is completed puts the [StreamReader] in a non-working state.
+/// Make sure to complete all `seek()` calls to completion
 #[pin_project]
 pub struct StreamReader<R> {
     stream: Stream,
