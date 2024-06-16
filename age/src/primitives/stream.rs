@@ -154,7 +154,7 @@ impl Stream {
             cur_plaintext_pos: 0,
             chunk: None,
             #[cfg(feature = "async")]
-            seek_fut: StreamSeekState::NoSeek,
+            seek_state: StreamSeekState::NoSeek,
         }
     }
 
@@ -178,7 +178,7 @@ impl Stream {
             cur_plaintext_pos: 0,
             chunk: None,
             #[cfg(feature = "async")]
-            seek_fut: StreamSeekState::NoSeek,
+            seek_state: StreamSeekState::NoSeek,
         }
     }
 
@@ -413,7 +413,7 @@ pub struct StreamReader<R> {
     cur_plaintext_pos: u64,
     chunk: Option<SecretVec<u8>>,
     #[cfg(feature = "async")]
-    seek_fut: StreamSeekState,
+    seek_state: StreamSeekState,
 }
 
 impl<R> StreamReader<R> {
@@ -810,14 +810,14 @@ enum StreamSeekState {
 
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-impl<R: AsyncRead + AsyncSeek + Unpin + Send> AsyncSeek for StreamReader<R> {
+impl<R: AsyncRead + AsyncSeek + Unpin> AsyncSeek for StreamReader<R> {
     fn poll_seek(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         pos: SeekFrom,
     ) -> Poll<io::Result<u64>> {
         loop {
-            let tmp_state = std::mem::replace(&mut self.seek_fut, StreamSeekState::NoSeek);
+            let tmp_state = std::mem::replace(&mut self.seek_state, StreamSeekState::NoSeek);
 
             let (next_state, pending) = match tmp_state {
                 StreamSeekState::NoSeek => match self.as_mut().poll_start(cx) {
@@ -968,7 +968,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send> AsyncSeek for StreamReader<R> {
                         let read_len = match self.as_mut().poll_read(cx, data_to_be_read) {
                             Poll::Ready(r) => r,
                             Poll::Pending => {
-                                self.seek_fut = StreamSeekState::ReadChunk {
+                                self.seek_state = StreamSeekState::ReadChunk {
                                     target_pos,
                                     buffer,
                                     total_read,
@@ -998,7 +998,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send> AsyncSeek for StreamReader<R> {
             if let StreamSeekState::Done { target_pos } = &next_state {
                 return Poll::Ready(Ok(*target_pos));
             } else {
-                self.seek_fut = next_state;
+                self.seek_state = next_state;
                 if pending {
                     return Poll::Pending;
                 }
