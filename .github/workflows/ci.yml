@@ -84,7 +84,7 @@ jobs:
           version: '0.19.1'
           args: --workspace --release --all-features --timeout 180 --out Xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4.4.1
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
