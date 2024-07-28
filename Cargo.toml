@@ -55,7 +55,7 @@ zeroize = "1"
 
 # Localization
 i18n-embed = { version = "0.14", features = ["fluent-system"] }
-i18n-embed-fl = "0.7"
+i18n-embed-fl = "0.8"
 lazy_static = "1"
 rust-embed = "8"
 
