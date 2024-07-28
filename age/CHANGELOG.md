@@ -10,6 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age::scrypt`, providing recipient and identity types for passphrase-based
+  encryption.
 - Partial French translation!
 
 ## [0.10.0] - 2024-02-04

@@ -94,7 +94,7 @@ impl Encryptor {
                 stanzas
             }
             EncryptorType::Passphrase(passphrase) => {
-                scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?
+                scrypt::Recipient::new(passphrase).wrap_file_key(&file_key)?
             }
         };
 

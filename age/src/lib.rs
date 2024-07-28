@@ -170,7 +170,7 @@ pub use i18n::localizer;
 //
 
 pub mod encrypted;
-mod scrypt;
+pub mod scrypt;
 pub mod x25519;
 
 #[cfg(feature = "plugin")]
