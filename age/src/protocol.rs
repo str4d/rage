@@ -162,14 +162,9 @@ impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
-        let any_scrypt = header
-            .recipients
-            .iter()
-            .any(|r| r.tag == scrypt::SCRYPT_RECIPIENT_TAG);
-
-        if any_scrypt && header.recipients.len() == 1 {
+        if header.valid_scrypt() {
             Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
-        } else if !any_scrypt {
+        } else if header.no_scrypt() {
             Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
         } else {
             Err(DecryptError::InvalidHeader)
