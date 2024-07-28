@@ -108,7 +108,7 @@ impl<R> PassphraseDecryptor<R> {
         max_work_factor: Option<u8>,
     ) -> Result<PayloadKey, DecryptError> {
         let identity = scrypt::Identity {
-            passphrase,
+            passphrase: passphrase.clone(),
             max_work_factor,
         };
 

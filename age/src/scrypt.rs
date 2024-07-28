@@ -112,12 +112,12 @@ impl crate::Recipient for Recipient {
     }
 }
 
-pub(crate) struct Identity<'a> {
-    pub(crate) passphrase: &'a SecretString,
+pub(crate) struct Identity {
+    pub(crate) passphrase: SecretString,
     pub(crate) max_work_factor: Option<u8>,
 }
 
-impl<'a> crate::Identity for Identity<'a> {
+impl crate::Identity for Identity {
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
