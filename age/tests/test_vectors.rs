@@ -1,6 +1,8 @@
-use age_core::secrecy::SecretString;
 use std::fs;
 use std::io::Read;
+
+use age::scrypt;
+use age_core::secrecy::SecretString;
 
 #[test]
 #[cfg(feature = "cli-common")]
@@ -23,7 +25,7 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
         let expect_failure = name.starts_with("fail_");
 
         let res = match age::Decryptor::new(fs::File::open(&path)?)? {
-            age::Decryptor::Recipients(d) => {
+            age::Decryptor::Recipients(d) if !d.is_scrypt() => {
                 let identities = age::cli_common::read_identities(
                     vec![format!(
                         "{}/{}_key.txt",
@@ -35,7 +37,7 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
                 )?;
                 d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
             }
-            age::Decryptor::Passphrase(d) => {
+            age::Decryptor::Recipients(d) => {
                 let mut passphrase = String::new();
                 fs::File::open(format!(
                     "{}/{}_password.txt",
@@ -44,7 +46,8 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
                 ))?
                 .read_to_string(&mut passphrase)?;
                 let passphrase = SecretString::new(passphrase);
-                d.decrypt(&passphrase, None)
+                let identity = scrypt::Identity::new(passphrase);
+                d.decrypt(Some(&identity as _).into_iter())
             }
         };
 

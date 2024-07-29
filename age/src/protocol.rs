@@ -143,8 +143,6 @@ impl Encryptor {
 pub enum Decryptor<R> {
     /// Decryption with a list of identities.
     Recipients(decryptor::RecipientsDecryptor<R>),
-    /// Decryption with a passphrase.
-    Passphrase(decryptor::PassphraseDecryptor<R>),
 }
 
 impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
@@ -153,18 +151,10 @@ impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
     }
 }
 
-impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::PassphraseDecryptor<R>) -> Self {
-        Decryptor::Passphrase(decryptor)
-    }
-}
-
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
-        if header.valid_scrypt() {
-            Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
-        } else if header.no_scrypt() {
+        if header.is_valid() {
             Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
         } else {
             Err(DecryptError::InvalidHeader)
@@ -279,7 +269,7 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::{
         identity::{IdentityFile, IdentityFileEntry},
-        x25519, Identity, Recipient,
+        scrypt, x25519, Identity, Recipient,
     };
 
     #[cfg(feature = "async")]
@@ -373,7 +363,6 @@ mod tests {
             }
         } {
             Decryptor::Recipients(d) => d,
-            _ => panic!(),
         };
 
         let decrypted = {
@@ -439,11 +428,14 @@ mod tests {
         }
 
         let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Passphrase(d)) => d,
+            Ok(Decryptor::Recipients(d)) => d,
             _ => panic!(),
         };
         let mut r = d
-            .decrypt(&SecretString::new("passphrase".to_string()), None)
+            .decrypt(
+                Some(&scrypt::Identity::new(SecretString::new("passphrase".to_string())) as _)
+                    .into_iter(),
+            )
             .unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();

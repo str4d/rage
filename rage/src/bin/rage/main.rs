@@ -6,7 +6,7 @@ use age::{
         file_io, read_identities, read_or_generate_passphrase, read_recipients, read_secret,
         Passphrase, StdinGuard, UiCallbacks,
     },
-    plugin,
+    plugin, scrypt,
     secrecy::ExposeSecret,
     Identity,
 };
@@ -293,7 +293,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     );
 
     match age::Decryptor::new_buffered(ArmoredReader::new(input))? {
-        age::Decryptor::Passphrase(decryptor) => {
+        age::Decryptor::Recipients(decryptor) if decryptor.is_scrypt() => {
             if identities_were_provided {
                 return Err(error::DecryptError::MixedIdentityAndPassphrase);
             }
@@ -308,10 +308,17 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
 
             match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
-                Ok(passphrase) => decryptor
-                    .decrypt(&passphrase, opts.max_work_factor)
-                    .map_err(|e| e.into())
-                    .and_then(|input| write_output(input, output)),
+                Ok(passphrase) => {
+                    let mut identity = scrypt::Identity::new(passphrase);
+                    if let Some(max_work_factor) = opts.max_work_factor {
+                        identity.set_max_work_factor(max_work_factor);
+                    }
+
+                    decryptor
+                        .decrypt(Some(&identity as _).into_iter())
+                        .map_err(|e| e.into())
+                        .and_then(|input| write_output(input, output))
+                }
                 Err(pinentry::Error::Cancelled) => Ok(()),
                 Err(pinentry::Error::Timeout) => Err(error::DecryptError::PassphraseTimedOut),
                 Err(pinentry::Error::Encoding(e)) => {

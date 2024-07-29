@@ -3,14 +3,14 @@
 use std::{cell::Cell, io};
 
 use crate::{
-    decryptor::PassphraseDecryptor, fl, Callbacks, DecryptError, Decryptor, EncryptError,
+    decryptor::RecipientsDecryptor, fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError,
     IdentityFile, IdentityFileEntry,
 };
 
 /// The state of the encrypted age identity.
 enum IdentityState<R: io::Read> {
     Encrypted {
-        decryptor: PassphraseDecryptor<R>,
+        decryptor: RecipientsDecryptor<R>,
         max_work_factor: Option<u8>,
     },
     Decrypted(Vec<IdentityFileEntry>),
@@ -51,8 +51,13 @@ impl<R: io::Read> IdentityState<R> {
                     None => todo!(),
                 };
 
+                let mut identity = scrypt::Identity::new(passphrase);
+                if let Some(max_work_factor) = max_work_factor {
+                    identity.set_max_work_factor(max_work_factor);
+                }
+
                 decryptor
-                    .decrypt(&passphrase, max_work_factor)
+                    .decrypt(Some(&identity as _).into_iter())
                     .map_err(|e| {
                         if matches!(e, DecryptError::DecryptionFailed) {
                             DecryptError::KeyDecryptionFailed
@@ -93,8 +98,8 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
         max_work_factor: Option<u8>,
     ) -> Result<Option<Self>, DecryptError> {
         match Decryptor::new(data)? {
-            Decryptor::Recipients(_) => Ok(None),
-            Decryptor::Passphrase(decryptor) => Ok(Some(Identity {
+            Decryptor::Recipients(decryptor) if !decryptor.is_scrypt() => Ok(None),
+            Decryptor::Recipients(decryptor) => Ok(Some(Identity {
                 state: Cell::new(IdentityState::Encrypted {
                     decryptor,
                     max_work_factor,

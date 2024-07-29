@@ -84,6 +84,11 @@ impl HeaderV1 {
     pub(crate) fn no_scrypt(&self) -> bool {
         !self.any_scrypt()
     }
+
+    /// Enforces structural requirements on the v1 header.
+    pub(crate) fn is_valid(&self) -> bool {
+        self.valid_scrypt() || self.no_scrypt()
+    }
 }
 
 impl Header {

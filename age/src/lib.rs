@@ -110,12 +110,13 @@
 //! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
-//!         age::Decryptor::Passphrase(d) => d,
-//!         _ => unreachable!(),
+//!         age::Decryptor::Recipients(d) => d,
 //!     };
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(&Secret::new(passphrase.to_owned()), None)?;
+//!     let mut reader = decryptor.decrypt(
+//!         Some(&age::scrypt::Identity::new(Secret::new(passphrase.to_owned())) as _).into_iter(),
+//!     )?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted

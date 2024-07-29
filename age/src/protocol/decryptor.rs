@@ -1,9 +1,6 @@
 //! Decryptors for age.
 
-use age_core::{
-    format::{FileKey, Stanza},
-    secrecy::SecretString,
-};
+use age_core::format::{FileKey, Stanza};
 use std::io::Read;
 
 use super::Nonce;
@@ -12,7 +9,7 @@ use crate::{
     format::Header,
     keys::v1_payload_key,
     primitives::stream::{PayloadKey, Stream, StreamReader},
-    scrypt, Identity,
+    Identity,
 };
 
 #[cfg(feature = "async")]
@@ -53,6 +50,14 @@ impl<R> RecipientsDecryptor<R> {
         })
     }
 
+    /// Returns `true` if the age file is encrypted to a passphrase.
+    pub fn is_scrypt(&self) -> bool {
+        match &self.0.header {
+            Header::V1(header) => header.valid_scrypt(),
+            Header::Unknown(_) => false,
+        }
+    }
+
     fn obtain_payload_key<'a>(
         &self,
         mut identities: impl Iterator<Item = &'a dyn Identity>,
@@ -86,68 +91,6 @@ impl<R: AsyncRead + Unpin> RecipientsDecryptor<R> {
         identities: impl Iterator<Item = &'a dyn Identity>,
     ) -> Result<StreamReader<R>, DecryptError> {
         self.obtain_payload_key(identities)
-            .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
-    }
-}
-
-/// Decryptor for an age file encrypted with a passphrase.
-pub struct PassphraseDecryptor<R>(BaseDecryptor<R>);
-
-impl<R> PassphraseDecryptor<R> {
-    pub(super) fn new(input: R, header: Header, nonce: Nonce) -> Self {
-        PassphraseDecryptor(BaseDecryptor {
-            input,
-            header,
-            nonce,
-        })
-    }
-
-    fn obtain_payload_key(
-        &self,
-        passphrase: &SecretString,
-        max_work_factor: Option<u8>,
-    ) -> Result<PayloadKey, DecryptError> {
-        let mut identity = scrypt::Identity::new(passphrase.clone());
-        if let Some(max_work_factor) = max_work_factor {
-            identity.set_max_work_factor(max_work_factor);
-        }
-
-        self.0.obtain_payload_key(|r| identity.unwrap_stanzas(r))
-    }
-}
-
-impl<R: Read> PassphraseDecryptor<R> {
-    /// Attempts to decrypt the age file.
-    ///
-    /// `max_work_factor` is the maximum accepted work factor. If `None`, the default
-    /// maximum is adjusted to around 16 seconds of work.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt(
-        self,
-        passphrase: &SecretString,
-        max_work_factor: Option<u8>,
-    ) -> Result<StreamReader<R>, DecryptError> {
-        self.obtain_payload_key(passphrase, max_work_factor)
-            .map(|payload_key| Stream::decrypt(payload_key, self.0.input))
-    }
-}
-
-#[cfg(feature = "async")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-impl<R: AsyncRead + Unpin> PassphraseDecryptor<R> {
-    /// Attempts to decrypt the age file.
-    ///
-    /// `max_work_factor` is the maximum accepted work factor. If `None`, the default
-    /// maximum is adjusted to around 16 seconds of work.
-    ///
-    /// If successful, returns a reader that will provide the plaintext.
-    pub fn decrypt_async(
-        self,
-        passphrase: &SecretString,
-        max_work_factor: Option<u8>,
-    ) -> Result<StreamReader<R>, DecryptError> {
-        self.obtain_payload_key(passphrase, max_work_factor)
             .map(|payload_key| Stream::decrypt_async(payload_key, self.0.input))
     }
 }
