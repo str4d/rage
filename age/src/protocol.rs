@@ -1,6 +1,6 @@
 //! Encryption and decryption routines for age.
 
-use age_core::{format::grease_the_joint, secrecy::SecretString};
+use age_core::secrecy::SecretString;
 use rand::{rngs::OsRng, RngCore};
 use std::io::{self, BufRead, Read, Write};
 
@@ -45,16 +45,10 @@ impl Nonce {
     }
 }
 
-/// Handles the various types of age encryption.
-enum EncryptorType {
-    /// Encryption to a list of recipients identified by keys.
-    Keys(Vec<Box<dyn Recipient + Send>>),
-    /// Encryption to a passphrase.
-    Passphrase(SecretString),
-}
-
 /// Encryptor for creating an age file.
-pub struct Encryptor(EncryptorType);
+pub struct Encryptor {
+    recipients: Vec<Box<dyn Recipient + Send>>,
+}
 
 impl Encryptor {
     /// Constructs an `Encryptor` that will create an age file encrypted to a list of
@@ -62,7 +56,7 @@ impl Encryptor {
     ///
     /// Returns `None` if no recipients were provided.
     pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
-        (!recipients.is_empty()).then_some(Encryptor(EncryptorType::Keys(recipients)))
+        (!recipients.is_empty()).then_some(Encryptor { recipients })
     }
 
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
@@ -74,29 +68,24 @@ impl Encryptor {
     ///
     /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
-        Encryptor(EncryptorType::Passphrase(passphrase))
+        Encryptor {
+            recipients: vec![Box::new(scrypt::Recipient::new(passphrase))],
+        }
     }
 
     /// Creates the header for this age file.
     fn prepare_header(self) -> Result<(Header, Nonce, PayloadKey), EncryptError> {
         let file_key = new_file_key();
 
-        let recipients = match self.0 {
-            EncryptorType::Keys(recipients) => {
-                let mut stanzas = Vec::with_capacity(recipients.len() + 1);
-                for recipient in recipients {
-                    stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
-                }
-                // Keep the joint well oiled!
-                stanzas.push(grease_the_joint());
-                stanzas
+        let recipients = {
+            let mut stanzas = Vec::with_capacity(self.recipients.len() + 1);
+            for recipient in self.recipients {
+                stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
             }
-            EncryptorType::Passphrase(passphrase) => {
-                scrypt::Recipient::new(passphrase).wrap_file_key(&file_key)?
-            }
+            stanzas
         };
 
-        let header = HeaderV1::new(recipients, mac_key(&file_key));
+        let header = HeaderV1::new(recipients, mac_key(&file_key))?;
         let nonce = Nonce::random();
         let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 

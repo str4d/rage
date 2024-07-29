@@ -13,6 +13,8 @@
 -age = age
 -rage = rage
 
+-scrypt-recipient = scrypt::Recipient
+
 -openssh = OpenSSH
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
@@ -56,6 +58,8 @@ err-header-invalid = Header is invalid
 err-header-mac-invalid = Header MAC is invalid
 
 err-key-decryption = Failed to decrypt an encrypted key
+
+err-mixed-recipient-passphrase = {-scrypt-recipient} can't be used with other recipients.
 
 err-no-matching-keys = No matching keys found
 
