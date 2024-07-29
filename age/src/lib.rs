@@ -8,8 +8,10 @@
 //! There are several ways to use these:
 //! - For most cases (including programmatic usage), use [`Encryptor::with_recipients`]
 //!   with [`x25519::Recipient`], and [`Decryptor`] with [`x25519::Identity`].
-//! - APIs are available for passphrase-based encryption and decryption. These should
-//!   only be used with passphrases that were provided by (or generated for) a human.
+//! - For passphrase-based encryption and decryption, use [`scrypt::Recipient`] and
+//!   [`scrypt::Identity`], or the helper method [`Encryptor::with_user_passphrase`].
+//!   These should only be used with passphrases that were provided by (or generated for)
+//!   a human.
 //! - For compatibility with existing SSH keys, enable the `ssh` feature flag, and use
 //!   [`ssh::Recipient`] and [`ssh::Identity`].
 //!
@@ -83,15 +85,16 @@
 //! ```
 //! use age::secrecy::Secret;
 //! use std::io::{Read, Write};
+//! use std::iter;
 //!
 //! # fn run_main() -> Result<(), ()> {
 //! let plaintext = b"Hello world!";
-//! let passphrase = "this is not a good passphrase";
+//! let passphrase = Secret::new("this is not a good passphrase".to_owned());
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
-//! # fn encrypt(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! # fn encrypt(passphrase: Secret<String>, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
+//!     let encryptor = age::Encryptor::with_user_passphrase(passphrase.clone());
 //!
 //!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
@@ -104,14 +107,12 @@
 //! # }
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
-//! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! # fn decrypt(passphrase: Secret<String>, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(
-//!         Some(&age::scrypt::Identity::new(Secret::new(passphrase.to_owned())) as _).into_iter(),
-//!     )?;
+//!     let mut reader = decryptor.decrypt(iter::once(&age::scrypt::Identity::new(passphrase) as _))?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -119,7 +120,7 @@
 //! # Ok(decrypted)
 //! # }
 //! # let decrypted = decrypt(
-//! #     passphrase,
+//! #     passphrase.clone(),
 //! #     encrypt(passphrase, &plaintext[..]).map_err(|_| ())?
 //! # ).map_err(|_| ())?;
 //!
