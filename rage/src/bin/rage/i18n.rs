@@ -14,7 +14,7 @@ lazy_static! {
 }
 
 /// Selects the most suitable available language in order of preference by
-/// `requested_languages`, and loads it using the `rage` [`LANGUAGE_LOADER`] from the
+/// `requested_languages`, and loads it using the `rage` [`static@LANGUAGE_LOADER`] from the
 /// languages available in `rage/i18n/`.
 ///
 /// Returns the available languages that were negotiated as being the most suitable to be
