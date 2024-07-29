@@ -70,10 +70,7 @@ fn bench(c: &mut Criterion_) {
             output.finish().unwrap();
 
             b.iter(|| {
-                let decryptor = match Decryptor::new_buffered(&ct_buf[..]).unwrap() {
-                    Decryptor::Recipients(decryptor) => decryptor,
-                    _ => panic!(),
-                };
+                let decryptor = Decryptor::new_buffered(&ct_buf[..]).unwrap();
                 let mut input = decryptor
                     .decrypt(iter::once(&identity as &dyn age::Identity))
                     .unwrap();

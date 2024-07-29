@@ -3,14 +3,13 @@
 use std::{cell::Cell, io};
 
 use crate::{
-    decryptor::RecipientsDecryptor, fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError,
-    IdentityFile, IdentityFileEntry,
+    fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile, IdentityFileEntry,
 };
 
 /// The state of the encrypted age identity.
 enum IdentityState<R: io::Read> {
     Encrypted {
-        decryptor: RecipientsDecryptor<R>,
+        decryptor: Decryptor<R>,
         max_work_factor: Option<u8>,
     },
     Decrypted(Vec<IdentityFileEntry>),
@@ -97,17 +96,15 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
         callbacks: C,
         max_work_factor: Option<u8>,
     ) -> Result<Option<Self>, DecryptError> {
-        match Decryptor::new(data)? {
-            Decryptor::Recipients(decryptor) if !decryptor.is_scrypt() => Ok(None),
-            Decryptor::Recipients(decryptor) => Ok(Some(Identity {
-                state: Cell::new(IdentityState::Encrypted {
-                    decryptor,
-                    max_work_factor,
-                }),
-                filename,
-                callbacks,
-            })),
-        }
+        let decryptor = Decryptor::new(data)?;
+        Ok(decryptor.is_scrypt().then_some(Identity {
+            state: Cell::new(IdentityState::Encrypted {
+                decryptor,
+                max_work_factor,
+            }),
+            filename,
+            callbacks,
+        }))
     }
 
     /// Returns the recipients contained within this encrypted identity.

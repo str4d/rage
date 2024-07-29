@@ -56,10 +56,7 @@
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
 //! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
-//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
-//!         age::Decryptor::Recipients(d) => d,
-//!         _ => unreachable!(),
-//!     };
+//!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!
 //!     let mut decrypted = vec![];
 //!     let mut reader = decryptor.decrypt(iter::once(&key as &dyn age::Identity))?;
@@ -109,9 +106,7 @@
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
 //! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
-//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
-//!         age::Decryptor::Recipients(d) => d,
-//!     };
+//!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!
 //!     let mut decrypted = vec![];
 //!     let mut reader = decryptor.decrypt(
@@ -154,7 +149,7 @@ mod util;
 pub use error::{DecryptError, EncryptError};
 pub use identity::{IdentityFile, IdentityFileEntry};
 pub use primitives::stream;
-pub use protocol::{decryptor, Decryptor, Encryptor};
+pub use protocol::{Decryptor, Encryptor};
 
 #[cfg(feature = "armor")]
 pub use primitives::armor;
@@ -194,7 +189,7 @@ pub trait Identity {
     ///
     /// This method is part of the `Identity` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
-    /// identities to [`RecipientsDecryptor::decrypt`].
+    /// identities to [`Decryptor::decrypt`].
     ///
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
@@ -202,7 +197,6 @@ pub trait Identity {
     /// - `None` if the recipient stanza does not match this key.
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>>;
 
     /// Attempts to unwrap any of the given stanzas, which are assumed to come from the
@@ -210,7 +204,7 @@ pub trait Identity {
     ///
     /// This method is part of the `Identity` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
-    /// identities to [`RecipientsDecryptor::decrypt`].
+    /// identities to [`Decryptor::decrypt`].
     ///
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
@@ -218,7 +212,6 @@ pub trait Identity {
     /// - `None` if none of the recipient stanzas match this identity.
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
     fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
         stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
     }

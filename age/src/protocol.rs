@@ -8,14 +8,12 @@ use crate::{
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
-    primitives::stream::{PayloadKey, Stream, StreamWriter},
-    scrypt, Recipient,
+    primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
+    scrypt, Identity, Recipient,
 };
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncBufRead, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-
-pub mod decryptor;
 
 pub(crate) struct Nonce([u8; 16]);
 
@@ -140,24 +138,47 @@ impl Encryptor {
 }
 
 /// Decryptor for an age file.
-pub enum Decryptor<R> {
-    /// Decryption with a list of identities.
-    Recipients(decryptor::RecipientsDecryptor<R>),
-}
-
-impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::RecipientsDecryptor<R>) -> Self {
-        Decryptor::Recipients(decryptor)
-    }
+pub struct Decryptor<R> {
+    /// The age file.
+    input: R,
+    /// The age file's header.
+    header: Header,
+    /// The age file's AEAD nonce
+    nonce: Nonce,
 }
 
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
         if header.is_valid() {
-            Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
+            Ok(Self {
+                input,
+                header: Header::V1(header),
+                nonce,
+            })
         } else {
             Err(DecryptError::InvalidHeader)
+        }
+    }
+
+    /// Returns `true` if the age file is encrypted to a passphrase.
+    pub fn is_scrypt(&self) -> bool {
+        match &self.header {
+            Header::V1(header) => header.valid_scrypt(),
+            Header::Unknown(_) => false,
+        }
+    }
+
+    fn obtain_payload_key<'a>(
+        &self,
+        mut identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<PayloadKey, DecryptError> {
+        match &self.header {
+            Header::V1(header) => identities
+                .find_map(|key| key.unwrap_stanzas(&header.recipients))
+                .unwrap_or(Err(DecryptError::NoMatchingKeys))
+                .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
+            Header::Unknown(_) => unreachable!(),
         }
     }
 }
@@ -183,6 +204,17 @@ impl<R: Read> Decryptor<R> {
             }
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
+    }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt(payload_key, self.input))
     }
 }
 
@@ -231,6 +263,17 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
             }
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
+    }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt_async<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt_async(payload_key, self.input))
     }
 }
 
@@ -296,10 +339,7 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d.decrypt(identities).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
@@ -350,7 +390,7 @@ mod tests {
             }
         }
 
-        let d = match {
+        let d = {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
@@ -361,8 +401,6 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-        } {
-            Decryptor::Recipients(d) => d,
         };
 
         let decrypted = {
@@ -427,10 +465,7 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d
             .decrypt(
                 Some(&scrypt::Identity::new(SecretString::new("passphrase".to_string())) as _)

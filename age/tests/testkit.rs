@@ -132,12 +132,11 @@ fn testkit(filename: &str) {
     let testfile = TestFile::parse(filename);
     let comment = format_testkit_comment(&testfile);
 
-    match Decryptor::new(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| match d {
-        Decryptor::Recipients(d) if !d.is_scrypt() => {
+    match Decryptor::new(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| {
+        if !d.is_scrypt() {
             let identities = get_testkit_identities(filename, &testfile);
             d.decrypt(identities.iter().map(|i| i as &dyn Identity))
-        }
-        Decryptor::Recipients(d) => {
+        } else {
             let passphrase = get_testkit_passphrase(&testfile, &comment);
             let mut identity = scrypt::Identity::new(passphrase);
             identity.set_max_work_factor(16);
@@ -271,20 +270,17 @@ fn testkit_buffered(filename: &str) {
     let testfile = TestFile::parse(filename);
     let comment = format_testkit_comment(&testfile);
 
-    match Decryptor::new_buffered(ArmoredReader::new(&testfile.age_file[..])).and_then(
-        |d| match d {
-            Decryptor::Recipients(d) if !d.is_scrypt() => {
-                let identities = get_testkit_identities(filename, &testfile);
-                d.decrypt(identities.iter().map(|i| i as &dyn Identity))
-            }
-            Decryptor::Recipients(d) => {
-                let passphrase = get_testkit_passphrase(&testfile, &comment);
-                let mut identity = scrypt::Identity::new(passphrase);
-                identity.set_max_work_factor(16);
-                d.decrypt(Some(&identity as _).into_iter())
-            }
-        },
-    ) {
+    match Decryptor::new_buffered(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| {
+        if !d.is_scrypt() {
+            let identities = get_testkit_identities(filename, &testfile);
+            d.decrypt(identities.iter().map(|i| i as &dyn Identity))
+        } else {
+            let passphrase = get_testkit_passphrase(&testfile, &comment);
+            let mut identity = scrypt::Identity::new(passphrase);
+            identity.set_max_work_factor(16);
+            d.decrypt(Some(&identity as _).into_iter())
+        }
+    }) {
         Ok(mut r) => {
             let mut payload = vec![];
             let res = io::Read::read_to_end(&mut r, &mut payload);
@@ -415,12 +411,11 @@ async fn testkit_async(filename: &str) {
 
     match Decryptor::new_async(ArmoredReader::from_async_reader(&testfile.age_file[..]))
         .await
-        .and_then(|d| match d {
-            Decryptor::Recipients(d) if !d.is_scrypt() => {
+        .and_then(|d| {
+            if !d.is_scrypt() {
                 let identities = get_testkit_identities(filename, &testfile);
                 d.decrypt_async(identities.iter().map(|i| i as &dyn Identity))
-            }
-            Decryptor::Recipients(d) => {
+            } else {
                 let passphrase = get_testkit_passphrase(&testfile, &comment);
                 let mut identity = scrypt::Identity::new(passphrase);
                 identity.set_max_work_factor(16);
@@ -557,12 +552,11 @@ async fn testkit_async_buffered(filename: &str) {
 
     match Decryptor::new_async_buffered(ArmoredReader::from_async_reader(&testfile.age_file[..]))
         .await
-        .and_then(|d| match d {
-            Decryptor::Recipients(d) if !d.is_scrypt() => {
+        .and_then(|d| {
+            if !d.is_scrypt() {
                 let identities = get_testkit_identities(filename, &testfile);
                 d.decrypt_async(identities.iter().map(|i| i as &dyn Identity))
-            }
-            Decryptor::Recipients(d) => {
+            } else {
                 let passphrase = get_testkit_passphrase(&testfile, &comment);
                 let mut identity = scrypt::Identity::new(passphrase);
                 identity.set_max_work_factor(16);

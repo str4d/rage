@@ -210,35 +210,33 @@ fn main() -> Result<(), Error> {
 
     let mut stdin_guard = StdinGuard::new(false);
 
-    match age::Decryptor::new_buffered(ArmoredReader::new(file))? {
-        age::Decryptor::Recipients(decryptor) if decryptor.is_scrypt() => {
-            match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
-                Ok(passphrase) => {
-                    let mut identity = scrypt::Identity::new(passphrase);
-                    if let Some(max_work_factor) = opts.max_work_factor {
-                        identity.set_max_work_factor(max_work_factor);
-                    }
+    let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(file))?;
 
-                    decryptor
-                        .decrypt(Some(&identity as _).into_iter())
-                        .map_err(|e| e.into())
-                        .and_then(|stream| mount_stream(stream, types, mountpoint))
+    if decryptor.is_scrypt() {
+        match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
+            Ok(passphrase) => {
+                let mut identity = scrypt::Identity::new(passphrase);
+                if let Some(max_work_factor) = opts.max_work_factor {
+                    identity.set_max_work_factor(max_work_factor);
                 }
-                Err(_) => Ok(()),
-            }
-        }
-        age::Decryptor::Recipients(decryptor) => {
-            let identities =
-                read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?;
 
-            if identities.is_empty() {
-                return Err(Error::MissingIdentities);
+                decryptor
+                    .decrypt(Some(&identity as _).into_iter())
+                    .map_err(|e| e.into())
+                    .and_then(|stream| mount_stream(stream, types, mountpoint))
             }
-
-            decryptor
-                .decrypt(identities.iter().map(|i| &**i))
-                .map_err(|e| e.into())
-                .and_then(|stream| mount_stream(stream, types, mountpoint))
+            Err(_) => Ok(()),
         }
+    } else {
+        let identities = read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?;
+
+        if identities.is_empty() {
+            return Err(Error::MissingIdentities);
+        }
+
+        decryptor
+            .decrypt(identities.iter().map(|i| &**i))
+            .map_err(|e| e.into())
+            .and_then(|stream| mount_stream(stream, types, mountpoint))
     }
 }
