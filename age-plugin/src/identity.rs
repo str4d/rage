@@ -7,7 +7,9 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::FromBase32;
+
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX};
@@ -47,6 +49,22 @@ pub trait IdentityPluginV1 {
         files: Vec<Vec<Stanza>>,
         callbacks: impl Callbacks<Error>,
     ) -> io::Result<HashMap<usize, Result<FileKey, Vec<Error>>>>;
+}
+
+impl IdentityPluginV1 for Infallible {
+    fn add_identity(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn unwrap_file_keys(
+        &mut self,
+        _: Vec<Vec<Stanza>>,
+        _: impl Callbacks<Error>,
+    ) -> io::Result<HashMap<usize, Result<FileKey, Vec<Error>>>> {
+        // This is never executed.
+        Ok(HashMap::new())
+    }
 }
 
 /// The interface that age plugins can use to interact with an age implementation.

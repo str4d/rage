@@ -9,6 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `impl age_plugin::identity::IdentityPluginV1 for std::convert::Infallible`
+- `impl age_plugin::recipient::RecipientPluginV1 for std::convert::Infallible`
+
 ### Fixed
 - `age_plugin::run_state_machine` reverts to non-optional arguments, undoing the
   change from the previous release. The type arguments were impossible to set

@@ -7,6 +7,8 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::FromBase32;
+
+use std::convert::Infallible;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
@@ -46,6 +48,27 @@ pub trait RecipientPluginV1 {
         file_keys: Vec<FileKey>,
         callbacks: impl Callbacks<Error>,
     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>>;
+}
+
+impl RecipientPluginV1 for Infallible {
+    fn add_recipient(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn add_identity(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn wrap_file_keys(
+        &mut self,
+        _: Vec<FileKey>,
+        _: impl Callbacks<Error>,
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>> {
+        // This is never executed.
+        Ok(Ok(vec![]))
+    }
 }
 
 /// The interface that age plugins can use to interact with an age implementation.
