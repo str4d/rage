@@ -1,6 +1,6 @@
 //! Encryption and decryption routines for age.
 
-use age_core::{format::grease_the_joint, secrecy::SecretString};
+use age_core::secrecy::SecretString;
 use rand::{rngs::OsRng, RngCore};
 use std::io::{self, BufRead, Read, Write};
 
@@ -8,14 +8,12 @@ use crate::{
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
-    primitives::stream::{PayloadKey, Stream, StreamWriter},
-    scrypt, Recipient,
+    primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
+    scrypt, Identity, Recipient,
 };
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncBufRead, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-
-pub mod decryptor;
 
 pub(crate) struct Nonce([u8; 16]);
 
@@ -47,16 +45,10 @@ impl Nonce {
     }
 }
 
-/// Handles the various types of age encryption.
-enum EncryptorType {
-    /// Encryption to a list of recipients identified by keys.
-    Keys(Vec<Box<dyn Recipient + Send>>),
-    /// Encryption to a passphrase.
-    Passphrase(SecretString),
-}
-
 /// Encryptor for creating an age file.
-pub struct Encryptor(EncryptorType);
+pub struct Encryptor {
+    recipients: Vec<Box<dyn Recipient + Send>>,
+}
 
 impl Encryptor {
     /// Constructs an `Encryptor` that will create an age file encrypted to a list of
@@ -64,7 +56,7 @@ impl Encryptor {
     ///
     /// Returns `None` if no recipients were provided.
     pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
-        (!recipients.is_empty()).then_some(Encryptor(EncryptorType::Keys(recipients)))
+        (!recipients.is_empty()).then_some(Encryptor { recipients })
     }
 
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
@@ -76,29 +68,24 @@ impl Encryptor {
     ///
     /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
-        Encryptor(EncryptorType::Passphrase(passphrase))
+        Encryptor {
+            recipients: vec![Box::new(scrypt::Recipient::new(passphrase))],
+        }
     }
 
     /// Creates the header for this age file.
     fn prepare_header(self) -> Result<(Header, Nonce, PayloadKey), EncryptError> {
         let file_key = new_file_key();
 
-        let recipients = match self.0 {
-            EncryptorType::Keys(recipients) => {
-                let mut stanzas = Vec::with_capacity(recipients.len() + 1);
-                for recipient in recipients {
-                    stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
-                }
-                // Keep the joint well oiled!
-                stanzas.push(grease_the_joint());
-                stanzas
+        let recipients = {
+            let mut stanzas = Vec::with_capacity(self.recipients.len() + 1);
+            for recipient in self.recipients {
+                stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
             }
-            EncryptorType::Passphrase(passphrase) => {
-                scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?
-            }
+            stanzas
         };
 
-        let header = HeaderV1::new(recipients, mac_key(&file_key));
+        let header = HeaderV1::new(recipients, mac_key(&file_key))?;
         let nonce = Nonce::random();
         let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 
@@ -140,39 +127,47 @@ impl Encryptor {
 }
 
 /// Decryptor for an age file.
-pub enum Decryptor<R> {
-    /// Decryption with a list of identities.
-    Recipients(decryptor::RecipientsDecryptor<R>),
-    /// Decryption with a passphrase.
-    Passphrase(decryptor::PassphraseDecryptor<R>),
-}
-
-impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::RecipientsDecryptor<R>) -> Self {
-        Decryptor::Recipients(decryptor)
-    }
-}
-
-impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::PassphraseDecryptor<R>) -> Self {
-        Decryptor::Passphrase(decryptor)
-    }
+pub struct Decryptor<R> {
+    /// The age file.
+    input: R,
+    /// The age file's header.
+    header: Header,
+    /// The age file's AEAD nonce
+    nonce: Nonce,
 }
 
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
-        let any_scrypt = header
-            .recipients
-            .iter()
-            .any(|r| r.tag == scrypt::SCRYPT_RECIPIENT_TAG);
-
-        if any_scrypt && header.recipients.len() == 1 {
-            Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
-        } else if !any_scrypt {
-            Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
+        if header.is_valid() {
+            Ok(Self {
+                input,
+                header: Header::V1(header),
+                nonce,
+            })
         } else {
             Err(DecryptError::InvalidHeader)
+        }
+    }
+
+    /// Returns `true` if the age file is encrypted to a passphrase.
+    pub fn is_scrypt(&self) -> bool {
+        match &self.header {
+            Header::V1(header) => header.valid_scrypt(),
+            Header::Unknown(_) => false,
+        }
+    }
+
+    fn obtain_payload_key<'a>(
+        &self,
+        mut identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<PayloadKey, DecryptError> {
+        match &self.header {
+            Header::V1(header) => identities
+                .find_map(|key| key.unwrap_stanzas(&header.recipients))
+                .unwrap_or(Err(DecryptError::NoMatchingKeys))
+                .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
+            Header::Unknown(_) => unreachable!(),
         }
     }
 }
@@ -198,6 +193,17 @@ impl<R: Read> Decryptor<R> {
             }
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
+    }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt(payload_key, self.input))
     }
 }
 
@@ -247,6 +253,17 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
     }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt_async<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt_async(payload_key, self.input))
+    }
 }
 
 #[cfg(feature = "async")]
@@ -284,7 +301,7 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::{
         identity::{IdentityFile, IdentityFileEntry},
-        x25519, Identity, Recipient,
+        scrypt, x25519, Identity, Recipient,
     };
 
     #[cfg(feature = "async")]
@@ -311,10 +328,7 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d.decrypt(identities).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
@@ -365,7 +379,7 @@ mod tests {
             }
         }
 
-        let d = match {
+        let d = {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
@@ -376,9 +390,6 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-        } {
-            Decryptor::Recipients(d) => d,
-            _ => panic!(),
         };
 
         let decrypted = {
@@ -443,12 +454,12 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Passphrase(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d
-            .decrypt(&SecretString::new("passphrase".to_string()), None)
+            .decrypt(
+                Some(&scrypt::Identity::new(SecretString::new("passphrase".to_string())) as _)
+                    .into_iter(),
+            )
             .unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();

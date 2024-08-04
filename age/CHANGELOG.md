@@ -10,7 +10,19 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
+- `age::scrypt`, providing recipient and identity types for passphrase-based
+  encryption.
 - Partial French translation!
+
+### Changed
+- `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
+  and `Passphrase` variants.
+
+### Removed
+- `age::decryptor::PassphraseDecryptor` (use `age::Decryptor` with
+  `age::scrypt::Identity` instead).
+- `age::decryptor::RecipientsDecryptor` (use `age::Decryptor` instead).
 
 ## [0.10.0] - 2024-02-04
 ### Added

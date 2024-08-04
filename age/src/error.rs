@@ -110,6 +110,10 @@ pub enum EncryptError {
         /// The plugin's binary name.
         binary_name: String,
     },
+    /// [`scrypt::Recipient`] was mixed with other recipient types.
+    ///
+    /// [`scrypt::Recipient`]: crate::scrypt::Recipient
+    MixedRecipientAndPassphrase,
     /// Errors from a plugin.
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
@@ -131,6 +135,7 @@ impl Clone for EncryptError {
             Self::MissingPlugin { binary_name } => Self::MissingPlugin {
                 binary_name: binary_name.clone(),
             },
+            Self::MixedRecipientAndPassphrase => Self::MixedRecipientAndPassphrase,
             #[cfg(feature = "plugin")]
             Self::Plugin(e) => Self::Plugin(e.clone()),
         }
@@ -146,6 +151,9 @@ impl fmt::Display for EncryptError {
             EncryptError::MissingPlugin { binary_name } => {
                 wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
+            }
+            EncryptError::MixedRecipientAndPassphrase => {
+                wfl!(f, "err-mixed-recipient-passphrase")
             }
             #[cfg(feature = "plugin")]
             EncryptError::Plugin(errors) => match &errors[..] {
@@ -168,7 +176,6 @@ impl std::error::Error for EncryptError {
         match self {
             EncryptError::EncryptedIdentities(inner) => Some(inner),
             EncryptError::Io(inner) => Some(inner),
-            #[cfg(feature = "plugin")]
             _ => None,
         }
     }

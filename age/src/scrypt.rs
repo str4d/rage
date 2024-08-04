@@ -1,3 +1,5 @@
+//! The "scrypt" passphrase-based recipient type, native to age.
+
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt},
@@ -83,8 +85,25 @@ fn target_scrypt_work_factor() -> u8 {
         })
 }
 
-pub(crate) struct Recipient {
-    pub(crate) passphrase: SecretString,
+/// A passphrase-based recipient. Anyone with the passphrase can decrypt the file.
+///
+/// If an `scrypt::Recipient` is used, it must be the only recipient for the file: it
+/// can't be mixed with other recipient types and can't be used multiple times for the
+/// same file.
+///
+/// This API should only be used with a passphrase that was provided by (or generated
+/// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`].
+///
+/// [`x25519::Identity`]: crate::x25519::Identity
+pub struct Recipient {
+    passphrase: SecretString,
+}
+
+impl Recipient {
+    /// Constructs a new `Recipient` with the given passphrase.
+    pub fn new(passphrase: SecretString) -> Self {
+        Self { passphrase }
+    }
 }
 
 impl crate::Recipient for Recipient {
@@ -112,12 +131,46 @@ impl crate::Recipient for Recipient {
     }
 }
 
-pub(crate) struct Identity<'a> {
-    pub(crate) passphrase: &'a SecretString,
-    pub(crate) max_work_factor: Option<u8>,
+/// A passphrase-based identity. Anyone with the passphrase can decrypt the file.
+///
+/// The identity caps the amount of work that the [`Decryptor`] might have to do to
+/// process received files. A fairly high default is used (targeting roughly 16 seconds of
+/// work per stanza on the current machine), which might not be suitable for systems
+/// processing untrusted files.
+///
+/// [`Decryptor`]: crate::Decryptor
+pub struct Identity {
+    passphrase: SecretString,
+    target_work_factor: u8,
+    max_work_factor: u8,
 }
 
-impl<'a> crate::Identity for Identity<'a> {
+impl Identity {
+    /// Constructs a new `Identity` with the given passphrase.
+    pub fn new(passphrase: SecretString) -> Self {
+        let target_work_factor = target_scrypt_work_factor();
+
+        // Place bounds on the work factor we will accept (roughly 16 seconds).
+        let max_work_factor = target_work_factor + 4;
+
+        Self {
+            passphrase,
+            target_work_factor,
+            max_work_factor,
+        }
+    }
+
+    /// Sets the maximum accepted scrypt work factor to `2^max_work_factor`.
+    ///
+    /// This method must be called before [`Self::unwrap_stanza`] to have an effect.
+    ///
+    /// [`Self::unwrap_stanza`]: crate::Identity::unwrap_stanza
+    pub fn set_max_work_factor(&mut self, max_work_factor: u8) {
+        self.max_work_factor = max_work_factor;
+    }
+}
+
+impl crate::Identity for Identity {
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
@@ -139,12 +192,10 @@ impl<'a> crate::Identity for Identity<'a> {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        // Place bounds on the work factor we will accept (roughly 16 seconds).
-        let target = target_scrypt_work_factor();
-        if log_n > self.max_work_factor.unwrap_or(target + 4) {
+        if log_n > self.max_work_factor {
             return Some(Err(DecryptError::ExcessiveWork {
                 required: log_n,
-                target,
+                target: self.target_work_factor,
             }));
         }
 
@@ -157,7 +208,7 @@ impl<'a> crate::Identity for Identity<'a> {
             Err(_) => {
                 return Some(Err(DecryptError::ExcessiveWork {
                     required: log_n,
-                    target,
+                    target: self.target_work_factor,
                 }));
             }
         };

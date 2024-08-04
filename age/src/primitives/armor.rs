@@ -321,12 +321,7 @@ enum ArmorIs<W> {
 /// # }
 /// # fn decrypt(identity: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 /// # let decrypted = {
-/// #     let decryptor = match age::Decryptor::new(
-/// #         age::armor::ArmoredReader::new(&encrypted[..])
-/// #     )? {
-/// #         age::Decryptor::Recipients(d) => d,
-/// #         _ => unreachable!(),
-/// #     };
+/// #     let decryptor = age::Decryptor::new(age::armor::ArmoredReader::new(&encrypted[..]))?;
 /// #     let mut decrypted = vec![];
 /// #     let mut reader = decryptor.decrypt(iter::once(&identity as &dyn age::Identity))?;
 /// #     reader.read_to_end(&mut decrypted);
@@ -693,12 +688,7 @@ enum StartPos {
 ///
 /// # fn decrypt(identity: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 /// let decrypted = {
-///     let decryptor = match age::Decryptor::new(
-///         age::armor::ArmoredReader::new(&encrypted[..])
-///     )? {
-///         age::Decryptor::Recipients(d) => d,
-///         _ => unreachable!(),
-///     };
+///     let decryptor = age::Decryptor::new(age::armor::ArmoredReader::new(&encrypted[..]))?;
 ///
 ///     let mut decrypted = vec![];
 ///     let mut reader = decryptor.decrypt(iter::once(&identity as &dyn age::Identity))?;

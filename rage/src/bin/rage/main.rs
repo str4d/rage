@@ -6,7 +6,7 @@ use age::{
         file_io, read_identities, read_or_generate_passphrase, read_recipients, read_secret,
         Passphrase, StdinGuard, UiCallbacks,
     },
-    plugin,
+    plugin, scrypt,
     secrecy::ExposeSecret,
     Identity,
 };
@@ -292,55 +292,61 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         ],
     );
 
-    match age::Decryptor::new_buffered(ArmoredReader::new(input))? {
-        age::Decryptor::Passphrase(decryptor) => {
-            if identities_were_provided {
-                return Err(error::DecryptError::MixedIdentityAndPassphrase);
-            }
+    let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input))?;
 
-            // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
-            // any conflict with stdin.
-            #[cfg(not(unix))]
-            {
-                if !has_file_argument {
-                    return Err(error::DecryptError::PassphraseWithoutFileArgument);
+    if decryptor.is_scrypt() {
+        if identities_were_provided {
+            return Err(error::DecryptError::MixedIdentityAndPassphrase);
+        }
+
+        // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
+        // any conflict with stdin.
+        #[cfg(not(unix))]
+        {
+            if !has_file_argument {
+                return Err(error::DecryptError::PassphraseWithoutFileArgument);
+            }
+        }
+
+        match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
+            Ok(passphrase) => {
+                let mut identity = scrypt::Identity::new(passphrase);
+                if let Some(max_work_factor) = opts.max_work_factor {
+                    identity.set_max_work_factor(max_work_factor);
                 }
-            }
 
-            match read_secret(&fl!("type-passphrase"), &fl!("prompt-passphrase"), None) {
-                Ok(passphrase) => decryptor
-                    .decrypt(&passphrase, opts.max_work_factor)
+                decryptor
+                    .decrypt(Some(&identity as _).into_iter())
                     .map_err(|e| e.into())
-                    .and_then(|input| write_output(input, output)),
-                Err(pinentry::Error::Cancelled) => Ok(()),
-                Err(pinentry::Error::Timeout) => Err(error::DecryptError::PassphraseTimedOut),
-                Err(pinentry::Error::Encoding(e)) => {
-                    // Pretend it is an I/O error
-                    Err(error::DecryptError::Io(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        e,
-                    )))
-                }
-                Err(pinentry::Error::Gpg(e)) => {
-                    // Pretend it is an I/O error
-                    Err(error::DecryptError::Io(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("{}", e),
-                    )))
-                }
-                Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e)),
+                    .and_then(|input| write_output(input, output))
             }
+            Err(pinentry::Error::Cancelled) => Ok(()),
+            Err(pinentry::Error::Timeout) => Err(error::DecryptError::PassphraseTimedOut),
+            Err(pinentry::Error::Encoding(e)) => {
+                // Pretend it is an I/O error
+                Err(error::DecryptError::Io(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    e,
+                )))
+            }
+            Err(pinentry::Error::Gpg(e)) => {
+                // Pretend it is an I/O error
+                Err(error::DecryptError::Io(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("{}", e),
+                )))
+            }
+            Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e)),
         }
-        age::Decryptor::Recipients(decryptor) => {
-            if identities.is_empty() {
-                return Err(error::DecryptError::MissingIdentities { stdin_identity });
-            }
+    } else {
+        if identities.is_empty() {
+            return Err(error::DecryptError::MissingIdentities { stdin_identity });
+        }
 
-            decryptor
-                .decrypt(identities.iter().map(|i| i.as_ref() as &dyn Identity))
-                .map_err(|e| e.into())
-                .and_then(|input| write_output(input, output))
-        }
+        decryptor
+            .decrypt(identities.iter().map(|i| i.as_ref() as &dyn Identity))
+            .map_err(|e| e.into())
+            .and_then(|input| write_output(input, output))
     }
 }
 

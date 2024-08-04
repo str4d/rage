@@ -8,8 +8,10 @@
 //! There are several ways to use these:
 //! - For most cases (including programmatic usage), use [`Encryptor::with_recipients`]
 //!   with [`x25519::Recipient`], and [`Decryptor`] with [`x25519::Identity`].
-//! - APIs are available for passphrase-based encryption and decryption. These should
-//!   only be used with passphrases that were provided by (or generated for) a human.
+//! - For passphrase-based encryption and decryption, use [`scrypt::Recipient`] and
+//!   [`scrypt::Identity`], or the helper method [`Encryptor::with_user_passphrase`].
+//!   These should only be used with passphrases that were provided by (or generated for)
+//!   a human.
 //! - For compatibility with existing SSH keys, enable the `ssh` feature flag, and use
 //!   [`ssh::Recipient`] and [`ssh::Identity`].
 //!
@@ -56,10 +58,7 @@
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
 //! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
-//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
-//!         age::Decryptor::Recipients(d) => d,
-//!         _ => unreachable!(),
-//!     };
+//!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!
 //!     let mut decrypted = vec![];
 //!     let mut reader = decryptor.decrypt(iter::once(&key as &dyn age::Identity))?;
@@ -86,15 +85,16 @@
 //! ```
 //! use age::secrecy::Secret;
 //! use std::io::{Read, Write};
+//! use std::iter;
 //!
 //! # fn run_main() -> Result<(), ()> {
 //! let plaintext = b"Hello world!";
-//! let passphrase = "this is not a good passphrase";
+//! let passphrase = Secret::new("this is not a good passphrase".to_owned());
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
-//! # fn encrypt(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! # fn encrypt(passphrase: Secret<String>, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::with_user_passphrase(Secret::new(passphrase.to_owned()));
+//!     let encryptor = age::Encryptor::with_user_passphrase(passphrase.clone());
 //!
 //!     let mut encrypted = vec![];
 //!     let mut writer = encryptor.wrap_output(&mut encrypted)?;
@@ -107,15 +107,12 @@
 //! # }
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
-//! # fn decrypt(passphrase: &str, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! # fn decrypt(passphrase: Secret<String>, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
-//!     let decryptor = match age::Decryptor::new(&encrypted[..])? {
-//!         age::Decryptor::Passphrase(d) => d,
-//!         _ => unreachable!(),
-//!     };
+//!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!
 //!     let mut decrypted = vec![];
-//!     let mut reader = decryptor.decrypt(&Secret::new(passphrase.to_owned()), None)?;
+//!     let mut reader = decryptor.decrypt(iter::once(&age::scrypt::Identity::new(passphrase) as _))?;
 //!     reader.read_to_end(&mut decrypted);
 //!
 //!     decrypted
@@ -123,7 +120,7 @@
 //! # Ok(decrypted)
 //! # }
 //! # let decrypted = decrypt(
-//! #     passphrase,
+//! #     passphrase.clone(),
 //! #     encrypt(passphrase, &plaintext[..]).map_err(|_| ())?
 //! # ).map_err(|_| ())?;
 //!
@@ -153,7 +150,7 @@ mod util;
 pub use error::{DecryptError, EncryptError};
 pub use identity::{IdentityFile, IdentityFileEntry};
 pub use primitives::stream;
-pub use protocol::{decryptor, Decryptor, Encryptor};
+pub use protocol::{Decryptor, Encryptor};
 
 #[cfg(feature = "armor")]
 pub use primitives::armor;
@@ -170,7 +167,7 @@ pub use i18n::localizer;
 //
 
 pub mod encrypted;
-mod scrypt;
+pub mod scrypt;
 pub mod x25519;
 
 #[cfg(feature = "plugin")]
@@ -193,7 +190,7 @@ pub trait Identity {
     ///
     /// This method is part of the `Identity` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
-    /// identities to [`RecipientsDecryptor::decrypt`].
+    /// identities to [`Decryptor::decrypt`].
     ///
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
@@ -201,7 +198,6 @@ pub trait Identity {
     /// - `None` if the recipient stanza does not match this key.
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>>;
 
     /// Attempts to unwrap any of the given stanzas, which are assumed to come from the
@@ -209,7 +205,7 @@ pub trait Identity {
     ///
     /// This method is part of the `Identity` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
-    /// identities to [`RecipientsDecryptor::decrypt`].
+    /// identities to [`Decryptor::decrypt`].
     ///
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
@@ -217,7 +213,6 @@ pub trait Identity {
     /// - `None` if none of the recipient stanzas match this identity.
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    /// [`RecipientsDecryptor::decrypt`]: protocol::decryptor::RecipientsDecryptor::decrypt
     fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, DecryptError>> {
         stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
     }

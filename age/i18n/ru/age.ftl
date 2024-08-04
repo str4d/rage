@@ -13,6 +13,8 @@
 -age = age
 -rage = rage
 
+-scrypt-recipient = scrypt::Recipient
+
 -openssh = OpenSSH
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa

@@ -1,6 +1,8 @@
-use age_core::secrecy::SecretString;
 use std::fs;
 use std::io::Read;
+
+use age::scrypt;
+use age_core::secrecy::SecretString;
 
 #[test]
 #[cfg(feature = "cli-common")]
@@ -22,30 +24,29 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
         let name = path.file_stem().unwrap().to_str().unwrap();
         let expect_failure = name.starts_with("fail_");
 
-        let res = match age::Decryptor::new(fs::File::open(&path)?)? {
-            age::Decryptor::Recipients(d) => {
-                let identities = age::cli_common::read_identities(
-                    vec![format!(
-                        "{}/{}_key.txt",
-                        path.parent().unwrap().to_str().unwrap(),
-                        name
-                    )],
-                    None,
-                    &mut StdinGuard::new(false),
-                )?;
-                d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
-            }
-            age::Decryptor::Passphrase(d) => {
-                let mut passphrase = String::new();
-                fs::File::open(format!(
-                    "{}/{}_password.txt",
+        let d = age::Decryptor::new(fs::File::open(&path)?)?;
+        let res = if !d.is_scrypt() {
+            let identities = age::cli_common::read_identities(
+                vec![format!(
+                    "{}/{}_key.txt",
                     path.parent().unwrap().to_str().unwrap(),
                     name
-                ))?
-                .read_to_string(&mut passphrase)?;
-                let passphrase = SecretString::new(passphrase);
-                d.decrypt(&passphrase, None)
-            }
+                )],
+                None,
+                &mut StdinGuard::new(false),
+            )?;
+            d.decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
+        } else {
+            let mut passphrase = String::new();
+            fs::File::open(format!(
+                "{}/{}_password.txt",
+                path.parent().unwrap().to_str().unwrap(),
+                name
+            ))?
+            .read_to_string(&mut passphrase)?;
+            let passphrase = SecretString::new(passphrase);
+            let identity = scrypt::Identity::new(passphrase);
+            d.decrypt(Some(&identity as _).into_iter())
         };
 
         match (res, expect_failure) {

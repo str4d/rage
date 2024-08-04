@@ -1,11 +1,13 @@
 //! The age file format.
 
-use age_core::format::Stanza;
 use std::io::{self, BufRead, Read, Write};
+
+use age_core::format::{grease_the_joint, Stanza};
 
 use crate::{
     error::DecryptError,
     primitives::{HmacKey, HmacWriter},
+    scrypt, EncryptError,
 };
 
 #[cfg(feature = "async")]
@@ -32,12 +34,21 @@ pub(crate) struct HeaderV1 {
 }
 
 impl HeaderV1 {
-    pub(crate) fn new(recipients: Vec<Stanza>, mac_key: HmacKey) -> Self {
+    pub(crate) fn new(recipients: Vec<Stanza>, mac_key: HmacKey) -> Result<Self, EncryptError> {
         let mut header = HeaderV1 {
             recipients,
             mac: [0; 32],
             encoded_bytes: None,
         };
+
+        if header.no_scrypt() {
+            // Keep the joint well oiled!
+            header.recipients.push(grease_the_joint());
+        }
+
+        if !header.is_valid() {
+            return Err(EncryptError::MixedRecipientAndPassphrase);
+        }
 
         let mut mac = HmacWriter::new(mac_key);
         cookie_factory::gen(write::header_v1_minus_mac(&header), &mut mac)
@@ -46,7 +57,7 @@ impl HeaderV1 {
             .mac
             .copy_from_slice(mac.finalize().into_bytes().as_slice());
 
-        header
+        Ok(header)
     }
 
     pub(crate) fn verify_mac(&self, mac_key: HmacKey) -> Result<(), hmac::digest::MacError> {
@@ -60,6 +71,33 @@ impl HeaderV1 {
                 .expect("can serialize Header into HmacWriter");
         }
         mac.verify(&self.mac)
+    }
+
+    fn any_scrypt(&self) -> bool {
+        self.recipients
+            .iter()
+            .any(|r| r.tag == scrypt::SCRYPT_RECIPIENT_TAG)
+    }
+
+    /// Checks whether the header contains a single recipient of type `scrypt`.
+    ///
+    /// This can be used along with [`Self::no_scrypt`] to enforce the structural
+    /// requirements on the v1 header.
+    pub(crate) fn valid_scrypt(&self) -> bool {
+        self.any_scrypt() && self.recipients.len() == 1
+    }
+
+    /// Checks whether the header contains no `scrypt` recipients.
+    ///
+    /// This can be used along with [`Self::valid_scrypt`] to enforce the structural
+    /// requirements on the v1 header.
+    pub(crate) fn no_scrypt(&self) -> bool {
+        !self.any_scrypt()
+    }
+
+    /// Enforces structural requirements on the v1 header.
+    pub(crate) fn is_valid(&self) -> bool {
+        self.valid_scrypt() || self.no_scrypt()
     }
 }
 
