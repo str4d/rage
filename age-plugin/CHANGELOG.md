@@ -9,6 +9,10 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- `age_plugin::run_state_machine` reverts to non-optional arguments, undoing the
+  change from the previous release. The type arguments were impossible to set
+  correctly when attempting to pass `None`.
 
 ## [0.5.0] - 2024-02-04
 ### Changed
