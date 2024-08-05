@@ -74,12 +74,27 @@
 //!     identity::{self, IdentityPluginV1},
 //!     print_new_identity,
 //!     recipient::{self, RecipientPluginV1},
-//!     Callbacks, run_state_machine,
+//!     Callbacks, PluginHandler, run_state_machine,
 //! };
 //! use clap::Parser;
 //!
 //! use std::collections::HashMap;
 //! use std::io;
+//!
+//! struct Handler;
+//!
+//! impl PluginHandler for Handler {
+//!     type RecipientV1 = RecipientPlugin;
+//!     type IdentityV1 = IdentityPlugin;
+//!
+//!     fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
+//!         Ok(RecipientPlugin)
+//!     }
+//!
+//!     fn identity_v1(self) -> io::Result<Self::IdentityV1> {
+//!         Ok(IdentityPlugin)
+//!     }
+//! }
 //!
 //! struct RecipientPlugin;
 //!
@@ -143,11 +158,7 @@
 //!
 //!     if let Some(state_machine) = opts.age_plugin {
 //!         // The plugin was started by an age client; run the state machine.
-//!         run_state_machine(
-//!             &state_machine,
-//!             Some(|| RecipientPlugin),
-//!             Some(|| IdentityPlugin),
-//!         )?;
+//!         run_state_machine(&state_machine, Handler)?;
 //!         return Ok(());
 //!     }
 //!
@@ -209,38 +220,73 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
 ///
 /// This should be triggered if the `--age-plugin=state_machine` flag is provided as an
 /// argument when starting the plugin.
-pub fn run_state_machine<R: recipient::RecipientPluginV1, I: identity::IdentityPluginV1>(
-    state_machine: &str,
-    recipient_v1: Option<impl FnOnce() -> R>,
-    identity_v1: Option<impl FnOnce() -> I>,
-) -> io::Result<()> {
+pub fn run_state_machine(state_machine: &str, handler: impl PluginHandler) -> io::Result<()> {
     use age_core::plugin::{IDENTITY_V1, RECIPIENT_V1};
 
     match state_machine {
-        RECIPIENT_V1 => {
-            if let Some(plugin) = recipient_v1 {
-                recipient::run_v1(plugin())
-            } else {
-                Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "plugin doesn't support recipient-v1 state machine",
-                ))
-            }
-        }
-        IDENTITY_V1 => {
-            if let Some(plugin) = identity_v1 {
-                identity::run_v1(plugin())
-            } else {
-                Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "plugin doesn't support identity-v1 state machine",
-                ))
-            }
-        }
+        RECIPIENT_V1 => recipient::run_v1(handler.recipient_v1()?),
+        IDENTITY_V1 => identity::run_v1(handler.identity_v1()?),
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown plugin state machine",
         )),
+    }
+}
+
+/// The interfaces that age implementations will use to interact with an age plugin.
+///
+/// This trait exists to encapsulate the set of arguments to [`run_state_machine`] that
+/// different plugins may want to provide.
+///
+/// # How to implement this trait
+///
+/// ## Full plugins
+///
+/// - Set all associated types to your plugin's implementations.
+/// - Override all default methods of the trait.
+///
+/// ## Recipient-only plugins
+///
+/// - Set [`PluginHandler::RecipientV1`] to your plugin's implementation.
+/// - Override [`PluginHandler::recipient_v1`] to return an instance of your type.
+/// - Set [`PluginHandler::IdentityV1`] to [`std::convert::Infallible`].
+/// - Don't override [`PluginHandler::identity_v1`].
+///
+/// ## Identity-only plugins
+///
+/// - Set [`PluginHandler::RecipientV1`] to [`std::convert::Infallible`].
+/// - Don't override [`PluginHandler::recipient_v1`].
+/// - Set [`PluginHandler::IdentityV1`] to your plugin's implementation.
+/// - Override [`PluginHandler::identity_v1`] to return an instance of your type.
+pub trait PluginHandler: Sized {
+    /// The plugin's [`recipient-v1`] implementation.
+    ///
+    /// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
+    type RecipientV1: recipient::RecipientPluginV1;
+
+    /// The plugin's [`identity-v1`] implementation.
+    ///
+    /// [`identity-v1`]: https://c2sp.org/age-plugin#unwrapping-with-identity-v1
+    type IdentityV1: identity::IdentityPluginV1;
+
+    /// Returns an instance of the plugin's [`recipient-v1`] implementation.
+    ///
+    /// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
+    fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "plugin doesn't support recipient-v1 state machine",
+        ))
+    }
+
+    /// Returns an instance of the plugin's [`identity-v1`] implementation.
+    ///
+    /// [`identity-v1`]: https://c2sp.org/age-plugin#unwrapping-with-identity-v1
+    fn identity_v1(self) -> io::Result<Self::IdentityV1> {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "plugin doesn't support identity-v1 state machine",
+        ))
     }
 }
 

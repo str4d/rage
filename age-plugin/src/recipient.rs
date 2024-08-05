@@ -7,6 +7,8 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::FromBase32;
+
+use std::convert::Infallible;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
@@ -17,6 +19,10 @@ const WRAP_FILE_KEY: &str = "wrap-file-key";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
 
 /// The interface that age implementations will use to interact with an age plugin.
+///
+/// Implementations of this trait will be used within the [`recipient-v1`] state machine.
+///
+/// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
 pub trait RecipientPluginV1 {
     /// Stores a recipient that the user would like to encrypt age files to.
     ///
@@ -46,6 +52,27 @@ pub trait RecipientPluginV1 {
         file_keys: Vec<FileKey>,
         callbacks: impl Callbacks<Error>,
     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>>;
+}
+
+impl RecipientPluginV1 for Infallible {
+    fn add_recipient(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn add_identity(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn wrap_file_keys(
+        &mut self,
+        _: Vec<FileKey>,
+        _: impl Callbacks<Error>,
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>> {
+        // This is never executed.
+        Ok(Ok(vec![]))
+    }
 }
 
 /// The interface that age plugins can use to interact with an age implementation.

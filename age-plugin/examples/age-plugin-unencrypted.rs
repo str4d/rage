@@ -6,11 +6,12 @@ use age_plugin::{
     identity::{self, IdentityPluginV1},
     print_new_identity,
     recipient::{self, RecipientPluginV1},
-    run_state_machine, Callbacks,
+    run_state_machine, Callbacks, PluginHandler,
 };
 use clap::Parser;
 
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::env;
 use std::io;
 
@@ -22,6 +23,43 @@ fn explode(location: &str) {
         if s == location {
             panic!("Env variable AGE_EXPLODES={} is set. Boom! 💥", location);
         }
+    }
+}
+
+struct FullHandler;
+
+impl PluginHandler for FullHandler {
+    type RecipientV1 = RecipientPlugin;
+    type IdentityV1 = IdentityPlugin;
+
+    fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
+        Ok(RecipientPlugin)
+    }
+
+    fn identity_v1(self) -> io::Result<Self::IdentityV1> {
+        Ok(IdentityPlugin)
+    }
+}
+
+struct RecipientHandler;
+
+impl PluginHandler for RecipientHandler {
+    type RecipientV1 = RecipientPlugin;
+    type IdentityV1 = Infallible;
+
+    fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
+        Ok(RecipientPlugin)
+    }
+}
+
+struct IdentityHandler;
+
+impl PluginHandler for IdentityHandler {
+    type RecipientV1 = Infallible;
+    type IdentityV1 = IdentityPlugin;
+
+    fn identity_v1(self) -> io::Result<Self::IdentityV1> {
+        Ok(IdentityPlugin)
     }
 }
 
@@ -149,11 +187,15 @@ fn main() -> io::Result<()> {
     let opts = PluginOptions::parse();
 
     if let Some(state_machine) = opts.age_plugin {
-        run_state_machine(
-            &state_machine,
-            Some(|| RecipientPlugin),
-            Some(|| IdentityPlugin),
-        )
+        if let Ok(s) = env::var("AGE_HALF_PLUGIN") {
+            match s.as_str() {
+                "recipient" => run_state_machine(&state_machine, RecipientHandler),
+                "identity" => run_state_machine(&state_machine, IdentityHandler),
+                _ => panic!("Env variable AGE_HALF_PLUGIN={s} has unknown value. Boom! 💥"),
+            }
+        } else {
+            run_state_machine(&state_machine, FullHandler)
+        }
     } else {
         // A real plugin would generate a new identity here.
         print_new_identity(PLUGIN_NAME, &[], &[]);
