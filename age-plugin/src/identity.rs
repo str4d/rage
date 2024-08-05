@@ -18,6 +18,10 @@ const ADD_IDENTITY: &str = "add-identity";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
 
 /// The interface that age implementations will use to interact with an age plugin.
+///
+/// Implementations of this trait will be used within the [`identity-v1`] state machine.
+///
+/// [`identity-v1`]: https://c2sp.org/age-plugin#unwrapping-with-identity-v1
 pub trait IdentityPluginV1 {
     /// Stores an identity that the user would like to use for decrypting age files.
     ///

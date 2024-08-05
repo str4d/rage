@@ -19,6 +19,10 @@ const WRAP_FILE_KEY: &str = "wrap-file-key";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
 
 /// The interface that age implementations will use to interact with an age plugin.
+///
+/// Implementations of this trait will be used within the [`recipient-v1`] state machine.
+///
+/// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
 pub trait RecipientPluginV1 {
     /// Stores a recipient that the user would like to encrypt age files to.
     ///
