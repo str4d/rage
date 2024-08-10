@@ -269,7 +269,8 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     fn round_trip() {
         let pk: x25519::Recipient = TEST_RECIPIENT.parse().unwrap();
         let file_key = [12; 16].into();
-        let wrapped = pk.wrap_file_key(&file_key).unwrap();
+        let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
+        assert!(labels.is_empty());
 
         // Unwrapping with the wrong passphrase fails.
         {

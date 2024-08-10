@@ -1,5 +1,8 @@
 //! The "x25519" recipient type, native to age.
 
+use std::collections::HashSet;
+use std::fmt;
+
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
@@ -8,7 +11,6 @@ use age_core::{
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::{ToBase32, Variant};
 use rand::rngs::OsRng;
-use std::fmt;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
@@ -191,7 +193,10 @@ impl fmt::Debug for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         let rng = OsRng;
         let esk = EphemeralSecret::random_from_rng(rng);
         let epk: PublicKey = (&esk).into();
@@ -220,11 +225,14 @@ impl crate::Recipient for Recipient {
 
         let encoded_epk = BASE64_STANDARD_NO_PAD.encode(epk.as_bytes());
 
-        Ok(vec![Stanza {
-            tag: X25519_RECIPIENT_TAG.to_owned(),
-            args: vec![encoded_epk],
-            body: encrypted_file_key,
-        }])
+        Ok((
+            vec![Stanza {
+                tag: X25519_RECIPIENT_TAG.to_owned(),
+                args: vec![encoded_epk],
+                body: encrypted_file_key,
+            }],
+            HashSet::new(),
+        ))
     }
 }
 
@@ -264,11 +272,13 @@ pub(crate) mod tests {
                 StaticSecret::from(tmp)
             };
 
-            let stanzas = Recipient(PublicKey::from(&sk))
+            let res = Recipient(PublicKey::from(&sk))
                 .wrap_file_key(&file_key);
-            prop_assert!(stanzas.is_ok());
+            prop_assert!(res.is_ok());
+            let (stanzas, labels) = res.unwrap();
+            prop_assert!(labels.is_empty());
 
-            let res = Identity(sk).unwrap_stanzas(&stanzas.unwrap());
+            let res = Identity(sk).unwrap_stanzas(&stanzas);
             prop_assert!(res.is_some());
             let res = res.unwrap();
             prop_assert!(res.is_ok());

@@ -18,6 +18,9 @@ to 1.0.0 are beta releases.
 ### Changed
 - `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
   and `Passphrase` variants.
+- `age::Recipient::wrap_file_key` now returns `(Vec<Stanza>, HashSet<String>)`:
+  a tuple of the stanzas to be placed in an age file header, and labels that
+  constrain how the stanzas may be combined with those from other recipients.
 
 ### Removed
 - `age::decryptor::PassphraseDecryptor` (use `age::Decryptor` with

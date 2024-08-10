@@ -10,6 +10,7 @@ use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Variant;
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fmt;
 use std::io;
 use std::iter;
@@ -377,7 +378,10 @@ impl<C: Callbacks> RecipientPluginV1<C> {
 }
 
 impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
@@ -396,6 +400,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
 
         // Phase 2: collect either stanzas or errors
         let mut stanzas = vec![];
+        let labels = HashSet::new();
         let mut errors = vec![];
         if let Err(e) = conn.bidir_receive(
             &[
@@ -484,7 +489,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             return Err(e.into());
         };
         match (stanzas.is_empty(), errors.is_empty()) {
-            (false, true) => Ok(stanzas),
+            (false, true) => Ok((stanzas, labels)),
             (a, b) => {
                 if a & b {
                     errors.push(PluginError::Other {

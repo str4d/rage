@@ -1,13 +1,20 @@
 //! The "scrypt" passphrase-based recipient type, native to age.
 
+use std::collections::HashSet;
+use std::iter;
+use std::time::Duration;
+
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt},
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use rand::{rngs::OsRng, RngCore};
-use std::time::Duration;
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    rngs::OsRng,
+    RngCore,
+};
 use zeroize::Zeroize;
 
 use crate::{
@@ -107,9 +114,14 @@ impl Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+        let mut rng = OsRng;
+
         let mut salt = [0; SALT_LEN];
-        OsRng.fill_bytes(&mut salt);
+        rng.fill_bytes(&mut salt);
 
         let mut inner_salt = [0; SCRYPT_SALT_LABEL.len() + SALT_LEN];
         inner_salt[..SCRYPT_SALT_LABEL.len()].copy_from_slice(SCRYPT_SALT_LABEL);
@@ -123,11 +135,16 @@ impl crate::Recipient for Recipient {
 
         let encoded_salt = BASE64_STANDARD_NO_PAD.encode(salt);
 
-        Ok(vec![Stanza {
-            tag: SCRYPT_RECIPIENT_TAG.to_owned(),
-            args: vec![encoded_salt, format!("{}", log_n)],
-            body: encrypted_file_key,
-        }])
+        let label = Alphanumeric.sample_string(&mut rng, 32);
+
+        Ok((
+            vec![Stanza {
+                tag: SCRYPT_RECIPIENT_TAG.to_owned(),
+                args: vec![encoded_salt, format!("{}", log_n)],
+                body: encrypted_file_key,
+            }],
+            iter::once(label).collect(),
+        ))
     }
 }
 

@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::fmt;
+
 use age_core::{
     format::{FileKey, Stanza},
     primitives::{aead_encrypt, hkdf},
@@ -18,7 +21,6 @@ use nom::{
 use rand::rngs::OsRng;
 use rsa::{traits::PublicKeyParts, Oaep};
 use sha2::Sha256;
-use std::fmt;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 use super::{
@@ -144,10 +146,13 @@ impl TryFrom<Identity> for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         let mut rng = OsRng;
 
-        match self {
+        let stanzas = match self {
             Recipient::SshRsa(ssh_key, pk) => {
                 let encrypted_file_key = pk
                     .encrypt(
@@ -159,11 +164,11 @@ impl crate::Recipient for Recipient {
 
                 let encoded_tag = BASE64_STANDARD_NO_PAD.encode(ssh_tag(ssh_key));
 
-                Ok(vec![Stanza {
+                vec![Stanza {
                     tag: SSH_RSA_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag],
                     body: encrypted_file_key,
-                }])
+                }]
             }
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
@@ -190,13 +195,15 @@ impl crate::Recipient for Recipient {
                 let encoded_tag = BASE64_STANDARD_NO_PAD.encode(ssh_tag(ssh_key));
                 let encoded_epk = BASE64_STANDARD_NO_PAD.encode(epk.as_bytes());
 
-                Ok(vec![Stanza {
+                vec![Stanza {
                     tag: SSH_ED25519_RECIPIENT_TAG.to_owned(),
                     args: vec![encoded_tag, encoded_epk],
                     body: encrypted_file_key,
-                }])
+                }]
             }
-        }
+        };
+
+        Ok((stanzas, HashSet::new()))
     }
 }
 
