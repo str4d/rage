@@ -301,7 +301,7 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::{
         identity::{IdentityFile, IdentityFileEntry},
-        scrypt, x25519, Identity, Recipient,
+        scrypt, x25519, EncryptError, Identity, Recipient,
     };
 
     #[cfg(feature = "async")]
@@ -509,5 +509,20 @@ mod tests {
             .parse()
             .unwrap();
         recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+    }
+
+    #[test]
+    fn mixed_recipient_and_passphrase() {
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let passphrase = crate::scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+
+        let recipients = vec![Box::new(pk) as _, Box::new(passphrase) as _];
+
+        let mut encrypted = vec![];
+        let e = Encryptor::with_recipients(recipients).unwrap();
+        assert!(matches!(
+            e.wrap_output(&mut encrypted),
+            Err(EncryptError::MixedRecipientAndPassphrase),
+        ));
     }
 }
