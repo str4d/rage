@@ -51,10 +51,11 @@ impl std::error::Error for Error {}
 ///   should explicitly handle.
 pub type Result<T> = io::Result<std::result::Result<T, Error>>;
 
-type UnidirResult<A, B, C, E> = io::Result<(
+type UnidirResult<A, B, C, D, E> = io::Result<(
     std::result::Result<Vec<A>, Vec<E>>,
     std::result::Result<Vec<B>, Vec<E>>,
     Option<std::result::Result<Vec<C>, Vec<E>>>,
+    Option<std::result::Result<Vec<D>, Vec<E>>>,
 )>;
 
 /// A connection to a plugin binary.
@@ -205,23 +206,26 @@ impl<R: Read, W: Write> Connection<R, W> {
     ///
     /// # Arguments
     ///
-    /// `command_a`, `command_b`, and (optionally) `command_c` are the known commands that
-    /// are expected to be received. All other received commands (including grease) will
-    /// be ignored.
-    pub fn unidir_receive<A, B, C, E, F, G, H>(
+    /// `command_a`, `command_b`, and (optionally) `command_c` and `command_d` are the
+    /// known commands that are expected to be received. All other received commands
+    /// (including grease) will be ignored.
+    pub fn unidir_receive<A, B, C, D, E, F, G, H, I>(
         &mut self,
         command_a: (&str, F),
         command_b: (&str, G),
         command_c: (Option<&str>, H),
-    ) -> UnidirResult<A, B, C, E>
+        command_d: (Option<&str>, I),
+    ) -> UnidirResult<A, B, C, D, E>
     where
         F: Fn(Stanza) -> std::result::Result<A, E>,
         G: Fn(Stanza) -> std::result::Result<B, E>,
         H: Fn(Stanza) -> std::result::Result<C, E>,
+        I: Fn(Stanza) -> std::result::Result<D, E>,
     {
         let mut res_a = Ok(vec![]);
         let mut res_b = Ok(vec![]);
         let mut res_c = Ok(vec![]);
+        let mut res_d = Ok(vec![]);
 
         for stanza in iter::repeat_with(|| self.receive()).take_while(|res| match res {
             Ok(stanza) => stanza.tag != COMMAND_DONE,
@@ -251,14 +255,28 @@ impl<R: Read, W: Write> Connection<R, W> {
                 validate(command_a.1(stanza), &mut res_a)
             } else if stanza.tag.as_str() == command_b.0 {
                 validate(command_b.1(stanza), &mut res_b)
-            } else if let Some(tag) = command_c.0 {
-                if stanza.tag.as_str() == tag {
-                    validate(command_c.1(stanza), &mut res_c)
+            } else {
+                if let Some(tag) = command_c.0 {
+                    if stanza.tag.as_str() == tag {
+                        validate(command_c.1(stanza), &mut res_c);
+                        continue;
+                    }
+                }
+                if let Some(tag) = command_d.0 {
+                    if stanza.tag.as_str() == tag {
+                        validate(command_d.1(stanza), &mut res_d);
+                        continue;
+                    }
                 }
             }
         }
 
-        Ok((res_a, res_b, command_c.0.map(|_| res_c)))
+        Ok((
+            res_a,
+            res_b,
+            command_c.0.map(|_| res_c),
+            command_d.0.map(|_| res_d),
+        ))
     }
 
     /// Runs a bidirectional phase as the controller.
@@ -481,9 +499,10 @@ mod tests {
             .unidir_send(|mut phase| phase.send("test", &["foo"], b"bar"))
             .unwrap();
         let stanza = plugin_conn
-            .unidir_receive::<_, (), (), _, _, _, _>(
+            .unidir_receive::<_, (), (), (), _, _, _, _, _>(
                 ("test", Ok),
                 ("other", |_| Err(())),
+                (None, |_| Ok(())),
                 (None, |_| Ok(())),
             )
             .unwrap();
@@ -496,7 +515,8 @@ mod tests {
                     body: b"bar"[..].to_owned()
                 }]),
                 Ok(vec![]),
-                None
+                None,
+                None,
             )
         );
     }

@@ -14,6 +14,13 @@ to 1.0.0 are beta releases.
 - `impl age_plugin::identity::IdentityPluginV1 for std::convert::Infallible`
 - `impl age_plugin::recipient::RecipientPluginV1 for std::convert::Infallible`
 
+### Changed
+- `age_plugin::recipient::RecipientPluginV1` has a new `labels` method. Existing
+  implementations of the trait should either return `HashSet::new()` to maintain
+  existing compatibility, or return labels that apply the desired constraints.
+- `age_plugin::run_state_machine` now supports the `recipient-v1` labels
+  extension.
+
 ### Fixed
 - `age_plugin::run_state_machine` now takes an `impl age_plugin::PluginHandler`
   argument, instead of its previous arguments.
