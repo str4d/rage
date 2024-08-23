@@ -78,7 +78,7 @@
 //! };
 //! use clap::Parser;
 //!
-//! use std::collections::HashMap;
+//! use std::collections::{HashMap, HashSet};
 //! use std::io;
 //!
 //! struct Handler;
@@ -114,6 +114,10 @@
 //!         plugin_name: &str,
 //!         bytes: &[u8]
 //!     ) -> Result<(), recipient::Error> {
+//!         todo!()
+//!     }
+//!
+//!     fn labels(&mut self) -> HashSet<String> {
 //!         todo!()
 //!     }
 //!

@@ -507,7 +507,8 @@ AwQFBg==
 
         let file_key = [12; 16].into();
 
-        let wrapped = pk.wrap_file_key(&file_key).unwrap();
+        let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
+        assert!(labels.is_empty());
         let unwrapped = identity.unwrap_stanzas(&wrapped);
         assert_eq!(
             unwrapped.unwrap().unwrap().expose_secret(),
@@ -533,7 +534,8 @@ AwQFBg==
 
             let file_key = [12; 16].into();
 
-            let wrapped = pk.wrap_file_key(&file_key).unwrap();
+            let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
+            assert!(labels.is_empty());
             let unwrapped = identity.unwrap_stanzas(&wrapped);
             assert_eq!(
                 unwrapped.unwrap().unwrap().expose_secret(),

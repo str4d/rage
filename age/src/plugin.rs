@@ -10,6 +10,7 @@ use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Variant;
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fmt;
 use std::io;
 use std::iter;
@@ -32,6 +33,7 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 
 const CMD_ERROR: &str = "error";
 const CMD_RECIPIENT_STANZA: &str = "recipient-stanza";
+const CMD_LABELS: &str = "labels";
 const CMD_MSG: &str = "msg";
 const CMD_CONFIRM: &str = "confirm";
 const CMD_REQUEST_PUBLIC: &str = "request-public";
@@ -377,7 +379,10 @@ impl<C: Callbacks> RecipientPluginV1<C> {
 }
 
 impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
@@ -391,11 +396,13 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             for identity in &self.identities {
                 phase.send("add-identity", &[&identity.identity], &[])?;
             }
+            phase.send("extension-labels", &[], &[])?;
             phase.send("wrap-file-key", &[], file_key.expose_secret())
         })?;
 
         // Phase 2: collect either stanzas or errors
         let mut stanzas = vec![];
+        let mut labels = None;
         let mut errors = vec![];
         if let Err(e) = conn.bidir_receive(
             &[
@@ -404,6 +411,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                 CMD_REQUEST_PUBLIC,
                 CMD_REQUEST_SECRET,
                 CMD_RECIPIENT_STANZA,
+                CMD_LABELS,
                 CMD_ERROR,
             ],
             |mut command, reply| match command.tag.as_str() {
@@ -459,6 +467,34 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                     }
                     reply.ok(None)
                 }
+                CMD_LABELS => {
+                    if labels.is_none() {
+                        let labels_count = command.args.len();
+                        let label_set = command.args.into_iter().collect::<HashSet<_>>();
+                        if label_set.len() == labels_count {
+                            labels = Some(label_set);
+                        } else {
+                            errors.push(PluginError::Other {
+                                kind: "internal".to_owned(),
+                                metadata: vec![],
+                                message: format!(
+                                    "{} command must not contain duplicate labels",
+                                    CMD_LABELS
+                                ),
+                            });
+                        }
+                    } else {
+                        errors.push(PluginError::Other {
+                            kind: "internal".to_owned(),
+                            metadata: vec![],
+                            message: format!(
+                                "{} command must not be sent more than once",
+                                CMD_LABELS
+                            ),
+                        });
+                    }
+                    reply.ok(None)
+                }
                 CMD_ERROR => {
                     if command.args.len() == 2 && command.args[0] == "recipient" {
                         let index: usize = command.args[1].parse().unwrap();
@@ -484,7 +520,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             return Err(e.into());
         };
         match (stanzas.is_empty(), errors.is_empty()) {
-            (false, true) => Ok(stanzas),
+            (false, true) => Ok((stanzas, labels.unwrap_or_default())),
             (a, b) => {
                 if a & b {
                     errors.push(PluginError::Other {

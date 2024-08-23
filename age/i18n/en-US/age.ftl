@@ -57,6 +57,11 @@ err-header-invalid = Header is invalid
 
 err-header-mac-invalid = Header MAC is invalid
 
+err-incompatible-recipients-oneway = Cannot encrypt to a recipient with labels '{$labels}' alongside a recipient with no labels
+err-incompatible-recipients-twoway = Cannot encrypt to a recipient with labels '{$left}' alongside a recipient with labels '{$right}'
+
+err-invalid-recipient-labels = The first recipient requires one or more invalid labels: '{$labels}'
+
 err-key-decryption = Failed to decrypt an encrypted key
 
 err-mixed-recipient-passphrase = {-scrypt-recipient} can't be used with other recipients.

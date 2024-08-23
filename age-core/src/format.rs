@@ -90,6 +90,16 @@ impl From<AgeStanza<'_>> for Stanza {
     }
 }
 
+/// Checks whether the string is a valid age "arbitrary string" (`1*VCHAR` in ABNF).
+pub fn is_arbitrary_string<S: AsRef<str>>(s: &S) -> bool {
+    let s = s.as_ref();
+    !s.is_empty()
+        && s.chars().all(|c| match u8::try_from(c) {
+            Ok(u) => (33..=126).contains(&u),
+            Err(_) => false,
+        })
+}
+
 /// Creates a random recipient stanza that exercises the joint in the age v1 format.
 ///
 /// This function is guaranteed to return a valid stanza, but makes no other guarantees

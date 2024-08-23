@@ -10,7 +10,7 @@ use age_plugin::{
 };
 use clap::Parser;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::env;
 use std::io;
@@ -102,6 +102,16 @@ impl RecipientPluginV1 for RecipientPlugin {
                 message: "invalid identity".to_owned(),
             })
         }
+    }
+
+    fn labels(&mut self) -> HashSet<String> {
+        let mut labels = HashSet::new();
+        if let Ok(s) = env::var("AGE_PLUGIN_LABELS") {
+            for label in s.split(',') {
+                labels.insert(label.into());
+            }
+        }
+        labels
     }
 
     fn wrap_file_keys(

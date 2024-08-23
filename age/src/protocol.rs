@@ -1,6 +1,6 @@
 //! Encryption and decryption routines for age.
 
-use age_core::secrecy::SecretString;
+use age_core::{format::is_arbitrary_string, secrecy::SecretString};
 use rand::{rngs::OsRng, RngCore};
 use std::io::{self, BufRead, Read, Write};
 
@@ -78,9 +78,34 @@ impl Encryptor {
         let file_key = new_file_key();
 
         let recipients = {
+            let mut control = None;
+
             let mut stanzas = Vec::with_capacity(self.recipients.len() + 1);
             for recipient in self.recipients {
-                stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
+                let (mut r_stanzas, r_labels) = recipient.wrap_file_key(&file_key)?;
+
+                if let Some(l_labels) = control.take() {
+                    if l_labels != r_labels {
+                        // Improve error message.
+                        let err = if stanzas
+                            .iter()
+                            .chain(&r_stanzas)
+                            .any(|stanza| stanza.tag == crate::scrypt::SCRYPT_RECIPIENT_TAG)
+                        {
+                            EncryptError::MixedRecipientAndPassphrase
+                        } else {
+                            EncryptError::IncompatibleRecipients { l_labels, r_labels }
+                        };
+                        return Err(err);
+                    }
+                    control = Some(l_labels);
+                } else if r_labels.iter().all(is_arbitrary_string) {
+                    control = Some(r_labels);
+                } else {
+                    return Err(EncryptError::InvalidRecipientLabels(r_labels));
+                }
+
+                stanzas.append(&mut r_stanzas);
             }
             stanzas
         };
@@ -292,8 +317,10 @@ impl<R: AsyncBufRead + Unpin> Decryptor<R> {
 
 #[cfg(test)]
 mod tests {
-    use age_core::secrecy::SecretString;
+    use std::collections::HashSet;
     use std::io::{BufReader, Read, Write};
+
+    use age_core::secrecy::SecretString;
 
     #[cfg(feature = "ssh")]
     use std::iter;
@@ -301,7 +328,7 @@ mod tests {
     use super::{Decryptor, Encryptor};
     use crate::{
         identity::{IdentityFile, IdentityFileEntry},
-        scrypt, x25519, Identity, Recipient,
+        scrypt, x25519, EncryptError, Identity, Recipient,
     };
 
     #[cfg(feature = "async")]
@@ -509,5 +536,51 @@ mod tests {
             .parse()
             .unwrap();
         recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+    }
+
+    #[test]
+    fn mixed_recipient_and_passphrase() {
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let passphrase = crate::scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+
+        let recipients = vec![Box::new(pk) as _, Box::new(passphrase) as _];
+
+        let mut encrypted = vec![];
+        let e = Encryptor::with_recipients(recipients).unwrap();
+        assert!(matches!(
+            e.wrap_output(&mut encrypted),
+            Err(EncryptError::MixedRecipientAndPassphrase),
+        ));
+    }
+
+    struct IncompatibleRecipient(crate::x25519::Recipient);
+
+    impl Recipient for IncompatibleRecipient {
+        fn wrap_file_key(
+            &self,
+            file_key: &age_core::format::FileKey,
+        ) -> Result<(Vec<age_core::format::Stanza>, HashSet<String>), EncryptError> {
+            self.0.wrap_file_key(file_key).map(|(stanzas, mut labels)| {
+                labels.insert("incompatible".into());
+                (stanzas, labels)
+            })
+        }
+    }
+
+    #[test]
+    fn incompatible_recipients() {
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+
+        let recipients = vec![
+            Box::new(pk.clone()) as _,
+            Box::new(IncompatibleRecipient(pk)) as _,
+        ];
+
+        let mut encrypted = vec![];
+        let e = Encryptor::with_recipients(recipients).unwrap();
+        assert!(matches!(
+            e.wrap_output(&mut encrypted),
+            Err(EncryptError::IncompatibleRecipients { .. }),
+        ));
     }
 }

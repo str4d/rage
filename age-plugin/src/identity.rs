@@ -222,7 +222,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
 
     // Phase 1: receive identities and stanzas
     let (identities, recipient_stanzas) = {
-        let (identities, stanzas, _) = conn.unidir_receive(
+        let (identities, stanzas, _, _) = conn.unidir_receive(
             (ADD_IDENTITY, |s| match (&s.args[..], &s.body[..]) {
                 ([identity], []) => Ok(identity.clone()),
                 _ => Err(Error::Internal {
@@ -254,6 +254,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                     })
                 }
             }),
+            (None, |_| Ok(())),
             (None, |_| Ok(())),
         )?;
 

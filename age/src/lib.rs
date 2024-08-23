@@ -136,6 +136,8 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
+use std::collections::HashSet;
+
 // Re-export crates that are used in our public API.
 pub use age_core::secrecy;
 
@@ -222,7 +224,9 @@ pub trait Identity {
 ///
 /// Implementations of this trait might represent more than one recipient.
 pub trait Recipient {
-    /// Wraps the given file key, returning stanzas to be placed in an age file header.
+    /// Wraps the given file key, returning stanzas to be placed in an age file header,
+    /// and labels that constrain how the stanzas may be combined with those from other
+    /// recipients.
     ///
     /// Implementations MUST NOT return more than one stanza per "actual recipient".
     ///
@@ -231,7 +235,38 @@ pub trait Recipient {
     /// recipients to [`Encryptor::with_recipients`].
     ///
     /// [one joint]: https://www.imperialviolet.org/2016/05/16/agility.html
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError>;
+    ///
+    /// # Labels
+    ///
+    /// [`Encryptor`] will succeed at encrypting only if every recipient returns the same
+    /// set of labels. Subsets or partial overlapping sets are not allowed; all sets must
+    /// be identical. Labels are compared exactly, and are case-sensitive.
+    ///
+    /// Label sets can be used to ensure a recipient is only encrypted to alongside other
+    /// recipients with equivalent properties, or to ensure a recipient is always used
+    /// alone. A recipient with no particular properties to enforce should return an empty
+    /// label set.
+    ///
+    /// Labels can have any value that is a valid arbitrary string (`1*VCHAR` in ABNF),
+    /// but usually take one of several forms:
+    ///   - *Common public label* - used by multiple recipients to permit their stanzas to
+    ///     be used only together. Examples include:
+    ///     - `postquantum` - indicates that the recipient stanzas being generated are
+    ///       postquantum-secure, and that they can only be combined with other stanzas
+    ///       that are also postquantum-secure.
+    ///   - *Common private label* - used by recipients created by the same private entity
+    ///     to permit their recipient stanzas to be used only together. For example,
+    ///     private recipients used in a corporate environment could all send the same
+    ///     private label in order to prevent compliant age clients from simultaneously
+    ///     wrapping file keys with other recipients.
+    ///   - *Random label* - used by recipients that want to ensure their stanzas are not
+    ///     used with any other recipient stanzas. This can be used to produce a file key
+    ///     that is only encrypted to a single recipient stanza, for example to preserve
+    ///     its authentication properties.
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError>;
 }
 
 /// Callbacks that might be triggered during encryption or decryption.
