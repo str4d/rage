@@ -1,7 +1,10 @@
 use std::fmt;
 use std::io;
 
-use crate::{wfl, wlnfl, DecryptError};
+use crate::{wfl, DecryptError};
+
+#[cfg(feature = "plugin")]
+use crate::wlnfl;
 
 /// Errors that can occur while reading recipients or identities.
 #[derive(Debug)]

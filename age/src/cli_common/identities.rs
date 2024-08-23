@@ -1,10 +1,10 @@
 use std::io::{self, BufReader};
 
-use super::{file_io::InputReader, ReadError, StdinGuard, UiCallbacks};
+use super::{ReadError, StdinGuard, UiCallbacks};
 use crate::{identity::IdentityFile, Identity};
 
 #[cfg(feature = "armor")]
-use crate::armor::ArmoredReader;
+use crate::{armor::ArmoredReader, cli_common::file_io::InputReader};
 
 /// Reads identities from the provided files.
 ///
@@ -23,10 +23,12 @@ pub fn read_identities(
         max_work_factor,
         stdin_guard,
         &mut identities,
+        #[cfg(feature = "armor")]
         |identities, identity| {
             identities.push(Box::new(identity));
             Ok(())
         },
+        #[cfg(feature = "ssh")]
         |identities, _, identity| {
             identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
             Ok(())
@@ -62,7 +64,7 @@ pub fn read_identities(
 /// Parses the provided identity files.
 pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     filenames: Vec<String>,
-    max_work_factor: Option<u8>,
+    _max_work_factor: Option<u8>,
     stdin_guard: &mut StdinGuard,
     ctx: &mut Ctx,
     #[cfg(feature = "armor")] encrypted_identity: impl Fn(
@@ -73,6 +75,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
+        #[cfg_attr(not(any(feature = "armor", feature = "ssh")), allow(unused_mut))]
         let mut reader = PeekableReader::new(BufReader::new(
             stdin_guard.open(filename.clone()).map_err(|e| match e {
                 ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
@@ -88,7 +91,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
             ArmoredReader::new_buffered(&mut reader),
             Some(filename.clone()),
             UiCallbacks,
-            max_work_factor,
+            _max_work_factor,
         )
         .is_ok()
         {
@@ -101,7 +104,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
                 ArmoredReader::new_buffered(reader.inner),
                 Some(filename.clone()),
                 UiCallbacks,
-                max_work_factor,
+                _max_work_factor,
             )
             .expect("already parsed the age ciphertext header");
 
@@ -160,6 +163,7 @@ impl<R: io::BufRead> PeekableReader<R> {
         }
     }
 
+    #[cfg(any(feature = "armor", feature = "ssh"))]
     fn reset(&mut self) -> io::Result<()> {
         match &mut self.state {
             PeekState::Peeking { consumed } => {
