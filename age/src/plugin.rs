@@ -190,7 +190,7 @@ impl Identity {
 }
 
 /// An age plugin.
-struct Plugin {
+pub(crate) struct Plugin {
     binary_name: String,
     path: PathBuf,
 }
@@ -199,7 +199,7 @@ impl Plugin {
     /// Finds the age plugin with the given name in `$PATH`.
     ///
     /// On error, returns the binary name that could not be located.
-    fn new(name: &str) -> Result<Self, String> {
+    pub(crate) fn new(name: &str) -> Result<Self, String> {
         let binary_name = binary_name(name);
         match which::which(&binary_name).or_else(|e| {
             // If we are running in WSL, try appending `.exe`; plugins installed in
@@ -565,15 +565,22 @@ impl<C: Callbacks> IdentityPluginV1<C> {
     ) -> Result<Self, DecryptError> {
         Plugin::new(plugin_name)
             .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
-            .map(|plugin| IdentityPluginV1 {
-                plugin,
-                identities: identities
+            .map(|plugin| {
+                let identities = identities
                     .iter()
                     .filter(|r| r.name == plugin_name)
                     .cloned()
-                    .collect(),
-                callbacks,
+                    .collect();
+                Self::from_parts(plugin, identities, callbacks)
             })
+    }
+
+    pub(crate) fn from_parts(plugin: Plugin, identities: Vec<Identity>, callbacks: C) -> Self {
+        IdentityPluginV1 {
+            plugin,
+            identities,
+            callbacks,
+        }
     }
 
     fn unwrap_stanzas<'a>(

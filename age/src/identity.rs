@@ -29,11 +29,13 @@ impl IdentityFileEntry {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
-            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::IdentityPluginV1::new(
-                i.plugin(),
-                &[i.clone()],
-                callbacks,
-            )?)),
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(
+                crate::plugin::Plugin::new(i.plugin())
+                    .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                    .map(|plugin| {
+                        crate::plugin::IdentityPluginV1::from_parts(plugin, vec![i], callbacks)
+                    })?,
+            )),
         }
     }
 
