@@ -210,13 +210,15 @@ pub fn read_recipients(
             recipients.push(recipient);
             Ok(())
         },
-        |recipients, entry| {
-            #[cfg(feature = "plugin")]
-            let (recipients, plugin_identities) = recipients;
-            match entry {
-                IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
+        |recipients, identity_file| {
+            for entry in identity_file.into_identities() {
                 #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
+                let (recipients, plugin_identities) = recipients;
+                match entry {
+                    IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
+                    #[cfg(feature = "plugin")]
+                    IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
+                }
             }
             Ok(())
         },
