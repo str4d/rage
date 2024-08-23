@@ -16,6 +16,7 @@ to 1.0.0 are beta releases.
 - Partial French translation!
 
 ### Changed
+- Migrated to `i18n-embed 0.15`.
 - `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
   and `Passphrase` variants.
 - `age::Recipient::wrap_file_key` now returns `(Vec<Stanza>, HashSet<String>)`:

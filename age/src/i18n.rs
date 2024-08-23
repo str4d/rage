@@ -16,7 +16,7 @@ lazy_static! {
         // Ensure that the fallback language is always loaded, even if the library user
         // doesn't call `localizer().select(languages)`.
         let fallback: LanguageIdentifier = "en-US".parse().unwrap();
-        language_loader.load_languages(&Localizations, &[&fallback]).unwrap();
+        language_loader.load_languages(&Localizations, &[fallback]).unwrap();
         language_loader
     };
 }
