@@ -105,10 +105,6 @@ criteria = "safe-to-deploy"
 version = "0.9.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.bitflags]]
-version = "1.3.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.block]]
 version = "0.1.6"
 criteria = "safe-to-deploy"
@@ -217,10 +213,6 @@ criteria = "safe-to-deploy"
 version = "0.2.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.crc32fast]]
-version = "1.3.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.criterion]]
 version = "0.3.6"
 criteria = "safe-to-run"
@@ -292,10 +284,6 @@ criteria = "safe-to-deploy"
 [[exemptions.findshlibs]]
 version = "0.10.2"
 criteria = "safe-to-run"
-
-[[exemptions.flate2]]
-version = "1.0.28"
-criteria = "safe-to-deploy"
 
 [[exemptions.fluent]]
 version = "0.16.1"
@@ -451,10 +439,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.minimal-lexical]]
 version = "0.2.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.miniz_oxide]]
-version = "0.7.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.nix]]
@@ -883,10 +867,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.x25519-dalek]]
 version = "2.0.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.xattr]]
-version = "1.3.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.zerocopy]]
