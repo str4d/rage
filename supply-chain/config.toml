@@ -97,6 +97,10 @@ criteria = "safe-to-run"
 version = "1.6.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.basic-toml]]
+version = "0.1.9"
+criteria = "safe-to-deploy"
+
 [[exemptions.bcrypt-pbkdf]]
 version = "0.10.0"
 criteria = "safe-to-deploy"
@@ -250,7 +254,7 @@ version = "0.1.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.dashmap]]
-version = "5.5.3"
+version = "6.0.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.der]]
@@ -370,15 +374,15 @@ version = "1.1.1"
 criteria = "safe-to-run"
 
 [[exemptions.i18n-config]]
-version = "0.4.5"
+version = "0.4.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed]]
-version = "0.14.1"
+version = "0.15.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-fl]]
-version = "0.8.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-impl]]
@@ -391,7 +395,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.indexmap]]
 version = "2.4.0"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.inferno]]
 version = "0.11.17"
@@ -675,7 +679,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.serde_spanned]]
 version = "0.6.3"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.sha1]]
 version = "0.10.6"
@@ -720,6 +724,10 @@ criteria = "safe-to-deploy"
 [[exemptions.str_stack]]
 version = "0.1.0"
 criteria = "safe-to-run"
+
+[[exemptions.strsim]]
+version = "0.11.1"
+criteria = "safe-to-deploy"
 
 [[exemptions.symbolic-common]]
 version = "12.10.0"
@@ -781,13 +789,9 @@ criteria = "safe-to-run"
 version = "0.5.9"
 criteria = "safe-to-deploy"
 
-[[exemptions.toml]]
-version = "0.7.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.toml_edit]]
 version = "0.19.14"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.trycmd]]
 version = "0.14.16"
@@ -871,7 +875,7 @@ criteria = "safe-to-deploy"
 
 [[exemptions.winnow]]
 version = "0.5.40"
-criteria = "safe-to-deploy"
+criteria = "safe-to-run"
 
 [[exemptions.wsl]]
 version = "0.1.0"
