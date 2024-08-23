@@ -25,6 +25,12 @@ const LABELS: &str = "labels";
 ///
 /// Implementations of this trait will be used within the [`recipient-v1`] state machine.
 ///
+/// The trait methods are always called in this order:
+/// - [`Self::add_recipient`] / [`Self::add_identity`] (in any order, including
+///   potentially interleaved).
+/// - [`Self::labels`] (once all recipients and identities have been added).
+/// - [`Self::wrap_file_keys`]
+///
 /// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
 pub trait RecipientPluginV1 {
     /// Stores a recipient that the user would like to encrypt age files to.
