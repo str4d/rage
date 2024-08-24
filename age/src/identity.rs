@@ -140,6 +140,87 @@ impl IdentityFile {
     }
 }
 
+pub(crate) struct RecipientsAccumulator {
+    recipients: Vec<Box<dyn crate::Recipient + Send>>,
+    #[cfg(feature = "plugin")]
+    plugin_recipients: Vec<plugin::Recipient>,
+    #[cfg(feature = "plugin")]
+    plugin_identities: Vec<plugin::Identity>,
+}
+
+impl RecipientsAccumulator {
+    pub(crate) fn new() -> Self {
+        Self {
+            recipients: vec![],
+            #[cfg(feature = "plugin")]
+            plugin_recipients: vec![],
+            #[cfg(feature = "plugin")]
+            plugin_identities: vec![],
+        }
+    }
+
+    #[cfg(feature = "cli-common")]
+    pub(crate) fn push(&mut self, recipient: Box<dyn crate::Recipient + Send>) {
+        self.recipients.push(recipient);
+    }
+
+    #[cfg(feature = "plugin")]
+    pub(crate) fn push_plugin(&mut self, recipient: plugin::Recipient) {
+        self.plugin_recipients.push(recipient);
+    }
+
+    #[cfg(feature = "armor")]
+    pub(crate) fn extend(
+        &mut self,
+        iter: impl IntoIterator<Item = Box<dyn crate::Recipient + Send>>,
+    ) {
+        self.recipients.extend(iter);
+    }
+
+    #[cfg(feature = "cli-common")]
+    pub(crate) fn with_identities(&mut self, identity_file: IdentityFile) {
+        for entry in identity_file.identities {
+            match entry {
+                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i),
+            }
+        }
+    }
+
+    #[cfg_attr(not(feature = "plugin"), allow(unused_mut))]
+    pub(crate) fn build(
+        mut self,
+        #[cfg(feature = "plugin")] callbacks: impl Callbacks,
+    ) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
+        #[cfg(feature = "plugin")]
+        {
+            // Collect the names of the required plugins.
+            let mut plugin_names = self
+                .plugin_recipients
+                .iter()
+                .map(|r| r.plugin())
+                .chain(self.plugin_identities.iter().map(|i| i.plugin()))
+                .collect::<Vec<_>>();
+            plugin_names.sort_unstable();
+            plugin_names.dedup();
+
+            // Find the required plugins.
+            for plugin_name in plugin_names {
+                self.recipients
+                    .push(Box::new(plugin::RecipientPluginV1::new(
+                        plugin_name,
+                        &self.plugin_recipients,
+                        &self.plugin_identities,
+                        callbacks.clone(),
+                    )?))
+            }
+        }
+
+        Ok(self.recipients)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use age_core::secrecy::ExposeSecret;
