@@ -134,6 +134,23 @@ impl IdentityFile {
         Ok(IdentityFile { identities })
     }
 
+    /// Returns recipients for the identities in this file.
+    ///
+    /// Plugin identities will be merged into one [`Recipient`] per unique plugin.
+    ///
+    /// [`Recipient`]: crate::Recipient
+    pub fn to_recipients(
+        &self,
+        callbacks: impl Callbacks,
+    ) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
+        let mut recipients = RecipientsAccumulator::new();
+        recipients.with_identities_ref(self);
+        recipients.build(
+            #[cfg(feature = "plugin")]
+            callbacks,
+        )
+    }
+
     /// Returns the identities in this file.
     pub fn into_identities(self) -> Vec<IdentityFileEntry> {
         self.identities
@@ -184,6 +201,16 @@ impl RecipientsAccumulator {
                 IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
                 #[cfg(feature = "plugin")]
                 IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i),
+            }
+        }
+    }
+
+    pub(crate) fn with_identities_ref(&mut self, identity_file: &IdentityFile) {
+        for entry in &identity_file.identities {
+            match entry {
+                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i.clone()),
             }
         }
     }

@@ -11,6 +11,7 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
+- `age::IdentityFile::to_recipients`
 - `age::scrypt`, providing recipient and identity types for passphrase-based
   encryption.
 - Partial French translation!
