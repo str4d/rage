@@ -38,23 +38,6 @@ impl IdentityFileEntry {
             )),
         }
     }
-
-    #[allow(unused_variables)]
-    pub(crate) fn to_recipient(
-        &self,
-        callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Recipient + Send>, EncryptError> {
-        match self {
-            IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
-            #[cfg(feature = "plugin")]
-            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::RecipientPluginV1::new(
-                i.plugin(),
-                &[],
-                &[i.clone()],
-                callbacks,
-            )?)),
-        }
-    }
 }
 
 /// A list of identities that has been parsed from some input file.
@@ -149,6 +132,16 @@ impl IdentityFile {
             #[cfg(feature = "plugin")]
             callbacks,
         )
+    }
+
+    /// Returns the identities in this file.
+    pub(crate) fn to_identities(
+        &self,
+        callbacks: impl Callbacks,
+    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
+        self.identities
+            .iter()
+            .map(|entry| entry.clone().into_identity(callbacks.clone()))
     }
 
     /// Returns the identities in this file.

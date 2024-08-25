@@ -2,9 +2,7 @@
 
 use std::{cell::Cell, io};
 
-use crate::{
-    fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile, IdentityFileEntry,
-};
+use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
 
 /// The state of the encrypted age identity.
 enum IdentityState<R: io::Read> {
@@ -12,7 +10,7 @@ enum IdentityState<R: io::Read> {
         decryptor: Decryptor<R>,
         max_work_factor: Option<u8>,
     },
-    Decrypted(Vec<IdentityFileEntry>),
+    Decrypted(IdentityFile),
 
     /// The file was not correctly encrypted, or did not contain age identities. We cache
     /// this error in case the caller tries to use this identity again. The `Option` is to
@@ -36,7 +34,7 @@ impl<R: io::Read> IdentityState<R> {
         self,
         filename: Option<&str>,
         callbacks: C,
-    ) -> Result<(Vec<IdentityFileEntry>, bool), DecryptError> {
+    ) -> Result<(IdentityFile, bool), DecryptError> {
         match self {
             Self::Encrypted {
                 decryptor,
@@ -66,10 +64,10 @@ impl<R: io::Read> IdentityState<R> {
                     })
                     .and_then(|stream| {
                         let file = IdentityFile::from_buffer(io::BufReader::new(stream))?;
-                        Ok((file.into_identities(), true))
+                        Ok((file, true))
                     })
             }
-            Self::Decrypted(identities) => Ok((identities, false)),
+            Self::Decrypted(identity_file) => Ok((identity_file, false)),
             // `IdentityState::decrypt` is only ever called with `Some`.
             Self::Poisoned(e) => Err(e.unwrap()),
         }
@@ -117,13 +115,9 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
             .take()
             .decrypt(self.filename.as_deref(), self.callbacks.clone())
         {
-            Ok((identities, _)) => {
-                let recipients = identities
-                    .iter()
-                    .map(|entry| entry.to_recipient(self.callbacks.clone()))
-                    .collect::<Result<Vec<_>, _>>();
-
-                self.state.set(IdentityState::Decrypted(identities));
+            Ok((identity_file, _)) => {
+                let recipients = identity_file.to_recipients(self.callbacks.clone());
+                self.state.set(IdentityState::Decrypted(identity_file));
                 recipients
             }
             Err(e) => {
@@ -158,10 +152,9 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
             .take()
             .decrypt(self.filename.as_deref(), self.callbacks.clone())
         {
-            Ok((identities, requested_passphrase)) => {
-                let result = identities
-                    .iter()
-                    .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
+            Ok((identity_file, requested_passphrase)) => {
+                let result = identity_file
+                    .to_identities(self.callbacks.clone())
                     .find_map(filter);
 
                 // If we requested a passphrase to decrypt, and none of the identities
@@ -173,7 +166,7 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
                     ));
                 }
 
-                self.state.set(IdentityState::Decrypted(identities));
+                self.state.set(IdentityState::Decrypted(identity_file));
                 result
             }
             Err(e) => {
