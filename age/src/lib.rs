@@ -306,6 +306,29 @@ pub trait Callbacks: Clone + Send + Sync + 'static {
     fn request_passphrase(&self, description: &str) -> Option<SecretString>;
 }
 
+/// An implementation of [`Callbacks`] that does not allow callbacks.
+///
+/// No user interaction will occur; [`Recipient`] or [`Identity`] implementations will
+/// receive `None` from the callbacks that return responses, and will act accordingly.
+#[derive(Clone, Copy, Debug)]
+pub struct NoCallbacks;
+
+impl Callbacks for NoCallbacks {
+    fn display_message(&self, _: &str) {}
+
+    fn confirm(&self, _: &str, _: &str, _: Option<&str>) -> Option<bool> {
+        None
+    }
+
+    fn request_public_string(&self, _: &str) -> Option<String> {
+        None
+    }
+
+    fn request_passphrase(&self, _: &str) -> Option<SecretString> {
+        None
+    }
+}
+
 /// Helper for fuzzing the Header parser and serializer.
 #[cfg(fuzzing)]
 pub fn fuzz_header(data: &[u8]) {

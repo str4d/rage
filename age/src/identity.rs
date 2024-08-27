@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 
-use crate::{x25519, Callbacks, DecryptError, EncryptError};
+use crate::{x25519, Callbacks, DecryptError, EncryptError, NoCallbacks};
 
 #[cfg(feature = "cli-common")]
 use crate::cli_common::file_io::InputReader;
@@ -41,11 +41,12 @@ impl IdentityFileEntry {
 }
 
 /// A list of identities that has been parsed from some input file.
-pub struct IdentityFile {
+pub struct IdentityFile<C: Callbacks> {
     identities: Vec<IdentityFileEntry>,
+    pub(crate) callbacks: C,
 }
 
-impl IdentityFile {
+impl IdentityFile<NoCallbacks> {
     /// Parses one or more identities from a file containing valid UTF-8.
     pub fn from_file(filename: String) -> io::Result<Self> {
         File::open(&filename)
@@ -114,7 +115,21 @@ impl IdentityFile {
             }
         }
 
-        Ok(IdentityFile { identities })
+        Ok(IdentityFile {
+            identities,
+            callbacks: NoCallbacks,
+        })
+    }
+}
+
+impl<C: Callbacks> IdentityFile<C> {
+    /// Sets the provided callbacks on this identity file, so that if this is an encrypted
+    /// identity, it can potentially be decrypted.
+    pub fn with_callbacks<D: Callbacks>(self, callbacks: D) -> IdentityFile<D> {
+        IdentityFile {
+            identities: self.identities,
+            callbacks,
+        }
     }
 
     /// Returns recipients for the identities in this file.
@@ -122,26 +137,22 @@ impl IdentityFile {
     /// Plugin identities will be merged into one [`Recipient`] per unique plugin.
     ///
     /// [`Recipient`]: crate::Recipient
-    pub fn to_recipients(
-        &self,
-        callbacks: impl Callbacks,
-    ) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
+    pub fn to_recipients(&self) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
         let mut recipients = RecipientsAccumulator::new();
         recipients.with_identities_ref(self);
         recipients.build(
             #[cfg(feature = "plugin")]
-            callbacks,
+            self.callbacks.clone(),
         )
     }
 
     /// Returns the identities in this file.
     pub(crate) fn to_identities(
         &self,
-        callbacks: impl Callbacks,
     ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
         self.identities
             .iter()
-            .map(|entry| entry.clone().into_identity(callbacks.clone()))
+            .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
     }
 
     /// Returns the identities in this file.
@@ -188,7 +199,7 @@ impl RecipientsAccumulator {
     }
 
     #[cfg(feature = "cli-common")]
-    pub(crate) fn with_identities(&mut self, identity_file: IdentityFile) {
+    pub(crate) fn with_identities<C: Callbacks>(&mut self, identity_file: IdentityFile<C>) {
         for entry in identity_file.identities {
             match entry {
                 IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
@@ -198,7 +209,7 @@ impl RecipientsAccumulator {
         }
     }
 
-    pub(crate) fn with_identities_ref(&mut self, identity_file: &IdentityFile) {
+    pub(crate) fn with_identities_ref<C: Callbacks>(&mut self, identity_file: &IdentityFile<C>) {
         for entry in &identity_file.identities {
             match entry {
                 IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),

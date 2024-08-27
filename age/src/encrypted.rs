@@ -5,12 +5,13 @@ use std::{cell::Cell, io};
 use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
 
 /// The state of the encrypted age identity.
-enum IdentityState<R: io::Read> {
+enum IdentityState<R: io::Read, C: Callbacks> {
     Encrypted {
         decryptor: Decryptor<R>,
         max_work_factor: Option<u8>,
+        callbacks: C,
     },
-    Decrypted(IdentityFile),
+    Decrypted(IdentityFile<C>),
 
     /// The file was not correctly encrypted, or did not contain age identities. We cache
     /// this error in case the caller tries to use this identity again. The `Option` is to
@@ -19,26 +20,23 @@ enum IdentityState<R: io::Read> {
     Poisoned(Option<DecryptError>),
 }
 
-impl<R: io::Read> Default for IdentityState<R> {
+impl<R: io::Read, C: Callbacks> Default for IdentityState<R, C> {
     fn default() -> Self {
         Self::Poisoned(None)
     }
 }
 
-impl<R: io::Read> IdentityState<R> {
+impl<R: io::Read, C: Callbacks> IdentityState<R, C> {
     /// Decrypts this encrypted identity if necessary.
     ///
     /// Returns the (possibly cached) identities, and a boolean marking if the identities
     /// were not cached (and we just asked the user for a passphrase).
-    fn decrypt<C: Callbacks>(
-        self,
-        filename: Option<&str>,
-        callbacks: C,
-    ) -> Result<(IdentityFile, bool), DecryptError> {
+    fn decrypt(self, filename: Option<&str>) -> Result<(IdentityFile<C>, bool), DecryptError> {
         match self {
             Self::Encrypted {
                 decryptor,
                 max_work_factor,
+                callbacks,
             } => {
                 let passphrase = match callbacks.request_passphrase(&fl!(
                     "encrypted-passphrase-prompt",
@@ -63,7 +61,8 @@ impl<R: io::Read> IdentityState<R> {
                         }
                     })
                     .and_then(|stream| {
-                        let file = IdentityFile::from_buffer(io::BufReader::new(stream))?;
+                        let file = IdentityFile::from_buffer(io::BufReader::new(stream))?
+                            .with_callbacks(callbacks);
                         Ok((file, true))
                     })
             }
@@ -76,9 +75,8 @@ impl<R: io::Read> IdentityState<R> {
 
 /// An encrypted age identity file.
 pub struct Identity<R: io::Read, C: Callbacks> {
-    state: Cell<IdentityState<R>>,
+    state: Cell<IdentityState<R, C>>,
     filename: Option<String>,
-    callbacks: C,
 }
 
 impl<R: io::Read, C: Callbacks> Identity<R, C> {
@@ -99,9 +97,9 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
             state: Cell::new(IdentityState::Encrypted {
                 decryptor,
                 max_work_factor,
+                callbacks,
             }),
             filename,
-            callbacks,
         }))
     }
 
@@ -110,13 +108,9 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
     /// If this encrypted identity has not been decrypted yet, calling this method will
     /// trigger a passphrase request.
     pub fn recipients(&self) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
-        match self
-            .state
-            .take()
-            .decrypt(self.filename.as_deref(), self.callbacks.clone())
-        {
+        match self.state.take().decrypt(self.filename.as_deref()) {
             Ok((identity_file, _)) => {
-                let recipients = identity_file.to_recipients(self.callbacks.clone());
+                let recipients = identity_file.to_recipients();
                 self.state.set(IdentityState::Decrypted(identity_file));
                 recipients
             }
@@ -147,20 +141,14 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
             Result<Box<dyn crate::Identity>, DecryptError>,
         ) -> Option<Result<age_core::format::FileKey, DecryptError>>,
     {
-        match self
-            .state
-            .take()
-            .decrypt(self.filename.as_deref(), self.callbacks.clone())
-        {
+        match self.state.take().decrypt(self.filename.as_deref()) {
             Ok((identity_file, requested_passphrase)) => {
-                let result = identity_file
-                    .to_identities(self.callbacks.clone())
-                    .find_map(filter);
+                let result = identity_file.to_identities().find_map(filter);
 
                 // If we requested a passphrase to decrypt, and none of the identities
                 // matched, warn the user.
                 if requested_passphrase && result.is_none() {
-                    self.callbacks.display_message(&fl!(
+                    identity_file.callbacks.display_message(&fl!(
                         "encrypted-warn-no-match",
                         filename = self.filename.as_deref().unwrap_or_default()
                     ));

@@ -74,7 +74,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         crate::encrypted::Identity<ArmoredReader<BufReader<InputReader>>, UiCallbacks>,
     ) -> Result<(), E>,
     #[cfg(feature = "ssh")] ssh_identity: impl Fn(&mut Ctx, &str, crate::ssh::Identity) -> Result<(), E>,
-    identity_file: impl Fn(&mut Ctx, crate::IdentityFile) -> Result<(), E>,
+    identity_file: impl Fn(&mut Ctx, crate::IdentityFile<UiCallbacks>) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
         #[cfg_attr(not(any(feature = "armor", feature = "ssh")), allow(unused_mut))]
@@ -137,7 +137,10 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         reader.reset()?;
 
         // Try parsing as multiple single-line age identities.
-        identity_file(ctx, IdentityFile::from_buffer(reader)?)?;
+        identity_file(
+            ctx,
+            IdentityFile::from_buffer(reader)?.with_callbacks(UiCallbacks),
+        )?;
     }
 
     Ok(())

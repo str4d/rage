@@ -12,6 +12,8 @@ to 1.0.0 are beta releases.
 ### Added
 - `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
 - `age::IdentityFile::to_recipients`
+- `age::IdentityFile::with_callbacks`
+- `age::NoCallbacks`
 - `age::scrypt`, providing recipient and identity types for passphrase-based
   encryption.
 - Partial French translation!
@@ -20,6 +22,8 @@ to 1.0.0 are beta releases.
 - Migrated to `i18n-embed 0.15`.
 - `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
   and `Passphrase` variants.
+- `age::IdentityFile` now has a `C: Callbacks` generic parameter, which defaults
+  to `NoCallbacks`.
 - `age::Recipient::wrap_file_key` now returns `(Vec<Stanza>, HashSet<String>)`:
   a tuple of the stanzas to be placed in an age file header, and labels that
   constrain how the stanzas may be combined with those from other recipients.
