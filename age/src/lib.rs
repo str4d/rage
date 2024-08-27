@@ -278,6 +278,9 @@ pub trait Callbacks: Clone + Send + Sync + 'static {
     ///
     /// This can be used to prompt the user to take some physical action, such as
     /// inserting a hardware key.
+    ///
+    /// No guarantee is provided that the user sees this message (for example, if there is
+    /// no UI for displaying messages).
     fn display_message(&self, message: &str);
 
     /// Requests that the user provides confirmation for some action.
@@ -300,9 +303,19 @@ pub trait Callbacks: Clone + Send + Sync + 'static {
     /// Requests non-private input from the user.
     ///
     /// To request private inputs, use [`Callbacks::request_passphrase`].
+    ///
+    /// Returns:
+    /// - `Some(input)` with the user-provided input.
+    /// - `None` if no input could be requested from the user (for example, if there is no
+    ///   UI for displaying messages or typing inputs).
     fn request_public_string(&self, description: &str) -> Option<String>;
 
     /// Requests a passphrase to decrypt a key.
+    ///
+    /// Returns:
+    /// - `Some(passphrase)` with the user-provided passphrase.
+    /// - `None` if no passphrase could be requested from the user (for example, if there
+    ///   is no UI for displaying messages or typing inputs).
     fn request_passphrase(&self, description: &str) -> Option<SecretString>;
 }
 
