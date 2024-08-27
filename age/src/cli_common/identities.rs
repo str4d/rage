@@ -33,11 +33,11 @@ pub fn read_identities(
             identities.push(Box::new(identity.with_callbacks(UiCallbacks)));
             Ok(())
         },
-        |identities, entry| {
-            let entry = entry.into_identity(UiCallbacks);
+        |identities, identity_file| {
+            let new_identities = identity_file.into_identities();
 
             #[cfg(feature = "plugin")]
-            let entry = entry.map_err(|e| match e {
+            let new_identities = new_identities.map_err(|e| match e {
                 #[cfg(feature = "plugin")]
                 crate::DecryptError::MissingPlugin { binary_name } => {
                     ReadError::MissingPlugin { binary_name }
@@ -50,9 +50,9 @@ pub fn read_identities(
             // IdentityFileEntry::into_identity will never return a MissingPlugin error
             // when plugin feature is not enabled.
             #[cfg(not(feature = "plugin"))]
-            let entry = entry.unwrap();
+            let new_identities = new_identities.unwrap();
 
-            identities.push(entry);
+            identities.extend(new_identities);
 
             Ok(())
         },
@@ -72,7 +72,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         crate::encrypted::Identity<ArmoredReader<BufReader<InputReader>>, UiCallbacks>,
     ) -> Result<(), E>,
     #[cfg(feature = "ssh")] ssh_identity: impl Fn(&mut Ctx, &str, crate::ssh::Identity) -> Result<(), E>,
-    identity_file_entry: impl Fn(&mut Ctx, crate::IdentityFileEntry) -> Result<(), E>,
+    identity_file: impl Fn(&mut Ctx, crate::IdentityFile<UiCallbacks>) -> Result<(), E>,
 ) -> Result<(), E> {
     for filename in filenames {
         #[cfg_attr(not(any(feature = "armor", feature = "ssh")), allow(unused_mut))]
@@ -135,11 +135,10 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         reader.reset()?;
 
         // Try parsing as multiple single-line age identities.
-        let identity_file = IdentityFile::from_buffer(reader)?;
-
-        for entry in identity_file.into_identities() {
-            identity_file_entry(ctx, entry)?;
-        }
+        identity_file(
+            ctx,
+            IdentityFile::from_buffer(reader)?.with_callbacks(UiCallbacks),
+        )?;
     }
 
     Ok(())

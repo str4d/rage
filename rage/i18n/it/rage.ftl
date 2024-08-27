@@ -145,14 +145,6 @@ err-ux-B = Faccelo sapere
 # Put (len(A) - len(B) - 32) spaces here.
 err-ux-C = {"                 "}
 
-## Keygen errors
-
-err-identity-file-contains-plugin = Il file '{$filename}' contiene identità per '{-age-plugin-}{$plugin_name}'.
-rec-identity-file-contains-plugin = Prova a usare '{-age-plugin-}{$plugin_name}' per convertire questa identità in destinatario.
-
-err-no-identities-in-file = Nessuna identità trovata nel file '{$filename}'.
-err-no-identities-in-stdin = Nessuna identità trovata tramite standard input.
-
 ## Encryption errors
 
 err-enc-broken-stdout = Impossibile scrivere sullo standard output: {$err}

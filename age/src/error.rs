@@ -9,6 +9,72 @@ use crate::{wfl, wlnfl};
 #[cfg(feature = "plugin")]
 use age_core::format::Stanza;
 
+/// Errors returned when converting an identity file to a recipients file.
+#[derive(Debug)]
+pub enum IdentityFileConvertError {
+    /// An I/O error occurred while writing out a recipient corresponding to an identity
+    /// in this file.
+    FailedToWriteOutput(io::Error),
+    /// The identity file contains a plugin identity, which can be converted to a
+    /// recipient for encryption purposes, but not for writing a recipients file.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    IdentityFileContainsPlugin {
+        /// The given identity file.
+        filename: Option<String>,
+        /// The name of the plugin.
+        plugin_name: String,
+    },
+    /// The identity file contains no identities, and thus cannot be used to produce a
+    /// recipients file.
+    NoIdentities {
+        /// The given identity file.
+        filename: Option<String>,
+    },
+}
+
+impl fmt::Display for IdentityFileConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IdentityFileConvertError::FailedToWriteOutput(e) => {
+                wfl!(f, "err-failed-to-write-output", err = e.to_string())
+            }
+            #[cfg(feature = "plugin")]
+            IdentityFileConvertError::IdentityFileContainsPlugin {
+                filename,
+                plugin_name,
+            } => {
+                wlnfl!(
+                    f,
+                    "err-identity-file-contains-plugin",
+                    filename = filename.as_deref().unwrap_or_default(),
+                    plugin_name = plugin_name.as_str(),
+                )?;
+                wfl!(
+                    f,
+                    "rec-identity-file-contains-plugin",
+                    plugin_name = plugin_name.as_str(),
+                )
+            }
+            IdentityFileConvertError::NoIdentities { filename } => match filename {
+                Some(filename) => {
+                    wfl!(f, "err-no-identities-in-file", filename = filename.as_str())
+                }
+                None => wfl!(f, "err-no-identities-in-stdin"),
+            },
+        }
+    }
+}
+
+impl std::error::Error for IdentityFileConvertError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            IdentityFileConvertError::FailedToWriteOutput(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
 /// Errors returned by a plugin.
 #[cfg(feature = "plugin")]
 #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]

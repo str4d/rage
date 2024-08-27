@@ -326,10 +326,7 @@ mod tests {
     use std::iter;
 
     use super::{Decryptor, Encryptor};
-    use crate::{
-        identity::{IdentityFile, IdentityFileEntry},
-        scrypt, x25519, EncryptError, Identity, Recipient,
-    };
+    use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -445,11 +442,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             vec![Box::new(pk)],
-            f.into_identities().iter().map(|sk| match sk {
-                IdentityFileEntry::Native(sk) => sk as &dyn Identity,
-                #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(_) => unreachable!(),
-            }),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
 
@@ -461,11 +454,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             vec![Box::new(pk)],
-            f.into_identities().iter().map(|sk| match sk {
-                IdentityFileEntry::Native(sk) => sk as &dyn Identity,
-                #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(_) => unreachable!(),
-            }),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
 

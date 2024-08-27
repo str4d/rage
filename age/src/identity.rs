@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 
-use crate::{x25519, Callbacks, DecryptError, EncryptError};
+use crate::{x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks};
 
 #[cfg(feature = "cli-common")]
 use crate::cli_common::file_io::InputReader;
@@ -11,7 +11,7 @@ use crate::plugin;
 
 /// The supported kinds of identities within an [`IdentityFile`].
 #[derive(Clone)]
-pub enum IdentityFileEntry {
+enum IdentityFileEntry {
     /// The standard age identity type.
     Native(x25519::Identity),
     /// A plugin-compatible identity.
@@ -29,38 +29,25 @@ impl IdentityFileEntry {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
-            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::IdentityPluginV1::new(
-                i.plugin(),
-                &[i.clone()],
-                callbacks,
-            )?)),
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub(crate) fn to_recipient(
-        &self,
-        callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Recipient + Send>, EncryptError> {
-        match self {
-            IdentityFileEntry::Native(i) => Ok(Box::new(i.to_public())),
-            #[cfg(feature = "plugin")]
-            IdentityFileEntry::Plugin(i) => Ok(Box::new(crate::plugin::RecipientPluginV1::new(
-                i.plugin(),
-                &[],
-                &[i.clone()],
-                callbacks,
-            )?)),
+            IdentityFileEntry::Plugin(i) => Ok(Box::new(
+                crate::plugin::Plugin::new(i.plugin())
+                    .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                    .map(|plugin| {
+                        crate::plugin::IdentityPluginV1::from_parts(plugin, vec![i], callbacks)
+                    })?,
+            )),
         }
     }
 }
 
 /// A list of identities that has been parsed from some input file.
-pub struct IdentityFile {
+pub struct IdentityFile<C: Callbacks> {
+    filename: Option<String>,
     identities: Vec<IdentityFileEntry>,
+    pub(crate) callbacks: C,
 }
 
-impl IdentityFile {
+impl IdentityFile<NoCallbacks> {
     /// Parses one or more identities from a file containing valid UTF-8.
     pub fn from_file(filename: String) -> io::Result<Self> {
         File::open(&filename)
@@ -129,12 +116,177 @@ impl IdentityFile {
             }
         }
 
-        Ok(IdentityFile { identities })
+        Ok(IdentityFile {
+            filename,
+            identities,
+            callbacks: NoCallbacks,
+        })
+    }
+}
+
+impl<C: Callbacks> IdentityFile<C> {
+    /// Sets the provided callbacks on this identity file, so that if this is an encrypted
+    /// identity, it can potentially be decrypted.
+    pub fn with_callbacks<D: Callbacks>(self, callbacks: D) -> IdentityFile<D> {
+        IdentityFile {
+            filename: self.filename,
+            identities: self.identities,
+            callbacks,
+        }
+    }
+
+    /// Writes a recipients file containing the recipients corresponding to the identities
+    /// in this file.
+    ///
+    /// Returns an error if this file is empty, or if it contains plugin identities (which
+    /// can only be converted by the plugin binary itself).
+    pub fn write_recipients_file<W: io::Write>(
+        &self,
+        mut output: W,
+    ) -> Result<(), IdentityFileConvertError> {
+        if self.identities.is_empty() {
+            return Err(IdentityFileConvertError::NoIdentities {
+                filename: self.filename.clone(),
+            });
+        }
+
+        for identity in &self.identities {
+            match identity {
+                IdentityFileEntry::Native(sk) => writeln!(output, "{}", sk.to_public())
+                    .map_err(IdentityFileConvertError::FailedToWriteOutput)?,
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(id) => {
+                    return Err(IdentityFileConvertError::IdentityFileContainsPlugin {
+                        filename: self.filename.clone(),
+                        plugin_name: id.plugin().to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Returns recipients for the identities in this file.
+    ///
+    /// Plugin identities will be merged into one [`Recipient`] per unique plugin.
+    ///
+    /// [`Recipient`]: crate::Recipient
+    pub fn to_recipients(&self) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
+        let mut recipients = RecipientsAccumulator::new();
+        recipients.with_identities_ref(self);
+        recipients.build(
+            #[cfg(feature = "plugin")]
+            self.callbacks.clone(),
+        )
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Vec<IdentityFileEntry> {
+    pub(crate) fn to_identities(
+        &self,
+    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
         self.identities
+            .iter()
+            .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
+    }
+
+    /// Returns the identities in this file.
+    pub fn into_identities(self) -> Result<Vec<Box<dyn crate::Identity>>, DecryptError> {
+        self.identities
+            .into_iter()
+            .map(|entry| entry.into_identity(self.callbacks.clone()))
+            .collect()
+    }
+}
+
+pub(crate) struct RecipientsAccumulator {
+    recipients: Vec<Box<dyn crate::Recipient + Send>>,
+    #[cfg(feature = "plugin")]
+    plugin_recipients: Vec<plugin::Recipient>,
+    #[cfg(feature = "plugin")]
+    plugin_identities: Vec<plugin::Identity>,
+}
+
+impl RecipientsAccumulator {
+    pub(crate) fn new() -> Self {
+        Self {
+            recipients: vec![],
+            #[cfg(feature = "plugin")]
+            plugin_recipients: vec![],
+            #[cfg(feature = "plugin")]
+            plugin_identities: vec![],
+        }
+    }
+
+    #[cfg(feature = "cli-common")]
+    pub(crate) fn push(&mut self, recipient: Box<dyn crate::Recipient + Send>) {
+        self.recipients.push(recipient);
+    }
+
+    #[cfg(feature = "plugin")]
+    pub(crate) fn push_plugin(&mut self, recipient: plugin::Recipient) {
+        self.plugin_recipients.push(recipient);
+    }
+
+    #[cfg(feature = "armor")]
+    pub(crate) fn extend(
+        &mut self,
+        iter: impl IntoIterator<Item = Box<dyn crate::Recipient + Send>>,
+    ) {
+        self.recipients.extend(iter);
+    }
+
+    #[cfg(feature = "cli-common")]
+    pub(crate) fn with_identities<C: Callbacks>(&mut self, identity_file: IdentityFile<C>) {
+        for entry in identity_file.identities {
+            match entry {
+                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i),
+            }
+        }
+    }
+
+    pub(crate) fn with_identities_ref<C: Callbacks>(&mut self, identity_file: &IdentityFile<C>) {
+        for entry in &identity_file.identities {
+            match entry {
+                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i.clone()),
+            }
+        }
+    }
+
+    #[cfg_attr(not(feature = "plugin"), allow(unused_mut))]
+    pub(crate) fn build(
+        mut self,
+        #[cfg(feature = "plugin")] callbacks: impl Callbacks,
+    ) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
+        #[cfg(feature = "plugin")]
+        {
+            // Collect the names of the required plugins.
+            let mut plugin_names = self
+                .plugin_recipients
+                .iter()
+                .map(|r| r.plugin())
+                .chain(self.plugin_identities.iter().map(|i| i.plugin()))
+                .collect::<Vec<_>>();
+            plugin_names.sort_unstable();
+            plugin_names.dedup();
+
+            // Find the required plugins.
+            for plugin_name in plugin_names {
+                self.recipients
+                    .push(Box::new(plugin::RecipientPluginV1::new(
+                        plugin_name,
+                        &self.plugin_recipients,
+                        &self.plugin_identities,
+                        callbacks.clone(),
+                    )?))
+            }
+        }
+
+        Ok(self.recipients)
     }
 }
 
