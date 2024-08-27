@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 
-use crate::{x25519, Callbacks, DecryptError, EncryptError, NoCallbacks};
+use crate::{x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks};
 
 #[cfg(feature = "cli-common")]
 use crate::cli_common::file_io::InputReader;
@@ -11,7 +11,7 @@ use crate::plugin;
 
 /// The supported kinds of identities within an [`IdentityFile`].
 #[derive(Clone)]
-pub enum IdentityFileEntry {
+enum IdentityFileEntry {
     /// The standard age identity type.
     Native(x25519::Identity),
     /// A plugin-compatible identity.
@@ -42,6 +42,7 @@ impl IdentityFileEntry {
 
 /// A list of identities that has been parsed from some input file.
 pub struct IdentityFile<C: Callbacks> {
+    filename: Option<String>,
     identities: Vec<IdentityFileEntry>,
     pub(crate) callbacks: C,
 }
@@ -116,6 +117,7 @@ impl IdentityFile<NoCallbacks> {
         }
 
         Ok(IdentityFile {
+            filename,
             identities,
             callbacks: NoCallbacks,
         })
@@ -127,9 +129,42 @@ impl<C: Callbacks> IdentityFile<C> {
     /// identity, it can potentially be decrypted.
     pub fn with_callbacks<D: Callbacks>(self, callbacks: D) -> IdentityFile<D> {
         IdentityFile {
+            filename: self.filename,
             identities: self.identities,
             callbacks,
         }
+    }
+
+    /// Writes a recipients file containing the recipients corresponding to the identities
+    /// in this file.
+    ///
+    /// Returns an error if this file is empty, or if it contains plugin identities (which
+    /// can only be converted by the plugin binary itself).
+    pub fn write_recipients_file<W: io::Write>(
+        &self,
+        mut output: W,
+    ) -> Result<(), IdentityFileConvertError> {
+        if self.identities.is_empty() {
+            return Err(IdentityFileConvertError::NoIdentities {
+                filename: self.filename.clone(),
+            });
+        }
+
+        for identity in &self.identities {
+            match identity {
+                IdentityFileEntry::Native(sk) => writeln!(output, "{}", sk.to_public())
+                    .map_err(IdentityFileConvertError::FailedToWriteOutput)?,
+                #[cfg(feature = "plugin")]
+                IdentityFileEntry::Plugin(id) => {
+                    return Err(IdentityFileConvertError::IdentityFileContainsPlugin {
+                        filename: self.filename.clone(),
+                        plugin_name: id.plugin().to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Returns recipients for the identities in this file.
@@ -156,8 +191,11 @@ impl<C: Callbacks> IdentityFile<C> {
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Vec<IdentityFileEntry> {
+    pub fn into_identities(self) -> Result<Vec<Box<dyn crate::Identity>>, DecryptError> {
         self.identities
+            .into_iter()
+            .map(|entry| entry.into_identity(self.callbacks.clone()))
+            .collect()
     }
 }
 

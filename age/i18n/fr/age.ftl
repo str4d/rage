@@ -46,6 +46,16 @@ rec-deny-binary-output = Est-ce que vous vouliez utiliser {-flag-armor}? {rec-de
 
 err-deny-overwrite-file = refus d'écraser le fichier existant '{$filename}'.
 
+## Identity file errors
+
+err-failed-to-write-output = Echec d'écriture vers la sortie: {$err}
+
+err-identity-file-contains-plugin = Le ficher d'identité '{$filename}' contient des identités pour '{-age-plugin-}{$plugin_name}'.
+rec-identity-file-contains-plugin = Essayez d'utiliser {-age-plugin-}{$plugin_name}' pour convertir cette identité en un destinataire.
+
+err-no-identities-in-file = Aucune identité trouvée dans le fichier '{$filename}'.
+err-no-identities-in-stdin = Aucune identité trouvée dans l'entrée standard (stdin).
+
 ## Errors
 
 err-decryption-failed = Echec du déchiffrement

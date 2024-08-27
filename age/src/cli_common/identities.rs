@@ -34,27 +34,25 @@ pub fn read_identities(
             Ok(())
         },
         |identities, identity_file| {
-            for entry in identity_file.into_identities() {
-                let entry = entry.into_identity(UiCallbacks);
+            let new_identities = identity_file.into_identities();
 
+            #[cfg(feature = "plugin")]
+            let new_identities = new_identities.map_err(|e| match e {
                 #[cfg(feature = "plugin")]
-                let entry = entry.map_err(|e| match e {
-                    #[cfg(feature = "plugin")]
-                    crate::DecryptError::MissingPlugin { binary_name } => {
-                        ReadError::MissingPlugin { binary_name }
-                    }
-                    // DecryptError::MissingPlugin is the only possible error kind returned by
-                    // IdentityFileEntry::into_identity.
-                    _ => unreachable!(),
-                })?;
+                crate::DecryptError::MissingPlugin { binary_name } => {
+                    ReadError::MissingPlugin { binary_name }
+                }
+                // DecryptError::MissingPlugin is the only possible error kind returned by
+                // IdentityFileEntry::into_identity.
+                _ => unreachable!(),
+            })?;
 
-                // IdentityFileEntry::into_identity will never return a MissingPlugin error
-                // when plugin feature is not enabled.
-                #[cfg(not(feature = "plugin"))]
-                let entry = entry.unwrap();
+            // IdentityFileEntry::into_identity will never return a MissingPlugin error
+            // when plugin feature is not enabled.
+            #[cfg(not(feature = "plugin"))]
+            let new_identities = new_identities.unwrap();
 
-                identities.push(entry);
-            }
+            identities.extend(new_identities);
 
             Ok(())
         },

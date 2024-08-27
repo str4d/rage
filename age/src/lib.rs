@@ -149,8 +149,8 @@ mod primitives;
 mod protocol;
 mod util;
 
-pub use error::{DecryptError, EncryptError};
-pub use identity::{IdentityFile, IdentityFileEntry};
+pub use error::{DecryptError, EncryptError, IdentityFileConvertError};
+pub use identity::IdentityFile;
 pub use primitives::stream;
 pub use protocol::{Decryptor, Encryptor};
 

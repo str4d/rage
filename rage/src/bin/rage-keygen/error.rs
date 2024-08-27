@@ -1,6 +1,8 @@
 use std::fmt;
 use std::io;
 
+use age::IdentityFileConvertError;
+
 macro_rules! wlnfl {
     ($f:ident, $message_id:literal) => {
         writeln!($f, "{}", $crate::fl!($message_id))
@@ -16,13 +18,7 @@ pub(crate) enum Error {
     FailedToOpenOutput(io::Error),
     FailedToReadInput(io::Error),
     FailedToWriteOutput(io::Error),
-    IdentityFileContainsPlugin {
-        filename: Option<String>,
-        plugin_name: String,
-    },
-    NoIdentities {
-        filename: Option<String>,
-    },
+    IdentityFileConvert(IdentityFileConvertError),
 }
 
 // Rust only supports `fn main() -> Result<(), E: Debug>`, so we implement `Debug`
@@ -42,28 +38,7 @@ impl fmt::Debug for Error {
             Error::FailedToWriteOutput(e) => {
                 wlnfl!(f, "err-failed-to-write-output", err = e.to_string())?
             }
-            Error::IdentityFileContainsPlugin {
-                filename,
-                plugin_name,
-            } => {
-                wlnfl!(
-                    f,
-                    "err-identity-file-contains-plugin",
-                    filename = filename.as_deref().unwrap_or_default(),
-                    plugin_name = plugin_name.as_str(),
-                )?;
-                wlnfl!(
-                    f,
-                    "rec-identity-file-contains-plugin",
-                    plugin_name = plugin_name.as_str(),
-                )?
-            }
-            Error::NoIdentities { filename } => match filename {
-                Some(filename) => {
-                    wlnfl!(f, "err-no-identities-in-file", filename = filename.as_str())?
-                }
-                None => wlnfl!(f, "err-no-identities-in-stdin")?,
-            },
+            Error::IdentityFileConvert(e) => writeln!(f, "{e}")?,
         }
         writeln!(f)?;
         writeln!(f, "[ {} ]", crate::fl!("err-ux-A"))?;

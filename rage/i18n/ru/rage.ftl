@@ -147,14 +147,6 @@ err-ux-B = Сообщите нам
 # Поставьте здесь пробелы (len(A) - len(B) - 32).
 err-ux-C = {"                     "}
 
-## Keygen errors
-
-err-identity-file-contains-plugin = Файл идентификации '{$filename}' содержит идентификаторы для '{-age-plugin-}{$plugin_name}'.
-rec-identity-file-contains-plugin = Попробуйте использовать '{-age-plugin-}{$plugin_name}' для преобразования этого идентификатора в получателя.
-
-err-no-identities-in-file = Идентификаторы в файле '{$filename}' не найдены.
-err-no-identities-in-stdin = Идентификаторы в стандартном вводе не найдены.
-
 ## Encryption errors
 
 err-enc-broken-stdout = Не удалось записать в stdout: {$err}

@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
 - `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
 - `age::IdentityFile::to_recipients`
 - `age::IdentityFile::with_callbacks`
+- `age::IdentityFile::write_recipients_file`
+- `age::IdentityFileConvertError`
 - `age::NoCallbacks`
 - `age::scrypt`, providing recipient and identity types for passphrase-based
   encryption.
@@ -24,6 +26,9 @@ to 1.0.0 are beta releases.
   and `Passphrase` variants.
 - `age::IdentityFile` now has a `C: Callbacks` generic parameter, which defaults
   to `NoCallbacks`.
+- `age::IdentityFile::into_identities` now returns
+  `Result<Vec<Box<dyn crate::Identity>>, DecryptError>` instead of
+  `Vec<IdentityFileEntry>`.
 - `age::Recipient::wrap_file_key` now returns `(Vec<Stanza>, HashSet<String>)`:
   a tuple of the stanzas to be placed in an age file header, and labels that
   constrain how the stanzas may be combined with those from other recipients.
@@ -33,6 +38,7 @@ to 1.0.0 are beta releases.
 - `age::decryptor::PassphraseDecryptor` (use `age::Decryptor` with
   `age::scrypt::Identity` instead).
 - `age::decryptor::RecipientsDecryptor` (use `age::Decryptor` instead).
+- `age::IdentityFileEntry`
 
 ## [0.10.0] - 2024-02-04
 ### Added
