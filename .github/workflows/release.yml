@@ -143,7 +143,6 @@ jobs:
           - ubuntu-22.04
           - windows-2019
           - windows-2022
-          - macos-11
           - macos-12
           - macos-13
           - macos-14
@@ -168,11 +167,6 @@ jobs:
             name: windows
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
-
-          - os: macos-11
-            name: macos
-            archive_name: rage.tar.gz
-            asset_suffix: x86_64-darwin.tar.gz
 
           - os: macos-12
             name: macos
