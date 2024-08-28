@@ -36,7 +36,7 @@ pub(crate) struct AgeOptions {
     #[arg(short, long)]
     #[arg(value_name = fl!("output"))]
     #[arg(help = fl!("keygen-help-flag-output"))]
-    #[arg(value_hint = ValueHint::AnyPath)]
+    #[arg(value_hint = ValueHint::DirPath)]
     pub(crate) output: Option<String>,
 
     #[arg(short = 'y')]
