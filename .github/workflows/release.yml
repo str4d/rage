@@ -141,6 +141,7 @@ jobs:
         os:
           - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-24.04
           - windows-2019
           - windows-2022
           - macos-12
@@ -154,6 +155,11 @@ jobs:
             asset_suffix: x86_64-linux.tar.gz
 
           - os: ubuntu-22.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: ubuntu-24.04
             name: linux
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
