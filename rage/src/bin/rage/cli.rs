@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use clap::{builder::{Styles, ValueHint}, ArgAction, Parser};
+use clap::{
+    builder::{Styles, ValueHint},
+    ArgAction, Parser,
+};
 
 use crate::fl;
 
