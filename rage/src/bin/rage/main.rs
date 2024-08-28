@@ -108,6 +108,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
         (Format::Binary, file_io::OutputFormat::Binary)
     };
 
+    #[cfg(not(unix))]
     let has_file_argument = opts.input.is_some();
 
     let (input, output) = set_up_io(opts.input, opts.output, output_format)?;
@@ -134,8 +135,13 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             return Err(error::EncryptError::MixedRecipientsFileAndPassphrase);
         }
 
-        if !has_file_argument {
-            return Err(error::EncryptError::PassphraseWithoutFileArgument);
+        // The `rpassword` crate opens `/dev/tty` directly on Unix, so we don't have
+        // any conflict with stdin.
+        #[cfg(not(unix))]
+        {
+            if !has_file_argument {
+                return Err(error::EncryptError::PassphraseWithoutFileArgument);
+            }
         }
 
         match read_or_generate_passphrase() {

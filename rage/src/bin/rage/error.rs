@@ -23,7 +23,10 @@ macro_rules! wlnfl {
 
 pub(crate) enum EncryptError {
     Age(age::EncryptError),
-    BrokenPipe { is_stdout: bool, source: io::Error },
+    BrokenPipe {
+        is_stdout: bool,
+        source: io::Error,
+    },
     IdentityRead(age::cli_common::ReadError),
     Io(io::Error),
     MissingRecipients,
@@ -31,6 +34,7 @@ pub(crate) enum EncryptError {
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
+    #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
     PluginNameFlag,
 }
@@ -84,6 +88,7 @@ impl fmt::Display for EncryptError {
                 wfl!(f, "err-enc-mixed-recipients-file-passphrase")
             }
             EncryptError::PassphraseTimedOut => wfl!(f, "err-passphrase-timed-out"),
+            #[cfg(not(unix))]
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }
