@@ -1,4 +1,12 @@
 #[test]
 fn cli_tests() {
-    trycmd::TestCases::new().case("tests/cmd/*/*.toml");
+    let tests = trycmd::TestCases::new();
+
+    tests.case("tests/cmd/*/*.toml");
+
+    #[cfg(unix)]
+    tests.case("tests/unix/*/*.toml");
+
+    #[cfg(not(unix))]
+    tests.case("tests/windows/*/*.toml");
 }

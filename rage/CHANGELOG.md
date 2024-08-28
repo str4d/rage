@@ -12,6 +12,10 @@ to 1.0.0 are beta releases.
 ### Added
 - Partial French translation!
 
+### Fixed
+- [Unix] Files can now be encrypted with `rage --passphrase` when piped over
+  stdin, without requiring an explicit `-` argument as `INPUT`.
+
 ## [0.10.0] - 2024-02-04
 ### Added
 - Russian translation!
