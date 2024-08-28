@@ -17,7 +17,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        name: [linux, armv7, arm64, windows, macos]
+        name:
+          - linux
+          - armv7
+          - arm64
+          - windows
+          - macos-x86_64
+
         include:
           - name: linux
             os: ubuntu-20.04
@@ -56,8 +62,8 @@ jobs:
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
 
-          - name: macos
-            os: macos-latest
+          - name: macos-x86_64
+            os: macos-13
             archive_name: rage.tar.gz
             asset_suffix: x86_64-darwin.tar.gz
 
