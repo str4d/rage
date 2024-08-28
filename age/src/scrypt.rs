@@ -196,13 +196,13 @@ impl Identity {
         }
     }
 
-    /// Sets the maximum accepted scrypt work factor to `2^max_work_factor`.
+    /// Sets the maximum accepted scrypt work factor to `N = 2^max_log_n`.
     ///
     /// This method must be called before [`Self::unwrap_stanza`] to have an effect.
     ///
     /// [`Self::unwrap_stanza`]: crate::Identity::unwrap_stanza
-    pub fn set_max_work_factor(&mut self, max_work_factor: u8) {
-        self.max_work_factor = max_work_factor;
+    pub fn set_max_work_factor(&mut self, max_log_n: u8) {
+        self.max_work_factor = max_log_n;
     }
 }
 
