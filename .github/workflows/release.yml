@@ -11,13 +11,25 @@ on:
         required: true
         default: 'true'
 
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+
 jobs:
   build:
     name: Publish for ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        name: [linux, armv7, arm64, windows, macos]
+        name:
+          - linux
+          - armv7
+          - arm64
+          - windows
+          - macos-arm64
+          - macos-x86_64
+
         include:
           - name: linux
             os: ubuntu-20.04
@@ -56,8 +68,13 @@ jobs:
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
 
-          - name: macos
+          - name: macos-arm64
             os: macos-latest
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-darwin.tar.gz
+
+          - name: macos-x86_64
+            os: macos-13
             archive_name: rage.tar.gz
             asset_suffix: x86_64-darwin.tar.gz
 
@@ -101,6 +118,11 @@ jobs:
         shell: bash
         if: matrix.name == 'windows'
 
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'release/rage/*'
+
       - name: Upload archive as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -129,11 +151,12 @@ jobs:
         os:
           - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-24.04
           - windows-2019
           - windows-2022
-          - macos-11
           - macos-12
           - macos-13
+          - macos-14
 
         include:
           - os: ubuntu-20.04
@@ -142,6 +165,11 @@ jobs:
             asset_suffix: x86_64-linux.tar.gz
 
           - os: ubuntu-22.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: ubuntu-24.04
             name: linux
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
@@ -156,11 +184,6 @@ jobs:
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
 
-          - os: macos-11
-            name: macos
-            archive_name: rage.tar.gz
-            asset_suffix: x86_64-darwin.tar.gz
-
           - os: macos-12
             name: macos
             archive_name: rage.tar.gz
@@ -170,6 +193,11 @@ jobs:
             name: macos
             archive_name: rage.tar.gz
             asset_suffix: x86_64-darwin.tar.gz
+
+          - os: macos-14
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-darwin.tar.gz
 
     steps:
       - name: Download archive
@@ -280,6 +308,11 @@ jobs:
 
       - name: cargo deb
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'target/${{ matrix.target }}/debian/*.deb'
 
       - name: Upload Debian package as artifact
         uses: actions/upload-artifact@v4
