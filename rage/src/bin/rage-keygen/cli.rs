@@ -1,4 +1,7 @@
-use clap::{builder::Styles, ArgAction, Parser};
+use clap::{
+    builder::{Styles, ValueHint},
+    ArgAction, Parser,
+};
 
 use crate::fl;
 
@@ -22,6 +25,7 @@ pub(crate) struct AgeOptions {
     #[arg(help_heading = fl!("args-header"))]
     #[arg(value_name = fl!("input"))]
     #[arg(help = fl!("help-arg-input"))]
+    #[arg(value_hint = ValueHint::FilePath)]
     pub(crate) input: Option<String>,
 
     #[arg(action = ArgAction::Help, short, long)]
@@ -35,6 +39,7 @@ pub(crate) struct AgeOptions {
     #[arg(short, long)]
     #[arg(value_name = fl!("output"))]
     #[arg(help = fl!("keygen-help-flag-output"))]
+    #[arg(value_hint = ValueHint::DirPath)]
     pub(crate) output: Option<String>,
 
     #[arg(short = 'y')]
