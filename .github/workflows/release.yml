@@ -11,6 +11,11 @@ on:
         required: true
         default: 'true'
 
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+
 jobs:
   build:
     name: Publish for ${{ matrix.name }}
@@ -112,6 +117,11 @@ jobs:
           7z.exe a ../${{ matrix.archive_name }} rage/
         shell: bash
         if: matrix.name == 'windows'
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'release/rage/*'
 
       - name: Upload archive as artifact
         uses: actions/upload-artifact@v4
@@ -298,6 +308,11 @@ jobs:
 
       - name: cargo deb
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'target/${{ matrix.target }}/debian/*.deb'
 
       - name: Upload Debian package as artifact
         uses: actions/upload-artifact@v4
