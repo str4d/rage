@@ -462,8 +462,12 @@ mod tests {
     fn scrypt_round_trip() {
         let test_msg = b"This is a test message. For testing.";
 
+        let mut recipient = scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+        // Override to something very fast for testing.
+        recipient.set_work_factor(2);
+
         let mut encrypted = vec![];
-        let e = Encryptor::with_user_passphrase(SecretString::new("passphrase".to_string()));
+        let e = Encryptor::with_recipients(vec![Box::new(recipient)]).unwrap();
         {
             let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();

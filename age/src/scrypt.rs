@@ -104,12 +104,33 @@ fn target_scrypt_work_factor() -> u8 {
 /// [`x25519::Identity`]: crate::x25519::Identity
 pub struct Recipient {
     passphrase: SecretString,
+    log_n: u8,
 }
 
 impl Recipient {
     /// Constructs a new `Recipient` with the given passphrase.
+    ///
+    /// The scrypt work factor is picked to target about 1 second for encryption or
+    /// decryption on this device. Override it with [`Self::set_work_factor`].
     pub fn new(passphrase: SecretString) -> Self {
-        Self { passphrase }
+        Self {
+            passphrase,
+            log_n: target_scrypt_work_factor(),
+        }
+    }
+
+    /// Sets the scrypt work factor to `N = 2^log_n`.
+    ///
+    /// This method must be called before [`Self::wrap_file_key`] to have an effect.
+    ///
+    /// [`Self::wrap_file_key`]: crate::Recipient::wrap_file_key
+    ///
+    /// # Panics
+    ///
+    /// Panics if `log_n == 0` or `log_n >= 64`.
+    pub fn set_work_factor(&mut self, log_n: u8) {
+        assert!(0 < log_n && log_n < 64);
+        self.log_n = log_n;
     }
 }
 
@@ -127,10 +148,8 @@ impl crate::Recipient for Recipient {
         inner_salt[..SCRYPT_SALT_LABEL.len()].copy_from_slice(SCRYPT_SALT_LABEL);
         inner_salt[SCRYPT_SALT_LABEL.len()..].copy_from_slice(&salt);
 
-        let log_n = target_scrypt_work_factor();
-
         let enc_key =
-            scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
+            scrypt(&inner_salt, self.log_n, self.passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
         let encoded_salt = BASE64_STANDARD_NO_PAD.encode(salt);
@@ -140,7 +159,7 @@ impl crate::Recipient for Recipient {
         Ok((
             vec![Stanza {
                 tag: SCRYPT_RECIPIENT_TAG.to_owned(),
-                args: vec![encoded_salt, format!("{}", log_n)],
+                args: vec![encoded_salt, format!("{}", self.log_n)],
                 body: encrypted_file_key,
             }],
             iter::once(label).collect(),
@@ -177,13 +196,13 @@ impl Identity {
         }
     }
 
-    /// Sets the maximum accepted scrypt work factor to `2^max_work_factor`.
+    /// Sets the maximum accepted scrypt work factor to `N = 2^max_log_n`.
     ///
     /// This method must be called before [`Self::unwrap_stanza`] to have an effect.
     ///
     /// [`Self::unwrap_stanza`]: crate::Identity::unwrap_stanza
-    pub fn set_max_work_factor(&mut self, max_work_factor: u8) {
-        self.max_work_factor = max_work_factor;
+    pub fn set_max_work_factor(&mut self, max_log_n: u8) {
+        self.max_work_factor = max_log_n;
     }
 }
 
