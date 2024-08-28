@@ -34,6 +34,11 @@ to 1.0.0 are beta releases.
   constrain how the stanzas may be combined with those from other recipients.
 - `age::plugin::RecipientPluginV1` now supports the labels extension.
 
+### Fixed
+- `age::cli_common::read_identities` once again correctly parses identity files
+  that are a single line without a trailing newline. This broke in 0.10.0 due to
+  an unrelated refactor.
+
 ### Removed
 - `age::decryptor::PassphraseDecryptor` (use `age::Decryptor` with
   `age::scrypt::Identity` instead).

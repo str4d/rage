@@ -76,14 +76,17 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
 ) -> Result<(), E> {
     for filename in filenames {
         #[cfg_attr(not(any(feature = "armor", feature = "ssh")), allow(unused_mut))]
-        let mut reader = PeekableReader::new(BufReader::new(
-            stdin_guard.open(filename.clone()).map_err(|e| match e {
+        let mut reader =
+            PeekableReader::new(stdin_guard.open(filename.clone()).map_err(|e| match e {
                 ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
                     ReadError::IdentityNotFound(filename.clone())
                 }
                 _ => e,
-            })?,
-        ));
+            })?);
+
+        // Note to future self: the order in which we try parsing formats here is critical
+        // to the correct behaviour of `PeekableReader::fill_buf`. See the comments in
+        // that method.
 
         #[cfg(feature = "armor")]
         // Try parsing as an encrypted age identity.
@@ -144,20 +147,28 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
     Ok(())
 }
 
+/// Same as default buffer size for `BufReader`, but hard-coded so we know exactly what
+/// the buffer size is, and therefore can detect if the entire file fits into a single
+/// buffer.
+///
+/// This must be at least 71 bytes to ensure the correct behaviour of
+/// `PeekableReader::fill_buf`. See the comments in that method.
+const PEEKABLE_SIZE: usize = 8 * 1024;
+
 enum PeekState {
     Peeking { consumed: usize },
     Reading,
 }
 
-struct PeekableReader<R: io::BufRead> {
-    inner: R,
+struct PeekableReader<R: io::Read> {
+    inner: BufReader<R>,
     state: PeekState,
 }
 
-impl<R: io::BufRead> PeekableReader<R> {
+impl<R: io::Read> PeekableReader<R> {
     fn new(inner: R) -> Self {
         Self {
-            inner,
+            inner: BufReader::with_capacity(PEEKABLE_SIZE, inner),
             state: PeekState::Peeking { consumed: 0 },
         }
     }
@@ -177,7 +188,7 @@ impl<R: io::BufRead> PeekableReader<R> {
     }
 }
 
-impl<R: io::BufRead> io::Read for PeekableReader<R> {
+impl<R: io::Read> io::Read for PeekableReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self.state {
             PeekState::Peeking { .. } => {
@@ -195,7 +206,7 @@ impl<R: io::BufRead> io::Read for PeekableReader<R> {
     }
 }
 
-impl<R: io::BufRead> io::BufRead for PeekableReader<R> {
+impl<R: io::Read> io::BufRead for PeekableReader<R> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         match self.state {
             PeekState::Peeking { consumed } => {
@@ -211,6 +222,28 @@ impl<R: io::BufRead> io::BufRead for PeekableReader<R> {
                     // on `self.inner` to outside the conditional, which would prevent us
                     // from performing other mutable operations on the other side.
                     Ok(&self.inner.fill_buf()?[consumed..])
+                } else if inner_len < PEEKABLE_SIZE {
+                    // We have read the entire file into a single buffer and consumed all
+                    // of it. Don't fall through to change the state to `Reading`, because
+                    // we can always reset a single-buffer stream.
+                    //
+                    // Note that we cannot distinguish between the file being the exact
+                    // same size as our buffer, and the file being larger than it. But
+                    // this only becomes relevant if we cannot distinguish between the
+                    // kinds of identity files we support parsing, within a single buffer.
+                    // We should always be able to distinguish before then, because we
+                    // parse in the following order:
+                    //
+                    // - Encrypted identities, which are parsed incrementally as age
+                    //   ciphertexts with optional armor, and can be detected in at most
+                    //   70 bytes.
+                    // - SSH identities, which are parsed as a PEM encoding and can be
+                    //   detected in at most 36 bytes.
+                    // - Identity files, which have one identity per line and therefore
+                    //   can have arbitrarily long lines. We intentionally try this format
+                    //   last.
+                    assert_eq!(consumed, inner_len);
+                    Ok(&[])
                 } else {
                     // We're done peeking.
                     self.inner.consume(consumed);
