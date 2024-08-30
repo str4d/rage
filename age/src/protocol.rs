@@ -2,7 +2,9 @@
 
 use age_core::{format::is_arbitrary_string, secrecy::SecretString};
 use rand::{rngs::OsRng, RngCore};
+
 use std::io::{self, BufRead, Read, Write};
+use std::iter;
 
 use crate::{
     error::{DecryptError, EncryptError},
@@ -47,18 +49,12 @@ impl Nonce {
 
 /// Encryptor for creating an age file.
 pub struct Encryptor {
-    recipients: Vec<Box<dyn Recipient + Send>>,
+    header: Header,
+    nonce: Nonce,
+    payload_key: PayloadKey,
 }
 
 impl Encryptor {
-    /// Constructs an `Encryptor` that will create an age file encrypted to a list of
-    /// recipients.
-    ///
-    /// Returns `None` if no recipients were provided.
-    pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
-        (!recipients.is_empty()).then_some(Encryptor { recipients })
-    }
-
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
     /// Anyone with the passphrase can decrypt the file.
     ///
@@ -68,20 +64,24 @@ impl Encryptor {
     ///
     /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
-        Encryptor {
-            recipients: vec![Box::new(scrypt::Recipient::new(passphrase))],
-        }
+        Self::with_recipients(iter::once(&scrypt::Recipient::new(passphrase) as _))
+            .expect("no errors can occur with this recipient set")
     }
 
-    /// Creates the header for this age file.
-    fn prepare_header(self) -> Result<(Header, Nonce, PayloadKey), EncryptError> {
+    /// Constructs an `Encryptor` that will create an age file encrypted to a list of
+    /// recipients.
+    pub fn with_recipients<'a>(
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
+    ) -> Result<Self, EncryptError> {
         let file_key = new_file_key();
 
         let recipients = {
             let mut control = None;
 
-            let mut stanzas = Vec::with_capacity(self.recipients.len() + 1);
-            for recipient in self.recipients {
+            let mut stanzas = vec![];
+            let mut have_recipients = false;
+            for recipient in recipients {
+                have_recipients = true;
                 let (mut r_stanzas, r_labels) = recipient.wrap_file_key(&file_key)?;
 
                 if let Some(l_labels) = control.take() {
@@ -107,6 +107,9 @@ impl Encryptor {
 
                 stanzas.append(&mut r_stanzas);
             }
+            if !have_recipients {
+                return Err(EncryptError::MissingRecipients);
+            }
             stanzas
         };
 
@@ -114,7 +117,11 @@ impl Encryptor {
         let nonce = Nonce::random();
         let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 
-        Ok((Header::V1(header), nonce, payload_key))
+        Ok(Self {
+            header: Header::V1(header),
+            nonce,
+            payload_key,
+        })
     }
 
     /// Creates a wrapper around a writer that will encrypt its input.
@@ -124,8 +131,12 @@ impl Encryptor {
     /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
-    pub fn wrap_output<W: Write>(self, mut output: W) -> Result<StreamWriter<W>, EncryptError> {
-        let (header, nonce, payload_key) = self.prepare_header()?;
+    pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
+        let Self {
+            header,
+            nonce,
+            payload_key,
+        } = self;
         header.write(&mut output)?;
         output.write_all(nonce.as_ref())?;
         Ok(Stream::encrypt(payload_key, output))
@@ -143,8 +154,12 @@ impl Encryptor {
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
         self,
         mut output: W,
-    ) -> Result<StreamWriter<W>, EncryptError> {
-        let (header, nonce, payload_key) = self.prepare_header()?;
+    ) -> io::Result<StreamWriter<W>> {
+        let Self {
+            header,
+            nonce,
+            payload_key,
+        } = self;
         header.write_async(&mut output).await?;
         output.write_all(nonce.as_ref()).await?;
         Ok(Stream::encrypt_async(payload_key, output))
@@ -339,7 +354,7 @@ mod tests {
     use futures_test::task::noop_context;
 
     fn recipient_round_trip<'a>(
-        recipients: Vec<Box<dyn Recipient + Send>>,
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
         identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -362,7 +377,7 @@ mod tests {
 
     #[cfg(feature = "async")]
     fn recipient_async_round_trip<'a>(
-        recipients: Vec<Box<dyn Recipient + Send>>,
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
         identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -441,7 +456,7 @@ mod tests {
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
-            vec![Box::new(pk)],
+            iter::once(&pk as _),
             f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
@@ -453,7 +468,7 @@ mod tests {
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
-            vec![Box::new(pk)],
+            iter::once(&pk as _),
             f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
@@ -467,7 +482,7 @@ mod tests {
         recipient.set_work_factor(2);
 
         let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(vec![Box::new(recipient)]).unwrap();
+        let e = Encryptor::with_recipients(iter::once(&recipient as _)).unwrap();
         {
             let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
@@ -495,7 +510,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -506,7 +521,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_async_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(feature = "ssh")]
@@ -517,7 +532,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -528,7 +543,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_async_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[test]
@@ -536,12 +551,10 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         let passphrase = crate::scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
 
-        let recipients = vec![Box::new(pk) as _, Box::new(passphrase) as _];
+        let recipients = [&pk as &dyn Recipient, &passphrase as _];
 
-        let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(recipients).unwrap();
         assert!(matches!(
-            e.wrap_output(&mut encrypted),
+            Encryptor::with_recipients(recipients.into_iter()),
             Err(EncryptError::MixedRecipientAndPassphrase),
         ));
     }
@@ -563,16 +576,12 @@ mod tests {
     #[test]
     fn incompatible_recipients() {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let incompatible = IncompatibleRecipient(pk.clone());
 
-        let recipients = vec![
-            Box::new(pk.clone()) as _,
-            Box::new(IncompatibleRecipient(pk)) as _,
-        ];
+        let recipients = [&pk as &dyn Recipient, &incompatible as _];
 
-        let mut encrypted = vec![];
-        let e = Encryptor::with_recipients(recipients).unwrap();
         assert!(matches!(
-            e.wrap_output(&mut encrypted),
+            Encryptor::with_recipients(recipients.into_iter()),
             Err(EncryptError::IncompatibleRecipients { .. }),
         ));
     }

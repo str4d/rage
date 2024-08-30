@@ -52,7 +52,7 @@ fn bench(c: &mut Criterion_) {
 
         group.bench_function(BenchmarkId::new("encrypt", size), |b| {
             b.iter(|| {
-                let mut output = Encryptor::with_recipients(vec![Box::new(recipient.clone())])
+                let mut output = Encryptor::with_recipients(iter::once(&recipient as _))
                     .unwrap()
                     .wrap_output(io::sink())
                     .unwrap();
@@ -62,7 +62,7 @@ fn bench(c: &mut Criterion_) {
         });
 
         group.bench_function(BenchmarkId::new("decrypt", size), |b| {
-            let mut output = Encryptor::with_recipients(vec![Box::new(recipient.clone())])
+            let mut output = Encryptor::with_recipients(iter::once(&recipient as _))
                 .unwrap()
                 .wrap_output(&mut ct_buf)
                 .unwrap();

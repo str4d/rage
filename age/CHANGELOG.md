@@ -22,6 +22,20 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - Migrated to `i18n-embed 0.15`.
+- `age::Encryptor::with_recipients` now takes recipients by reference instead of
+  by value. This aligns it with `age::Decryptor` (which takes identities by
+  reference), and also means that errors with recipients are reported earlier.
+  This causes the following changes to the API:
+  - `Encryptor::with_recipients` takes `impl Iterator<Item = &'a dyn Recipient>`
+    instead of `Vec<Box<dyn Recipient + Send>>`.
+  - Verification of recipients and generation of stanzas now happens in
+    `Encryptor::with_recipients` instead of `Encryptor::wrap_output` and
+    `Encryptor::wrap_async_output`.
+  - `Encryptor::with_recipients` returns `Result<Self, EncryptError>` instead of
+    `Option<Self>`, and `Encryptor::{wrap_output, wrap_async_output}` return
+    `io::Result<StreamWriter<W>>` instead of `Result<StreamWriter<W>, EncryptError>`.
+  - `age::EncryptError` has a new variant `MissingRecipients`, taking the place
+    of the `None` that `Encryptor::with_recipients` could previously return.
 - `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
   and `Passphrase` variants.
 - `age::IdentityFile` now has a `C: Callbacks` generic parameter, which defaults

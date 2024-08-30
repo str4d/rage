@@ -57,6 +57,8 @@ err-header-mac-invalid = 標頭消息認證碼 （MAC） 無效
 
 err-key-decryption = 未能解密加密密鑰
 
+err-missing-recipients = 缺少接收方。
+
 err-no-matching-keys = 未搜索到匹配的密鑰
 
 err-unknown-format = 未知的 {-age} 格式。

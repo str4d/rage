@@ -74,6 +74,8 @@ err-invalid-recipient-labels = The first recipient requires one or more invalid 
 
 err-key-decryption = Failed to decrypt an encrypted key
 
+err-missing-recipients = Missing recipients.
+
 err-mixed-recipient-passphrase = {-scrypt-recipient} can't be used with other recipients.
 
 err-no-matching-keys = No matching keys found

@@ -172,19 +172,20 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     } else {
         if opts.recipient.is_empty() && opts.recipients_file.is_empty() && opts.identity.is_empty()
         {
-            return Err(error::EncryptError::MissingRecipients);
+            return Err(error::EncryptError::Age(
+                age::EncryptError::MissingRecipients,
+            ));
         }
 
-        match age::Encryptor::with_recipients(read_recipients(
+        let recipients = read_recipients(
             opts.recipient,
             opts.recipients_file,
             opts.identity,
             opts.max_work_factor,
             &mut stdin_guard,
-        )?) {
-            Some(encryptor) => encryptor,
-            None => return Err(error::EncryptError::MissingRecipients),
-        }
+        )?;
+
+        age::Encryptor::with_recipients(recipients.iter().map(|r| r.as_ref() as _))?
     };
 
     let mut output = encryptor.wrap_output(ArmoredWriter::wrap_output(output, format)?)?;
