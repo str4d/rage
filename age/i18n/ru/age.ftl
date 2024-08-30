@@ -69,6 +69,8 @@ err-header-mac-invalid = Недействительный MAC заголовка
 
 err-key-decryption = Не удалось расшифровать зашифрованный ключ
 
+err-missing-recipients = Отсутствуют получатели.
+
 err-no-matching-keys = Не найдены подходящие ключи
 
 err-unknown-format = Неизвестный формат {-age}.

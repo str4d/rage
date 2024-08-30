@@ -291,7 +291,7 @@ enum ArmorIs<W> {
 /// ```
 /// # use std::io::Read;
 /// use std::io::Write;
-/// # use std::iter;
+/// use std::iter;
 ///
 /// # fn run_main() -> Result<(), ()> {
 /// # let identity = age::x25519::Identity::generate();
@@ -301,7 +301,7 @@ enum ArmorIs<W> {
 ///
 /// # fn encrypt(recipient: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 /// let encrypted = {
-///     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
+///     let encryptor = age::Encryptor::with_recipients(iter::once(&recipient as _))
 ///         .expect("we provided a recipient");
 ///
 ///     let mut encrypted = vec![];
@@ -664,7 +664,7 @@ enum StartPos {
 /// # fn run_main() -> Result<(), ()> {
 /// # fn encrypt(recipient: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 /// # let encrypted = {
-/// #     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
+/// #     let encryptor = age::Encryptor::with_recipients(iter::once(&recipient as _))
 /// #         .expect("we provided a recipient");
 /// #     let mut encrypted = vec![];
 /// #     let mut writer = encryptor.wrap_output(

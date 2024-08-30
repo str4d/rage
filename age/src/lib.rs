@@ -42,7 +42,7 @@
 //! // Encrypt the plaintext to a ciphertext...
 //! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
-//!     let encryptor = age::Encryptor::with_recipients(vec![Box::new(pubkey)])
+//!     let encryptor = age::Encryptor::with_recipients(iter::once(&pubkey as _))
 //!         .expect("we provided a recipient");
 //!
 //!     let mut encrypted = vec![];

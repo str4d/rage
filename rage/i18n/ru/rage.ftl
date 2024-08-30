@@ -154,7 +154,6 @@ rec-enc-broken-stdout = Вы передаете данные в программ
 
 err-enc-broken-file = Не удалось записать в файл: {$err}
 
-err-enc-missing-recipients = Отсутствуют получатели.
 rec-enc-missing-recipients = Вы забыли указать {-flag-recipient}?
 
 err-enc-mixed-identity-passphrase = {-flag-identity} не может использоваться с {-flag-passphrase}.

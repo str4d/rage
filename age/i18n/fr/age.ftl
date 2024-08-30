@@ -69,6 +69,8 @@ err-header-mac-invalid = Le MAC de l'en-tête est invalide
 
 err-key-decryption = Echec du déchiffrement d'une clef chiffrée
 
+err-missing-recipients = Destinataires manquants.
+
 err-no-matching-keys = Aucune clef correspondante n'a été trouvée
 
 err-unknown-format = Format {-age} inconnu.

@@ -189,6 +189,8 @@ pub enum EncryptError {
         /// The plugin's binary name.
         binary_name: String,
     },
+    /// The encryptor was not given any recipients.
+    MissingRecipients,
     /// [`scrypt::Recipient`] was mixed with other recipient types.
     ///
     /// [`scrypt::Recipient`]: crate::scrypt::Recipient
@@ -219,6 +221,7 @@ impl Clone for EncryptError {
             Self::MissingPlugin { binary_name } => Self::MissingPlugin {
                 binary_name: binary_name.clone(),
             },
+            Self::MissingRecipients => Self::MissingRecipients,
             Self::MixedRecipientAndPassphrase => Self::MixedRecipientAndPassphrase,
             #[cfg(feature = "plugin")]
             Self::Plugin(e) => Self::Plugin(e.clone()),
@@ -277,6 +280,7 @@ impl fmt::Display for EncryptError {
                 wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
             }
+            EncryptError::MissingRecipients => wfl!(f, "err-missing-recipients"),
             EncryptError::MixedRecipientAndPassphrase => {
                 wfl!(f, "err-mixed-recipient-passphrase")
             }

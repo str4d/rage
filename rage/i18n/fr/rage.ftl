@@ -158,7 +158,6 @@ rec-enc-broken-stdout = Etes-vous en train de piper vers programme qui ne lit pa
 
 err-enc-broken-file = N'a pas pu écrire dans le fichier: {$err}
 
-err-enc-missing-recipients = Destinataires manquants.
 rec-enc-missing-recipients = Avez-vous oublié de spécifier {-flag-recipient} ?
 
 err-enc-mixed-identity-passphrase = {-flag-identity} {-cantuse} {-flag-passphrase}.

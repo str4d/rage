@@ -118,7 +118,6 @@ rec-enc-broken-stdout = 您是否输出至非从 stdin 读取数据的程序？
 
 err-enc-broken-file = 未能写入文件： {$err}
 
-err-enc-missing-recipients = 缺少接收方。
 rec-enc-missing-recipients = 您是否忘记指定 {-flag-recipient} 标记？
 
 err-enc-mixed-identity-passphrase = {-flag-identity} 和 {-flag-passphrase} 标记不可联用。
