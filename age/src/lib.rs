@@ -27,7 +27,76 @@
 //!
 //! # Examples
 //!
-//! ## Recipient-based encryption
+//! ## Streamlined APIs
+//!
+//! These are useful when you only need to encrypt to a single recipient, and the data is
+//! small enough to fit in memory.
+//!
+//! ### Recipient-based encryption
+//!
+//! ```
+//! # fn run_main() -> Result<(), ()> {
+//! let key = age::x25519::Identity::generate();
+//! let pubkey = key.to_public();
+//!
+//! let plaintext = b"Hello world!";
+//!
+//! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! let encrypted = age::encrypt(&pubkey, plaintext)?;
+//! # Ok(encrypted)
+//! # }
+//! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! let decrypted = age::decrypt(&key, &encrypted)?;
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     key,
+//! #     encrypt(pubkey, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
+//!
+//! assert_eq!(decrypted, plaintext);
+//! # Ok(())
+//! # }
+//! # run_main().unwrap();
+//! ```
+//!
+//! ## Passphrase-based encryption
+//!
+//! ```
+//! use age::secrecy::Secret;
+//!
+//! # fn run_main() -> Result<(), ()> {
+//! let passphrase = Secret::new("this is not a good passphrase".to_owned());
+//! let recipient = age::scrypt::Recipient::new(passphrase.clone());
+//! let identity = age::scrypt::Identity::new(passphrase);
+//!
+//! let plaintext = b"Hello world!";
+//!
+//! # fn encrypt(recipient: age::scrypt::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! let encrypted = age::encrypt(&recipient, plaintext)?;
+//! # Ok(encrypted)
+//! # }
+//! # fn decrypt(identity: age::scrypt::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! let decrypted = age::decrypt(&identity, &encrypted)?;
+//! # Ok(decrypted)
+//! # }
+//! # let decrypted = decrypt(
+//! #     identity,
+//! #     encrypt(recipient, &plaintext[..]).map_err(|_| ())?
+//! # ).map_err(|_| ())?;
+//!
+//! assert_eq!(decrypted, plaintext);
+//! # Ok(())
+//! # }
+//! # run_main().unwrap();
+//! ```
+//!
+//! ## Full APIs
+//!
+//! The full APIs support encrypting to multiple recipients, streaming the data, and have
+//! async I/O options.
+//!
+//! ### Recipient-based encryption
 //!
 //! ```
 //! use std::io::{Read, Write};
@@ -155,6 +224,7 @@ pub use primitives::stream;
 pub use protocol::{Decryptor, Encryptor};
 
 #[cfg(feature = "armor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "armor")))]
 pub use primitives::armor;
 
 #[cfg(feature = "cli-common")]
@@ -163,6 +233,17 @@ pub mod cli_common;
 
 mod i18n;
 pub use i18n::localizer;
+
+//
+// Simple interface
+//
+
+mod simple;
+pub use simple::{decrypt, encrypt};
+
+#[cfg(feature = "armor")]
+#[cfg_attr(docsrs, doc(cfg(feature = "armor")))]
+pub use simple::encrypt_and_armor;
 
 //
 // Identity types
@@ -179,6 +260,10 @@ pub mod plugin;
 #[cfg(feature = "ssh")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
 pub mod ssh;
+
+//
+// Core traits
+//
 
 use age_core::{
     format::{FileKey, Stanza},
@@ -341,6 +426,10 @@ impl Callbacks for NoCallbacks {
         None
     }
 }
+
+//
+// Fuzzing APIs
+//
 
 /// Helper for fuzzing the Header parser and serializer.
 #[cfg(fuzzing)]
