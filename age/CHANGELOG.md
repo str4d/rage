@@ -10,6 +10,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- New streamlined APIs for use with a single recipient or identity and a small
+  amount of data (that can fit entirely in memory):
+  - `age::encrypt`
+  - `age::encrypt_and_armor`
+  - `age::decrypt`
 - `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
 - `age::IdentityFile::to_recipients`
 - `age::IdentityFile::with_callbacks`
