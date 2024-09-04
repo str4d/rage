@@ -25,6 +25,7 @@ For more plugins, implementations, tools, and integrations, check out the
 |-------------|-------------|
 | Cargo (Rust 1.65+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew install rage` |
+| MacPorts | `port install rage` |
 | Alpine Linux (edge) | `apk add rage` |
 | Arch Linux | `pacman -S rage-encryption` |
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |
