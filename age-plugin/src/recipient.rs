@@ -430,7 +430,10 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             };
 
         let labels = labels.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        phase.send(LABELS, &labels, &[])?.unwrap();
+        // We confirmed above that if `labels` is non-empty, the client supports labels.
+        // So we can unconditionally send this, and will only get an `unsupported`
+        // response if `labels` is empty (where it does not matter).
+        let _ = phase.send(LABELS, &labels, &[])?;
 
         match plugin.wrap_file_keys(file_keys, BidirCallbacks(&mut phase))? {
             Ok(files) => {
