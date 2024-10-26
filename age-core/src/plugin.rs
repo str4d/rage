@@ -4,7 +4,7 @@
 //! implementations built around the `age-plugin` crate.
 
 use rand::{thread_rng, Rng};
-use secrecy::Zeroize;
+use secrecy::zeroize::Zeroize;
 use std::env;
 use std::fmt;
 use std::io::{self, BufRead, BufReader, Read, Write};

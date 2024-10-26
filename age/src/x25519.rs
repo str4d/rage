@@ -68,7 +68,7 @@ impl Identity {
         let sk_base32 = sk_bytes.to_base32();
         let mut encoded =
             bech32::encode(SECRET_KEY_PREFIX, sk_base32, Variant::Bech32).expect("HRP is valid");
-        let ret = SecretString::new(encoded.to_uppercase());
+        let ret = encoded.to_uppercase().into();
 
         // Clear intermediates
         sk_bytes.zeroize();

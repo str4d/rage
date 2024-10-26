@@ -37,7 +37,7 @@ futures = { version = "0.3", optional = true }
 pin-project = "1"
 
 # Common CLI dependencies
-pinentry = { version = "0.5", optional = true }
+pinentry = { version = "0.5", git = "https://github.com/tmpfs/pinentry-rs", branch = "secrecy-0.10", optional = true}
 
 # Dependencies used internally:
 # (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)

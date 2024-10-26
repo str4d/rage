@@ -3,7 +3,7 @@
 use age_core::{
     format::FileKey,
     primitives::hkdf,
-    secrecy::{ExposeSecret, Secret},
+    secrecy::{ExposeSecret, SecretBox},
 };
 use rand::{rngs::OsRng, RngCore};
 
@@ -24,11 +24,9 @@ pub(crate) fn new_file_key() -> FileKey {
 }
 
 pub(crate) fn mac_key(file_key: &FileKey) -> HmacKey {
-    HmacKey(Secret::new(hkdf(
-        &[],
-        HEADER_KEY_LABEL,
-        file_key.expose_secret(),
-    )))
+    HmacKey(SecretBox::new(
+        hkdf(&[], HEADER_KEY_LABEL, file_key.expose_secret()).into(),
+    ))
 }
 
 pub(crate) fn v1_payload_key(

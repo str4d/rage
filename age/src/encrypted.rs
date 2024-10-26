@@ -239,9 +239,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(
-                self.0.lock().unwrap().take().unwrap().to_owned(),
-            ))
+            Some(self.0.lock().unwrap().take().unwrap().to_owned().into())
         }
     }
 

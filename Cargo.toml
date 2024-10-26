@@ -48,8 +48,8 @@ cookie-factory = "0.3.1"
 nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
-pinentry = "0.5"
-secrecy = "0.8"
+pinentry = { version = "0.5", git = "https://github.com/tmpfs/pinentry-rs", branch = "secrecy-0.10"}
+secrecy = "0.10"
 subtle = "2"
 zeroize = "1"
 

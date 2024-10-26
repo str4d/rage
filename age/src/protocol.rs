@@ -335,8 +335,6 @@ mod tests {
     use std::collections::HashSet;
     use std::io::{BufReader, Read, Write};
 
-    use age_core::secrecy::SecretString;
-
     #[cfg(feature = "ssh")]
     use std::iter;
 
@@ -477,7 +475,7 @@ mod tests {
     fn scrypt_round_trip() {
         let test_msg = b"This is a test message. For testing.";
 
-        let mut recipient = scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+        let mut recipient = scrypt::Recipient::new("passphrase".to_string().into());
         // Override to something very fast for testing.
         recipient.set_work_factor(2);
 
@@ -491,10 +489,7 @@ mod tests {
 
         let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d
-            .decrypt(
-                Some(&scrypt::Identity::new(SecretString::new("passphrase".to_string())) as _)
-                    .into_iter(),
-            )
+            .decrypt(Some(&scrypt::Identity::new("passphrase".to_string().into()) as _).into_iter())
             .unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
@@ -549,7 +544,7 @@ mod tests {
     #[test]
     fn mixed_recipient_and_passphrase() {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
-        let passphrase = crate::scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+        let passphrase = crate::scrypt::Recipient::new("passphrase".to_string().into());
 
         let recipients = [&pk as &dyn Recipient, &passphrase as _];
 

@@ -1,7 +1,7 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, hkdf},
-    secrecy::{ExposeSecret, Secret},
+    secrecy::{ExposeSecret, SecretBox},
 };
 use base64::prelude::BASE64_STANDARD;
 use nom::{
@@ -32,12 +32,25 @@ use crate::{
 };
 
 /// An SSH private key for decrypting an age file.
-#[derive(Clone)]
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
     SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
     /// An ssh-ed25519 key pair.
-    SshEd25519(Vec<u8>, Secret<[u8; 64]>),
+    SshEd25519(Vec<u8>, SecretBox<[u8; 64]>),
+}
+
+impl Clone for UnencryptedKey {
+    fn clone(&self) -> Self {
+        match self {
+            Self::SshRsa(public_key, private_key) => {
+                Self::SshRsa(public_key.clone(), private_key.clone())
+            }
+            Self::SshEd25519(public_key, private_key) => Self::SshEd25519(
+                public_key.clone(),
+                SecretBox::new(Box::new(*private_key.expose_secret())),
+            ),
+        }
+    }
 }
 
 impl UnencryptedKey {
@@ -491,7 +504,7 @@ AwQFBg==
         }
 
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(self.0.to_owned()))
+            Some(self.0.to_owned().into())
         }
     }
 

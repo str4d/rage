@@ -5,7 +5,7 @@ use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretBox};
 
 /// The prefix identifying an age stanza.
 const STANZA_TAG: &str = "-> ";
@@ -14,11 +14,11 @@ const STANZA_TAG: &str = "-> ";
 pub const FILE_KEY_BYTES: usize = 16;
 
 /// A file key for encrypting or decrypting an age file.
-pub struct FileKey(Secret<[u8; FILE_KEY_BYTES]>);
+pub struct FileKey(SecretBox<[u8; FILE_KEY_BYTES]>);
 
 impl From<[u8; FILE_KEY_BYTES]> for FileKey {
     fn from(file_key: [u8; FILE_KEY_BYTES]) -> Self {
-        FileKey(Secret::new(file_key))
+        FileKey(SecretBox::new(file_key.into()))
     }
 }
 
