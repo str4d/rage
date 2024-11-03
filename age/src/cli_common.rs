@@ -125,10 +125,10 @@ pub fn read_secret(
         input.interact()
     } else {
         // Fall back to CLI interface.
-        let passphrase = prompt_password(format!("{}: ", description)).map(SecretString::new)?;
+        let passphrase = prompt_password(format!("{}: ", description)).map(SecretString::from)?;
         if let Some(confirm_prompt) = confirm {
             let confirm_passphrase =
-                prompt_password(format!("{}: ", confirm_prompt)).map(SecretString::new)?;
+                prompt_password(format!("{}: ", confirm_prompt)).map(SecretString::from)?;
 
             if !bool::from(
                 passphrase
@@ -199,7 +199,7 @@ impl Passphrase {
                     acc + "-" + s
                 }
             });
-        Passphrase::Generated(SecretString::new(new_passphrase))
+        Passphrase::Generated(SecretString::from(new_passphrase))
     }
 }
 

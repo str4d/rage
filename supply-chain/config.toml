@@ -654,7 +654,7 @@ version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.secrecy]]
-version = "0.8.0"
+version = "0.10.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.self_cell]]

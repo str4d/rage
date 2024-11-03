@@ -1,7 +1,7 @@
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, hkdf},
-    secrecy::{ExposeSecret, Secret},
+    secrecy::{ExposeSecret, SecretBox},
 };
 use base64::prelude::BASE64_STANDARD;
 use nom::{
@@ -32,12 +32,27 @@ use crate::{
 };
 
 /// An SSH private key for decrypting an age file.
-#[derive(Clone)]
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
     SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
     /// An ssh-ed25519 key pair.
-    SshEd25519(Vec<u8>, Secret<[u8; 64]>),
+    SshEd25519(Vec<u8>, SecretBox<[u8; 64]>),
+}
+
+impl Clone for UnencryptedKey {
+    fn clone(&self) -> Self {
+        match self {
+            Self::SshRsa(ssh_key, sk) => Self::SshRsa(ssh_key.clone(), sk.clone()),
+            Self::SshEd25519(ssh_key, privkey) => Self::SshEd25519(
+                ssh_key.clone(),
+                SecretBox::new({
+                    let mut cloned_privkey = Box::new([0; 64]);
+                    cloned_privkey.copy_from_slice(privkey.expose_secret());
+                    cloned_privkey
+                }),
+            ),
+        }
+    }
 }
 
 impl UnencryptedKey {
@@ -64,11 +79,18 @@ impl UnencryptedKey {
                         &stanza.body,
                     )
                     .map_err(DecryptError::from)
-                    .map(|mut pt| {
+                    .and_then(|mut pt| {
                         // It's ours!
-                        let file_key: [u8; 16] = pt[..].try_into().unwrap();
-                        pt.zeroize();
-                        file_key.into()
+                        FileKey::try_init_with_mut(|file_key| {
+                            let ret = if pt.len() == file_key.len() {
+                                file_key.copy_from_slice(&pt);
+                                Ok(())
+                            } else {
+                                Err(DecryptError::DecryptionFailed)
+                            };
+                            pt.zeroize();
+                            ret
+                        })
                     }),
                 )
             }
@@ -115,9 +137,10 @@ impl UnencryptedKey {
                         .map_err(DecryptError::from)
                         .map(|mut pt| {
                             // It's ours!
-                            let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
-                            pt.zeroize();
-                            file_key.into()
+                            FileKey::init_with_mut(|file_key| {
+                                file_key.copy_from_slice(&pt);
+                                pt.zeroize();
+                            })
                         }),
                 )
             }
@@ -354,7 +377,10 @@ pub(crate) fn ssh_identity(input: &str) -> IResult<&str, Identity> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use age_core::secrecy::{ExposeSecret, SecretString};
+    use age_core::{
+        format::FileKey,
+        secrecy::{ExposeSecret, SecretString},
+    };
     use std::io::BufReader;
 
     use super::{Identity, UnsupportedKey};
@@ -491,7 +517,7 @@ AwQFBg==
         }
 
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(self.0.to_owned()))
+            Some(SecretString::from(self.0.to_owned()))
         }
     }
 
@@ -505,7 +531,7 @@ AwQFBg==
         };
         let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
 
-        let file_key = [12; 16].into();
+        let file_key = FileKey::new(Box::new([12; 16]));
 
         let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
         assert!(labels.is_empty());
@@ -532,7 +558,7 @@ AwQFBg==
             let identity = identity.with_callbacks(TestPassphrase("passphrase"));
             let pk: Recipient = TEST_SSH_ED25519_PK.parse().unwrap();
 
-            let file_key = [12; 16].into();
+            let file_key = FileKey::new(Box::new([12; 16]));
 
             let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
             assert!(labels.is_empty());

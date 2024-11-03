@@ -1,7 +1,7 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{is_arbitrary_string, FileKey, Stanza, FILE_KEY_BYTES},
+    format::{is_arbitrary_string, FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
     secrecy::SecretString,
 };
@@ -183,7 +183,7 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .and_then(|res| match res {
                 Ok(s) => String::from_utf8(s.body)
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
-                    .map(|s| Ok(SecretString::new(s))),
+                    .map(|s| Ok(SecretString::from(s))),
                 Err(e) => Ok(Err(e)),
             })
     }
@@ -281,11 +281,16 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             }),
             (Some(WRAP_FILE_KEY), |s| {
                 // TODO: Should we ignore file key commands with unexpected metadata args?
-                TryInto::<[u8; FILE_KEY_BYTES]>::try_into(&s.body[..])
-                    .map_err(|_| Error::Internal {
-                        message: "invalid file key length".to_owned(),
-                    })
-                    .map(FileKey::from)
+                FileKey::try_init_with_mut(|file_key| {
+                    if s.body.len() == file_key.len() {
+                        file_key.copy_from_slice(&s.body);
+                        Ok(())
+                    } else {
+                        Err(Error::Internal {
+                            message: "invalid file key length".to_owned(),
+                        })
+                    }
+                })
             }),
             (Some(EXTENSION_LABELS), |_| Ok(())),
         )?;

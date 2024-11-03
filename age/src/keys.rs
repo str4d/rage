@@ -3,7 +3,7 @@
 use age_core::{
     format::FileKey,
     primitives::hkdf,
-    secrecy::{ExposeSecret, Secret},
+    secrecy::{ExposeSecret, SecretBox},
 };
 use rand::{rngs::OsRng, RngCore};
 
@@ -18,17 +18,15 @@ const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
 
 pub(crate) fn new_file_key() -> FileKey {
-    let mut file_key = [0; 16];
-    OsRng.fill_bytes(&mut file_key);
-    file_key.into()
+    FileKey::init_with_mut(|file_key| OsRng.fill_bytes(file_key))
 }
 
 pub(crate) fn mac_key(file_key: &FileKey) -> HmacKey {
-    HmacKey(Secret::new(hkdf(
+    HmacKey(SecretBox::new(Box::new(hkdf(
         &[],
         HEADER_KEY_LABEL,
         file_key.expose_secret(),
-    )))
+    ))))
 }
 
 pub(crate) fn v1_payload_key(

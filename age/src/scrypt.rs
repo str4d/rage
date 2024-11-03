@@ -260,9 +260,10 @@ impl crate::Identity for Identity {
             aead_decrypt(&enc_key, FILE_KEY_BYTES, &stanza.body)
                 .map(|mut pt| {
                     // It's ours!
-                    let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
-                    pt.zeroize();
-                    file_key.into()
+                    FileKey::init_with_mut(|file_key| {
+                        file_key.copy_from_slice(&pt);
+                        pt.zeroize();
+                    })
                 })
                 .map_err(DecryptError::from),
         )

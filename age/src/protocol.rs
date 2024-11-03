@@ -477,7 +477,7 @@ mod tests {
     fn scrypt_round_trip() {
         let test_msg = b"This is a test message. For testing.";
 
-        let mut recipient = scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+        let mut recipient = scrypt::Recipient::new(SecretString::from("passphrase".to_string()));
         // Override to something very fast for testing.
         recipient.set_work_factor(2);
 
@@ -492,7 +492,7 @@ mod tests {
         let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d
             .decrypt(
-                Some(&scrypt::Identity::new(SecretString::new("passphrase".to_string())) as _)
+                Some(&scrypt::Identity::new(SecretString::from("passphrase".to_string())) as _)
                     .into_iter(),
             )
             .unwrap();
@@ -549,7 +549,8 @@ mod tests {
     #[test]
     fn mixed_recipient_and_passphrase() {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
-        let passphrase = crate::scrypt::Recipient::new(SecretString::new("passphrase".to_string()));
+        let passphrase =
+            crate::scrypt::Recipient::new(SecretString::from("passphrase".to_string()));
 
         let recipients = [&pk as &dyn Recipient, &passphrase as _];
 

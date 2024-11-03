@@ -5,7 +5,7 @@ use rand::{
     distributions::{Distribution, Uniform},
     thread_rng, RngCore,
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, ExposeSecretMut, SecretBox};
 
 /// The prefix identifying an age stanza.
 const STANZA_TAG: &str = "-> ";
@@ -14,11 +14,26 @@ const STANZA_TAG: &str = "-> ";
 pub const FILE_KEY_BYTES: usize = 16;
 
 /// A file key for encrypting or decrypting an age file.
-pub struct FileKey(Secret<[u8; FILE_KEY_BYTES]>);
+pub struct FileKey(SecretBox<[u8; FILE_KEY_BYTES]>);
 
-impl From<[u8; FILE_KEY_BYTES]> for FileKey {
-    fn from(file_key: [u8; FILE_KEY_BYTES]) -> Self {
-        FileKey(Secret::new(file_key))
+impl FileKey {
+    /// Creates a file key using a pre-boxed key.
+    pub fn new(file_key: Box<[u8; FILE_KEY_BYTES]>) -> Self {
+        Self(SecretBox::new(file_key))
+    }
+
+    /// Creates a file key using a function that can initialize the key in-place.
+    pub fn init_with_mut(ctr: impl FnOnce(&mut [u8; FILE_KEY_BYTES])) -> Self {
+        Self(SecretBox::init_with_mut(ctr))
+    }
+
+    /// Same as [`Self::init_with_mut`], but the constructor can be fallible.
+    pub fn try_init_with_mut<E>(
+        ctr: impl FnOnce(&mut [u8; FILE_KEY_BYTES]) -> Result<(), E>,
+    ) -> Result<Self, E> {
+        let mut file_key = SecretBox::new(Box::new([0; FILE_KEY_BYTES]));
+        ctr(file_key.expose_secret_mut())?;
+        Ok(Self(file_key))
     }
 }
 

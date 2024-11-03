@@ -16,8 +16,8 @@ user-login = "jrmuizel"
 user-name = "Jeff Muizelaar"
 
 [[publisher.pinentry]]
-version = "0.5.1"
-when = "2024-08-31"
+version = "0.6.0"
+when = "2024-11-03"
 user-id = 6289
 user-login = "str4d"
 user-name = "Jack Grigg"

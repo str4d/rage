@@ -1,6 +1,6 @@
 //! I/O helper structs for age file encryption and decryption.
 
-use age_core::secrecy::{ExposeSecret, SecretVec};
+use age_core::secrecy::{ExposeSecret, SecretSlice};
 use chacha20poly1305::{
     aead::{generic_array::GenericArray, Aead, KeyInit, KeySizeUser},
     ChaCha20Poly1305,
@@ -194,7 +194,7 @@ impl Stream {
         Ok(encrypted)
     }
 
-    fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<SecretVec<u8>> {
+    fn decrypt_chunk(&mut self, chunk: &[u8], last: bool) -> io::Result<SecretSlice<u8>> {
         assert!(chunk.len() <= ENCRYPTED_CHUNK_SIZE);
 
         self.nonce.set_last(last).map_err(|_| {
@@ -204,7 +204,7 @@ impl Stream {
         let decrypted = self
             .aead
             .decrypt(&self.nonce.to_bytes().into(), chunk)
-            .map(SecretVec::new)
+            .map(SecretSlice::from)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
         self.nonce.increment_counter();
 
@@ -407,7 +407,7 @@ pub struct StreamReader<R> {
     start: StartPos,
     plaintext_len: Option<u64>,
     cur_plaintext_pos: u64,
-    chunk: Option<SecretVec<u8>>,
+    chunk: Option<SecretSlice<u8>>,
 }
 
 impl<R> StreamReader<R> {

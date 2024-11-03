@@ -63,10 +63,10 @@
 //! ## Passphrase-based encryption
 //!
 //! ```
-//! use age::secrecy::Secret;
+//! use age::secrecy::SecretString;
 //!
 //! # fn run_main() -> Result<(), ()> {
-//! let passphrase = Secret::new("this is not a good passphrase".to_owned());
+//! let passphrase = SecretString::from("this is not a good passphrase".to_owned());
 //! let recipient = age::scrypt::Recipient::new(passphrase.clone());
 //! let identity = age::scrypt::Identity::new(passphrase);
 //!
@@ -152,16 +152,16 @@
 //! ## Passphrase-based encryption
 //!
 //! ```
-//! use age::secrecy::Secret;
+//! use age::secrecy::SecretString;
 //! use std::io::{Read, Write};
 //! use std::iter;
 //!
 //! # fn run_main() -> Result<(), ()> {
 //! let plaintext = b"Hello world!";
-//! let passphrase = Secret::new("this is not a good passphrase".to_owned());
+//! let passphrase = SecretString::from("this is not a good passphrase".to_owned());
 //!
 //! // Encrypt the plaintext to a ciphertext using the passphrase...
-//! # fn encrypt(passphrase: Secret<String>, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! # fn encrypt(passphrase: SecretString, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_user_passphrase(passphrase.clone());
 //!
@@ -176,7 +176,7 @@
 //! # }
 //!
 //! // ... and decrypt the ciphertext to the plaintext again using the same passphrase.
-//! # fn decrypt(passphrase: Secret<String>, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! # fn decrypt(passphrase: SecretString, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!

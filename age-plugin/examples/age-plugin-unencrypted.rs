@@ -175,9 +175,14 @@ impl IdentityPluginV1 for IdentityPlugin {
                     // identities.
                     let _ = callbacks.message("This identity does nothing!")?;
                     file_keys.entry(file_index).or_insert_with(|| {
-                        Ok(FileKey::from(
-                            TryInto::<[u8; 16]>::try_into(&stanza.body[..]).unwrap(),
-                        ))
+                        FileKey::try_init_with_mut(|file_key| {
+                            if stanza.body.len() == file_key.len() {
+                                file_key.copy_from_slice(&stanza.body);
+                                Ok(())
+                            } else {
+                                panic!("File key is wrong length")
+                            }
+                        })
                     });
                     break;
                 }

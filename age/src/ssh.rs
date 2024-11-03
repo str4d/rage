@@ -194,7 +194,7 @@ mod decrypt {
 }
 
 mod read_ssh {
-    use age_core::secrecy::Secret;
+    use age_core::secrecy::SecretBox;
     use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
     use nom::{
         branch::alt,
@@ -349,14 +349,14 @@ mod read_ssh {
     /// Internal OpenSSH encoding of an Ed25519 private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3277-L3283)
-    fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], Secret<[u8; 64]>> {
+    fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], SecretBox<[u8; 64]>> {
         delimited(
             string_tag(SSH_ED25519_KEY_PREFIX),
             map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
                 if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
-                    let mut privkey = [0; 64];
+                    let mut privkey = Box::new([0; 64]);
                     privkey.copy_from_slice(privkey_bytes);
-                    Some(Secret::new(privkey))
+                    Some(SecretBox::new(privkey))
                 } else {
                     None
                 }

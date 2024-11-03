@@ -26,7 +26,7 @@ to 1.0.0 are beta releases.
 - Partial French translation!
 
 ### Changed
-- Migrated to `i18n-embed 0.15`.
+- Migrated to `i18n-embed 0.15`, `secrecy 0.10`.
 - `age::Encryptor::with_recipients` now takes recipients by reference instead of
   by value. This aligns it with `age::Decryptor` (which takes identities by
   reference), and also means that errors with recipients are reported earlier.
