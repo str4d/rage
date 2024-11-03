@@ -81,8 +81,12 @@ pub trait RecipientPluginV1 {
     /// Wraps each `file_key` to all recipients and identities previously added via
     /// `add_recipient` and `add_identity`.
     ///
-    /// Returns either one stanza per recipient and identity for each file key, or any
-    /// errors if one or more recipients or identities could not be wrapped to.
+    /// Returns a set of stanzas per file key that wrap it to each recipient and identity.
+    /// Plugins may return more than one stanza per "actual recipient", e.g. to support
+    /// multiple formats, to build group aliases, or to act as a proxy.
+    ///
+    /// If one or more recipients or identities could not be wrapped to, no stanzas are
+    /// returned for any of the file keys.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.

@@ -326,7 +326,8 @@ pub trait Recipient {
     /// and labels that constrain how the stanzas may be combined with those from other
     /// recipients.
     ///
-    /// Implementations MUST NOT return more than one stanza per "actual recipient".
+    /// Implementations may return more than one stanza per "actual recipient", e.g. to
+    /// support multiple formats, to build group aliases, or to act as a proxy.
     ///
     /// This method is part of the `Recipient` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
