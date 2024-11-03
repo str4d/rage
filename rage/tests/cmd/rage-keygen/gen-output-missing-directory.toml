@@ -1,0 +1,10 @@
+bin.name = "rage-keygen"
+args = "-o does-not-exist/key.txt"
+status = "failed"
+stdout = ""
+stderr = """
+Error: Failed to open output: directory 'does-not-exist' does not exist.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""
