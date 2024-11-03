@@ -9,12 +9,15 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.0] - 2024-11-03
 ### Added
 - `age_plugin::PluginHandler`
 - `impl age_plugin::identity::IdentityPluginV1 for std::convert::Infallible`
 - `impl age_plugin::recipient::RecipientPluginV1 for std::convert::Infallible`
 
 ### Changed
+- Migrated to `age-core 0.11`.
 - `age_plugin::recipient::RecipientPluginV1` has a new `labels` method. Existing
   implementations of the trait should either return `HashSet::new()` to maintain
   existing compatibility, or return labels that apply the desired constraints.

@@ -7,8 +7,8 @@ format. It features small explicit keys, no config options, and UNIX-style
 composability.
 
 The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
-age was designed by [@Benjojo12](https://twitter.com/Benjojo12) and
-[@FiloSottile](https://twitter.com/FiloSottile).
+age was designed by [@Benjojo](https://benjojo.co.uk/) and
+[@FiloSottile](https://bsky.app/profile/did:plc:x2nsupeeo52oznrmplwapppl).
 
 The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
