@@ -1,0 +1,10 @@
+bin.name = "rage-keygen"
+args = "-o ''"
+status = "failed"
+stdout = ""
+stderr = """
+Error: Failed to open output: invalid filename ''.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

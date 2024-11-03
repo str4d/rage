@@ -6,6 +6,12 @@ description = "The cryptographic code in this crate has been reviewed for correc
 
 [audits]
 
+[[trusted.pinentry]]
+criteria = "safe-to-deploy"
+user-id = 6289 # Jack Grigg (str4d)
+start = "2020-01-12"
+end = "2025-11-03"
+
 [[trusted.windows-sys]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)

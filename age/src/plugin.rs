@@ -649,11 +649,14 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                     // We only support a single file.
                     assert!(command.args[0] == "0");
                     assert!(file_key.is_none());
-                    file_key = Some(
-                        TryInto::<[u8; 16]>::try_into(&command.body[..])
-                            .map_err(|_| DecryptError::DecryptionFailed)
-                            .map(FileKey::from),
-                    );
+                    file_key = Some(FileKey::try_init_with_mut(|file_key| {
+                        if command.body.len() == file_key.len() {
+                            file_key.copy_from_slice(&command.body);
+                            Ok(())
+                        } else {
+                            Err(DecryptError::DecryptionFailed)
+                        }
+                    }));
                     reply.ok(None)
                 }
                 CMD_ERROR => {

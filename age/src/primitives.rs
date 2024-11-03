@@ -1,6 +1,6 @@
 //! Primitive cryptographic operations used by `age`.
 
-use age_core::secrecy::{ExposeSecret, Secret};
+use age_core::secrecy::{ExposeSecret, SecretBox};
 use hmac::{
     digest::{CtOutput, MacError},
     Hmac, Mac,
@@ -15,7 +15,7 @@ pub mod armor;
 
 pub mod stream;
 
-pub(crate) struct HmacKey(pub(crate) Secret<[u8; 32]>);
+pub(crate) struct HmacKey(pub(crate) SecretBox<[u8; 32]>);
 
 /// `HMAC[key](message)`
 ///

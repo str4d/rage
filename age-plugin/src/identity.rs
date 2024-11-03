@@ -135,7 +135,7 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .and_then(|res| match res {
                 Ok(s) => String::from_utf8(s.body)
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
-                    .map(|s| Ok(SecretString::new(s))),
+                    .map(|s| Ok(SecretString::from(s))),
                 Err(e) => Ok(Err(e)),
             })
     }

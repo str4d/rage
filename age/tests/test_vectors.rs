@@ -44,7 +44,7 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
                 name
             ))?
             .read_to_string(&mut passphrase)?;
-            let passphrase = SecretString::new(passphrase);
+            let passphrase = SecretString::from(passphrase);
             let identity = scrypt::Identity::new(passphrase);
             d.decrypt(Some(&identity as _).into_iter())
         };

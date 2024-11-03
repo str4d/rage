@@ -68,7 +68,7 @@ impl Identity {
         let sk_base32 = sk_bytes.to_base32();
         let mut encoded =
             bech32::encode(SECRET_KEY_PREFIX, sk_base32, Variant::Bech32).expect("HRP is valid");
-        let ret = SecretString::new(encoded.to_uppercase());
+        let ret = SecretString::from(encoded.to_uppercase());
 
         // Clear intermediates
         sk_bytes.zeroize();
@@ -136,9 +136,10 @@ impl crate::Identity for Identity {
             .ok()
             .map(|mut pt| {
                 // It's ours!
-                let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
-                pt.zeroize();
-                Ok(file_key.into())
+                Ok(FileKey::init_with_mut(|file_key| {
+                    file_key.copy_from_slice(&pt);
+                    pt.zeroize();
+                }))
             })
     }
 }
@@ -238,7 +239,7 @@ impl crate::Recipient for Recipient {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use age_core::secrecy::ExposeSecret;
+    use age_core::{format::FileKey, secrecy::ExposeSecret};
     use proptest::prelude::*;
     use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -265,7 +266,7 @@ pub(crate) mod tests {
     proptest! {
         #[test]
         fn wrap_and_unwrap(sk_bytes in proptest::collection::vec(any::<u8>(), ..=32)) {
-            let file_key = [7; 16].into();
+            let file_key = FileKey::new(Box::new([7; 16]));
             let sk = {
                 let mut tmp = [0; 32];
                 tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);

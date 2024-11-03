@@ -1,7 +1,7 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{is_arbitrary_string, FileKey, Stanza, FILE_KEY_BYTES},
+    format::{is_arbitrary_string, FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
     secrecy::SecretString,
 };
@@ -81,8 +81,12 @@ pub trait RecipientPluginV1 {
     /// Wraps each `file_key` to all recipients and identities previously added via
     /// `add_recipient` and `add_identity`.
     ///
-    /// Returns either one stanza per recipient and identity for each file key, or any
-    /// errors if one or more recipients or identities could not be wrapped to.
+    /// Returns a set of stanzas per file key that wrap it to each recipient and identity.
+    /// Plugins may return more than one stanza per "actual recipient", e.g. to support
+    /// multiple formats, to build group aliases, or to act as a proxy.
+    ///
+    /// If one or more recipients or identities could not be wrapped to, no stanzas are
+    /// returned for any of the file keys.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
@@ -183,7 +187,7 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .and_then(|res| match res {
                 Ok(s) => String::from_utf8(s.body)
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
-                    .map(|s| Ok(SecretString::new(s))),
+                    .map(|s| Ok(SecretString::from(s))),
                 Err(e) => Ok(Err(e)),
             })
     }
@@ -281,11 +285,16 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             }),
             (Some(WRAP_FILE_KEY), |s| {
                 // TODO: Should we ignore file key commands with unexpected metadata args?
-                TryInto::<[u8; FILE_KEY_BYTES]>::try_into(&s.body[..])
-                    .map_err(|_| Error::Internal {
-                        message: "invalid file key length".to_owned(),
-                    })
-                    .map(FileKey::from)
+                FileKey::try_init_with_mut(|file_key| {
+                    if s.body.len() == file_key.len() {
+                        file_key.copy_from_slice(&s.body);
+                        Ok(())
+                    } else {
+                        Err(Error::Internal {
+                            message: "invalid file key length".to_owned(),
+                        })
+                    }
+                })
             }),
             (Some(EXTENSION_LABELS), |_| Ok(())),
         )?;

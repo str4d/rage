@@ -239,7 +239,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(
+            Some(SecretString::from(
                 self.0.lock().unwrap().take().unwrap().to_owned(),
             ))
         }
@@ -248,8 +248,10 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     #[test]
     #[cfg(feature = "armor")]
     fn round_trip() {
+        use age_core::format::FileKey;
+
         let pk: x25519::Recipient = TEST_RECIPIENT.parse().unwrap();
-        let file_key = [12; 16].into();
+        let file_key = FileKey::new(Box::new([12; 16]));
         let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
         assert!(labels.is_empty());
 
