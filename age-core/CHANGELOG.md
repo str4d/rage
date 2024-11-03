@@ -7,6 +7,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.11.0] - 2024-11-03
 ### Added
 - `age_core::format`:
   - `FileKey::new`
