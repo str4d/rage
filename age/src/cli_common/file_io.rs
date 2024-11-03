@@ -16,39 +16,31 @@ use crate::{fl, util::LINE_ENDING, wfl, wlnfl};
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
 
 #[derive(Debug)]
-struct DenyBinaryOutputError;
+enum FileError {
+    DenyBinaryOutput,
+    DenyOverwriteFile(String),
+    DetectedBinaryOutput,
+}
 
-impl fmt::Display for DenyBinaryOutputError {
+impl fmt::Display for FileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wlnfl!(f, "err-deny-binary-output")?;
-        wfl!(f, "rec-deny-binary-output")
+        match self {
+            Self::DenyBinaryOutput => {
+                wlnfl!(f, "err-deny-binary-output")?;
+                wfl!(f, "rec-deny-binary-output")
+            }
+            Self::DenyOverwriteFile(filename) => {
+                wfl!(f, "err-deny-overwrite-file", filename = filename.as_str())
+            }
+            Self::DetectedBinaryOutput => {
+                wlnfl!(f, "err-detected-binary")?;
+                wfl!(f, "rec-detected-binary")
+            }
+        }
     }
 }
 
-impl std::error::Error for DenyBinaryOutputError {}
-
-#[derive(Debug)]
-struct DetectedBinaryOutputError;
-
-impl fmt::Display for DetectedBinaryOutputError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wlnfl!(f, "err-detected-binary")?;
-        wfl!(f, "rec-detected-binary")
-    }
-}
-
-impl std::error::Error for DetectedBinaryOutputError {}
-
-#[derive(Debug)]
-struct DenyOverwriteFileError(String);
-
-impl fmt::Display for DenyOverwriteFileError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wfl!(f, "err-deny-overwrite-file", filename = self.0.as_str())
-    }
-}
-
-impl std::error::Error for DenyOverwriteFileError {}
+impl std::error::Error for FileError {}
 
 /// Wrapper around a [`File`].
 pub struct FileReader {
@@ -211,7 +203,7 @@ impl Write for StdoutWriter {
                 if std::str::from_utf8(data).is_err() {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        DetectedBinaryOutputError,
+                        FileError::DetectedBinaryOutput,
                     ));
                 }
             }
@@ -359,7 +351,7 @@ impl OutputWriter {
                 if !allow_overwrite && Path::new(&filename).exists() {
                     return Err(io::Error::new(
                         io::ErrorKind::AlreadyExists,
-                        DenyOverwriteFileError(filename),
+                        FileError::DenyOverwriteFile(filename),
                     ));
                 }
 
@@ -378,7 +370,10 @@ impl OutputWriter {
         } else if is_tty {
             if let OutputFormat::Binary = format {
                 // If output == Some("-") then this error is skipped.
-                return Err(io::Error::new(io::ErrorKind::Other, DenyBinaryOutputError));
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    FileError::DenyBinaryOutput,
+                ));
             }
         }
 
