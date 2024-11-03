@@ -272,12 +272,25 @@ use age_core::{
 
 /// A private key or other value that can unwrap an opaque file key from a recipient
 /// stanza.
+///
+/// # Implementation notes
+///
+/// The canonical entry point for this trait is [`Identity::unwrap_stanzas`]. The default
+/// implementation of that method is:
+/// ```ignore
+/// stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
+/// ```
+///
+/// The `age` crate otherwise does not call [`Identity::unwrap_stanza`] directly. As such,
+/// if you want to add file-level stanza checks, override [`Identity::unwrap_stanzas`].
 pub trait Identity {
     /// Attempts to unwrap the given stanza with this identity.
     ///
     /// This method is part of the `Identity` trait to expose age's [one joint] for
     /// external implementations. You should not need to call this directly; instead, pass
     /// identities to [`Decryptor::decrypt`].
+    ///
+    /// The `age` crate only calls this method via [`Identity::unwrap_stanzas`].
     ///
     /// Returns:
     /// - `Some(Ok(file_key))` on success.
