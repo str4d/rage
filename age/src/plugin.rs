@@ -461,3 +461,65 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
         self.unwrap_stanzas(stanzas.iter())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Callbacks, DecryptError, EncryptError};
+
+    use super::{
+        Identity, IdentityPluginV1, Recipient, RecipientPluginV1, PLUGIN_IDENTITY_PREFIX,
+        PLUGIN_RECIPIENT_PREFIX,
+    };
+
+    const INVALID_PLUGIN_NAME: &str = "foobar/../../../../../../../usr/bin/echo";
+
+    struct NoCallbacks;
+    impl Callbacks for NoCallbacks {
+        fn prompt(&self, _: &str) {}
+        fn request_public_string(&self, _: &str) -> Option<String> {
+            None
+        }
+        fn request_passphrase(&self, _: &str) -> Option<secrecy::SecretString> {
+            None
+        }
+    }
+
+    #[test]
+    fn recipient_rejects_invalid_chars() {
+        let invalid_recipient = bech32::encode(
+            &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME),
+            [],
+            bech32::Variant::Bech32,
+        )
+        .unwrap();
+        assert!(invalid_recipient.parse::<Recipient>().is_err());
+    }
+
+    #[test]
+    fn identity_rejects_invalid_chars() {
+        let invalid_identity = bech32::encode(
+            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, INVALID_PLUGIN_NAME),
+            [],
+            bech32::Variant::Bech32,
+        )
+        .expect("HRP is valid")
+        .to_uppercase();
+        assert!(invalid_identity.parse::<Identity>().is_err());
+    }
+
+    #[test]
+    fn recipient_plugin_v1_rejects_invalid_chars() {
+        assert!(matches!(
+            RecipientPluginV1::new(INVALID_PLUGIN_NAME, &[], &[], NoCallbacks),
+            Err(EncryptError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+        ));
+    }
+
+    #[test]
+    fn identity_plugin_v1_rejects_invalid_chars() {
+        assert!(matches!(
+            IdentityPluginV1::new(INVALID_PLUGIN_NAME, &[], NoCallbacks),
+            Err(DecryptError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+        ));
+    }
+}
