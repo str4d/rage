@@ -139,16 +139,25 @@ impl fmt::Display for Identity {
 
 impl Identity {
     /// Returns the identity corresponding to the given plugin name in its default mode.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `plugin_name` contains invalid characters.
     pub fn default_for_plugin(plugin_name: &str) -> Self {
-        bech32::encode(
-            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
-            &[],
-            Variant::Bech32,
-        )
-        .expect("HRP is valid")
-        .to_uppercase()
-        .parse()
-        .unwrap()
+        if valid_plugin_name(plugin_name) {
+            bech32::encode(
+                &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
+                &[],
+                Variant::Bech32,
+            )
+            .expect("HRP is valid")
+            .to_uppercase()
+            .parse()
+            .unwrap()
+        } else {
+            // TODO: Change the API to be fallible.
+            panic!("invalid plugin name")
+        }
     }
 
     /// Returns the plugin name for this identity.
@@ -557,6 +566,12 @@ mod tests {
         .expect("HRP is valid")
         .to_uppercase();
         assert!(invalid_identity.parse::<Identity>().is_err());
+    }
+
+    #[test]
+    #[should_panic]
+    fn identity_default_for_plugin_rejects_invalid_chars() {
+        Identity::default_for_plugin(INVALID_PLUGIN_NAME);
     }
 
     #[test]
