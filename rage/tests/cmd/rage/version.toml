@@ -1,6 +1,6 @@
 bin.name = "rage"
 args = "--version"
 stdout = """
-rage 0.11.0
+rage 0.11.1
 """
 stderr = ""

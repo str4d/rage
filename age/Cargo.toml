@@ -1,7 +1,7 @@
 [package]
 name = "age"
 description = "[BETA] A simple, secure, and modern encryption library."
-version = "0.11.0"
+version = "0.11.1"
 authors.workspace = true
 repository.workspace = true
 readme = "README.md"

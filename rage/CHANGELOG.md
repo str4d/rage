@@ -10,7 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
-## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1] - 2024-11-18
+## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-11-18
 ### Security
 - The age plugin protocol previously allowed plugin names that could be
   interpreted as file paths. Under certain conditions, this could lead to a
