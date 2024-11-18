@@ -444,6 +444,13 @@ fn write_output<R: io::Read, W: io::Write>(
     Ok(())
 }
 
+#[inline]
+fn valid_plugin_name(plugin_name: &str) -> bool {
+    plugin_name
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() | matches!(b, b'+' | b'-' | b'.' | b'_'))
+}
+
 fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
     if opts.armor {
         return Err(error::DecryptError::ArmorFlag);
@@ -532,6 +539,12 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             let identities = if opts.plugin_name.is_empty() {
                 read_identities(opts.identity, opts.max_work_factor)?
             } else {
+                if !valid_plugin_name(&opts.plugin_name) {
+                    return Err(age::DecryptError::MissingPlugin {
+                        binary_name: opts.plugin_name,
+                    }
+                    .into());
+                }
                 // Construct the default plugin.
                 vec![Box::new(plugin::IdentityPluginV1::new(
                     &opts.plugin_name,

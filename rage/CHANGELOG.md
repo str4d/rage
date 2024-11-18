@@ -10,6 +10,14 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.6.1, 0.7.2] - 2024-11-18
+### Security
+- The age plugin protocol previously allowed plugin names that could be
+  interpreted as file paths. Under certain conditions, this could lead to a
+  different binary being executed as an age plugin than intended. Plugin names
+  are now required to only contain alphanumeric characters or the four special
+  characters `+-._`.
+
 ## [0.8.1] - 2022-06-18
 ### Security
 - Require `age 0.8.1`. See the [`age` crate changelog](../age/CHANGELOG.md) for
