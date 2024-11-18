@@ -736,7 +736,7 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Callbacks, DecryptError, EncryptError};
+    use crate::{DecryptError, EncryptError, NoCallbacks};
 
     use super::{
         Identity, IdentityPluginV1, Recipient, RecipientPluginV1, PLUGIN_IDENTITY_PREFIX,
@@ -744,21 +744,6 @@ mod tests {
     };
 
     const INVALID_PLUGIN_NAME: &str = "foobar/../../../../../../../usr/bin/echo";
-
-    #[derive(Clone)]
-    struct NoCallbacks;
-    impl Callbacks for NoCallbacks {
-        fn display_message(&self, _: &str) {}
-        fn confirm(&self, _: &str, _: &str, _: Option<&str>) -> Option<bool> {
-            None
-        }
-        fn request_public_string(&self, _: &str) -> Option<String> {
-            None
-        }
-        fn request_passphrase(&self, _: &str) -> Option<crate::secrecy::SecretString> {
-            None
-        }
-    }
 
     #[test]
     fn default_for_plugin() {
