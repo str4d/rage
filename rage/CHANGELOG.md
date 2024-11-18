@@ -9,6 +9,12 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Security
+- The age plugin protocol previously allowed plugin names that could be
+  interpreted as file paths. Under certain conditions, this could lead to a
+  different binary being executed as an age plugin than intended. Plugin names
+  are now required to only contain alphanumeric characters or the four special
+  characters `+-._`.
 
 ## [0.6.0] - 2021-05-02
 ### Added
