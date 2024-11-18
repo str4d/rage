@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "aes",
  "age-core",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "rage"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "age",
  "chrono",
