@@ -1,0 +1,13 @@
+bin.name = "rage"
+args = "--decrypt --identity - file.age.txt"
+status = "failed"
+stdin = """
+AGE-PLUGIN-FOOBAR/../../../../../../../USR/BIN/ECHO-1HKGPY3
+"""
+stdout = ""
+stderr = """
+Error: identity file contains non-identity data on line 1
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

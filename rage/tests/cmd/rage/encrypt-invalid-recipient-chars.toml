@@ -1,0 +1,11 @@
+bin.name = "rage"
+args = "--encrypt --recipient age1foobar/../../../../../../../usr/bin/echo1849l6e"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Invalid recipient 'age1foobar/../../../../../../../usr/bin/echo1849l6e'.
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""

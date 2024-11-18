@@ -1,0 +1,12 @@
+bin.name = "rage"
+args = "--decrypt -j foobar/../../../../../../../usr/bin/echo"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Could not find 'foobar/../../../../../../../usr/bin/echo' on the PATH.
+Have you installed the plugin?
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""
