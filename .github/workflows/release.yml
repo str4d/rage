@@ -119,7 +119,7 @@ jobs:
         if: matrix.name == 'windows'
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'release/rage/*'
 
@@ -310,7 +310,7 @@ jobs:
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'target/${{ matrix.target }}/debian/*.deb'
 
