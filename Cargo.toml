@@ -15,7 +15,7 @@ repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-age = { version = "0.11.0", path = "age" }
+age = { version = "0.11.1", path = "age" }
 age-core = { version = "0.11.0", path = "age-core" }
 
 # Dependencies required by the age specification:
