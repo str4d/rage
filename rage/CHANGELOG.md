@@ -10,13 +10,12 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
-## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-11-18
+## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-12-18
 ### Security
-- The age plugin protocol previously allowed plugin names that could be
-  interpreted as file paths. Under certain conditions, this could lead to a
-  different binary being executed as an age plugin than intended. Plugin names
-  are now required to only contain alphanumeric characters or the four special
-  characters `+-._`.
+- Fixed a security vulnerability that could allow an attacker to execute an
+  arbitrary binary under certain conditions. See GHSA-4fg7-vxc8-qx5w. Plugin
+  names are now required to only contain alphanumeric characters or the four
+  special characters `+-._`. Thanks to ⬡-49016 for reporting this issue.
 
 ## [0.11.0] - 2024-11-03
 ### Added
