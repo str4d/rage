@@ -43,7 +43,7 @@ impl<R: io::Read, C: Callbacks> IdentityState<R, C> {
                     filename = filename.unwrap_or_default()
                 )) {
                     Some(passphrase) => passphrase,
-                    None => todo!(),
+                    None => Err(DecryptError::KeyDecryptionFailed)?,
                 };
 
                 let mut identity = scrypt::Identity::new(passphrase);
