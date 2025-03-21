@@ -138,7 +138,7 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
     ) -> Option<Result<age_core::format::FileKey, DecryptError>>
     where
         F: Fn(
-            Result<Box<dyn crate::Identity>, DecryptError>,
+            Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>,
         ) -> Option<Result<age_core::format::FileKey, DecryptError>>,
     {
         match self.state.take().decrypt(self.filename.as_deref()) {

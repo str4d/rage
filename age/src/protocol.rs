@@ -457,7 +457,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             iter::once(&pk as _),
-            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
         );
     }
 
@@ -469,7 +469,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             iter::once(&pk as _),
-            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
         );
     }
 
