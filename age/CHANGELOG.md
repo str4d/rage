@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::encrypted::EncryptedIdentity`
+
 ### Changed
 - `age::IdentityFile::into_identities` now returns
   `Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError>` instead of
