@@ -16,39 +16,37 @@ use crate::{fl, util::LINE_ENDING, wfl, wlnfl};
 const SHORT_OUTPUT_LENGTH: usize = 20 * 80;
 
 #[derive(Debug)]
-struct DenyBinaryOutputError;
+enum FileError {
+    DenyBinaryOutput,
+    DenyOverwriteFile(String),
+    DetectedBinaryOutput,
+    InvalidFilename(String),
+    MissingDirectory(String),
+}
 
-impl fmt::Display for DenyBinaryOutputError {
+impl fmt::Display for FileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wlnfl!(f, "err-deny-binary-output")?;
-        wfl!(f, "rec-deny-binary-output")
+        match self {
+            Self::DenyBinaryOutput => {
+                wlnfl!(f, "err-deny-binary-output")?;
+                wfl!(f, "rec-deny-binary-output")
+            }
+            Self::DenyOverwriteFile(filename) => {
+                wfl!(f, "err-deny-overwrite-file", filename = filename.as_str())
+            }
+            Self::DetectedBinaryOutput => {
+                wlnfl!(f, "err-detected-binary")?;
+                wfl!(f, "rec-detected-binary")
+            }
+            Self::InvalidFilename(filename) => {
+                wfl!(f, "err-invalid-filename", filename = filename.as_str())
+            }
+            Self::MissingDirectory(path) => wfl!(f, "err-missing-directory", path = path.as_str()),
+        }
     }
 }
 
-impl std::error::Error for DenyBinaryOutputError {}
-
-#[derive(Debug)]
-struct DetectedBinaryOutputError;
-
-impl fmt::Display for DetectedBinaryOutputError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wlnfl!(f, "err-detected-binary")?;
-        wfl!(f, "rec-detected-binary")
-    }
-}
-
-impl std::error::Error for DetectedBinaryOutputError {}
-
-#[derive(Debug)]
-struct DenyOverwriteFileError(String);
-
-impl fmt::Display for DenyOverwriteFileError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wfl!(f, "err-deny-overwrite-file", filename = self.0.as_str())
-    }
-}
-
-impl std::error::Error for DenyOverwriteFileError {}
+impl std::error::Error for FileError {}
 
 /// Wrapper around a [`File`].
 pub struct FileReader {
@@ -211,7 +209,7 @@ impl Write for StdoutWriter {
                 if std::str::from_utf8(data).is_err() {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        DetectedBinaryOutputError,
+                        FileError::DetectedBinaryOutput,
                     ));
                 }
             }
@@ -353,13 +351,32 @@ impl OutputWriter {
             // Respect the Unix convention that "-" as an output filename
             // parameter is an explicit request to use standard output.
             if filename != "-" {
+                let file_path = Path::new(&filename);
+
+                // Provide a better error if the filename is invalid, or the directory
+                // containing the file does not exist (we don't automatically create
+                // directories).
+                if let Some(dir_path) = file_path.parent() {
+                    if !(dir_path == Path::new("") || dir_path.exists()) {
+                        return Err(io::Error::new(
+                            io::ErrorKind::NotFound,
+                            FileError::MissingDirectory(dir_path.display().to_string()),
+                        ));
+                    }
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        FileError::InvalidFilename(filename),
+                    ));
+                }
+
                 // We open the file lazily, but as we don't want the caller to assume
                 // this, we eagerly confirm that the file does not exist if we can't
                 // overwrite it.
-                if !allow_overwrite && Path::new(&filename).exists() {
+                if !allow_overwrite && file_path.exists() {
                     return Err(io::Error::new(
                         io::ErrorKind::AlreadyExists,
-                        DenyOverwriteFileError(filename),
+                        FileError::DenyOverwriteFile(filename),
                     ));
                 }
 
@@ -378,7 +395,10 @@ impl OutputWriter {
         } else if is_tty {
             if let OutputFormat::Binary = format {
                 // If output == Some("-") then this error is skipped.
-                return Err(io::Error::new(io::ErrorKind::Other, DenyBinaryOutputError));
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    FileError::DenyBinaryOutput,
+                ));
             }
         }
 

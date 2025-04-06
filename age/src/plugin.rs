@@ -10,6 +10,7 @@ use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Variant;
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fmt;
 use std::io;
 use std::iter;
@@ -32,6 +33,7 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 
 const CMD_ERROR: &str = "error";
 const CMD_RECIPIENT_STANZA: &str = "recipient-stanza";
+const CMD_LABELS: &str = "labels";
 const CMD_MSG: &str = "msg";
 const CMD_CONFIRM: &str = "confirm";
 const CMD_REQUEST_PUBLIC: &str = "request-public";
@@ -40,6 +42,13 @@ const CMD_FILE_KEY: &str = "file-key";
 
 const ONE_HUNDRED_MS: Duration = Duration::from_millis(100);
 const TEN_SECONDS: Duration = Duration::from_secs(10);
+
+#[inline]
+fn valid_plugin_name(plugin_name: &str) -> bool {
+    plugin_name
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() | matches!(b, b'+' | b'-' | b'.' | b'_'))
+}
 
 fn binary_name(plugin_name: &str) -> String {
     format!("age-plugin-{}", plugin_name)
@@ -102,10 +111,15 @@ impl std::str::FromStr for Recipient {
                 if hrp.len() > PLUGIN_RECIPIENT_PREFIX.len()
                     && hrp.starts_with(PLUGIN_RECIPIENT_PREFIX)
                 {
-                    Ok(Recipient {
-                        name: hrp.split_at(PLUGIN_RECIPIENT_PREFIX.len()).1.to_owned(),
-                        recipient: s.to_owned(),
-                    })
+                    let name = hrp.split_at(PLUGIN_RECIPIENT_PREFIX.len()).1.to_owned();
+                    if valid_plugin_name(&name) {
+                        Ok(Recipient {
+                            name,
+                            recipient: s.to_owned(),
+                        })
+                    } else {
+                        Err("invalid plugin name")
+                    }
                 } else {
                     Err("invalid HRP")
                 }
@@ -146,14 +160,20 @@ impl std::str::FromStr for Identity {
                 if hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
                     && hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
                 {
-                    Ok(Identity {
-                        name: hrp
-                            .split_at(PLUGIN_IDENTITY_PREFIX.len())
-                            .1
-                            .trim_end_matches('-')
-                            .to_owned(),
-                        identity: s.to_owned(),
-                    })
+                    // TODO: Decide whether to allow plugin names to end in -
+                    let name = hrp
+                        .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                        .1
+                        .trim_end_matches('-')
+                        .to_owned();
+                    if valid_plugin_name(&name) {
+                        Ok(Identity {
+                            name,
+                            identity: s.to_owned(),
+                        })
+                    } else {
+                        Err("invalid plugin name")
+                    }
                 } else {
                     Err("invalid HRP")
                 }
@@ -169,16 +189,25 @@ impl fmt::Display for Identity {
 
 impl Identity {
     /// Returns the identity corresponding to the given plugin name in its default mode.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `plugin_name` contains invalid characters.
     pub fn default_for_plugin(plugin_name: &str) -> Self {
-        bech32::encode(
-            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
-            [],
-            Variant::Bech32,
-        )
-        .expect("HRP is valid")
-        .to_uppercase()
-        .parse()
-        .unwrap()
+        if valid_plugin_name(plugin_name) {
+            bech32::encode(
+                &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
+                [],
+                Variant::Bech32,
+            )
+            .expect("HRP is valid")
+            .to_uppercase()
+            .parse()
+            .unwrap()
+        } else {
+            // TODO: Change the API to be fallible.
+            panic!("invalid plugin name")
+        }
     }
 
     /// Returns the plugin name for this identity.
@@ -188,7 +217,7 @@ impl Identity {
 }
 
 /// An age plugin.
-struct Plugin {
+pub(crate) struct Plugin {
     binary_name: String,
     path: PathBuf,
 }
@@ -197,7 +226,7 @@ impl Plugin {
     /// Finds the age plugin with the given name in `$PATH`.
     ///
     /// On error, returns the binary name that could not be located.
-    fn new(name: &str) -> Result<Self, String> {
+    pub(crate) fn new(name: &str) -> Result<Self, String> {
         let binary_name = binary_name(name);
         match which::which(&binary_name).or_else(|e| {
             // If we are running in WSL, try appending `.exe`; plugins installed in
@@ -357,27 +386,36 @@ impl<C: Callbacks> RecipientPluginV1<C> {
         identities: &[Identity],
         callbacks: C,
     ) -> Result<Self, EncryptError> {
-        Plugin::new(plugin_name)
-            .map_err(|binary_name| EncryptError::MissingPlugin { binary_name })
-            .map(|plugin| RecipientPluginV1 {
-                plugin,
-                recipients: recipients
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect(),
-                identities: identities
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect(),
-                callbacks,
+        if valid_plugin_name(plugin_name) {
+            Plugin::new(plugin_name)
+                .map_err(|binary_name| EncryptError::MissingPlugin { binary_name })
+                .map(|plugin| RecipientPluginV1 {
+                    plugin,
+                    recipients: recipients
+                        .iter()
+                        .filter(|r| r.name == plugin_name)
+                        .cloned()
+                        .collect(),
+                    identities: identities
+                        .iter()
+                        .filter(|r| r.name == plugin_name)
+                        .cloned()
+                        .collect(),
+                    callbacks,
+                })
+        } else {
+            Err(EncryptError::MissingPlugin {
+                binary_name: plugin_name.to_string(),
             })
+        }
     }
 }
 
 impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
@@ -391,11 +429,13 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             for identity in &self.identities {
                 phase.send("add-identity", &[&identity.identity], &[])?;
             }
+            phase.send("extension-labels", &[], &[])?;
             phase.send("wrap-file-key", &[], file_key.expose_secret())
         })?;
 
         // Phase 2: collect either stanzas or errors
         let mut stanzas = vec![];
+        let mut labels = None;
         let mut errors = vec![];
         if let Err(e) = conn.bidir_receive(
             &[
@@ -404,6 +444,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                 CMD_REQUEST_PUBLIC,
                 CMD_REQUEST_SECRET,
                 CMD_RECIPIENT_STANZA,
+                CMD_LABELS,
                 CMD_ERROR,
             ],
             |mut command, reply| match command.tag.as_str() {
@@ -459,6 +500,34 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                     }
                     reply.ok(None)
                 }
+                CMD_LABELS => {
+                    if labels.is_none() {
+                        let labels_count = command.args.len();
+                        let label_set = command.args.into_iter().collect::<HashSet<_>>();
+                        if label_set.len() == labels_count {
+                            labels = Some(label_set);
+                        } else {
+                            errors.push(PluginError::Other {
+                                kind: "internal".to_owned(),
+                                metadata: vec![],
+                                message: format!(
+                                    "{} command must not contain duplicate labels",
+                                    CMD_LABELS
+                                ),
+                            });
+                        }
+                    } else {
+                        errors.push(PluginError::Other {
+                            kind: "internal".to_owned(),
+                            metadata: vec![],
+                            message: format!(
+                                "{} command must not be sent more than once",
+                                CMD_LABELS
+                            ),
+                        });
+                    }
+                    reply.ok(None)
+                }
                 CMD_ERROR => {
                     if command.args.len() == 2 && command.args[0] == "recipient" {
                         let index: usize = command.args[1].parse().unwrap();
@@ -484,7 +553,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
             return Err(e.into());
         };
         match (stanzas.is_empty(), errors.is_empty()) {
-            (false, true) => Ok(stanzas),
+            (false, true) => Ok((stanzas, labels.unwrap_or_default())),
             (a, b) => {
                 if a & b {
                     errors.push(PluginError::Other {
@@ -527,17 +596,30 @@ impl<C: Callbacks> IdentityPluginV1<C> {
         identities: &[Identity],
         callbacks: C,
     ) -> Result<Self, DecryptError> {
-        Plugin::new(plugin_name)
-            .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
-            .map(|plugin| IdentityPluginV1 {
-                plugin,
-                identities: identities
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect(),
-                callbacks,
+        if valid_plugin_name(plugin_name) {
+            Plugin::new(plugin_name)
+                .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                .map(|plugin| {
+                    let identities = identities
+                        .iter()
+                        .filter(|r| r.name == plugin_name)
+                        .cloned()
+                        .collect();
+                    Self::from_parts(plugin, identities, callbacks)
+                })
+        } else {
+            Err(DecryptError::MissingPlugin {
+                binary_name: plugin_name.to_string(),
             })
+        }
+    }
+
+    pub(crate) fn from_parts(plugin: Plugin, identities: Vec<Identity>, callbacks: C) -> Self {
+        IdentityPluginV1 {
+            plugin,
+            identities,
+            callbacks,
+        }
     }
 
     fn unwrap_stanzas<'a>(
@@ -606,11 +688,14 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                     // We only support a single file.
                     assert!(command.args[0] == "0");
                     assert!(file_key.is_none());
-                    file_key = Some(
-                        TryInto::<[u8; 16]>::try_into(&command.body[..])
-                            .map_err(|_| DecryptError::DecryptionFailed)
-                            .map(FileKey::from),
-                    );
+                    file_key = Some(FileKey::try_init_with_mut(|file_key| {
+                        if command.body.len() == file_key.len() {
+                            file_key.copy_from_slice(&command.body);
+                            Ok(())
+                        } else {
+                            Err(DecryptError::DecryptionFailed)
+                        }
+                    }));
                     reply.ok(None)
                 }
                 CMD_ERROR => {
@@ -651,7 +736,14 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 
 #[cfg(test)]
 mod tests {
-    use super::Identity;
+    use crate::{DecryptError, EncryptError, NoCallbacks};
+
+    use super::{
+        Identity, IdentityPluginV1, Recipient, RecipientPluginV1, PLUGIN_IDENTITY_PREFIX,
+        PLUGIN_RECIPIENT_PREFIX,
+    };
+
+    const INVALID_PLUGIN_NAME: &str = "foobar/../../../../../../../usr/bin/echo";
 
     #[test]
     fn default_for_plugin() {
@@ -659,5 +751,50 @@ mod tests {
             Identity::default_for_plugin("foobar").to_string(),
             "AGE-PLUGIN-FOOBAR-1QVHULF",
         );
+    }
+
+    #[test]
+    fn recipient_rejects_invalid_chars() {
+        let invalid_recipient = bech32::encode(
+            &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME),
+            [],
+            bech32::Variant::Bech32,
+        )
+        .unwrap();
+        assert!(invalid_recipient.parse::<Recipient>().is_err());
+    }
+
+    #[test]
+    fn identity_rejects_invalid_chars() {
+        let invalid_identity = bech32::encode(
+            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, INVALID_PLUGIN_NAME),
+            [],
+            bech32::Variant::Bech32,
+        )
+        .expect("HRP is valid")
+        .to_uppercase();
+        assert!(invalid_identity.parse::<Identity>().is_err());
+    }
+
+    #[test]
+    #[should_panic]
+    fn identity_default_for_plugin_rejects_invalid_chars() {
+        Identity::default_for_plugin(INVALID_PLUGIN_NAME);
+    }
+
+    #[test]
+    fn recipient_plugin_v1_rejects_invalid_chars() {
+        assert!(matches!(
+            RecipientPluginV1::new(INVALID_PLUGIN_NAME, &[], &[], NoCallbacks),
+            Err(EncryptError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+        ));
+    }
+
+    #[test]
+    fn identity_plugin_v1_rejects_invalid_chars() {
+        assert!(matches!(
+            IdentityPluginV1::new(INVALID_PLUGIN_NAME, &[], NoCallbacks),
+            Err(DecryptError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+        ));
     }
 }

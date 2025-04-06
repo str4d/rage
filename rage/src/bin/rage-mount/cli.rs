@@ -1,4 +1,7 @@
-use clap::{builder::Styles, ArgAction, Parser};
+use clap::{
+    builder::{Styles, ValueHint},
+    ArgAction, Parser,
+};
 
 use crate::fl;
 
@@ -24,11 +27,13 @@ pub(crate) struct AgeMountOptions {
     #[arg(help_heading = fl!("args-header"))]
     #[arg(value_name = fl!("mnt-filename"))]
     #[arg(help = fl!("help-arg-mnt-filename"))]
+    #[arg(value_hint = ValueHint::FilePath)]
     pub(crate) filename: String,
 
     #[arg(help_heading = fl!("args-header"))]
     #[arg(value_name = fl!("mnt-mountpoint"))]
     #[arg(help = fl!("help-arg-mnt-mountpoint"))]
+    #[arg(value_hint = ValueHint::DirPath)]
     pub(crate) mountpoint: String,
 
     #[arg(action = ArgAction::Help, short, long)]
@@ -51,5 +56,6 @@ pub(crate) struct AgeMountOptions {
     #[arg(short, long)]
     #[arg(value_name = fl!("identity"))]
     #[arg(help = fl!("help-flag-identity"))]
+    #[arg(value_hint = ValueHint::FilePath)]
     pub(crate) identity: Vec<String>,
 }

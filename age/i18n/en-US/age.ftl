@@ -13,6 +13,8 @@
 -age = age
 -rage = rage
 
+-scrypt-recipient = scrypt::Recipient
+
 -openssh = OpenSSH
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
@@ -44,6 +46,20 @@ rec-deny-binary-output = Did you mean to use {-flag-armor}? {rec-detected-binary
 
 err-deny-overwrite-file = refusing to overwrite existing file '{$filename}'.
 
+err-invalid-filename = invalid filename '{$filename}'.
+
+err-missing-directory = directory '{$path}' does not exist.
+
+## Identity file errors
+
+err-failed-to-write-output = Failed to write to output: {$err}
+
+err-identity-file-contains-plugin = Identity file '{$filename}' contains identities for '{-age-plugin-}{$plugin_name}'.
+rec-identity-file-contains-plugin = Try using '{-age-plugin-}{$plugin_name}' to convert this identity to a recipient.
+
+err-no-identities-in-file = No identities found in file '{$filename}'.
+err-no-identities-in-stdin = No identities found in standard input.
+
 ## Errors
 
 err-decryption-failed = Decryption failed
@@ -55,7 +71,16 @@ err-header-invalid = Header is invalid
 
 err-header-mac-invalid = Header MAC is invalid
 
+err-incompatible-recipients-oneway = Cannot encrypt to a recipient with labels '{$labels}' alongside a recipient with no labels
+err-incompatible-recipients-twoway = Cannot encrypt to a recipient with labels '{$left}' alongside a recipient with labels '{$right}'
+
+err-invalid-recipient-labels = The first recipient requires one or more invalid labels: '{$labels}'
+
 err-key-decryption = Failed to decrypt an encrypted key
+
+err-missing-recipients = Missing recipients.
+
+err-mixed-recipient-passphrase = {-scrypt-recipient} can't be used with other recipients.
 
 err-no-matching-keys = No matching keys found
 

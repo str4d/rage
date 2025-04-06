@@ -73,33 +73,14 @@ fn generate(mut output: file_io::OutputWriter) -> io::Result<()> {
     Ok(())
 }
 
-fn convert(
-    filename: Option<String>,
-    mut output: file_io::OutputWriter,
-) -> Result<(), error::Error> {
+fn convert(filename: Option<String>, output: file_io::OutputWriter) -> Result<(), error::Error> {
     let file = age::IdentityFile::from_input_reader(
-        file_io::InputReader::new(filename.clone()).map_err(error::Error::FailedToOpenInput)?,
+        file_io::InputReader::new(filename).map_err(error::Error::FailedToOpenInput)?,
     )
     .map_err(error::Error::FailedToReadInput)?;
 
-    let identities = file.into_identities();
-    if identities.is_empty() {
-        return Err(error::Error::NoIdentities { filename });
-    }
-
-    for identity in identities {
-        match identity {
-            age::IdentityFileEntry::Native(sk) => {
-                writeln!(output, "{}", sk.to_public()).map_err(error::Error::FailedToWriteOutput)?
-            }
-            age::IdentityFileEntry::Plugin(id) => {
-                return Err(error::Error::IdentityFileContainsPlugin {
-                    filename,
-                    plugin_name: id.plugin().to_string(),
-                });
-            }
-        }
-    }
+    file.write_recipients_file(output)
+        .map_err(error::Error::IdentityFileConvert)?;
 
     Ok(())
 }

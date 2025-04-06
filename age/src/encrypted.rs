@@ -2,18 +2,16 @@
 
 use std::{cell::Cell, io};
 
-use crate::{
-    decryptor::PassphraseDecryptor, fl, Callbacks, DecryptError, Decryptor, EncryptError,
-    IdentityFile, IdentityFileEntry,
-};
+use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
 
 /// The state of the encrypted age identity.
-enum IdentityState<R: io::Read> {
+enum IdentityState<R: io::Read, C: Callbacks> {
     Encrypted {
-        decryptor: PassphraseDecryptor<R>,
+        decryptor: Decryptor<R>,
         max_work_factor: Option<u8>,
+        callbacks: C,
     },
-    Decrypted(Vec<IdentityFileEntry>),
+    Decrypted(IdentityFile<C>),
 
     /// The file was not correctly encrypted, or did not contain age identities. We cache
     /// this error in case the caller tries to use this identity again. The `Option` is to
@@ -22,26 +20,23 @@ enum IdentityState<R: io::Read> {
     Poisoned(Option<DecryptError>),
 }
 
-impl<R: io::Read> Default for IdentityState<R> {
+impl<R: io::Read, C: Callbacks> Default for IdentityState<R, C> {
     fn default() -> Self {
         Self::Poisoned(None)
     }
 }
 
-impl<R: io::Read> IdentityState<R> {
+impl<R: io::Read, C: Callbacks> IdentityState<R, C> {
     /// Decrypts this encrypted identity if necessary.
     ///
     /// Returns the (possibly cached) identities, and a boolean marking if the identities
     /// were not cached (and we just asked the user for a passphrase).
-    fn decrypt<C: Callbacks>(
-        self,
-        filename: Option<&str>,
-        callbacks: C,
-    ) -> Result<(Vec<IdentityFileEntry>, bool), DecryptError> {
+    fn decrypt(self, filename: Option<&str>) -> Result<(IdentityFile<C>, bool), DecryptError> {
         match self {
             Self::Encrypted {
                 decryptor,
                 max_work_factor,
+                callbacks,
             } => {
                 let passphrase = match callbacks.request_passphrase(&fl!(
                     "encrypted-passphrase-prompt",
@@ -51,8 +46,13 @@ impl<R: io::Read> IdentityState<R> {
                     None => todo!(),
                 };
 
+                let mut identity = scrypt::Identity::new(passphrase);
+                if let Some(max_work_factor) = max_work_factor {
+                    identity.set_max_work_factor(max_work_factor);
+                }
+
                 decryptor
-                    .decrypt(&passphrase, max_work_factor)
+                    .decrypt(Some(&identity as _).into_iter())
                     .map_err(|e| {
                         if matches!(e, DecryptError::DecryptionFailed) {
                             DecryptError::KeyDecryptionFailed
@@ -61,11 +61,12 @@ impl<R: io::Read> IdentityState<R> {
                         }
                     })
                     .and_then(|stream| {
-                        let file = IdentityFile::from_buffer(io::BufReader::new(stream))?;
-                        Ok((file.into_identities(), true))
+                        let file = IdentityFile::from_buffer(io::BufReader::new(stream))?
+                            .with_callbacks(callbacks);
+                        Ok((file, true))
                     })
             }
-            Self::Decrypted(identities) => Ok((identities, false)),
+            Self::Decrypted(identity_file) => Ok((identity_file, false)),
             // `IdentityState::decrypt` is only ever called with `Some`.
             Self::Poisoned(e) => Err(e.unwrap()),
         }
@@ -74,9 +75,8 @@ impl<R: io::Read> IdentityState<R> {
 
 /// An encrypted age identity file.
 pub struct Identity<R: io::Read, C: Callbacks> {
-    state: Cell<IdentityState<R>>,
+    state: Cell<IdentityState<R, C>>,
     filename: Option<String>,
-    callbacks: C,
 }
 
 impl<R: io::Read, C: Callbacks> Identity<R, C> {
@@ -92,17 +92,15 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
         callbacks: C,
         max_work_factor: Option<u8>,
     ) -> Result<Option<Self>, DecryptError> {
-        match Decryptor::new(data)? {
-            Decryptor::Recipients(_) => Ok(None),
-            Decryptor::Passphrase(decryptor) => Ok(Some(Identity {
-                state: Cell::new(IdentityState::Encrypted {
-                    decryptor,
-                    max_work_factor,
-                }),
-                filename,
+        let decryptor = Decryptor::new(data)?;
+        Ok(decryptor.is_scrypt().then_some(Identity {
+            state: Cell::new(IdentityState::Encrypted {
+                decryptor,
+                max_work_factor,
                 callbacks,
-            })),
-        }
+            }),
+            filename,
+        }))
     }
 
     /// Returns the recipients contained within this encrypted identity.
@@ -110,18 +108,10 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
     /// If this encrypted identity has not been decrypted yet, calling this method will
     /// trigger a passphrase request.
     pub fn recipients(&self) -> Result<Vec<Box<dyn crate::Recipient + Send>>, EncryptError> {
-        match self
-            .state
-            .take()
-            .decrypt(self.filename.as_deref(), self.callbacks.clone())
-        {
-            Ok((identities, _)) => {
-                let recipients = identities
-                    .iter()
-                    .map(|entry| entry.to_recipient(self.callbacks.clone()))
-                    .collect::<Result<Vec<_>, _>>();
-
-                self.state.set(IdentityState::Decrypted(identities));
+        match self.state.take().decrypt(self.filename.as_deref()) {
+            Ok((identity_file, _)) => {
+                let recipients = identity_file.to_recipients();
+                self.state.set(IdentityState::Decrypted(identity_file));
                 recipients
             }
             Err(e) => {
@@ -151,27 +141,20 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
             Result<Box<dyn crate::Identity>, DecryptError>,
         ) -> Option<Result<age_core::format::FileKey, DecryptError>>,
     {
-        match self
-            .state
-            .take()
-            .decrypt(self.filename.as_deref(), self.callbacks.clone())
-        {
-            Ok((identities, requested_passphrase)) => {
-                let result = identities
-                    .iter()
-                    .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
-                    .find_map(filter);
+        match self.state.take().decrypt(self.filename.as_deref()) {
+            Ok((identity_file, requested_passphrase)) => {
+                let result = identity_file.to_identities().find_map(filter);
 
                 // If we requested a passphrase to decrypt, and none of the identities
                 // matched, warn the user.
                 if requested_passphrase && result.is_none() {
-                    self.callbacks.display_message(&fl!(
+                    identity_file.callbacks.display_message(&fl!(
                         "encrypted-warn-no-match",
                         filename = self.filename.as_deref().unwrap_or_default()
                     ));
                 }
 
-                self.state.set(IdentityState::Decrypted(identities));
+                self.state.set(IdentityState::Decrypted(identity_file));
                 result
             }
             Err(e) => {
@@ -256,7 +239,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::new(
+            Some(SecretString::from(
                 self.0.lock().unwrap().take().unwrap().to_owned(),
             ))
         }
@@ -265,9 +248,12 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     #[test]
     #[cfg(feature = "armor")]
     fn round_trip() {
+        use age_core::format::FileKey;
+
         let pk: x25519::Recipient = TEST_RECIPIENT.parse().unwrap();
-        let file_key = [12; 16].into();
-        let wrapped = pk.wrap_file_key(&file_key).unwrap();
+        let file_key = FileKey::new(Box::new([12; 16]));
+        let (wrapped, labels) = pk.wrap_file_key(&file_key).unwrap();
+        assert!(labels.is_empty());
 
         // Unwrapping with the wrong passphrase fails.
         {

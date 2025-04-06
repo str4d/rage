@@ -12,8 +12,8 @@ encryption and decryption of files or streams (e.g. in shell scripts), as well
 as additional features such as mounting an encrypted archive.
 
 The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
-The age format was designed by [@Benjojo12](https://twitter.com/Benjojo12) and
-[@FiloSottile](https://twitter.com/FiloSottile).
+The age format was designed by [@Benjojo](https://benjojo.co.uk/) and
+[@FiloSottile](https://bsky.app/profile/did:plc:x2nsupeeo52oznrmplwapppl).
 
 The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
@@ -23,7 +23,7 @@ The reference interoperable Go implementation is available at
 Add this line to your `Cargo.toml`:
 
 ```
-age = "0.10"
+age = "0.11"
 ```
 
 See the [documentation](https://docs.rs/age) for examples.

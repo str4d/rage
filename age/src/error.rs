@@ -1,5 +1,6 @@
 //! Error type.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::io;
 
@@ -7,6 +8,72 @@ use crate::{wfl, wlnfl};
 
 #[cfg(feature = "plugin")]
 use age_core::format::Stanza;
+
+/// Errors returned when converting an identity file to a recipients file.
+#[derive(Debug)]
+pub enum IdentityFileConvertError {
+    /// An I/O error occurred while writing out a recipient corresponding to an identity
+    /// in this file.
+    FailedToWriteOutput(io::Error),
+    /// The identity file contains a plugin identity, which can be converted to a
+    /// recipient for encryption purposes, but not for writing a recipients file.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    IdentityFileContainsPlugin {
+        /// The given identity file.
+        filename: Option<String>,
+        /// The name of the plugin.
+        plugin_name: String,
+    },
+    /// The identity file contains no identities, and thus cannot be used to produce a
+    /// recipients file.
+    NoIdentities {
+        /// The given identity file.
+        filename: Option<String>,
+    },
+}
+
+impl fmt::Display for IdentityFileConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IdentityFileConvertError::FailedToWriteOutput(e) => {
+                wfl!(f, "err-failed-to-write-output", err = e.to_string())
+            }
+            #[cfg(feature = "plugin")]
+            IdentityFileConvertError::IdentityFileContainsPlugin {
+                filename,
+                plugin_name,
+            } => {
+                wlnfl!(
+                    f,
+                    "err-identity-file-contains-plugin",
+                    filename = filename.as_deref().unwrap_or_default(),
+                    plugin_name = plugin_name.as_str(),
+                )?;
+                wfl!(
+                    f,
+                    "rec-identity-file-contains-plugin",
+                    plugin_name = plugin_name.as_str(),
+                )
+            }
+            IdentityFileConvertError::NoIdentities { filename } => match filename {
+                Some(filename) => {
+                    wfl!(f, "err-no-identities-in-file", filename = filename.as_str())
+                }
+                None => wfl!(f, "err-no-identities-in-stdin"),
+            },
+        }
+    }
+}
+
+impl std::error::Error for IdentityFileConvertError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            IdentityFileConvertError::FailedToWriteOutput(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 /// Errors returned by a plugin.
 #[cfg(feature = "plugin")]
@@ -101,6 +168,18 @@ impl fmt::Display for PluginError {
 pub enum EncryptError {
     /// An error occured while decrypting passphrase-encrypted identities.
     EncryptedIdentities(DecryptError),
+    /// The encryptor was given recipients that declare themselves incompatible.
+    IncompatibleRecipients {
+        /// The set of labels from the first recipient provided to the encryptor.
+        l_labels: HashSet<String>,
+        /// The set of labels from the first non-matching recipient.
+        r_labels: HashSet<String>,
+    },
+    /// One or more of the labels from the first recipient provided to the encryptor are
+    /// invalid.
+    ///
+    /// Labels must be valid age "arbitrary string"s (`1*VCHAR` in ABNF).
+    InvalidRecipientLabels(HashSet<String>),
     /// An I/O error occurred during encryption.
     Io(io::Error),
     /// A required plugin could not be found.
@@ -110,6 +189,12 @@ pub enum EncryptError {
         /// The plugin's binary name.
         binary_name: String,
     },
+    /// The encryptor was not given any recipients.
+    MissingRecipients,
+    /// [`scrypt::Recipient`] was mixed with other recipient types.
+    ///
+    /// [`scrypt::Recipient`]: crate::scrypt::Recipient
+    MixedRecipientAndPassphrase,
     /// Errors from a plugin.
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
@@ -126,26 +211,78 @@ impl Clone for EncryptError {
     fn clone(&self) -> Self {
         match self {
             Self::EncryptedIdentities(e) => Self::EncryptedIdentities(e.clone()),
+            Self::IncompatibleRecipients { l_labels, r_labels } => Self::IncompatibleRecipients {
+                l_labels: l_labels.clone(),
+                r_labels: r_labels.clone(),
+            },
+            Self::InvalidRecipientLabels(labels) => Self::InvalidRecipientLabels(labels.clone()),
             Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
             #[cfg(feature = "plugin")]
             Self::MissingPlugin { binary_name } => Self::MissingPlugin {
                 binary_name: binary_name.clone(),
             },
+            Self::MissingRecipients => Self::MissingRecipients,
+            Self::MixedRecipientAndPassphrase => Self::MixedRecipientAndPassphrase,
             #[cfg(feature = "plugin")]
             Self::Plugin(e) => Self::Plugin(e.clone()),
         }
     }
 }
 
+fn print_labels(labels: &HashSet<String>) -> String {
+    let mut s = String::new();
+    for (i, label) in labels.iter().enumerate() {
+        s.push_str(label);
+        if i != 0 {
+            s.push_str(", ");
+        }
+    }
+    s
+}
+
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             EncryptError::EncryptedIdentities(e) => e.fmt(f),
+            EncryptError::IncompatibleRecipients { l_labels, r_labels } => {
+                match (l_labels.is_empty(), r_labels.is_empty()) {
+                    (true, true) => unreachable!("labels are compatible"),
+                    (false, true) => {
+                        wfl!(
+                            f,
+                            "err-incompatible-recipients-oneway",
+                            labels = print_labels(l_labels),
+                        )
+                    }
+                    (true, false) => {
+                        wfl!(
+                            f,
+                            "err-incompatible-recipients-oneway",
+                            labels = print_labels(r_labels),
+                        )
+                    }
+                    (false, false) => wfl!(
+                        f,
+                        "err-incompatible-recipients-twoway",
+                        left = print_labels(l_labels),
+                        right = print_labels(r_labels),
+                    ),
+                }
+            }
+            EncryptError::InvalidRecipientLabels(labels) => wfl!(
+                f,
+                "err-invalid-recipient-labels",
+                labels = print_labels(labels),
+            ),
             EncryptError::Io(e) => e.fmt(f),
             #[cfg(feature = "plugin")]
             EncryptError::MissingPlugin { binary_name } => {
                 wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
+            }
+            EncryptError::MissingRecipients => wfl!(f, "err-missing-recipients"),
+            EncryptError::MixedRecipientAndPassphrase => {
+                wfl!(f, "err-mixed-recipient-passphrase")
             }
             #[cfg(feature = "plugin")]
             EncryptError::Plugin(errors) => match &errors[..] {
@@ -168,7 +305,6 @@ impl std::error::Error for EncryptError {
         match self {
             EncryptError::EncryptedIdentities(inner) => Some(inner),
             EncryptError::Io(inner) => Some(inner),
-            #[cfg(feature = "plugin")]
             _ => None,
         }
     }

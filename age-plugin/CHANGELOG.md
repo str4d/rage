@@ -10,6 +10,26 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.6.0] - 2024-11-03
+### Added
+- `age_plugin::PluginHandler`
+- `impl age_plugin::identity::IdentityPluginV1 for std::convert::Infallible`
+- `impl age_plugin::recipient::RecipientPluginV1 for std::convert::Infallible`
+
+### Changed
+- Migrated to `age-core 0.11`.
+- `age_plugin::recipient::RecipientPluginV1` has a new `labels` method. Existing
+  implementations of the trait should either return `HashSet::new()` to maintain
+  existing compatibility, or return labels that apply the desired constraints.
+- `age_plugin::run_state_machine` now supports the `recipient-v1` labels
+  extension.
+
+### Fixed
+- `age_plugin::run_state_machine` now takes an `impl age_plugin::PluginHandler`
+  argument, instead of its previous arguments.
+  - This fixes the change from the previous release, because the type parameters
+    were basically impossible to set correctly when attempting to pass `None`.
+
 ## [0.5.0] - 2024-02-04
 ### Changed
 - MSRV is now 1.65.0.

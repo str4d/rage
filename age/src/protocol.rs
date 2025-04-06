@@ -1,21 +1,21 @@
 //! Encryption and decryption routines for age.
 
-use age_core::{format::grease_the_joint, secrecy::SecretString};
+use age_core::{format::is_arbitrary_string, secrecy::SecretString};
 use rand::{rngs::OsRng, RngCore};
+
 use std::io::{self, BufRead, Read, Write};
+use std::iter;
 
 use crate::{
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
-    primitives::stream::{PayloadKey, Stream, StreamWriter},
-    scrypt, Recipient,
+    primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
+    scrypt, Identity, Recipient,
 };
 
 #[cfg(feature = "async")]
 use futures::io::{AsyncBufRead, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-
-pub mod decryptor;
 
 pub(crate) struct Nonce([u8; 16]);
 
@@ -47,26 +47,14 @@ impl Nonce {
     }
 }
 
-/// Handles the various types of age encryption.
-enum EncryptorType {
-    /// Encryption to a list of recipients identified by keys.
-    Keys(Vec<Box<dyn Recipient + Send>>),
-    /// Encryption to a passphrase.
-    Passphrase(SecretString),
+/// Encryptor for creating an age file.
+pub struct Encryptor {
+    header: Header,
+    nonce: Nonce,
+    payload_key: PayloadKey,
 }
 
-/// Encryptor for creating an age file.
-pub struct Encryptor(EncryptorType);
-
 impl Encryptor {
-    /// Constructs an `Encryptor` that will create an age file encrypted to a list of
-    /// recipients.
-    ///
-    /// Returns `None` if no recipients were provided.
-    pub fn with_recipients(recipients: Vec<Box<dyn Recipient + Send>>) -> Option<Self> {
-        (!recipients.is_empty()).then_some(Encryptor(EncryptorType::Keys(recipients)))
-    }
-
     /// Returns an `Encryptor` that will create an age file encrypted with a passphrase.
     /// Anyone with the passphrase can decrypt the file.
     ///
@@ -76,33 +64,64 @@ impl Encryptor {
     ///
     /// [`x25519::Identity`]: crate::x25519::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
-        Encryptor(EncryptorType::Passphrase(passphrase))
+        Self::with_recipients(iter::once(&scrypt::Recipient::new(passphrase) as _))
+            .expect("no errors can occur with this recipient set")
     }
 
-    /// Creates the header for this age file.
-    fn prepare_header(self) -> Result<(Header, Nonce, PayloadKey), EncryptError> {
+    /// Constructs an `Encryptor` that will create an age file encrypted to a list of
+    /// recipients.
+    pub fn with_recipients<'a>(
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
+    ) -> Result<Self, EncryptError> {
         let file_key = new_file_key();
 
-        let recipients = match self.0 {
-            EncryptorType::Keys(recipients) => {
-                let mut stanzas = Vec::with_capacity(recipients.len() + 1);
-                for recipient in recipients {
-                    stanzas.append(&mut recipient.wrap_file_key(&file_key)?);
+        let recipients = {
+            let mut control = None;
+
+            let mut stanzas = vec![];
+            let mut have_recipients = false;
+            for recipient in recipients {
+                have_recipients = true;
+                let (mut r_stanzas, r_labels) = recipient.wrap_file_key(&file_key)?;
+
+                if let Some(l_labels) = control.take() {
+                    if l_labels != r_labels {
+                        // Improve error message.
+                        let err = if stanzas
+                            .iter()
+                            .chain(&r_stanzas)
+                            .any(|stanza| stanza.tag == crate::scrypt::SCRYPT_RECIPIENT_TAG)
+                        {
+                            EncryptError::MixedRecipientAndPassphrase
+                        } else {
+                            EncryptError::IncompatibleRecipients { l_labels, r_labels }
+                        };
+                        return Err(err);
+                    }
+                    control = Some(l_labels);
+                } else if r_labels.iter().all(is_arbitrary_string) {
+                    control = Some(r_labels);
+                } else {
+                    return Err(EncryptError::InvalidRecipientLabels(r_labels));
                 }
-                // Keep the joint well oiled!
-                stanzas.push(grease_the_joint());
-                stanzas
+
+                stanzas.append(&mut r_stanzas);
             }
-            EncryptorType::Passphrase(passphrase) => {
-                scrypt::Recipient { passphrase }.wrap_file_key(&file_key)?
+            if !have_recipients {
+                return Err(EncryptError::MissingRecipients);
             }
+            stanzas
         };
 
-        let header = HeaderV1::new(recipients, mac_key(&file_key));
+        let header = HeaderV1::new(recipients, mac_key(&file_key))?;
         let nonce = Nonce::random();
         let payload_key = v1_payload_key(&file_key, &header, &nonce).expect("MAC is correct");
 
-        Ok((Header::V1(header), nonce, payload_key))
+        Ok(Self {
+            header: Header::V1(header),
+            nonce,
+            payload_key,
+        })
     }
 
     /// Creates a wrapper around a writer that will encrypt its input.
@@ -112,8 +131,12 @@ impl Encryptor {
     /// You **MUST** call [`StreamWriter::finish`] when you are done writing, in order to
     /// finish the encryption process. Failing to call [`StreamWriter::finish`] will
     /// result in a truncated file that will fail to decrypt.
-    pub fn wrap_output<W: Write>(self, mut output: W) -> Result<StreamWriter<W>, EncryptError> {
-        let (header, nonce, payload_key) = self.prepare_header()?;
+    pub fn wrap_output<W: Write>(self, mut output: W) -> io::Result<StreamWriter<W>> {
+        let Self {
+            header,
+            nonce,
+            payload_key,
+        } = self;
         header.write(&mut output)?;
         output.write_all(nonce.as_ref())?;
         Ok(Stream::encrypt(payload_key, output))
@@ -131,8 +154,12 @@ impl Encryptor {
     pub async fn wrap_async_output<W: AsyncWrite + Unpin>(
         self,
         mut output: W,
-    ) -> Result<StreamWriter<W>, EncryptError> {
-        let (header, nonce, payload_key) = self.prepare_header()?;
+    ) -> io::Result<StreamWriter<W>> {
+        let Self {
+            header,
+            nonce,
+            payload_key,
+        } = self;
         header.write_async(&mut output).await?;
         output.write_all(nonce.as_ref()).await?;
         Ok(Stream::encrypt_async(payload_key, output))
@@ -140,39 +167,47 @@ impl Encryptor {
 }
 
 /// Decryptor for an age file.
-pub enum Decryptor<R> {
-    /// Decryption with a list of identities.
-    Recipients(decryptor::RecipientsDecryptor<R>),
-    /// Decryption with a passphrase.
-    Passphrase(decryptor::PassphraseDecryptor<R>),
-}
-
-impl<R> From<decryptor::RecipientsDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::RecipientsDecryptor<R>) -> Self {
-        Decryptor::Recipients(decryptor)
-    }
-}
-
-impl<R> From<decryptor::PassphraseDecryptor<R>> for Decryptor<R> {
-    fn from(decryptor: decryptor::PassphraseDecryptor<R>) -> Self {
-        Decryptor::Passphrase(decryptor)
-    }
+pub struct Decryptor<R> {
+    /// The age file.
+    input: R,
+    /// The age file's header.
+    header: Header,
+    /// The age file's AEAD nonce
+    nonce: Nonce,
 }
 
 impl<R> Decryptor<R> {
     fn from_v1_header(input: R, header: HeaderV1, nonce: Nonce) -> Result<Self, DecryptError> {
         // Enforce structural requirements on the v1 header.
-        let any_scrypt = header
-            .recipients
-            .iter()
-            .any(|r| r.tag == scrypt::SCRYPT_RECIPIENT_TAG);
-
-        if any_scrypt && header.recipients.len() == 1 {
-            Ok(decryptor::PassphraseDecryptor::new(input, Header::V1(header), nonce).into())
-        } else if !any_scrypt {
-            Ok(decryptor::RecipientsDecryptor::new(input, Header::V1(header), nonce).into())
+        if header.is_valid() {
+            Ok(Self {
+                input,
+                header: Header::V1(header),
+                nonce,
+            })
         } else {
             Err(DecryptError::InvalidHeader)
+        }
+    }
+
+    /// Returns `true` if the age file is encrypted to a passphrase.
+    pub fn is_scrypt(&self) -> bool {
+        match &self.header {
+            Header::V1(header) => header.valid_scrypt(),
+            Header::Unknown(_) => false,
+        }
+    }
+
+    fn obtain_payload_key<'a>(
+        &self,
+        mut identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<PayloadKey, DecryptError> {
+        match &self.header {
+            Header::V1(header) => identities
+                .find_map(|key| key.unwrap_stanzas(&header.recipients))
+                .unwrap_or(Err(DecryptError::NoMatchingKeys))
+                .and_then(|file_key| v1_payload_key(&file_key, header, &self.nonce)),
+            Header::Unknown(_) => unreachable!(),
         }
     }
 }
@@ -198,6 +233,17 @@ impl<R: Read> Decryptor<R> {
             }
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
+    }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt(payload_key, self.input))
     }
 }
 
@@ -247,6 +293,17 @@ impl<R: AsyncRead + Unpin> Decryptor<R> {
             Header::Unknown(_) => Err(DecryptError::UnknownFormat),
         }
     }
+
+    /// Attempts to decrypt the age file.
+    ///
+    /// If successful, returns a reader that will provide the plaintext.
+    pub fn decrypt_async<'a>(
+        self,
+        identities: impl Iterator<Item = &'a dyn Identity>,
+    ) -> Result<StreamReader<R>, DecryptError> {
+        self.obtain_payload_key(identities)
+            .map(|payload_key| Stream::decrypt_async(payload_key, self.input))
+    }
 }
 
 #[cfg(feature = "async")]
@@ -275,17 +332,16 @@ impl<R: AsyncBufRead + Unpin> Decryptor<R> {
 
 #[cfg(test)]
 mod tests {
-    use age_core::secrecy::SecretString;
+    use std::collections::HashSet;
     use std::io::{BufReader, Read, Write};
+
+    use age_core::secrecy::SecretString;
 
     #[cfg(feature = "ssh")]
     use std::iter;
 
     use super::{Decryptor, Encryptor};
-    use crate::{
-        identity::{IdentityFile, IdentityFileEntry},
-        x25519, Identity, Recipient,
-    };
+    use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -298,7 +354,7 @@ mod tests {
     use futures_test::task::noop_context;
 
     fn recipient_round_trip<'a>(
-        recipients: Vec<Box<dyn Recipient + Send>>,
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
         identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -311,10 +367,7 @@ mod tests {
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Recipients(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d.decrypt(identities).unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
@@ -324,7 +377,7 @@ mod tests {
 
     #[cfg(feature = "async")]
     fn recipient_async_round_trip<'a>(
-        recipients: Vec<Box<dyn Recipient + Send>>,
+        recipients: impl Iterator<Item = &'a dyn Recipient>,
         identities: impl Iterator<Item = &'a dyn Identity>,
     ) {
         let test_msg = b"This is a test message. For testing.";
@@ -365,7 +418,7 @@ mod tests {
             }
         }
 
-        let d = match {
+        let d = {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
@@ -376,9 +429,6 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-        } {
-            Decryptor::Recipients(d) => d,
-            _ => panic!(),
         };
 
         let decrypted = {
@@ -406,12 +456,8 @@ mod tests {
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
-            vec![Box::new(pk)],
-            f.into_identities().iter().map(|sk| match sk {
-                IdentityFileEntry::Native(sk) => sk as &dyn Identity,
-                #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(_) => unreachable!(),
-            }),
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
 
@@ -422,12 +468,8 @@ mod tests {
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
-            vec![Box::new(pk)],
-            f.into_identities().iter().map(|sk| match sk {
-                IdentityFileEntry::Native(sk) => sk as &dyn Identity,
-                #[cfg(feature = "plugin")]
-                IdentityFileEntry::Plugin(_) => unreachable!(),
-            }),
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
         );
     }
 
@@ -435,20 +477,24 @@ mod tests {
     fn scrypt_round_trip() {
         let test_msg = b"This is a test message. For testing.";
 
+        let mut recipient = scrypt::Recipient::new(SecretString::from("passphrase".to_string()));
+        // Override to something very fast for testing.
+        recipient.set_work_factor(2);
+
         let mut encrypted = vec![];
-        let e = Encryptor::with_user_passphrase(SecretString::new("passphrase".to_string()));
+        let e = Encryptor::with_recipients(iter::once(&recipient as _)).unwrap();
         {
             let mut w = e.wrap_output(&mut encrypted).unwrap();
             w.write_all(test_msg).unwrap();
             w.finish().unwrap();
         }
 
-        let d = match Decryptor::new(&encrypted[..]) {
-            Ok(Decryptor::Passphrase(d)) => d,
-            _ => panic!(),
-        };
+        let d = Decryptor::new(&encrypted[..]).unwrap();
         let mut r = d
-            .decrypt(&SecretString::new("passphrase".to_string()), None)
+            .decrypt(
+                Some(&scrypt::Identity::new(SecretString::from("passphrase".to_string())) as _)
+                    .into_iter(),
+            )
             .unwrap();
         let mut decrypted = vec![];
         r.read_to_end(&mut decrypted).unwrap();
@@ -464,7 +510,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -475,7 +521,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_RSA_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_async_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(feature = "ssh")]
@@ -486,7 +532,7 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
     }
 
     #[cfg(all(feature = "ssh", feature = "async"))]
@@ -497,6 +543,47 @@ mod tests {
         let pk: crate::ssh::Recipient = crate::ssh::recipient::tests::TEST_SSH_ED25519_PK
             .parse()
             .unwrap();
-        recipient_async_round_trip(vec![Box::new(pk)], iter::once(&sk as &dyn Identity));
+        recipient_async_round_trip(iter::once(&pk as _), iter::once(&sk as &dyn Identity));
+    }
+
+    #[test]
+    fn mixed_recipient_and_passphrase() {
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let passphrase =
+            crate::scrypt::Recipient::new(SecretString::from("passphrase".to_string()));
+
+        let recipients = [&pk as &dyn Recipient, &passphrase as _];
+
+        assert!(matches!(
+            Encryptor::with_recipients(recipients.into_iter()),
+            Err(EncryptError::MixedRecipientAndPassphrase),
+        ));
+    }
+
+    struct IncompatibleRecipient(crate::x25519::Recipient);
+
+    impl Recipient for IncompatibleRecipient {
+        fn wrap_file_key(
+            &self,
+            file_key: &age_core::format::FileKey,
+        ) -> Result<(Vec<age_core::format::Stanza>, HashSet<String>), EncryptError> {
+            self.0.wrap_file_key(file_key).map(|(stanzas, mut labels)| {
+                labels.insert("incompatible".into());
+                (stanzas, labels)
+            })
+        }
+    }
+
+    #[test]
+    fn incompatible_recipients() {
+        let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let incompatible = IncompatibleRecipient(pk.clone());
+
+        let recipients = [&pk as &dyn Recipient, &incompatible as _];
+
+        assert!(matches!(
+            Encryptor::with_recipients(recipients.into_iter()),
+            Err(EncryptError::IncompatibleRecipients { .. }),
+        ));
     }
 }

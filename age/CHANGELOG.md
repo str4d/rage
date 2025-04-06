@@ -10,6 +10,69 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-11-18
+### Security
+- Fixed a security vulnerability that could allow an attacker to execute an
+  arbitrary binary under certain conditions. See GHSA-4fg7-vxc8-qx5w. Plugin
+  names are now required to only contain alphanumeric characters or the four
+  special characters `+-._`. Thanks to ⬡-49016 for reporting this issue.
+
+## [0.11.0] - 2024-11-03
+### Added
+- New streamlined APIs for use with a single recipient or identity and a small
+  amount of data (that can fit entirely in memory):
+  - `age::encrypt`
+  - `age::encrypt_and_armor`
+  - `age::decrypt`
+- `age::Decryptor::{decrypt, decrypt_async, is_scrypt}`
+- `age::IdentityFile::to_recipients`
+- `age::IdentityFile::with_callbacks`
+- `age::IdentityFile::write_recipients_file`
+- `age::IdentityFileConvertError`
+- `age::NoCallbacks`
+- `age::scrypt`, providing recipient and identity types for passphrase-based
+  encryption.
+- Partial French translation!
+
+### Changed
+- Migrated to `i18n-embed 0.15`, `secrecy 0.10`.
+- `age::Encryptor::with_recipients` now takes recipients by reference instead of
+  by value. This aligns it with `age::Decryptor` (which takes identities by
+  reference), and also means that errors with recipients are reported earlier.
+  This causes the following changes to the API:
+  - `Encryptor::with_recipients` takes `impl Iterator<Item = &'a dyn Recipient>`
+    instead of `Vec<Box<dyn Recipient + Send>>`.
+  - Verification of recipients and generation of stanzas now happens in
+    `Encryptor::with_recipients` instead of `Encryptor::wrap_output` and
+    `Encryptor::wrap_async_output`.
+  - `Encryptor::with_recipients` returns `Result<Self, EncryptError>` instead of
+    `Option<Self>`, and `Encryptor::{wrap_output, wrap_async_output}` return
+    `io::Result<StreamWriter<W>>` instead of `Result<StreamWriter<W>, EncryptError>`.
+  - `age::EncryptError` has a new variant `MissingRecipients`, taking the place
+    of the `None` that `Encryptor::with_recipients` could previously return.
+- `age::Decryptor` is now an opaque struct instead of an enum with `Recipients`
+  and `Passphrase` variants.
+- `age::IdentityFile` now has a `C: Callbacks` generic parameter, which defaults
+  to `NoCallbacks`.
+- `age::IdentityFile::into_identities` now returns
+  `Result<Vec<Box<dyn crate::Identity>>, DecryptError>` instead of
+  `Vec<IdentityFileEntry>`.
+- `age::Recipient::wrap_file_key` now returns `(Vec<Stanza>, HashSet<String>)`:
+  a tuple of the stanzas to be placed in an age file header, and labels that
+  constrain how the stanzas may be combined with those from other recipients.
+- `age::plugin::RecipientPluginV1` now supports the labels extension.
+
+### Fixed
+- `age::cli_common::read_identities` once again correctly parses identity files
+  that are a single line without a trailing newline. This broke in 0.10.0 due to
+  an unrelated refactor.
+
+### Removed
+- `age::decryptor::PassphraseDecryptor` (use `age::Decryptor` with
+  `age::scrypt::Identity` instead).
+- `age::decryptor::RecipientsDecryptor` (use `age::Decryptor` instead).
+- `age::IdentityFileEntry`
+
 ## [0.10.0] - 2024-02-04
 ### Added
 - Russian translation!

@@ -1,0 +1,7 @@
+bin.name = "rage"
+args = "-d -i - file.age.txt"
+stdin = "AGE-SECRET-KEY-1SRQGS50G584HFA5JG9D6D9S6639VVHJUE5XHHKJET9DRU76HK4RQP0X5Q3"
+stdout = """
+Test plaintext.
+"""
+stderr = ""

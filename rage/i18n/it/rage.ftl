@@ -145,14 +145,6 @@ err-ux-B = Faccelo sapere
 # Put (len(A) - len(B) - 32) spaces here.
 err-ux-C = {"                 "}
 
-## Keygen errors
-
-err-identity-file-contains-plugin = Il file '{$filename}' contiene identità per '{-age-plugin-}{$plugin_name}'.
-rec-identity-file-contains-plugin = Prova a usare '{-age-plugin-}{$plugin_name}' per convertire questa identità in destinatario.
-
-err-no-identities-in-file = Nessuna identità trovata nel file '{$filename}'.
-err-no-identities-in-stdin = Nessuna identità trovata tramite standard input.
-
 ## Encryption errors
 
 err-enc-broken-stdout = Impossibile scrivere sullo standard output: {$err}
@@ -160,7 +152,6 @@ rec-enc-broken-stdout = Stai usando una pipe verso un programma che non sta legg
 
 err-enc-broken-file = Impossibile scrivere sul file: {$err}
 
-err-enc-missing-recipients = Destinatari mancanti.
 rec-enc-missing-recipients = Hai dimenticato di specificare {-flag-recipient}?
 
 err-enc-mixed-identity-passphrase = {-flag-identity} non può essere usato assieme a {-flag-passphrase}.

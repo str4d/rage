@@ -8,6 +8,19 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.11.0] - 2024-11-03
+### Added
+- `age_core::format`:
+  - `FileKey::new`
+  - `FileKey::init_with_mut`
+  - `FileKey::try_init_with_mut`
+  - `is_arbitrary_string`
+
+### Changed
+- Migrated to `secrecy 0.10`.
+- `age::plugin::Connection::unidir_receive` now takes an additional argument to
+  enable handling an optional fourth command.
+
 ## [0.10.0] - 2024-02-04
 ### Added
 - `impl Eq for age_core::format::Stanza`

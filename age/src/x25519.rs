@@ -1,5 +1,8 @@
 //! The "x25519" recipient type, native to age.
 
+use std::collections::HashSet;
+use std::fmt;
+
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
@@ -8,7 +11,6 @@ use age_core::{
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::{ToBase32, Variant};
 use rand::rngs::OsRng;
-use std::fmt;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
@@ -66,7 +68,7 @@ impl Identity {
         let sk_base32 = sk_bytes.to_base32();
         let mut encoded =
             bech32::encode(SECRET_KEY_PREFIX, sk_base32, Variant::Bech32).expect("HRP is valid");
-        let ret = SecretString::new(encoded.to_uppercase());
+        let ret = SecretString::from(encoded.to_uppercase());
 
         // Clear intermediates
         sk_bytes.zeroize();
@@ -134,9 +136,10 @@ impl crate::Identity for Identity {
             .ok()
             .map(|mut pt| {
                 // It's ours!
-                let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
-                pt.zeroize();
-                Ok(file_key.into())
+                Ok(FileKey::init_with_mut(|file_key| {
+                    file_key.copy_from_slice(&pt);
+                    pt.zeroize();
+                }))
             })
     }
 }
@@ -191,7 +194,10 @@ impl fmt::Debug for Recipient {
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
         let rng = OsRng;
         let esk = EphemeralSecret::random_from_rng(rng);
         let epk: PublicKey = (&esk).into();
@@ -220,17 +226,20 @@ impl crate::Recipient for Recipient {
 
         let encoded_epk = BASE64_STANDARD_NO_PAD.encode(epk.as_bytes());
 
-        Ok(vec![Stanza {
-            tag: X25519_RECIPIENT_TAG.to_owned(),
-            args: vec![encoded_epk],
-            body: encrypted_file_key,
-        }])
+        Ok((
+            vec![Stanza {
+                tag: X25519_RECIPIENT_TAG.to_owned(),
+                args: vec![encoded_epk],
+                body: encrypted_file_key,
+            }],
+            HashSet::new(),
+        ))
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use age_core::secrecy::ExposeSecret;
+    use age_core::{format::FileKey, secrecy::ExposeSecret};
     use proptest::prelude::*;
     use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -257,18 +266,20 @@ pub(crate) mod tests {
     proptest! {
         #[test]
         fn wrap_and_unwrap(sk_bytes in proptest::collection::vec(any::<u8>(), ..=32)) {
-            let file_key = [7; 16].into();
+            let file_key = FileKey::new(Box::new([7; 16]));
             let sk = {
                 let mut tmp = [0; 32];
                 tmp[..sk_bytes.len()].copy_from_slice(&sk_bytes);
                 StaticSecret::from(tmp)
             };
 
-            let stanzas = Recipient(PublicKey::from(&sk))
+            let res = Recipient(PublicKey::from(&sk))
                 .wrap_file_key(&file_key);
-            prop_assert!(stanzas.is_ok());
+            prop_assert!(res.is_ok());
+            let (stanzas, labels) = res.unwrap();
+            prop_assert!(labels.is_empty());
 
-            let res = Identity(sk).unwrap_stanzas(&stanzas.unwrap());
+            let res = Identity(sk).unwrap_stanzas(&stanzas);
             prop_assert!(res.is_some());
             let res = res.unwrap();
             prop_assert!(res.is_ok());

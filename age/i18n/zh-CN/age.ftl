@@ -13,6 +13,8 @@
 -age = age
 -rage = rage
 
+-scrypt-recipient = scrypt::Recipient
+
 -openssh = OpenSSH
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
@@ -54,6 +56,8 @@ err-header-invalid = 标头无效
 err-header-mac-invalid = 标头消息认证码 （MAC） 无效
 
 err-key-decryption = 未能解密加密密钥
+
+err-missing-recipients = 缺少接收方。
 
 err-no-matching-keys = 未搜索到匹配的密钥
 

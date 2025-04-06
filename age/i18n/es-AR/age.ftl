@@ -13,6 +13,8 @@
 -age = age
 -rage = rage
 
+-scrypt-recipient = scrypt::Recipient
+
 -openssh = OpenSSH
 -ssh-keygen = ssh-keygen
 -ssh-rsa = ssh-rsa
@@ -54,6 +56,8 @@ err-header-invalid = Encabezado inválido
 err-header-mac-invalid = MAC de encabezado inválido.
 
 err-key-decryption = No se pudo desencriptar una clave encriptada.
+
+err-missing-recipients = No se encontraron destinatarios.
 
 err-no-matching-keys = No se encontraron claves coincidentes.
 

@@ -1,4 +1,4 @@
-use age::{x25519, Decryptor, Encryptor, Recipient};
+use age::{x25519, Decryptor, Encryptor};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 #[cfg(unix)]
@@ -8,7 +8,7 @@ use std::io::Write;
 
 fn bench(c: &mut Criterion) {
     let recipients: Vec<_> = (0..10)
-        .map(|_| Box::new(x25519::Identity::generate().to_public()))
+        .map(|_| x25519::Identity::generate().to_public())
         .collect();
     let mut group = c.benchmark_group("header");
 
@@ -16,17 +16,11 @@ fn bench(c: &mut Criterion) {
         group.throughput(Throughput::Elements(count as u64));
         group.bench_function(BenchmarkId::new("parse", count), |b| {
             let mut encrypted = vec![];
-            let mut output = Encryptor::with_recipients(
-                recipients
-                    .iter()
-                    .take(count)
-                    .cloned()
-                    .map(|r| r as Box<dyn Recipient + Send>)
-                    .collect(),
-            )
-            .unwrap()
-            .wrap_output(&mut encrypted)
-            .unwrap();
+            let mut output =
+                Encryptor::with_recipients(recipients.iter().take(count).map(|r| r as _))
+                    .unwrap()
+                    .wrap_output(&mut encrypted)
+                    .unwrap();
             output.write_all(&[]).unwrap();
             output.finish().unwrap();
 

@@ -1,11 +1,20 @@
+//! The "scrypt" passphrase-based recipient type, native to age.
+
+use std::collections::HashSet;
+use std::iter;
+use std::time::Duration;
+
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
     primitives::{aead_decrypt, aead_encrypt},
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use rand::{rngs::OsRng, RngCore};
-use std::time::Duration;
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    rngs::OsRng,
+    RngCore,
+};
 use zeroize::Zeroize;
 
 use crate::{
@@ -83,41 +92,121 @@ fn target_scrypt_work_factor() -> u8 {
         })
 }
 
-pub(crate) struct Recipient {
-    pub(crate) passphrase: SecretString,
+/// A passphrase-based recipient. Anyone with the passphrase can decrypt the file.
+///
+/// If an `scrypt::Recipient` is used, it must be the only recipient for the file: it
+/// can't be mixed with other recipient types and can't be used multiple times for the
+/// same file.
+///
+/// This API should only be used with a passphrase that was provided by (or generated
+/// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`].
+///
+/// [`x25519::Identity`]: crate::x25519::Identity
+pub struct Recipient {
+    passphrase: SecretString,
+    log_n: u8,
+}
+
+impl Recipient {
+    /// Constructs a new `Recipient` with the given passphrase.
+    ///
+    /// The scrypt work factor is picked to target about 1 second for encryption or
+    /// decryption on this device. Override it with [`Self::set_work_factor`].
+    pub fn new(passphrase: SecretString) -> Self {
+        Self {
+            passphrase,
+            log_n: target_scrypt_work_factor(),
+        }
+    }
+
+    /// Sets the scrypt work factor to `N = 2^log_n`.
+    ///
+    /// This method must be called before [`Self::wrap_file_key`] to have an effect.
+    ///
+    /// [`Self::wrap_file_key`]: crate::Recipient::wrap_file_key
+    ///
+    /// # Panics
+    ///
+    /// Panics if `log_n == 0` or `log_n >= 64`.
+    pub fn set_work_factor(&mut self, log_n: u8) {
+        assert!(0 < log_n && log_n < 64);
+        self.log_n = log_n;
+    }
 }
 
 impl crate::Recipient for Recipient {
-    fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, EncryptError> {
+    fn wrap_file_key(
+        &self,
+        file_key: &FileKey,
+    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+        let mut rng = OsRng;
+
         let mut salt = [0; SALT_LEN];
-        OsRng.fill_bytes(&mut salt);
+        rng.fill_bytes(&mut salt);
 
         let mut inner_salt = [0; SCRYPT_SALT_LABEL.len() + SALT_LEN];
         inner_salt[..SCRYPT_SALT_LABEL.len()].copy_from_slice(SCRYPT_SALT_LABEL);
         inner_salt[SCRYPT_SALT_LABEL.len()..].copy_from_slice(&salt);
 
-        let log_n = target_scrypt_work_factor();
-
         let enc_key =
-            scrypt(&inner_salt, log_n, self.passphrase.expose_secret()).expect("log_n < 64");
+            scrypt(&inner_salt, self.log_n, self.passphrase.expose_secret()).expect("log_n < 64");
         let encrypted_file_key = aead_encrypt(&enc_key, file_key.expose_secret());
 
         let encoded_salt = BASE64_STANDARD_NO_PAD.encode(salt);
 
-        Ok(vec![Stanza {
-            tag: SCRYPT_RECIPIENT_TAG.to_owned(),
-            args: vec![encoded_salt, format!("{}", log_n)],
-            body: encrypted_file_key,
-        }])
+        let label = Alphanumeric.sample_string(&mut rng, 32);
+
+        Ok((
+            vec![Stanza {
+                tag: SCRYPT_RECIPIENT_TAG.to_owned(),
+                args: vec![encoded_salt, format!("{}", self.log_n)],
+                body: encrypted_file_key,
+            }],
+            iter::once(label).collect(),
+        ))
     }
 }
 
-pub(crate) struct Identity<'a> {
-    pub(crate) passphrase: &'a SecretString,
-    pub(crate) max_work_factor: Option<u8>,
+/// A passphrase-based identity. Anyone with the passphrase can decrypt the file.
+///
+/// The identity caps the amount of work that the [`Decryptor`] might have to do to
+/// process received files. A fairly high default is used (targeting roughly 16 seconds of
+/// work per stanza on the current machine), which might not be suitable for systems
+/// processing untrusted files.
+///
+/// [`Decryptor`]: crate::Decryptor
+pub struct Identity {
+    passphrase: SecretString,
+    target_work_factor: u8,
+    max_work_factor: u8,
 }
 
-impl<'a> crate::Identity for Identity<'a> {
+impl Identity {
+    /// Constructs a new `Identity` with the given passphrase.
+    pub fn new(passphrase: SecretString) -> Self {
+        let target_work_factor = target_scrypt_work_factor();
+
+        // Place bounds on the work factor we will accept (roughly 16 seconds).
+        let max_work_factor = target_work_factor + 4;
+
+        Self {
+            passphrase,
+            target_work_factor,
+            max_work_factor,
+        }
+    }
+
+    /// Sets the maximum accepted scrypt work factor to `N = 2^max_log_n`.
+    ///
+    /// This method must be called before [`Self::unwrap_stanza`] to have an effect.
+    ///
+    /// [`Self::unwrap_stanza`]: crate::Identity::unwrap_stanza
+    pub fn set_max_work_factor(&mut self, max_log_n: u8) {
+        self.max_work_factor = max_log_n;
+    }
+}
+
+impl crate::Identity for Identity {
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != SCRYPT_RECIPIENT_TAG {
             return None;
@@ -139,12 +228,10 @@ impl<'a> crate::Identity for Identity<'a> {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        // Place bounds on the work factor we will accept (roughly 16 seconds).
-        let target = target_scrypt_work_factor();
-        if log_n > self.max_work_factor.unwrap_or(target + 4) {
+        if log_n > self.max_work_factor {
             return Some(Err(DecryptError::ExcessiveWork {
                 required: log_n,
-                target,
+                target: self.target_work_factor,
             }));
         }
 
@@ -157,7 +244,7 @@ impl<'a> crate::Identity for Identity<'a> {
             Err(_) => {
                 return Some(Err(DecryptError::ExcessiveWork {
                     required: log_n,
-                    target,
+                    target: self.target_work_factor,
                 }));
             }
         };
@@ -173,9 +260,10 @@ impl<'a> crate::Identity for Identity<'a> {
             aead_decrypt(&enc_key, FILE_KEY_BYTES, &stanza.body)
                 .map(|mut pt| {
                     // It's ours!
-                    let file_key: [u8; FILE_KEY_BYTES] = pt[..].try_into().unwrap();
-                    pt.zeroize();
-                    file_key.into()
+                    FileKey::init_with_mut(|file_key| {
+                        file_key.copy_from_slice(&pt);
+                        pt.zeroize();
+                    })
                 })
                 .map_err(DecryptError::from),
         )

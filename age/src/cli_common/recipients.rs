@@ -1,14 +1,21 @@
 use std::io::{self, BufReader};
 
 use super::StdinGuard;
-use super::{identities::parse_identity_files, ReadError, UiCallbacks};
-use crate::{x25519, EncryptError, IdentityFileEntry, Recipient};
+use super::{identities::parse_identity_files, ReadError};
+use crate::identity::RecipientsAccumulator;
+use crate::{x25519, Recipient};
 
 #[cfg(feature = "plugin")]
-use crate::plugin;
+use crate::{cli_common::UiCallbacks, plugin};
+
+#[cfg(not(feature = "plugin"))]
+use std::convert::Infallible;
 
 #[cfg(feature = "ssh")]
 use crate::ssh;
+
+#[cfg(any(feature = "armor", feature = "plugin"))]
+use crate::EncryptError;
 
 /// Handles error mapping for the given SSH recipient parser.
 ///
@@ -44,25 +51,34 @@ where
 
 /// Parses a recipient from a string.
 fn parse_recipient(
-    filename: &str,
+    _filename: &str,
     s: String,
-    recipients: &mut Vec<Box<dyn Recipient + Send>>,
-    plugin_recipients: &mut Vec<plugin::Recipient>,
+    recipients: &mut RecipientsAccumulator,
 ) -> Result<(), ReadError> {
     if let Ok(pk) = s.parse::<x25519::Recipient>() {
         recipients.push(Box::new(pk));
     } else if let Some(pk) = {
         #[cfg(feature = "ssh")]
         {
-            parse_ssh_recipient(|| s.parse::<ssh::Recipient>(), || Ok(None), filename)?
+            parse_ssh_recipient(|| s.parse::<ssh::Recipient>(), || Ok(None), _filename)?
         }
 
         #[cfg(not(feature = "ssh"))]
         None
     } {
         recipients.push(pk);
-    } else if let Ok(recipient) = s.parse::<plugin::Recipient>() {
-        plugin_recipients.push(recipient);
+    } else if let Some(_recipient) = {
+        #[cfg(feature = "plugin")]
+        {
+            // TODO Do something with the error?
+            s.parse::<plugin::Recipient>().ok()
+        }
+
+        #[cfg(not(feature = "plugin"))]
+        None::<Infallible>
+    } {
+        #[cfg(feature = "plugin")]
+        recipients.push_plugin(_recipient);
     } else {
         return Err(ReadError::InvalidRecipient(s));
     }
@@ -74,8 +90,7 @@ fn parse_recipient(
 fn read_recipients_list<R: io::BufRead>(
     filename: &str,
     buf: R,
-    recipients: &mut Vec<Box<dyn Recipient + Send>>,
-    plugin_recipients: &mut Vec<plugin::Recipient>,
+    recipients: &mut RecipientsAccumulator,
 ) -> Result<(), ReadError> {
     for (line_number, line) in buf.lines().enumerate() {
         let line = line?;
@@ -83,13 +98,13 @@ fn read_recipients_list<R: io::BufRead>(
         // Skip empty lines and comments
         if line.is_empty() || line.find('#') == Some(0) {
             continue;
-        } else if let Err(e) = parse_recipient(filename, line, recipients, plugin_recipients) {
+        } else if let Err(_e) = parse_recipient(filename, line, recipients) {
             #[cfg(feature = "ssh")]
-            match e {
+            match _e {
                 ReadError::RsaModulusTooLarge
                 | ReadError::RsaModulusTooSmall
                 | ReadError::UnsupportedKey(_, _) => {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()).into());
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, _e.to_string()).into());
                 }
                 _ => (),
             }
@@ -118,12 +133,10 @@ pub fn read_recipients(
     max_work_factor: Option<u8>,
     stdin_guard: &mut StdinGuard,
 ) -> Result<Vec<Box<dyn Recipient + Send>>, ReadError> {
-    let mut recipients: Vec<Box<dyn Recipient + Send>> = vec![];
-    let mut plugin_recipients: Vec<plugin::Recipient> = vec![];
-    let mut plugin_identities: Vec<plugin::Identity> = vec![];
+    let mut recipients = RecipientsAccumulator::new();
 
     for arg in recipient_strings {
-        parse_recipient("", arg, &mut recipients, &mut plugin_recipients)?;
+        parse_recipient("", arg, &mut recipients)?;
     }
 
     for arg in recipients_file_strings {
@@ -134,15 +147,16 @@ pub fn read_recipients(
             _ => e,
         })?;
         let buf = BufReader::new(f);
-        read_recipients_list(&arg, buf, &mut recipients, &mut plugin_recipients)?;
+        read_recipients_list(&arg, buf, &mut recipients)?;
     }
 
     parse_identity_files::<_, ReadError>(
         identity_strings,
         max_work_factor,
         stdin_guard,
-        &mut (&mut recipients, &mut plugin_identities),
-        |(recipients, _), identity| {
+        &mut recipients,
+        #[cfg(feature = "armor")]
+        |recipients, identity| {
             recipients.extend(identity.recipients().map_err(|e| {
                 // Only one error can occur here.
                 if let EncryptError::EncryptedIdentities(e) = e {
@@ -153,7 +167,8 @@ pub fn read_recipients(
             })?);
             Ok(())
         },
-        |(recipients, _), filename, identity| {
+        #[cfg(feature = "ssh")]
+        |recipients, filename, identity| {
             let recipient = parse_ssh_recipient(
                 || ssh::Recipient::try_from(identity),
                 || Err(ReadError::InvalidRecipient(filename.to_owned())),
@@ -163,43 +178,29 @@ pub fn read_recipients(
             recipients.push(recipient);
             Ok(())
         },
-        |(recipients, plugin_identities), entry| {
-            match entry {
-                IdentityFileEntry::Native(i) => recipients.push(Box::new(i.to_public())),
-                IdentityFileEntry::Plugin(i) => plugin_identities.push(i),
-            }
+        |recipients, identity_file| {
+            recipients.with_identities(identity_file);
             Ok(())
         },
     )?;
 
-    // Collect the names of the required plugins.
-    let mut plugin_names = plugin_recipients
-        .iter()
-        .map(|r| r.plugin())
-        .chain(plugin_identities.iter().map(|i| i.plugin()))
-        .collect::<Vec<_>>();
-    plugin_names.sort_unstable();
-    plugin_names.dedup();
-
-    // Find the required plugins.
-    for plugin_name in plugin_names {
-        recipients.push(Box::new(
-            plugin::RecipientPluginV1::new(
-                plugin_name,
-                &plugin_recipients,
-                &plugin_identities,
-                UiCallbacks,
-            )
-            .map_err(|e| {
-                // Only one error can occur here.
-                if let EncryptError::MissingPlugin { binary_name } = e {
+    recipients
+        .build(
+            #[cfg(feature = "plugin")]
+            UiCallbacks,
+        )
+        .map_err(|_e| {
+            // Only one error can occur here.
+            #[cfg(feature = "plugin")]
+            {
+                if let EncryptError::MissingPlugin { binary_name } = _e {
                     ReadError::MissingPlugin { binary_name }
                 } else {
                     unreachable!()
                 }
-            })?,
-        ))
-    }
+            }
 
-    Ok(recipients)
+            #[cfg(not(feature = "plugin"))]
+            unreachable!()
+        })
 }

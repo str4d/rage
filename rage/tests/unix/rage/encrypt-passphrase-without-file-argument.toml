@@ -1,0 +1,16 @@
+bin.name = "rage"
+args = "-p"
+status = "failed"
+stdin = ""
+stdout = ""
+stderr = """
+Error: Parsing Error: Error { input: "", code: Tag }
+
+[ Did rage not do what you expected? Could an error be more useful? ]
+[ Tell us: https://str4d.xyz/rage/report                            ]
+"""
+
+# We get an error from the `pinentry` crate because we've passed a real but invalid binary
+# that does not speak the pinentry protocol.
+[env.add]
+PINENTRY_PROGRAM = "true"

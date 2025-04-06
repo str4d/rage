@@ -23,14 +23,17 @@ macro_rules! wlnfl {
 
 pub(crate) enum EncryptError {
     Age(age::EncryptError),
-    BrokenPipe { is_stdout: bool, source: io::Error },
+    BrokenPipe {
+        is_stdout: bool,
+        source: io::Error,
+    },
     IdentityRead(age::cli_common::ReadError),
     Io(io::Error),
-    MissingRecipients,
     MixedIdentityAndPassphrase,
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
     PassphraseTimedOut,
+    #[cfg(not(unix))]
     PassphraseWithoutFileArgument,
     PluginNameFlag,
 }
@@ -59,6 +62,10 @@ impl From<io::Error> for EncryptError {
 impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EncryptError::Age(e @ age::EncryptError::MissingRecipients) => {
+                writeln!(f, "{}", e)?;
+                wfl!(f, "rec-enc-missing-recipients")
+            }
             EncryptError::Age(e) => write!(f, "{}", e),
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
@@ -70,10 +77,6 @@ impl fmt::Display for EncryptError {
             }
             EncryptError::IdentityRead(e) => write!(f, "{}", e),
             EncryptError::Io(e) => write!(f, "{}", e),
-            EncryptError::MissingRecipients => {
-                wlnfl!(f, "err-enc-missing-recipients")?;
-                wfl!(f, "rec-enc-missing-recipients")
-            }
             EncryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-enc-mixed-identity-passphrase")
             }
@@ -84,6 +87,7 @@ impl fmt::Display for EncryptError {
                 wfl!(f, "err-enc-mixed-recipients-file-passphrase")
             }
             EncryptError::PassphraseTimedOut => wfl!(f, "err-passphrase-timed-out"),
+            #[cfg(not(unix))]
             EncryptError::PassphraseWithoutFileArgument => {
                 wfl!(f, "err-enc-passphrase-without-file")
             }

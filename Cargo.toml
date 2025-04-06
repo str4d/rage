@@ -15,8 +15,8 @@ repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-age = { version = "0.10.0", path = "age" }
-age-core = { version = "0.10.0", path = "age-core" }
+age = { version = "0.11.1", path = "age" }
+age-core = { version = "0.11.0", path = "age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
@@ -48,14 +48,14 @@ cookie-factory = "0.3.1"
 nom = { version = "7", default-features = false, features = ["alloc"] }
 
 # Secret management
-pinentry = "0.5"
-secrecy = "0.8"
+pinentry = "0.6"
+secrecy = "0.10"
 subtle = "2"
 zeroize = "1"
 
 # Localization
-i18n-embed = { version = "0.14", features = ["fluent-system"] }
-i18n-embed-fl = "0.7"
+i18n-embed = { version = "0.15", features = ["fluent-system"] }
+i18n-embed-fl = "0.9"
 lazy_static = "1"
 rust-embed = "8"
 

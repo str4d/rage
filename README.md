@@ -7,8 +7,8 @@ format. It features small explicit keys, no config options, and UNIX-style
 composability.
 
 The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
-age was designed by [@Benjojo12](https://twitter.com/Benjojo12) and
-[@FiloSottile](https://twitter.com/FiloSottile).
+age was designed by [@Benjojo](https://benjojo.co.uk/) and
+[@FiloSottile](https://bsky.app/profile/did:plc:x2nsupeeo52oznrmplwapppl).
 
 The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
@@ -24,7 +24,8 @@ For more plugins, implementations, tools, and integrations, check out the
 | Environment | CLI command |
 |-------------|-------------|
 | Cargo (Rust 1.65+) | `cargo install rage` |
-| Homebrew (macOS or Linux) | `brew tap str4d.xyz/rage https://str4d.xyz/rage`<br>`brew install rage` |
+| Homebrew (macOS or Linux) | `brew install rage` |
+| MacPorts | `port install rage` |
 | Alpine Linux (edge) | `apk add rage` |
 | Arch Linux | `pacman -S rage-encryption` |
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |

@@ -1,12 +1,15 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{is_arbitrary_string, FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
     secrecy::SecretString,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::FromBase32;
+
+use std::collections::HashSet;
+use std::convert::Infallible;
 use std::io;
 
 use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
@@ -14,9 +17,21 @@ use crate::{Callbacks, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX};
 const ADD_RECIPIENT: &str = "add-recipient";
 const ADD_IDENTITY: &str = "add-identity";
 const WRAP_FILE_KEY: &str = "wrap-file-key";
+const EXTENSION_LABELS: &str = "extension-labels";
 const RECIPIENT_STANZA: &str = "recipient-stanza";
+const LABELS: &str = "labels";
 
 /// The interface that age implementations will use to interact with an age plugin.
+///
+/// Implementations of this trait will be used within the [`recipient-v1`] state machine.
+///
+/// The trait methods are always called in this order:
+/// - [`Self::add_recipient`] / [`Self::add_identity`] (in any order, including
+///   potentially interleaved).
+/// - [`Self::labels`] (once all recipients and identities have been added).
+/// - [`Self::wrap_file_keys`]
+///
+/// [`recipient-v1`]: https://c2sp.org/age-plugin#wrapping-with-recipient-v1
 pub trait RecipientPluginV1 {
     /// Stores a recipient that the user would like to encrypt age files to.
     ///
@@ -33,11 +48,45 @@ pub trait RecipientPluginV1 {
     /// Returns an error if the identity is unknown or invalid.
     fn add_identity(&mut self, index: usize, plugin_name: &str, bytes: &[u8]) -> Result<(), Error>;
 
+    /// Returns labels that constrain how the stanzas produced by [`Self::wrap_file_keys`]
+    /// may be combined with those from other recipients.
+    ///
+    /// Encryption will succeed only if every recipient returns the same set of labels.
+    /// Subsets or partial overlapping sets are not allowed; all sets must be identical.
+    /// Labels are compared exactly, and are case-sensitive.
+    ///
+    /// Label sets can be used to ensure a recipient is only encrypted to alongside other
+    /// recipients with equivalent properties, or to ensure a recipient is always used
+    /// alone. A recipient with no particular properties to enforce should return an empty
+    /// label set.
+    ///
+    /// Labels can have any value that is a valid arbitrary string (`1*VCHAR` in ABNF),
+    /// but usually take one of several forms:
+    ///   - *Common public label* - used by multiple recipients to permit their stanzas to
+    ///     be used only together. Examples include:
+    ///     - `postquantum` - indicates that the recipient stanzas being generated are
+    ///       postquantum-secure, and that they can only be combined with other stanzas
+    ///       that are also postquantum-secure.
+    ///   - *Common private label* - used by recipients created by the same private entity
+    ///     to permit their recipient stanzas to be used only together. For example,
+    ///     private recipients used in a corporate environment could all send the same
+    ///     private label in order to prevent compliant age clients from simultaneously
+    ///     wrapping file keys with other recipients.
+    ///   - *Random label* - used by recipients that want to ensure their stanzas are not
+    ///     used with any other recipient stanzas. This can be used to produce a file key
+    ///     that is only encrypted to a single recipient stanza, for example to preserve
+    ///     its authentication properties.
+    fn labels(&mut self) -> HashSet<String>;
+
     /// Wraps each `file_key` to all recipients and identities previously added via
     /// `add_recipient` and `add_identity`.
     ///
-    /// Returns either one stanza per recipient and identity for each file key, or any
-    /// errors if one or more recipients or identities could not be wrapped to.
+    /// Returns a set of stanzas per file key that wrap it to each recipient and identity.
+    /// Plugins may return more than one stanza per "actual recipient", e.g. to support
+    /// multiple formats, to build group aliases, or to act as a proxy.
+    ///
+    /// If one or more recipients or identities could not be wrapped to, no stanzas are
+    /// returned for any of the file keys.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
@@ -46,6 +95,32 @@ pub trait RecipientPluginV1 {
         file_keys: Vec<FileKey>,
         callbacks: impl Callbacks<Error>,
     ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>>;
+}
+
+impl RecipientPluginV1 for Infallible {
+    fn add_recipient(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn add_identity(&mut self, _: usize, _: &str, _: &[u8]) -> Result<(), Error> {
+        // This is never executed.
+        Ok(())
+    }
+
+    fn labels(&mut self) -> HashSet<String> {
+        // This is never executed.
+        HashSet::new()
+    }
+
+    fn wrap_file_keys(
+        &mut self,
+        _: Vec<FileKey>,
+        _: impl Callbacks<Error>,
+    ) -> io::Result<Result<Vec<Vec<Stanza>>, Vec<Error>>> {
+        // This is never executed.
+        Ok(Ok(vec![]))
+    }
 }
 
 /// The interface that age plugins can use to interact with an age implementation.
@@ -112,7 +187,7 @@ impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 
             .and_then(|res| match res {
                 Ok(s) => String::from_utf8(s.body)
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "secret is not UTF-8"))
-                    .map(|s| Ok(SecretString::new(s))),
+                    .map(|s| Ok(SecretString::from(s))),
                 Err(e) => Ok(Err(e)),
             })
     }
@@ -188,8 +263,8 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     let mut conn = Connection::accept();
 
     // Phase 1: collect recipients, and file keys to be wrapped
-    let ((recipients, identities), file_keys) = {
-        let (recipients, identities, file_keys) = conn.unidir_receive(
+    let ((recipients, identities), file_keys, labels_supported) = {
+        let (recipients, identities, file_keys, labels_supported) = conn.unidir_receive(
             (ADD_RECIPIENT, |s| match (&s.args[..], &s.body[..]) {
                 ([recipient], []) => Ok(recipient.clone()),
                 _ => Err(Error::Internal {
@@ -210,12 +285,18 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             }),
             (Some(WRAP_FILE_KEY), |s| {
                 // TODO: Should we ignore file key commands with unexpected metadata args?
-                TryInto::<[u8; FILE_KEY_BYTES]>::try_into(&s.body[..])
-                    .map_err(|_| Error::Internal {
-                        message: "invalid file key length".to_owned(),
-                    })
-                    .map(FileKey::from)
+                FileKey::try_init_with_mut(|file_key| {
+                    if s.body.len() == file_key.len() {
+                        file_key.copy_from_slice(&s.body);
+                        Ok(())
+                    } else {
+                        Err(Error::Internal {
+                            message: "invalid file key length".to_owned(),
+                        })
+                    }
+                })
             }),
+            (Some(EXTENSION_LABELS), |_| Ok(())),
         )?;
         (
             match (recipients, identities) {
@@ -235,6 +316,13 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                     message: format!("Need at least one {} command", WRAP_FILE_KEY),
                 }]),
                 r => r,
+            },
+            match &labels_supported.unwrap() {
+                Ok(v) if v.is_empty() => Ok(false),
+                Ok(v) if v.len() == 1 => Ok(true),
+                _ => Err(vec![Error::Internal {
+                    message: format!("Received more than one {} command", EXTENSION_LABELS),
+                }]),
             },
         )
     };
@@ -300,23 +388,61 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
         |index, plugin_name, bytes| plugin.add_identity(index, plugin_name, &bytes),
     );
 
+    let required_labels = plugin.labels();
+
+    let labels = match (labels_supported, required_labels.is_empty()) {
+        (Ok(true), _) | (Ok(false), true) => {
+            if required_labels.contains("") {
+                Err(vec![Error::Internal {
+                    message: "Plugin tried to use the empty string as a label".into(),
+                }])
+            } else if required_labels.iter().all(is_arbitrary_string) {
+                Ok(required_labels)
+            } else {
+                Err(vec![Error::Internal {
+                    message: "Plugin tried to use a label containing an invalid character".into(),
+                }])
+            }
+        }
+        (Ok(false), false) => Err(vec![Error::Internal {
+            message: "Plugin requires labels but client does not support them".into(),
+        }]),
+        (Err(errors), true) => Err(errors),
+        (Err(mut errors), false) => {
+            errors.push(Error::Internal {
+                message: "Plugin requires labels but client does not support them".into(),
+            });
+            Err(errors)
+        }
+    };
+
     // Phase 2: wrap the file keys or return errors
     conn.bidir_send(|mut phase| {
-        let (expected_stanzas, file_keys) = match (recipients, identities, file_keys) {
-            (Ok(recipients), Ok(identities), Ok(file_keys)) => (recipients + identities, file_keys),
-            (recipients, identities, file_keys) => {
-                for error in recipients
-                    .err()
-                    .into_iter()
-                    .chain(identities.err())
-                    .chain(file_keys.err())
-                    .flatten()
-                {
-                    error.send(&mut phase)?;
+        let (expected_stanzas, file_keys, labels) =
+            match (recipients, identities, file_keys, labels) {
+                (Ok(recipients), Ok(identities), Ok(file_keys), Ok(labels)) => {
+                    (recipients + identities, file_keys, labels)
                 }
-                return Ok(());
-            }
-        };
+                (recipients, identities, file_keys, labels) => {
+                    for error in recipients
+                        .err()
+                        .into_iter()
+                        .chain(identities.err())
+                        .chain(file_keys.err())
+                        .chain(labels.err())
+                        .flatten()
+                    {
+                        error.send(&mut phase)?;
+                    }
+                    return Ok(());
+                }
+            };
+
+        let labels = labels.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        // We confirmed above that if `labels` is non-empty, the client supports labels.
+        // So we can unconditionally send this, and will only get an `unsupported`
+        // response if `labels` is empty (where it does not matter).
+        let _ = phase.send(LABELS, &labels, &[])?;
 
         match plugin.wrap_file_keys(file_keys, BidirCallbacks(&mut phase))? {
             Ok(files) => {

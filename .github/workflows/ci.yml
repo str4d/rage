@@ -70,6 +70,9 @@ jobs:
   codecov:
     name: Code coverage
     runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
 
     steps:
       - uses: actions/checkout@v4
@@ -77,14 +80,18 @@ jobs:
         id: toolchain
       - run: rustup override set ${{steps.toolchain.outputs.name}}
       - name: Install linux build dependencies
-        run: sudo apt update && sudo apt install libfuse-dev
+        run: apt update && apt -y install libfuse-dev
       - name: Generate coverage report
-        uses: actions-rs/tarpaulin@v0.1
-        with:
-          version: '0.19.1'
-          args: --workspace --release --all-features --timeout 180 --out Xml
+        run: >
+          cargo tarpaulin
+          --engine llvm
+          --workspace
+          --release
+          --all-features
+          --timeout 180
+          --out xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4.6.0
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
