@@ -334,11 +334,9 @@ impl<R: AsyncBufRead + Unpin> Decryptor<R> {
 mod tests {
     use std::collections::HashSet;
     use std::io::{BufReader, Read, Write};
+    use std::iter;
 
     use age_core::secrecy::SecretString;
-
-    #[cfg(feature = "ssh")]
-    use std::iter;
 
     use super::{Decryptor, Encryptor};
     use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
