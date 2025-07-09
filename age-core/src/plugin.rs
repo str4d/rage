@@ -25,6 +25,9 @@ const RESPONSE_OK: &str = "ok";
 const RESPONSE_FAIL: &str = "fail";
 const RESPONSE_UNSUPPORTED: &str = "unsupported";
 
+// Maximum number of stanzas per phase to prevent memory exhaustion.
+const MAX_STANZAS_PER_PHASE: usize = 1024;
+
 /// An error within the plugin protocol.
 #[derive(Debug)]
 pub enum Error {
@@ -236,35 +239,50 @@ impl<R: Read, W: Write> Connection<R, W> {
             fn validate<T, E>(
                 val: std::result::Result<T, E>,
                 res: &mut std::result::Result<Vec<T>, Vec<E>>,
-            ) {
+            ) -> io::Result<()> {
                 // Structurally validate the stanza against this command.
                 match val {
                     Ok(a) => {
                         if let Ok(stanzas) = res {
+                            if stanzas.len() >= MAX_STANZAS_PER_PHASE {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    format!("Too many stanzas in phase (limit: {})", MAX_STANZAS_PER_PHASE),
+                                ));
+                            }
                             stanzas.push(a)
                         }
                     }
                     Err(e) => match res {
                         Ok(_) => *res = Err(vec![e]),
-                        Err(errors) => errors.push(e),
+                        Err(errors) => {
+                            if errors.len() >= MAX_STANZAS_PER_PHASE {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    format!("Too many errors in phase (limit: {})", MAX_STANZAS_PER_PHASE),
+                                ));
+                            }
+                            errors.push(e);
+                        }
                     },
                 }
+                Ok(())
             }
 
             if stanza.tag.as_str() == command_a.0 {
-                validate(command_a.1(stanza), &mut res_a)
+                validate(command_a.1(stanza), &mut res_a)?
             } else if stanza.tag.as_str() == command_b.0 {
-                validate(command_b.1(stanza), &mut res_b)
+                validate(command_b.1(stanza), &mut res_b)?
             } else {
                 if let Some(tag) = command_c.0 {
                     if stanza.tag.as_str() == tag {
-                        validate(command_c.1(stanza), &mut res_c);
+                        validate(command_c.1(stanza), &mut res_c)?;
                         continue;
                     }
                 }
                 if let Some(tag) = command_d.0 {
                     if stanza.tag.as_str() == tag {
-                        validate(command_d.1(stanza), &mut res_d);
+                        validate(command_d.1(stanza), &mut res_d)?;
                         continue;
                     }
                 }
