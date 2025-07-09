@@ -450,7 +450,17 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                     // The plugin MUST generate an error if one or more recipients or
                     // identities cannot be wrapped to. And it's a programming error
                     // to return more stanzas than recipients and identities.
-                    assert_eq!(stanzas.len(), expected_stanzas);
+                    if stanzas.len() != expected_stanzas {
+                        Error::Internal {
+                            message: format!(
+                                "Plugin returned {} stanzas but expected {}",
+                                stanzas.len(),
+                                expected_stanzas
+                            ),
+                        }
+                        .send(&mut phase)?;
+                        return Ok(());
+                    }
 
                     for stanza in stanzas {
                         phase
