@@ -9,6 +9,15 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- `age::encrypted::EncryptedIdentity`
+
+### Changed
+- `age::IdentityFile::into_identities` now returns
+  `Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError>` instead of
+  `Result<Vec<Box<dyn crate::Identity>>, DecryptError>`. This re-enables
+  cross-thread uses of `IdentityFile`, which were unintentionally disabled in
+  0.11.0.
 
 ## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-11-18
 ### Security
