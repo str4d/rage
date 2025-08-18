@@ -517,11 +517,11 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                             BASE64_STANDARD
                                 .encode_slice(&byte_buf, &mut encoded_buf[..],)
                                 .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES"),
-                            ARMORED_COLUMNS_PER_LINE
+                            BASE64_CHUNK_SIZE_COLUMNS
                         );
                         *encoded_line = Some(EncodedBytes {
                             offset: 0,
-                            end: ARMORED_COLUMNS_PER_LINE,
+                            end: BASE64_CHUNK_SIZE_COLUMNS,
                         });
                         byte_buf.clear();
                     }
