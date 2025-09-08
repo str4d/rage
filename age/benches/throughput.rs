@@ -1,5 +1,5 @@
-use age::{x25519, Decryptor, Encryptor};
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use age::{Decryptor, Encryptor, x25519};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use criterion_cycles_per_byte::CyclesPerByte;

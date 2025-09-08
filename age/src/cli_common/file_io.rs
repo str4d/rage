@@ -395,10 +395,7 @@ impl OutputWriter {
         } else if is_tty {
             if let OutputFormat::Binary = format {
                 // If output == Some("-") then this error is skipped.
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    FileError::DenyBinaryOutput,
-                ));
+                return Err(io::Error::other(FileError::DenyBinaryOutput));
             }
         }
 

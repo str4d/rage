@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Mutex};
+use std::sync::{Mutex, mpsc};
 use std::time::{Duration, SystemTime};
 
 use tar::{Archive, Entry, EntryType};
@@ -25,15 +25,14 @@ fn tar_to_filetype<R: Read>(entry: &Entry<R>) -> Option<FileType> {
 }
 
 fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
-    let kind = tar_to_filetype(entry)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
+    let kind = tar_to_filetype(entry).ok_or_else(|| io::Error::other("Unsupported filetype"))?;
     let perm = (entry.header().mode()? & 0o7777) as u16;
 
-    let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()? as u64, 0);
+    let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()?, 0);
     let ctime = if let Some(header) = entry.header().as_gnu() {
         header
             .ctime()
-            .map(|ctime| SystemTime::UNIX_EPOCH + Duration::new(ctime as u64, 0))
+            .map(|ctime| SystemTime::UNIX_EPOCH + Duration::new(ctime, 0))
             .unwrap_or(mtime)
     } else {
         mtime
@@ -41,7 +40,7 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
     let atime = if let Some(header) = entry.header().as_gnu() {
         header
             .atime()
-            .map(|atime| SystemTime::UNIX_EPOCH + Duration::new(atime as u64, 0))
+            .map(|atime| SystemTime::UNIX_EPOCH + Duration::new(atime, 0))
             .unwrap_or(mtime)
     } else {
         mtime
@@ -226,7 +225,7 @@ impl FilesystemMT for AgeTarFs {
             files: self.file_map.len() as u64,
             ffree: 0,
             bsize: 64 * 1024,
-            namelen: u32::max_value(),
+            namelen: u32::MAX,
             frsize: 64 * 1024,
         })
     }
@@ -270,8 +269,7 @@ impl FilesystemMT for AgeTarFs {
 
             // Read bytes
             let to_read = usize::min(size as usize, (file_size - offset) as usize);
-            let mut buf = vec![];
-            buf.resize(to_read, 0);
+            let mut buf = vec![0; to_read];
             match inner.read_exact(&mut buf) {
                 Ok(_) => callback(Ok(&buf)),
                 Err(_) => callback(Err(libc::EIO)),

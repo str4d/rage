@@ -3,7 +3,7 @@
 //! These are shared between the client implementation in the `age` crate, and the plugin
 //! implementations built around the `age-plugin` crate.
 
-use rand::{thread_rng, Rng};
+use rand::{Rng, rng};
 use secrecy::zeroize::Zeroize;
 use std::env;
 use std::fmt;
@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 
 use crate::{
-    format::{grease_the_joint, read, write, Stanza},
+    format::{Stanza, grease_the_joint, read, write},
     io::{DebugReader, DebugWriter},
 };
 
@@ -124,7 +124,7 @@ impl<R: Read, W: Write> Connection<R, W> {
         cookie_factory::gen_simple(write::age_stanza(command, metadata, data), &mut self.output)
             .map_err(|e| match e {
                 GenError::IoError(e) => e,
-                e => io::Error::new(io::ErrorKind::Other, format!("{}", e)),
+                e => io::Error::other(format!("{}", e)),
             })
             .and_then(|w| w.flush())
     }
@@ -174,11 +174,11 @@ impl<R: Read, W: Write> Connection<R, W> {
         Ok(stanza)
     }
 
-    fn grease_gun(&mut self) -> impl Iterator<Item = Stanza> {
+    fn grease_gun(&mut self) -> impl Iterator<Item = Stanza> + use<R, W> {
         // Add 5% grease
-        let mut rng = thread_rng();
+        let mut rng = rng();
         (0..2).filter_map(move |_| {
-            if rng.gen_range(0..100) < 5 {
+            if rng.random_range(0..100) < 5 {
                 Some(grease_the_joint())
             } else {
                 None
@@ -313,7 +313,7 @@ impl<R: Read, W: Write> Connection<R, W> {
 /// Grease is applied automatically.
 pub struct UnidirSend<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> UnidirSend<'a, R, W> {
+impl<R: Read, W: Write> UnidirSend<'_, R, W> {
     /// Send a command.
     pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> io::Result<()> {
         for grease in self.0.grease_gun() {
@@ -341,7 +341,7 @@ impl<'a, R: Read, W: Write> UnidirSend<'a, R, W> {
 /// Grease is applied automatically.
 pub struct BidirSend<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
+impl<R: Read, W: Write> BidirSend<'_, R, W> {
     /// Send a command and receive a response.
     pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> Result<Stanza> {
         for grease in self.0.grease_gun() {
@@ -389,7 +389,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
 /// The possible replies to a bidirectional command.
 pub struct Reply<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> Reply<'a, R, W> {
+impl<R: Read, W: Write> Reply<'_, R, W> {
     /// Reply with `ok` and optional data.
     pub fn ok(self, data: Option<&[u8]>) -> Response {
         Response(
