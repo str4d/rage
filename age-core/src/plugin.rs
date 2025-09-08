@@ -3,7 +3,7 @@
 //! These are shared between the client implementation in the `age` crate, and the plugin
 //! implementations built around the `age-plugin` crate.
 
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use secrecy::zeroize::Zeroize;
 use std::env;
 use std::fmt;
@@ -176,9 +176,9 @@ impl<R: Read, W: Write> Connection<R, W> {
 
     fn grease_gun(&mut self) -> impl Iterator<Item = Stanza> {
         // Add 5% grease
-        let mut rng = thread_rng();
+        let mut rng = rng();
         (0..2).filter_map(move |_| {
-            if rng.gen_range(0..100) < 5 {
+            if rng.random_range(0..100) < 5 {
                 Some(grease_the_joint())
             } else {
                 None

@@ -1,17 +1,18 @@
 //! Encryption and decryption routines for age.
 
 use age_core::{format::is_arbitrary_string, secrecy::SecretString};
-use rand::{rngs::OsRng, RngCore};
+use rand::RngCore;
 
 use std::io::{self, BufRead, Read, Write};
 use std::iter;
 
 use crate::{
+    Identity, Recipient,
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
-    scrypt, Identity, Recipient,
+    scrypt,
 };
 
 #[cfg(feature = "async")]
@@ -28,7 +29,7 @@ impl AsRef<[u8]> for Nonce {
 impl Nonce {
     fn random() -> Self {
         let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
+        rand::rng().fill_bytes(&mut nonce);
         Nonce(nonce)
     }
 
@@ -339,14 +340,14 @@ mod tests {
     use age_core::secrecy::SecretString;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
+    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, scrypt, x25519};
 
     #[cfg(feature = "async")]
     use futures::{
+        Future,
         io::{AsyncRead, AsyncWrite},
         pin_mut,
         task::Poll,
-        Future,
     };
     #[cfg(feature = "async")]
     use futures_test::task::noop_context;

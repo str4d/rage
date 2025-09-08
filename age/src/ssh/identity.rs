@@ -12,7 +12,6 @@ use nom::{
     sequence::{pair, preceded, terminated},
     IResult, Parser,
 };
-use rand::rngs::OsRng;
 use rsa::{pkcs1::DecodeRsaPrivateKey, Oaep};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
@@ -68,14 +67,14 @@ impl UnencryptedKey {
                     return None;
                 }
 
-                let mut rng = OsRng;
+                let mut rng = rand::rng();
 
                 // A failure to decrypt is fatal, because we assume that we won't
                 // encounter 32-bit collisions on the key tag embedded in the header.
                 Some(
                     sk.decrypt_blinded(
                         &mut rng,
-                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::<Sha256>::new_with_label(SSH_RSA_OAEP_LABEL),
                         &stanza.body,
                     )
                     .map_err(DecryptError::from)

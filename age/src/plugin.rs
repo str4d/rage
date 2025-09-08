@@ -92,6 +92,12 @@ impl SlowPluginGuard {
     }
 }
 
+impl Drop for SlowPluginGuard {
+    fn drop(&mut self) {
+        _ = self.0
+    }
+}
+
 /// A plugin-compatible recipient.
 #[derive(Clone)]
 pub struct Recipient {
