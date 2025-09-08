@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 
-use crate::{wfl, DecryptError};
+use crate::{DecryptError, wfl};
 
 #[cfg(feature = "plugin")]
 use crate::wlnfl;

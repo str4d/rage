@@ -1,5 +1,5 @@
-use age::{x25519, Decryptor, Encryptor};
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use age::{Decryptor, Encryptor, x25519};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 #[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};

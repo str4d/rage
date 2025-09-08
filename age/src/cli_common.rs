@@ -211,7 +211,7 @@ pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
     )?;
 
     if res.expose_secret().is_empty() {
-        Ok(Passphrase::random(&mut rand::rng()))
+        Ok(Passphrase::random(rand::rng()))
     } else {
         Ok(Passphrase::Typed(res))
     }

@@ -2,7 +2,7 @@
 
 use std::{cell::Cell, io};
 
-use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
+use crate::{Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile, fl, scrypt};
 
 /// An encrypted age identity file.
 ///
@@ -229,7 +229,7 @@ mod tests {
     use age_core::secrecy::{ExposeSecret, SecretString};
 
     use super::Identity;
-    use crate::{x25519, Callbacks, DecryptError, Identity as _, Recipient as _};
+    use crate::{Callbacks, DecryptError, Identity as _, Recipient as _, x25519};
 
     #[cfg(feature = "armor")]
     use crate::armor::ArmoredReader;

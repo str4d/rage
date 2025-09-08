@@ -5,12 +5,12 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use clap::{Command, CommandFactory, ValueEnum};
-use clap_complete::{generate_to, Shell};
+use clap_complete::{Shell, generate_to};
 use clap_mangen::{
-    roff::{Inline, Roff},
     Man,
+    roff::{Inline, Roff},
 };
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use i18n_embed::unic_langid::LanguageIdentifier;
 
 mod i18n {

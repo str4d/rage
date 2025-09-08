@@ -1,9 +1,10 @@
 //! Core types and encoding operations used by the age file format.
 
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use rand::{
+    RngCore,
     distr::{Distribution, Uniform},
-    rng, RngCore,
+    rng,
 };
 use secrecy::{ExposeSecret, ExposeSecretMut, SecretBox};
 
@@ -61,7 +62,7 @@ pub struct AgeStanza<'a> {
     body: Vec<&'a [u8]>,
 }
 
-impl<'a> AgeStanza<'a> {
+impl AgeStanza<'_> {
     /// Decodes and returns the body of this stanza.
     pub fn body(&self) -> Vec<u8> {
         // An AgeStanza will always contain at least one chunk.
@@ -158,13 +159,13 @@ pub fn grease_the_joint() -> Stanza {
 /// Decoding operations for age types.
 pub mod read {
     use nom::{
+        IResult, Parser,
         branch::alt,
-        bytes::streaming::{tag, take_while1, take_while_m_n},
+        bytes::streaming::{tag, take_while_m_n, take_while1},
         character::streaming::newline,
         combinator::{map, map_opt, opt, verify},
         multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
-        IResult, Parser,
     };
 
     use super::{AgeStanza, STANZA_TAG};
@@ -356,12 +357,12 @@ pub mod read {
 
 /// Encoding operations for age types.
 pub mod write {
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
     use cookie_factory::{
+        SerializeFn, WriteContext,
         combinator::string,
         multi::separated_list,
         sequence::{pair, tuple},
-        SerializeFn, WriteContext,
     };
     use std::io::Write;
     use std::iter;
@@ -410,7 +411,7 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
     use nom::error::ErrorKind;
 
     use super::{read, write};

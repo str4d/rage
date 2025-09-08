@@ -9,8 +9,8 @@ resolver = "2"
 
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
-edition = "2021"
-rust-version = "1.70"
+edition = "2024"
+rust-version = "1.85"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 

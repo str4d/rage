@@ -5,10 +5,11 @@ use std::{
 };
 
 use age::{
+    DecryptError, Decryptor, Identity,
     armor::{ArmoredReadError, ArmoredReader},
     scrypt,
     secrecy::SecretString,
-    x25519, DecryptError, Decryptor, Identity,
+    x25519,
 };
 use futures::AsyncReadExt;
 use sha2::{Digest, Sha256};
@@ -601,7 +602,7 @@ fn get_testkit_passphrase(testfile: &TestFile, comment: &str) -> SecretString {
     assert_eq!(testfile.identities.len(), 0);
     match testfile.passphrases.len() {
         0 => panic!("Test file is missing passphrase{}", comment),
-        1 => testfile.passphrases.get(0).cloned().unwrap().into(),
+        1 => testfile.passphrases.first().cloned().unwrap().into(),
         n => panic!("Too many passphrases ({}){}", n, comment),
     }
 }

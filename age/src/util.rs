@@ -1,4 +1,4 @@
-use bech32::{primitives::decode::CheckedHrpstring, Bech32};
+use bech32::{Bech32, primitives::decode::CheckedHrpstring};
 
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
@@ -14,15 +14,15 @@ pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
 pub(crate) mod read {
     use std::str::FromStr;
 
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-    use nom::{character::complete::digit1, combinator::verify, ParseTo, Parser};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
+    use nom::{ParseTo, Parser, character::complete::digit1, combinator::verify};
 
     #[cfg(feature = "ssh")]
     use nom::{
-        combinator::map_res,
-        error::{make_error, ErrorKind},
-        multi::separated_list1,
         IResult,
+        combinator::map_res,
+        error::{ErrorKind, make_error},
+        multi::separated_list1,
     };
 
     #[cfg(feature = "ssh")]
@@ -34,7 +34,7 @@ pub(crate) mod read {
         use nom::bytes::streaming::take;
 
         // Unpadded encoded length
-        let encoded_count = ((4 * count) + 2) / 3;
+        let encoded_count = (4 * count).div_ceil(3);
 
         move |input: &str| {
             let (i, data) = take(encoded_count)(input)?;
@@ -117,8 +117,8 @@ pub(crate) mod read {
 }
 
 pub(crate) mod write {
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-    use cookie_factory::{combinator::string, SerializeFn};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
+    use cookie_factory::{SerializeFn, combinator::string};
     use std::io::Write;
 
     pub(crate) fn encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> {
