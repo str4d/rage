@@ -26,7 +26,7 @@ fn zipfile_to_fuse(zf: &ZipFile) -> FileAttr {
     let mtime: SystemTime = zf.last_modified().to_time().unwrap().into();
 
     FileAttr {
-        size: zf.size() as u64,
+        size: zf.size(),
         blocks: 1,
         atime: mtime,
         mtime,
