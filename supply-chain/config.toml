@@ -97,10 +97,6 @@ criteria = "safe-to-deploy"
 version = "0.9.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.block]]
-version = "0.1.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.block-padding]]
 version = "0.3.3"
 criteria = "safe-to-deploy"
@@ -229,10 +225,6 @@ criteria = "safe-to-deploy"
 version = "0.1.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.dashmap]]
-version = "6.1.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.der]]
 version = "0.7.8"
 criteria = "safe-to-deploy"
@@ -264,18 +256,6 @@ criteria = "safe-to-deploy"
 [[exemptions.findshlibs]]
 version = "0.10.2"
 criteria = "safe-to-run"
-
-[[exemptions.fluent]]
-version = "0.16.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.fluent-bundle]]
-version = "0.15.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.fluent-syntax]]
-version = "0.11.1"
-criteria = "safe-to-deploy"
 
 [[exemptions.fuse_mt]]
 version = "0.6.1"
@@ -314,10 +294,6 @@ version = "0.3.3"
 criteria = "safe-to-run"
 
 [[exemptions.hashbrown]]
-version = "0.14.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.hashbrown]]
 version = "0.15.5"
 criteria = "safe-to-run"
 
@@ -346,11 +322,11 @@ version = "0.4.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed]]
-version = "0.15.4"
+version = "0.16.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-fl]]
-version = "0.9.2"
+version = "0.10.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-impl]]
@@ -364,10 +340,6 @@ criteria = "safe-to-run"
 [[exemptions.inferno]]
 version = "0.11.17"
 criteria = "safe-to-run"
-
-[[exemptions.intl-memoizer]]
-version = "0.5.2"
-criteria = "safe-to-deploy"
 
 [[exemptions.io_tee]]
 version = "0.1.1"
@@ -405,10 +377,6 @@ criteria = "safe-to-deploy"
 version = "0.9.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.locale_config]]
-version = "0.3.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.lock_api]]
 version = "0.4.13"
 criteria = "safe-to-deploy"
@@ -435,18 +403,6 @@ criteria = "safe-to-run"
 
 [[exemptions.num_cpus]]
 version = "1.16.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.objc]]
-version = "0.2.7"
-criteria = "safe-to-deploy"
-
-[[exemptions.objc-foundation]]
-version = "0.1.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.objc_id]]
-version = "0.1.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.object]]
@@ -677,6 +633,10 @@ criteria = "safe-to-run"
 version = "2.0.106"
 criteria = "safe-to-deploy"
 
+[[exemptions.sys-locale]]
+version = "0.3.2"
+criteria = "safe-to-deploy"
+
 [[exemptions.tar]]
 version = "0.4.44"
 criteria = "safe-to-deploy"
@@ -700,6 +660,14 @@ criteria = "safe-to-run"
 [[exemptions.test-case-macros]]
 version = "3.3.1"
 criteria = "safe-to-run"
+
+[[exemptions.thiserror]]
+version = "2.0.16"
+criteria = "safe-to-deploy"
+
+[[exemptions.thiserror-impl]]
+version = "2.0.16"
+criteria = "safe-to-deploy"
 
 [[exemptions.threadpool]]
 version = "1.8.1"
