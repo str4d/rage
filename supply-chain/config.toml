@@ -57,10 +57,6 @@ criteria = "safe-to-deploy"
 version = "1.1.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.android-tzdata]]
-version = "0.1.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.anstream]]
 version = "0.3.2"
 criteria = "safe-to-deploy"
@@ -91,10 +87,6 @@ criteria = "safe-to-run"
 
 [[exemptions.base64ct]]
 version = "1.6.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.basic-toml]]
-version = "0.1.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.bcrypt-pbkdf]]
@@ -144,18 +136,6 @@ criteria = "safe-to-deploy"
 [[exemptions.chrono]]
 version = "0.4.38"
 criteria = "safe-to-deploy"
-
-[[exemptions.ciborium]]
-version = "0.2.2"
-criteria = "safe-to-run"
-
-[[exemptions.ciborium-io]]
-version = "0.2.2"
-criteria = "safe-to-run"
-
-[[exemptions.ciborium-ll]]
-version = "0.2.2"
-criteria = "safe-to-run"
 
 [[exemptions.clap]]
 version = "4.3.24"
@@ -251,10 +231,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
 version = "0.9.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.displaydoc]]
-version = "0.2.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.dunce]]
@@ -379,10 +355,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.i18n-embed-impl]]
 version = "0.8.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.iana-time-zone]]
-version = "0.1.61"
 criteria = "safe-to-deploy"
 
 [[exemptions.indexmap]]
@@ -565,17 +537,9 @@ criteria = "safe-to-deploy"
 version = "1.5.0"
 criteria = "safe-to-run"
 
-[[exemptions.quick-error]]
-version = "1.2.3"
-criteria = "safe-to-run"
-
 [[exemptions.quick-xml]]
 version = "0.26.0"
 criteria = "safe-to-run"
-
-[[exemptions.rand]]
-version = "0.8.5"
-criteria = "safe-to-deploy"
 
 [[exemptions.redox_syscall]]
 version = "0.5.7"
@@ -629,10 +593,6 @@ criteria = "safe-to-deploy"
 version = "0.38.34"
 criteria = "safe-to-deploy"
 
-[[exemptions.rusty-fork]]
-version = "0.3.0"
-criteria = "safe-to-run"
-
 [[exemptions.ryu]]
 version = "1.0.15"
 criteria = "safe-to-run"
@@ -669,24 +629,12 @@ criteria = "safe-to-deploy"
 version = "0.6.3"
 criteria = "safe-to-run"
 
-[[exemptions.sha2]]
-version = "0.10.8"
-criteria = "safe-to-deploy"
-
-[[exemptions.shlex]]
-version = "1.3.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.similar]]
 version = "2.6.0"
 criteria = "safe-to-run"
 
 [[exemptions.slab]]
 version = "0.4.9"
-criteria = "safe-to-deploy"
-
-[[exemptions.smallvec]]
-version = "1.11.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.snapbox]]
@@ -785,10 +733,6 @@ criteria = "safe-to-deploy"
 version = "0.1.4"
 criteria = "safe-to-run"
 
-[[exemptions.utf8parse]]
-version = "0.2.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.uuid]]
 version = "1.11.0"
 criteria = "safe-to-run"
@@ -841,10 +785,6 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows-core]]
-version = "0.52.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.windows_i686_gnullvm]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
@@ -875,14 +815,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.zerocopy-derive]]
 version = "0.7.35"
-criteria = "safe-to-deploy"
-
-[[exemptions.zeroize]]
-version = "1.8.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.zeroize_derive]]
-version = "1.3.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.zip]]
