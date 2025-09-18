@@ -72,9 +72,15 @@ impl Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>> {
     /// If the `AGEDEBUG` environment variable is set to `plugin`, then all messages sent
     /// to and from the plugin, as well as anything the plugin prints to its `stderr`,
     /// will be printed to the `stderr` of the parent process.
+    ///
+    /// This debugging functionality is only available in debug builds to prevent
+    /// accidental plaintext leakage in production.
     pub fn open(binary: &Path, state_machine: &str) -> io::Result<Self> {
         let working_dir = tempfile::tempdir()?;
+        #[cfg(debug_assertions)]
         let debug_enabled = env::var("AGEDEBUG").map(|s| s == "plugin").unwrap_or(false);
+        #[cfg(not(debug_assertions))]
+        let debug_enabled = false;
         let process = Command::new(binary.canonicalize()?)
             .arg(format!("--age-plugin={}", state_machine))
             .current_dir(working_dir.path())
