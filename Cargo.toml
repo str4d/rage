@@ -10,7 +10,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
@@ -54,8 +54,8 @@ subtle = "2"
 zeroize = "1"
 
 # Localization
-i18n-embed = { version = "0.15", features = ["fluent-system"] }
-i18n-embed-fl = "0.9"
+i18n-embed = { version = "0.16", features = ["fluent-system"] }
+i18n-embed-fl = "0.10"
 lazy_static = "1"
 rust-embed = "8"
 

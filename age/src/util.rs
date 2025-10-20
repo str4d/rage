@@ -89,7 +89,7 @@ pub(crate) mod read {
                 ),
                 |chunks| {
                     let data = chunks.join("");
-                    engine.decode(&data)
+                    engine.decode(data)
                 },
             )(input)
         }

@@ -52,7 +52,7 @@ pub fn read_identities(
             #[cfg(not(feature = "plugin"))]
             let new_identities = new_identities.unwrap();
 
-            identities.extend(new_identities);
+            identities.extend(new_identities.into_iter().map(|i| i as _));
 
             Ok(())
         },
