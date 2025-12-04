@@ -10,6 +10,8 @@ use age_core::{
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::{ToBase32, Variant};
+#[cfg(feature = "bip39")]
+use bip39::Mnemonic;
 use rand::rngs::OsRng;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -71,6 +73,11 @@ impl Identity {
     ///
     /// **Do not** use this method with low-entropy input (like a simple string cast to bytes),
     /// as this will result in a weak key that is trivial to crack.
+    ///
+    /// Note that this method applies X25519 clamping to the input bytes, so the resulting key
+    /// may differ from the input.
+    ///
+    /// The caller is responsible for zeroizing the source data if it is no longer needed.
     pub fn from_secret_bytes(bytes: [u8; 32]) -> Self {
         Identity(StaticSecret::from(bytes))
     }
@@ -95,6 +102,33 @@ impl Identity {
     /// Returns the recipient key for this secret key.
     pub fn to_public(&self) -> Recipient {
         Recipient((&self.0).into())
+    }
+}
+
+#[cfg(feature = "bip39")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bip39")))]
+impl Identity {
+    /// Restores a secret key from a BIP39 mnemonic.
+    ///
+    /// This method treats the mnemonic's entropy directly as the secret key. Therefore, the
+    /// mnemonic must have been generated from exactly 32 bytes of entropy (typically 24 words).
+    pub fn from_mnemonic(mnemonic: &Mnemonic) -> Result<Self, &'static str> {
+        let mut entropy = mnemonic.to_entropy();
+        let bytes: [u8; 32] = entropy
+            .as_slice()
+            .try_into()
+            .map_err(|_| "mnemonic must represent exactly 32 bytes (24 words)")?;
+        entropy.zeroize();
+        Ok(Self::from_secret_bytes(bytes))
+    }
+
+    /// Serializes this secret key as a BIP39 mnemonic (24 words).
+    ///
+    /// The mnemonic is generated using the English wordlist.
+    pub fn to_mnemonic(&self) -> Mnemonic {
+        // We can safely unwrap because the secret key is guaranteed to be 32 bytes,
+        // which is a valid length for BIP39 entropy.
+        Mnemonic::from_entropy(&self.0.to_bytes()).expect("32 bytes is valid entropy")
     }
 }
 
@@ -282,6 +316,33 @@ pub(crate) mod tests {
         let bytes: [u8; 32] = bytes.try_into().expect("TEST_SK is 32 bytes");
         let key = Identity::from_secret_bytes(bytes);
         assert_eq!(key.to_string().expose_secret(), TEST_SK);
+    }
+
+    #[cfg(feature = "bip39")]
+    #[test]
+    fn mnemonic_round_trip() {
+        let key = Identity::generate();
+        let mnemonic = key.to_mnemonic();
+        let restored = Identity::from_mnemonic(&mnemonic).expect("Mnemonic should be valid");
+
+        assert_eq!(
+            key.to_string().expose_secret(),
+            restored.to_string().expose_secret()
+        );
+    }
+
+    #[cfg(feature = "bip39")]
+    #[test]
+    fn invalid_mnemonic_length() {
+        // Generate a 12-word mnemonic (128 bits of entropy)
+        let entropy = [0u8; 16];
+        let mnemonic = bip39::Mnemonic::from_entropy(&entropy).unwrap();
+
+        let res = Identity::from_mnemonic(&mnemonic);
+        match res {
+            Err(e) => assert_eq!(e, "mnemonic must represent exactly 32 bytes (24 words)"),
+            Ok(_) => panic!("Should not succeed with 16 bytes of entropy"),
+        }
     }
 
     proptest! {
