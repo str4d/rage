@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Added
+- Support for the new native age recipient types:
+  - `age1tag1..`
 
 ### Changed
 - MSRV is now 1.70.0.
