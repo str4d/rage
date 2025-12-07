@@ -144,10 +144,16 @@ impl RecipientPluginV1 for RecipientPlugin {
                 self.recipients
                     .iter()
                     .chain(&self.identities)
-                    .map(|_| Stanza {
-                        tag: RECIPIENT_TAG.to_owned(),
-                        args: vec!["does".to_owned(), "nothing".to_owned()],
-                        body: file_key.expose_secret().to_vec(),
+                    .flat_map(|_| {
+                        let count = match env::var("AGE_PLUGIN_STANZAS_PER_RECIPIENT") {
+                            Ok(n) => n.parse().unwrap_or(1),
+                            Err(_) => 1,
+                        };
+                        (0..count).map(|_| Stanza {
+                            tag: RECIPIENT_TAG.to_owned(),
+                            args: vec!["does".to_owned(), "nothing".to_owned()],
+                            body: file_key.expose_secret().to_vec(),
+                        })
                     })
                     .collect()
             })
