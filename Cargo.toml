@@ -28,6 +28,9 @@ chacha20poly1305 = { version = "0.10", default-features = false, features = ["al
 # - X25519 from RFC 7748
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 
+# - P-256
+p256 = { version = "0.13", default-features = false, features = ["arithmetic"] }
+
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
 hkdf = "0.12"
@@ -53,7 +56,7 @@ nom = { version = "8", default-features = false, features = ["alloc"] }
 # Secret management
 pinentry = "0.8"
 secrecy = "0.10"
-subtle = "2"
+subtle = "2.6"
 zeroize = "1"
 
 # Localization

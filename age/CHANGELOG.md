@@ -10,6 +10,8 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Added
+- Support for new native age recipient types:
+  - `age::tag::Recipient` (encryption-only)
 - `age::encrypted::EncryptedIdentity`
 - `age::plugin::ResolveError`
 

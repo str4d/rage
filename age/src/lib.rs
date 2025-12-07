@@ -7,7 +7,8 @@
 //! The encryption and decryption APIs are provided by [`Encryptor`] and [`Decryptor`].
 //! There are several ways to use these:
 //! - For most cases (including programmatic usage), use [`Encryptor::with_recipients`]
-//!   with [`x25519::Recipient`], and [`Decryptor`] with [`x25519::Identity`].
+//!   with [`x25519::Recipient`] and/or [`tag::Recipient`], and [`Decryptor`] with
+//!   [`x25519::Identity`].
 //! - For passphrase-based encryption and decryption, use [`scrypt::Recipient`] and
 //!   [`scrypt::Identity`], or the helper method [`Encryptor::with_user_passphrase`].
 //!   These should only be used with passphrases that were provided by (or generated for)
@@ -251,6 +252,7 @@ pub use simple::encrypt_and_armor;
 
 mod native;
 pub use native::scrypt;
+pub use native::tag;
 pub use native::x25519;
 
 pub mod encrypted;
