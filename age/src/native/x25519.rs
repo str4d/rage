@@ -26,8 +26,8 @@ const PUBLIC_KEY_PREFIX: &str = "age";
 pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 
-pub(super) const EPK_LEN_BYTES: usize = 32;
-pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
+pub(crate) const EPK_LEN_BYTES: usize = 32;
+pub(crate) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
 /// The standard age identity type, which can decrypt files encrypted to the corresponding
 /// [`Recipient`].
