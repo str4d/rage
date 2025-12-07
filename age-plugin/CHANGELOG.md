@@ -10,6 +10,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Changed
+- MSRV is now 1.70.0.
+
 ## [0.6.1] - 2025-12-07
 ### Changed
 - `age_plugin::run_state_machine` no longer panics if an

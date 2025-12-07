@@ -537,7 +537,7 @@ impl<R: Read + Seek> StreamReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
             StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let current = self.inner.stream_position()?;
                 let start = current - offset;
 
                 // Cache the start for future calls.
@@ -555,7 +555,7 @@ impl<R: Read + Seek> StreamReader<R> {
             None => {
                 // Cache the current position and nonce, and then grab the start and end
                 // ciphertext positions.
-                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
+                let cur_pos = self.inner.stream_position()?;
                 let cur_nonce = self.stream.nonce.0;
                 let ct_start = self.start()?;
                 let ct_end = self.inner.seek(SeekFrom::End(0))?;

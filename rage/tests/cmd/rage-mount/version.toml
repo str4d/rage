@@ -1,6 +1,6 @@
 bin.name = "rage-mount"
 args = "--version"
 stdout = """
-rage-mount 0.11.0
+rage-mount 0.11.1
 """
 stderr = ""

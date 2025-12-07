@@ -4,13 +4,80 @@ use std::{cell::Cell, io};
 
 use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
 
+/// An encrypted age identity file.
+///
+/// This type can be explicitly decrypted to obtain an [`IdentityFile`]. If you want a
+/// type that can be used directly as an identity and caches the decryption result
+/// internally, use [`Identity`].
+pub struct EncryptedIdentity<R: io::Read, C: Callbacks> {
+    decryptor: Decryptor<R>,
+    max_work_factor: Option<u8>,
+    callbacks: C,
+}
+
+impl<R: io::Read, C: Callbacks> EncryptedIdentity<R, C> {
+    /// Parses an encrypted identity from an input containing valid UTF-8.
+    ///
+    /// Returns `Ok(None)` if the input contains an age ciphertext that is not encrypted
+    /// to a passphrase.
+    pub(crate) fn from_buffer(
+        data: R,
+        callbacks: C,
+        max_work_factor: Option<u8>,
+    ) -> Result<Option<Self>, DecryptError> {
+        let decryptor = Decryptor::new(data)?;
+        Ok(Self::new(decryptor, callbacks, max_work_factor))
+    }
+
+    /// Constructs a new encrypted identity from a [`Decryptor`].
+    ///
+    /// Returns `Ok(None)` if the input contains an age ciphertext that is not encrypted
+    /// to a passphrase.
+    pub fn new(decryptor: Decryptor<R>, callbacks: C, max_work_factor: Option<u8>) -> Option<Self> {
+        decryptor.is_scrypt().then_some(EncryptedIdentity {
+            decryptor,
+            max_work_factor,
+            callbacks,
+        })
+    }
+
+    /// Decrypts this encrypted identity.
+    ///
+    /// The provided filename (if any) will be used in the passphrase request message.
+    pub fn decrypt(self, filename: Option<&str>) -> Result<IdentityFile<C>, DecryptError> {
+        let passphrase = match self.callbacks.request_passphrase(&fl!(
+            "encrypted-passphrase-prompt",
+            filename = filename.unwrap_or_default()
+        )) {
+            Some(passphrase) => passphrase,
+            None => todo!(),
+        };
+
+        let mut identity = scrypt::Identity::new(passphrase);
+        if let Some(max_work_factor) = self.max_work_factor {
+            identity.set_max_work_factor(max_work_factor);
+        }
+
+        self.decryptor
+            .decrypt(Some(&identity as _).into_iter())
+            .map_err(|e| {
+                if matches!(e, DecryptError::DecryptionFailed) {
+                    DecryptError::KeyDecryptionFailed
+                } else {
+                    e
+                }
+            })
+            .and_then(|stream| {
+                let file = IdentityFile::from_buffer(io::BufReader::new(stream))?
+                    .with_callbacks(self.callbacks);
+                Ok(file)
+            })
+    }
+}
+
 /// The state of the encrypted age identity.
 enum IdentityState<R: io::Read, C: Callbacks> {
-    Encrypted {
-        decryptor: Decryptor<R>,
-        max_work_factor: Option<u8>,
-        callbacks: C,
-    },
+    Encrypted(EncryptedIdentity<R, C>),
     Decrypted(IdentityFile<C>),
 
     /// The file was not correctly encrypted, or did not contain age identities. We cache
@@ -33,39 +100,7 @@ impl<R: io::Read, C: Callbacks> IdentityState<R, C> {
     /// were not cached (and we just asked the user for a passphrase).
     fn decrypt(self, filename: Option<&str>) -> Result<(IdentityFile<C>, bool), DecryptError> {
         match self {
-            Self::Encrypted {
-                decryptor,
-                max_work_factor,
-                callbacks,
-            } => {
-                let passphrase = match callbacks.request_passphrase(&fl!(
-                    "encrypted-passphrase-prompt",
-                    filename = filename.unwrap_or_default()
-                )) {
-                    Some(passphrase) => passphrase,
-                    None => todo!(),
-                };
-
-                let mut identity = scrypt::Identity::new(passphrase);
-                if let Some(max_work_factor) = max_work_factor {
-                    identity.set_max_work_factor(max_work_factor);
-                }
-
-                decryptor
-                    .decrypt(Some(&identity as _).into_iter())
-                    .map_err(|e| {
-                        if matches!(e, DecryptError::DecryptionFailed) {
-                            DecryptError::KeyDecryptionFailed
-                        } else {
-                            e
-                        }
-                    })
-                    .and_then(|stream| {
-                        let file = IdentityFile::from_buffer(io::BufReader::new(stream))?
-                            .with_callbacks(callbacks);
-                        Ok((file, true))
-                    })
-            }
+            Self::Encrypted(encrypted) => encrypted.decrypt(filename).map(|file| (file, true)),
             Self::Decrypted(identity_file) => Ok((identity_file, false)),
             // `IdentityState::decrypt` is only ever called with `Some`.
             Self::Poisoned(e) => Err(e.unwrap()),
@@ -74,6 +109,10 @@ impl<R: io::Read, C: Callbacks> IdentityState<R, C> {
 }
 
 /// An encrypted age identity file.
+///
+/// This type can be used directly as an identity and caches the decryption result
+/// internally. If you want a type that can be explicitly decrypted to obtain an
+/// [`IdentityFile`], use [`EncryptedIdentity`].
 pub struct Identity<R: io::Read, C: Callbacks> {
     state: Cell<IdentityState<R, C>>,
     filename: Option<String>,
@@ -92,13 +131,9 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
         callbacks: C,
         max_work_factor: Option<u8>,
     ) -> Result<Option<Self>, DecryptError> {
-        let decryptor = Decryptor::new(data)?;
-        Ok(decryptor.is_scrypt().then_some(Identity {
-            state: Cell::new(IdentityState::Encrypted {
-                decryptor,
-                max_work_factor,
-                callbacks,
-            }),
+        let encrypted = EncryptedIdentity::from_buffer(data, callbacks, max_work_factor)?;
+        Ok(encrypted.map(|encrypted| Identity {
+            state: Cell::new(IdentityState::Encrypted(encrypted)),
             filename,
         }))
     }
@@ -138,7 +173,7 @@ impl<R: io::Read, C: Callbacks> Identity<R, C> {
     ) -> Option<Result<age_core::format::FileKey, DecryptError>>
     where
         F: Fn(
-            Result<Box<dyn crate::Identity>, DecryptError>,
+            Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>,
         ) -> Option<Result<age_core::format::FileKey, DecryptError>>,
     {
         match self.state.take().decrypt(self.filename.as_deref()) {

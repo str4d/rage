@@ -29,11 +29,11 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
     let perm = (entry.header().mode()? & 0o7777) as u16;
 
-    let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()? as u64, 0);
+    let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()?, 0);
     let ctime = if let Some(header) = entry.header().as_gnu() {
         header
             .ctime()
-            .map(|ctime| SystemTime::UNIX_EPOCH + Duration::new(ctime as u64, 0))
+            .map(|ctime| SystemTime::UNIX_EPOCH + Duration::new(ctime, 0))
             .unwrap_or(mtime)
     } else {
         mtime
@@ -41,7 +41,7 @@ fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
     let atime = if let Some(header) = entry.header().as_gnu() {
         header
             .atime()
-            .map(|atime| SystemTime::UNIX_EPOCH + Duration::new(atime as u64, 0))
+            .map(|atime| SystemTime::UNIX_EPOCH + Duration::new(atime, 0))
             .unwrap_or(mtime)
     } else {
         mtime
