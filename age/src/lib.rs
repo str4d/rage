@@ -249,9 +249,11 @@ pub use simple::encrypt_and_armor;
 // Identity types
 //
 
+mod native;
+pub use native::scrypt;
+pub use native::x25519;
+
 pub mod encrypted;
-pub mod scrypt;
-pub mod x25519;
 
 #[cfg(feature = "plugin")]
 #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
