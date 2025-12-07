@@ -10,7 +10,12 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.11.2] - 2025-12-07
 ### Fixed
+- `age::armor::ArmoredWriter::poll_write` no longer panics when writing more
+  than 6144 bytes.
+- `age::encrypted::Identity` no longer causes a panic when being decrypted if
+  the `age::Callbacks::request_passphrase` impl returns `None`.
 - `age::plugin::{Identity, RecipientPluginV1, IdentityPluginV1}` now correctly
   reject the empty plugin name (like `age::plugin::Recipient` already was).
 
