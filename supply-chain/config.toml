@@ -97,6 +97,10 @@ criteria = "safe-to-run"
 version = "0.3.73"
 criteria = "safe-to-run"
 
+[[exemptions.base16ct]]
+version = "0.2.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.base64ct]]
 version = "1.6.0"
 criteria = "safe-to-deploy"
@@ -217,6 +221,10 @@ criteria = "safe-to-run"
 version = "0.8.8"
 criteria = "safe-to-deploy"
 
+[[exemptions.crypto-bigint]]
+version = "0.5.5"
+criteria = "safe-to-deploy"
+
 [[exemptions.ctr]]
 version = "0.9.2"
 criteria = "safe-to-deploy"
@@ -241,6 +249,10 @@ criteria = "safe-to-deploy"
 version = "0.9.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.elliptic-curve]]
+version = "0.13.8"
+criteria = "safe-to-deploy"
+
 [[exemptions.encode_unicode]]
 version = "0.3.6"
 criteria = "safe-to-deploy"
@@ -251,6 +263,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.env_logger]]
 version = "0.10.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.ff]]
+version = "0.13.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.filetime]]
@@ -301,6 +317,10 @@ criteria = "safe-to-deploy"
 version = "0.5.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.group]]
+version = "0.12.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.hashbrown]]
 version = "0.16.1"
 criteria = "safe-to-deploy"
@@ -311,6 +331,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.hkdf]]
 version = "0.12.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.hpke]]
+version = "0.12.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.humantime]]
@@ -433,6 +457,10 @@ criteria = "safe-to-run"
 version = "1.2.2"
 criteria = "safe-to-run"
 
+[[exemptions.p256]]
+version = "0.13.2"
+criteria = "safe-to-deploy"
+
 [[exemptions.page_size]]
 version = "0.5.0"
 criteria = "safe-to-deploy"
@@ -491,6 +519,10 @@ criteria = "safe-to-run"
 
 [[exemptions.ppv-lite86]]
 version = "0.2.21"
+criteria = "safe-to-deploy"
+
+[[exemptions.primeorder]]
+version = "0.13.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.proc-macro-crate]]
@@ -583,6 +615,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.scrypt]]
 version = "0.11.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.sec1]]
+version = "0.7.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.secrecy]]

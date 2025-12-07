@@ -8,6 +8,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Added
+- `age_core::primitives::{hpke_seal, hpke_open}`
+
 ### Changed
 - MSRV is now 1.70.0.
 

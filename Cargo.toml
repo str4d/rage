@@ -34,6 +34,9 @@ hkdf = "0.12"
 hmac = "0.12"
 sha2 = "0.10"
 
+# - HPKE from RFC 9180
+hpke = { version = "0.12", default-features = false, features = ["alloc"] }
+
 # - scrypt from RFC 7914
 scrypt = { version = "0.11", default-features = false }
 
