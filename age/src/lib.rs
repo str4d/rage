@@ -250,6 +250,7 @@ pub use simple::encrypt_and_armor;
 //
 
 mod native;
+pub use native::p256tag;
 pub use native::scrypt;
 pub use native::x25519;
 

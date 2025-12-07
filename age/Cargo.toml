@@ -43,9 +43,12 @@ pinentry = { workspace = true, optional = true }
 # (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)
 bech32.workspace = true
 cookie-factory.workspace = true
+hkdf.workspace = true
+hpke = { workspace = true, features = ["p256"] }
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
 nom.workspace = true
+p256.workspace = true
 rust-embed.workspace = true
 scrypt.workspace = true
 sha2.workspace = true

@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age::encrypted::EncryptedIdentity`
+- Support for the new native age recipient types:
+  - `age::p256tag`
 
 ### Changed
 - MSRV is now 1.70.0.
