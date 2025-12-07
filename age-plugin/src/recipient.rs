@@ -1,11 +1,11 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{is_arbitrary_string, FileKey, Stanza},
+    format::{FileKey, Stanza, is_arbitrary_string},
     plugin::{self, BidirSend, Connection},
     secrecy::SecretString,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use bech32::FromBase32;
 
 use std::collections::HashSet;
@@ -39,7 +39,7 @@ pub trait RecipientPluginV1 {
     ///
     /// Returns an error if the recipient is unknown or invalid.
     fn add_recipient(&mut self, index: usize, plugin_name: &str, bytes: &[u8])
-        -> Result<(), Error>;
+    -> Result<(), Error>;
 
     /// Stores an identity that the user would like to encrypt age files to.
     ///
@@ -126,7 +126,7 @@ impl RecipientPluginV1 for Infallible {
 /// The interface that age plugins can use to interact with an age implementation.
 struct BidirCallbacks<'a, 'b, R: io::Read, W: io::Write>(&'b mut BidirSend<'a, R, W>);
 
-impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 'b, R, W> {
+impl<R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'_, '_, R, W> {
     /// Shows a message to the user.
     ///
     /// This can be used to prompt the user to take some physical action, such as

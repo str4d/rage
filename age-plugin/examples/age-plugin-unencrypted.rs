@@ -3,10 +3,11 @@ use age_core::{
     secrecy::ExposeSecret,
 };
 use age_plugin::{
+    Callbacks, PluginHandler,
     identity::{self, IdentityPluginV1},
     print_new_identity,
     recipient::{self, RecipientPluginV1},
-    run_state_machine, Callbacks, PluginHandler,
+    run_state_machine,
 };
 use clap::Parser;
 

@@ -5,15 +5,15 @@ use std::iter;
 use std::time::Duration;
 
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt},
     secrecy::{ExposeSecret, SecretString},
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use rand::{
-    distributions::{Alphanumeric, DistString},
+    RngCore, TryRngCore,
+    distr::{Alphanumeric, SampleString},
     rngs::OsRng,
-    RngCore,
 };
 use zeroize::Zeroize;
 
@@ -139,7 +139,7 @@ impl crate::Recipient for Recipient {
         &self,
         file_key: &FileKey,
     ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
-        let mut rng = OsRng;
+        let mut rng = OsRng.unwrap_err();
 
         let mut salt = [0; SALT_LEN];
         rng.fill_bytes(&mut salt);

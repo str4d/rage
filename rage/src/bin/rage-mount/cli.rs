@@ -1,6 +1,6 @@
 use clap::{
-    builder::{Styles, ValueHint},
     ArgAction, Parser,
+    builder::{Styles, ValueHint},
 };
 
 use crate::fl;

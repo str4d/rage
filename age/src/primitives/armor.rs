@@ -1,6 +1,6 @@
 //! I/O helper structs for the age ASCII armor format.
 
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use pin_project::pin_project;
 use std::cmp;
 use std::error;
@@ -466,9 +466,11 @@ impl<W: AsyncWrite> ArmoredWriter<W> {
         {
             if let Some(line) = encoded_line {
                 loop {
-                    line.offset += ready!(inner
-                        .as_mut()
-                        .poll_write(cx, &encoded_buf[line.offset..line.end]))?;
+                    line.offset += ready!(
+                        inner
+                            .as_mut()
+                            .poll_write(cx, &encoded_buf[line.offset..line.end])
+                    )?;
                     if line.offset == line.end {
                         break;
                     }
@@ -821,7 +823,7 @@ impl<R> ArmoredReader<R> {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         ArmoredReadError::InvalidBeginMarker,
-                    ))
+                    ));
                 }
             }
         } else {
@@ -928,7 +930,7 @@ impl<R: BufRead> BufRead for ArmoredReader<R> {
                         })
                     } else {
                         Ok(&self.byte_buf[self.byte_start..self.byte_end])
-                    }
+                    };
                 }
                 Some(true) => {
                     break if self.found_end {
@@ -941,7 +943,7 @@ impl<R: BufRead> BufRead for ArmoredReader<R> {
                         }
                     } else {
                         Ok(&self.byte_buf[self.byte_start..self.byte_end])
-                    }
+                    };
                 }
             }
         }
@@ -1337,7 +1339,7 @@ impl<R: BufRead + Seek> Seek for ArmoredReader<R> {
 mod tests {
     use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{ArmoredReader, ArmoredWriter, Format, ARMORED_BYTES_PER_LINE};
+    use super::{ARMORED_BYTES_PER_LINE, ArmoredReader, ArmoredWriter, Format};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -1400,12 +1402,10 @@ mod tests {
                         Poll::Pending => panic!("Unexpected Pending"),
                     }
                 }
-                loop {
-                    match w.as_mut().poll_close(&mut cx) {
-                        Poll::Ready(Ok(())) => break,
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                        Poll::Pending => panic!("Unexpected Pending"),
-                    }
+                match w.as_mut().poll_close(&mut cx) {
+                    Poll::Ready(Ok(())) => {}
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
 

@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Mutex};
+use std::sync::{Mutex, mpsc};
 use std::time::{Duration, SystemTime};
-use zip::{read::ZipFile, ZipArchive};
+use zip::{ZipArchive, read::ZipFile};
 
 fn zip_path(path: &Path) -> &Path {
     path.strip_prefix("/").unwrap()
@@ -96,16 +96,13 @@ impl AgeZipFs {
         stream: StreamReader<ArmoredReader<BufReader<File>>>,
         destroy_tx: mpsc::SyncSender<()>,
     ) -> io::Result<Self> {
-        let mut archive =
-            ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut archive = ZipArchive::new(stream).map_err(io::Error::other)?;
 
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root
         for i in 0..archive.len() {
-            let zf = archive
-                .by_index(i)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            let zf = archive.by_index(i).map_err(io::Error::other)?;
             if let Some(path) = zf.enclosed_name() {
                 add_dir_to_map(&mut dir_map, path, zipfile_to_filetype(&zf));
             }
@@ -192,7 +189,7 @@ impl FilesystemMT for AgeZipFs {
             files: inner.len() as u64,
             ffree: 0,
             bsize: 64 * 1024,
-            namelen: u32::max_value(),
+            namelen: u32::MAX,
             frsize: 64 * 1024,
         })
     }
@@ -233,8 +230,7 @@ impl FilesystemMT for AgeZipFs {
                 }
 
                 // Skip to offset
-                let mut buf = vec![];
-                buf.resize(offset as usize, 0);
+                let mut buf = vec![0; offset as usize];
                 if zf.read_exact(&mut buf).is_err() {
                     return callback(Err(libc::EIO));
                 }

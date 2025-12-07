@@ -4,13 +4,13 @@ use std::collections::HashSet;
 use std::fmt;
 
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt, hkdf},
     secrecy::{ExposeSecret, SecretString},
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use bech32::{ToBase32, Variant};
-use rand::rngs::OsRng;
+use rand::{TryRngCore, rngs::OsRng};
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
@@ -58,8 +58,8 @@ impl std::str::FromStr for Identity {
 impl Identity {
     /// Generates a new secret key.
     pub fn generate() -> Self {
-        let rng = OsRng;
-        Identity(StaticSecret::random_from_rng(rng))
+        let mut rng = OsRng.unwrap_err();
+        Identity(StaticSecret::random_from_rng(&mut rng))
     }
 
     /// Serializes this secret key as a string.
@@ -198,8 +198,8 @@ impl crate::Recipient for Recipient {
         &self,
         file_key: &FileKey,
     ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
-        let rng = OsRng;
-        let esk = EphemeralSecret::random_from_rng(rng);
+        let mut rng = OsRng.unwrap_err();
+        let esk = EphemeralSecret::random_from_rng(&mut rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
 

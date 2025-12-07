@@ -2,12 +2,13 @@
 
 use std::io::{self, BufRead, Read, Write};
 
-use age_core::format::{grease_the_joint, Stanza};
+use age_core::format::{Stanza, grease_the_joint};
 
 use crate::{
+    EncryptError,
     error::DecryptError,
     primitives::{HmacKey, HmacWriter},
-    scrypt, EncryptError,
+    scrypt,
 };
 
 #[cfg(feature = "async")]
@@ -51,7 +52,7 @@ impl HeaderV1 {
         }
 
         let mut mac = HmacWriter::new(mac_key);
-        cookie_factory::gen(write::header_v1_minus_mac(&header), &mut mac)
+        cookie_factory::r#gen(write::header_v1_minus_mac(&header), &mut mac)
             .expect("can serialize Header into HmacWriter");
         header
             .mac
@@ -67,7 +68,7 @@ impl HeaderV1 {
             mac.write_all(&bytes[..bytes.len() - ENCODED_MAC_LENGTH - 2])
                 .expect("can serialize Header into HmacWriter");
         } else {
-            cookie_factory::gen(write::header_v1_minus_mac(self), &mut mac)
+            cookie_factory::r#gen(write::header_v1_minus_mac(self), &mut mac)
                 .expect("can serialize Header into HmacWriter");
         }
         mac.verify(&self.mac)
@@ -219,28 +220,18 @@ impl Header {
     }
 
     pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
-        cookie_factory::gen(write::header(self), &mut output)
+        cookie_factory::r#gen(write::header(self), &mut output)
             .map(|_| ())
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to write header: {}", e),
-                )
-            })
+            .map_err(|e| io::Error::other(format!("failed to write header: {}", e)))
     }
 
     #[cfg(feature = "async")]
     #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub(crate) async fn write_async<W: AsyncWrite + Unpin>(&self, mut output: W) -> io::Result<()> {
         let mut buf = vec![];
-        cookie_factory::gen(write::header(self), &mut buf)
+        cookie_factory::r#gen(write::header(self), &mut buf)
             .map(|_| ())
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to write header: {}", e),
-                )
-            })?;
+            .map_err(|e| io::Error::other(format!("failed to write header: {}", e)))?;
 
         output.write_all(&buf).await
     }
@@ -255,13 +246,13 @@ pub(crate) enum Header {
 mod read {
     use age_core::format::read::{arbitrary_string, legacy_age_stanza};
     use nom::{
+        IResult,
         branch::alt,
         bytes::streaming::{tag, take},
         character::streaming::newline,
         combinator::{map, map_opt},
         multi::many1,
         sequence::{pair, preceded, terminated},
-        IResult,
     };
 
     use super::*;
@@ -314,10 +305,10 @@ mod read {
 mod write {
     use age_core::format::write::age_stanza;
     use cookie_factory::{
+        SerializeFn, WriteContext,
         combinator::{slice, string},
         multi::all,
         sequence::tuple,
-        SerializeFn, WriteContext,
     };
     use std::io::Write;
 

@@ -1,7 +1,7 @@
 use std::io::{self, BufReader};
 
 use super::{ReadError, StdinGuard, UiCallbacks};
-use crate::{identity::IdentityFile, Identity};
+use crate::{Identity, identity::IdentityFile};
 
 #[cfg(feature = "armor")]
 use crate::{armor::ArmoredReader, cli_common::file_io::InputReader};
@@ -125,7 +125,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         #[cfg(feature = "ssh")]
         match crate::ssh::Identity::from_buffer(&mut reader, Some(filename.clone())) {
             Ok(crate::ssh::Identity::Unsupported(k)) => {
-                return Err(ReadError::UnsupportedKey(filename, k).into())
+                return Err(ReadError::UnsupportedKey(filename, k).into());
             }
             Ok(identity) => {
                 ssh_identity(ctx, &filename, identity)?;

@@ -1,17 +1,18 @@
 //! Encryption and decryption routines for age.
 
 use age_core::{format::is_arbitrary_string, secrecy::SecretString};
-use rand::{rngs::OsRng, RngCore};
+use rand::{TryRngCore, rngs::OsRng};
 
 use std::io::{self, BufRead, Read, Write};
 use std::iter;
 
 use crate::{
+    Identity, Recipient,
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
-    scrypt, Identity, Recipient,
+    scrypt,
 };
 
 #[cfg(feature = "async")]
@@ -28,7 +29,7 @@ impl AsRef<[u8]> for Nonce {
 impl Nonce {
     fn random() -> Self {
         let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
+        OsRng.try_fill_bytes(&mut nonce).unwrap();
         Nonce(nonce)
     }
 
@@ -339,14 +340,14 @@ mod tests {
     use age_core::secrecy::SecretString;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
+    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, scrypt, x25519};
 
     #[cfg(feature = "async")]
     use futures::{
+        Future,
         io::{AsyncRead, AsyncWrite},
         pin_mut,
         task::Poll,
-        Future,
     };
     #[cfg(feature = "async")]
     use futures_test::task::noop_context;
@@ -388,12 +389,10 @@ mod tests {
                 let f = e.wrap_async_output(&mut encrypted);
                 pin_mut!(f);
 
-                loop {
-                    match f.as_mut().poll(&mut cx) {
-                        Poll::Ready(Ok(w)) => break w,
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                        Poll::Pending => panic!("Unexpected Pending"),
-                    }
+                match f.as_mut().poll(&mut cx) {
+                    Poll::Ready(Ok(w)) => w,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
                 }
             };
             pin_mut!(w);
@@ -407,12 +406,10 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-            loop {
-                match w.as_mut().poll_close(&mut cx) {
-                    Poll::Ready(Ok(())) => break,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match w.as_mut().poll_close(&mut cx) {
+                Poll::Ready(Ok(())) => {}
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         }
 
@@ -420,12 +417,10 @@ mod tests {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
-            loop {
-                match f.as_mut().poll(&mut cx) {
-                    Poll::Ready(Ok(w)) => break w,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match f.as_mut().poll(&mut cx) {
+                Poll::Ready(Ok(w)) => w,
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         };
 

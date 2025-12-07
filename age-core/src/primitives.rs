@@ -1,8 +1,8 @@
 //! Primitive cryptographic operations used across various `age` components.
 
 use chacha20poly1305::{
-    aead::{self, generic_array::typenum::Unsigned, Aead, AeadCore, KeyInit},
     ChaCha20Poly1305,
+    aead::{self, Aead, AeadCore, KeyInit, array::typenum::Unsigned},
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
