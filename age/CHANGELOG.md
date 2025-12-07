@@ -10,6 +10,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Fixed
+- `age::plugin::{Identity, RecipientPluginV1, IdentityPluginV1}` now correctly
+  reject the empty plugin name (like `age::plugin::Recipient` already was).
+
 ## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-11-18
 ### Security
 - Fixed a security vulnerability that could allow an attacker to execute an

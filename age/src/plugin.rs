@@ -48,6 +48,7 @@ fn valid_plugin_name(plugin_name: &str) -> bool {
     plugin_name
         .bytes()
         .all(|b| b.is_ascii_alphanumeric() | matches!(b, b'+' | b'-' | b'.' | b'_'))
+        && !plugin_name.is_empty()
 }
 
 fn binary_name(plugin_name: &str) -> String {
