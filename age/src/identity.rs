@@ -25,7 +25,7 @@ impl IdentityFileEntry {
     pub(crate) fn into_identity(
         self,
         callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+    ) -> Result<Box<dyn crate::Identity + Send + Sync>, DecryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
@@ -184,14 +184,17 @@ impl<C: Callbacks> IdentityFile<C> {
     /// Returns the identities in this file.
     pub(crate) fn to_identities(
         &self,
-    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
+    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>> + '_
+    {
         self.identities
             .iter()
             .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Result<Vec<Box<dyn crate::Identity>>, DecryptError> {
+    pub fn into_identities(
+        self,
+    ) -> Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError> {
         self.identities
             .into_iter()
             .map(|entry| entry.into_identity(self.callbacks.clone()))

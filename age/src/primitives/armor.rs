@@ -373,7 +373,7 @@ impl<W: Write> ArmoredWriter<W> {
             } => {
                 let byte_buf = byte_buf.unwrap();
                 let encoded = BASE64_STANDARD
-                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .encode_slice(byte_buf, &mut encoded_buf[..])
                     .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 inner.write_all(&encoded_buf[..encoded])?;
                 inner.finish()
@@ -561,7 +561,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                 // Finish the armored format with a partial line (if necessary) and the end
                 // marker.
                 let encoded = BASE64_STANDARD
-                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .encode_slice(byte_buf, &mut encoded_buf[..])
                     .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 *encoded_line = Some(EncodedBytes {
                     offset: 0,
@@ -1227,7 +1227,7 @@ impl<R: Read + Seek> ArmoredReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
             StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let current = self.inner.stream_position()?;
                 let start = current - offset;
 
                 // Cache the start for future calls.

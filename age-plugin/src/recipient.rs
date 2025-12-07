@@ -85,8 +85,8 @@ pub trait RecipientPluginV1 {
     /// Plugins may return more than one stanza per "actual recipient", e.g. to support
     /// multiple formats, to build group aliases, or to act as a proxy.
     ///
-    /// If one or more recipients or identities could not be wrapped to, no stanzas are
-    /// returned for any of the file keys.
+    /// If one or more recipients or identities could not be wrapped to, `Err(_)` **MUST**
+    /// be returned.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
@@ -448,9 +448,8 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             Ok(files) => {
                 for (file_index, stanzas) in files.into_iter().enumerate() {
                     // The plugin MUST generate an error if one or more recipients or
-                    // identities cannot be wrapped to. And it's a programming error
-                    // to return more stanzas than recipients and identities.
-                    assert_eq!(stanzas.len(), expected_stanzas);
+                    // identities cannot be wrapped to.
+                    assert!(stanzas.len() >= expected_stanzas);
 
                     for stanza in stanzas {
                         phase

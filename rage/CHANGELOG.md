@@ -10,6 +10,9 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Changed
+- MSRV is now 1.70.0.
+
 ## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-12-18
 ### Security
 - Fixed a security vulnerability that could allow an attacker to execute an
