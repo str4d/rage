@@ -9,6 +9,14 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Changed
+- `age_plugin::run_state_machine` no longer panics if an
+  `age::recipient::RecipientPluginV1::wrap_file_keys` impl returns more stanzas
+  than provided recipients and identities. This relaxation of the interface
+  constraints (following the [change to the age plugin specification]) was
+  documented on the trait in 0.6.0 but not actually implementable.
+
+[change to the age plugin specification]: https://github.com/C2SP/C2SP/pull/80
 
 ## [0.6.0] - 2024-11-03
 ### Added

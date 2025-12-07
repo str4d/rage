@@ -224,6 +224,20 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
 ///
 /// This should be triggered if the `--age-plugin=state_machine` flag is provided as an
 /// argument when starting the plugin.
+///
+/// # Panics
+///
+/// The state machine will panic if the `PluginHandler` implementation violates any
+/// **MUST** requirements of the [age plugin specification]. Examples include:
+/// - Returning fewer stanzas from [`RecipientPluginV1::wrap_file_keys`] than the number
+///   of recipients and identities that were provided (instead of returning an error if
+///   any could not be encrypted to).
+///   - Note that this currently prohibits plugins from automatically deduplicating
+///     provided recipients and identities; either duplicate stanzas must be produced, or
+///     an error returned. This prohibition might be lifted in a future release.
+///
+/// [age plugin specification]: https://c2sp.org/age-plugin
+/// [`RecipientPluginV1::wrap_file_keys`]: crate::recipient::RecipientPluginV1::wrap_file_keys
 pub fn run_state_machine(state_machine: &str, handler: impl PluginHandler) -> io::Result<()> {
     use age_core::plugin::{IDENTITY_V1, RECIPIENT_V1};
 
