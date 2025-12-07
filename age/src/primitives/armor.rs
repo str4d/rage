@@ -1523,4 +1523,73 @@ mod tests {
         r.read_exact(&mut buf).unwrap();
         assert_eq!(&buf[..], &data[data.len() - 1337..data.len() - 1237]);
     }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn armored_async_cross_check() {
+        let data =
+            vec![42; (super::BASE64_CHUNK_SIZE_BYTES * 2) + (super::ARMORED_BYTES_PER_LINE * 10)];
+
+        let mut encoded_sync = vec![];
+        {
+            let mut out =
+                ArmoredWriter::wrap_output(&mut encoded_sync, Format::AsciiArmor).unwrap();
+            out.write_all(&data).unwrap();
+            out.finish().unwrap();
+        }
+
+        let mut encoded_async = vec![];
+        {
+            let w = ArmoredWriter::wrap_async_output(&mut encoded_async, Format::AsciiArmor);
+            pin_mut!(w);
+
+            let mut cx = noop_context();
+
+            let mut tmp = &data[..];
+            loop {
+                match w.as_mut().poll_write(&mut cx, tmp) {
+                    Poll::Ready(Ok(0)) => break,
+                    Poll::Ready(Ok(written)) => tmp = &tmp[written..],
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+            loop {
+                match w.as_mut().poll_close(&mut cx) {
+                    Poll::Ready(Ok(())) => break,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        }
+
+        assert_eq!(encoded_sync, encoded_async);
+
+        let mut buf_sync = vec![];
+        {
+            let mut input = ArmoredReader::new(&encoded_sync[..]);
+            input.read_to_end(&mut buf_sync).unwrap();
+        }
+
+        let mut buf_async = vec![];
+        {
+            let input = ArmoredReader::from_async_reader(&encoded_async[..]);
+            pin_mut!(input);
+
+            let mut cx = noop_context();
+
+            let mut tmp = [0; 4096];
+            loop {
+                match input.as_mut().poll_read(&mut cx, &mut tmp) {
+                    Poll::Ready(Ok(0)) => break,
+                    Poll::Ready(Ok(read)) => buf_async.extend_from_slice(&tmp[..read]),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
+                }
+            }
+        }
+
+        assert_eq!(buf_async, data);
+        assert_eq!(buf_sync, data);
+    }
 }
