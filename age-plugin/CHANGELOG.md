@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.6.1] - 2025-12-07
 ### Changed
 - `age_plugin::run_state_machine` no longer panics if an
   `age::recipient::RecipientPluginV1::wrap_file_keys` impl returns more stanzas
