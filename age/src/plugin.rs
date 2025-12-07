@@ -48,6 +48,7 @@ fn valid_plugin_name(plugin_name: &str) -> bool {
     plugin_name
         .bytes()
         .all(|b| b.is_ascii_alphanumeric() | matches!(b, b'+' | b'-' | b'.' | b'_'))
+        && !plugin_name.is_empty()
 }
 
 fn binary_name(plugin_name: &str) -> String {
@@ -754,6 +755,13 @@ mod tests {
     }
 
     #[test]
+    fn recipient_rejects_empty_name() {
+        let invalid_recipient =
+            bech32::encode(PLUGIN_RECIPIENT_PREFIX, [], bech32::Variant::Bech32).unwrap();
+        assert!(invalid_recipient.parse::<Recipient>().is_err());
+    }
+
+    #[test]
     fn recipient_rejects_invalid_chars() {
         let invalid_recipient = bech32::encode(
             &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME),
@@ -762,6 +770,18 @@ mod tests {
         )
         .unwrap();
         assert!(invalid_recipient.parse::<Recipient>().is_err());
+    }
+
+    #[test]
+    fn identity_rejects_empty_name() {
+        let invalid_identity = bech32::encode(
+            &format!("{}-", PLUGIN_IDENTITY_PREFIX),
+            [],
+            bech32::Variant::Bech32,
+        )
+        .expect("HRP is valid")
+        .to_uppercase();
+        assert!(invalid_identity.parse::<Identity>().is_err());
     }
 
     #[test]
@@ -778,8 +798,22 @@ mod tests {
 
     #[test]
     #[should_panic]
+    fn identity_default_for_plugin_rejects_empty_name() {
+        Identity::default_for_plugin("");
+    }
+
+    #[test]
+    #[should_panic]
     fn identity_default_for_plugin_rejects_invalid_chars() {
         Identity::default_for_plugin(INVALID_PLUGIN_NAME);
+    }
+
+    #[test]
+    fn recipient_plugin_v1_rejects_empty_name() {
+        assert!(matches!(
+            RecipientPluginV1::new("", &[], &[], NoCallbacks),
+            Err(EncryptError::MissingPlugin { binary_name }) if binary_name.is_empty(),
+        ));
     }
 
     #[test]
@@ -787,6 +821,14 @@ mod tests {
         assert!(matches!(
             RecipientPluginV1::new(INVALID_PLUGIN_NAME, &[], &[], NoCallbacks),
             Err(EncryptError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+        ));
+    }
+
+    #[test]
+    fn identity_plugin_v1_rejects_empty_name() {
+        assert!(matches!(
+            IdentityPluginV1::new("", &[], NoCallbacks),
+            Err(DecryptError::MissingPlugin { binary_name }) if binary_name.is_empty(),
         ));
     }
 
