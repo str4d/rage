@@ -216,10 +216,10 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
     const TEST_RECIPIENT: &str = "age1ysxuaeqlk7xd8uqsh8lsnfwt9jzzjlqf49ruhpjrrj5yatlcuf7qke4pqe";
 
     #[derive(Clone)]
-    struct MockCallbacks(Arc<Mutex<Option<&'static str>>>);
+    struct MockCallbacks(Arc<Mutex<Option<Option<&'static str>>>>);
 
     impl MockCallbacks {
-        fn new(passphrase: &'static str) -> Self {
+        fn new(passphrase: Option<&'static str>) -> Self {
             MockCallbacks(Arc::new(Mutex::new(Some(passphrase))))
         }
     }
@@ -239,9 +239,13 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
 
         /// This intentionally panics if called twice.
         fn request_passphrase(&self, _: &str) -> Option<SecretString> {
-            Some(SecretString::from(
-                self.0.lock().unwrap().take().unwrap().to_owned(),
-            ))
+            self.0
+                .lock()
+                .unwrap()
+                .take()
+                .expect("passphrase is only input once")
+                .to_owned()
+                .map(SecretString::from)
         }
     }
 
@@ -258,10 +262,28 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
         // Unwrapping with the wrong passphrase fails.
         {
             let buf = ArmoredReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes());
-            let identity =
-                Identity::from_buffer(buf, None, MockCallbacks::new("wrong passphrase"), None)
-                    .unwrap()
-                    .unwrap();
+            let identity = Identity::from_buffer(
+                buf,
+                None,
+                MockCallbacks::new(Some("wrong passphrase")),
+                None,
+            )
+            .unwrap()
+            .unwrap();
+
+            if let Err(e) = identity.unwrap_stanzas(&wrapped).unwrap() {
+                assert!(matches!(e, DecryptError::KeyDecryptionFailed));
+            } else {
+                panic!("Should have failed");
+            }
+        }
+
+        // Unwrapping fails if we cannot obtain a passphrase.
+        {
+            let buf = ArmoredReader::new(TEST_ENCRYPTED_IDENTITY.as_bytes());
+            let identity = Identity::from_buffer(buf, None, MockCallbacks::new(None), None)
+                .unwrap()
+                .unwrap();
 
             if let Err(e) = identity.unwrap_stanzas(&wrapped).unwrap() {
                 assert!(matches!(e, DecryptError::KeyDecryptionFailed));
@@ -274,7 +296,7 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
         let identity = Identity::from_buffer(
             buf,
             None,
-            MockCallbacks::new(TEST_ENCRYPTED_IDENTITY_PASSPHRASE),
+            MockCallbacks::new(Some(TEST_ENCRYPTED_IDENTITY_PASSPHRASE)),
             None,
         )
         .unwrap()
