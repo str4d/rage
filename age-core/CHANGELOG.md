@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
   - `bech32_encode`
   - `bech32_encode_to_fmt`
   - `bech32_decode`
+  - `hpke_seal`
+  - `hpke_open`
 
 ### Changed
 - MSRV is now 1.70.0.
