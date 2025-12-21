@@ -1,10 +1,7 @@
 //! I/O helper structs for age file encryption and decryption.
 
 use age_core::secrecy::{ExposeSecret, SecretSlice};
-use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, KeyInit, KeySizeUser},
-    ChaCha20Poly1305,
-};
+use aws_lc_rs::aead::{self, Aad, LessSafeKey, UnboundKey, CHACHA20_POLY1305};
 use pin_project::pin_project;
 use std::cmp;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -20,12 +17,11 @@ use futures::{
 use std::pin::Pin;
 
 const CHUNK_SIZE: usize = 64 * 1024;
+const KEY_SIZE: usize = 32;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
-pub(crate) struct PayloadKey(
-    pub(crate) GenericArray<u8, <ChaCha20Poly1305 as KeySizeUser>::KeySize>,
-);
+pub(crate) struct PayloadKey(pub(crate) [u8; KEY_SIZE]);
 
 impl Drop for PayloadKey {
     fn drop(&mut self) {
@@ -89,14 +85,17 @@ struct EncryptedChunk {
 ///
 /// [STREAM]: https://eprint.iacr.org/2015/189.pdf
 pub(crate) struct Stream {
-    aead: ChaCha20Poly1305,
+    key: LessSafeKey,
     nonce: Nonce,
 }
 
 impl Stream {
     fn new(key: PayloadKey) -> Self {
         Stream {
-            aead: ChaCha20Poly1305::new(&key.0),
+            key: LessSafeKey::new(
+                UnboundKey::new(&CHACHA20_POLY1305, &key.0)
+                    .expect("byte length of key will match expected"),
+            ),
             nonce: Nonce::default(),
         }
     }
@@ -185,10 +184,15 @@ impl Stream {
             io::Error::new(io::ErrorKind::WriteZero, "last chunk has been processed")
         })?;
 
-        let encrypted = self
-            .aead
-            .encrypt(&self.nonce.to_bytes().into(), chunk)
-            .expect("we will never hit chacha20::MAX_BLOCKS because of the chunk size");
+        let mut encrypted = Vec::with_capacity(chunk.len() + CHACHA20_POLY1305.tag_len());
+        encrypted.extend_from_slice(chunk);
+        self.key
+            .seal_in_place_append_tag(
+                aead::Nonce::assume_unique_for_key(self.nonce.to_bytes()),
+                Aad::empty(),
+                &mut encrypted,
+            )
+            .expect("encryption won't fail");
         self.nonce.increment_counter();
 
         Ok(encrypted)
@@ -201,14 +205,18 @@ impl Stream {
             io::Error::new(io::ErrorKind::InvalidData, "last chunk has been processed")
         })?;
 
-        let decrypted = self
-            .aead
-            .decrypt(&self.nonce.to_bytes().into(), chunk)
-            .map(SecretSlice::from)
+        let mut decrypted = Vec::from(chunk);
+        self.key
+            .open_in_place(
+                aead::Nonce::assume_unique_for_key(self.nonce.to_bytes()),
+                Aad::empty(),
+                &mut decrypted,
+            )
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "decryption error"))?;
+        decrypted.truncate(decrypted.len() - CHACHA20_POLY1305.tag_len());
         self.nonce.increment_counter();
 
-        Ok(decrypted)
+        Ok(SecretSlice::from(decrypted))
     }
 
     fn is_complete(&self) -> bool {
