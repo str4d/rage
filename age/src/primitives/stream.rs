@@ -807,6 +807,7 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
+            #[allow(clippy::never_loop)]
             loop {
                 match w.as_mut().poll_close(&mut cx) {
                     Poll::Ready(Ok(())) => break,

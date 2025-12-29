@@ -32,7 +32,7 @@ jobs:
 
         include:
           - name: linux
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             build_deps: >
               libfuse-dev
             build_flags: --features mount
@@ -40,7 +40,7 @@ jobs:
             asset_suffix: x86_64-linux.tar.gz
 
           - name: armv7
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             target: armv7-unknown-linux-gnueabihf
             build_deps: >
               gcc-arm-linux-gnueabihf
@@ -52,7 +52,7 @@ jobs:
             asset_suffix: armv7-linux.tar.gz
 
           - name: arm64
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             build_deps: >
               gcc-aarch64-linux-gnu
@@ -74,12 +74,12 @@ jobs:
             asset_suffix: arm64-darwin.tar.gz
 
           - name: macos-x86_64
-            os: macos-13
+            os: macos-14-large
             archive_name: rage.tar.gz
             asset_suffix: x86_64-darwin.tar.gz
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
         with:
@@ -119,19 +119,19 @@ jobs:
         if: matrix.name == 'windows'
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
         with:
           subject-path: 'release/rage/*'
 
       - name: Upload archive as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: rage-${{ matrix.asset_suffix }}
           path: ${{ matrix.archive_name }}
         if: github.event.inputs.test == 'true'
 
       - name: Upload archive to release
-        uses: svenstaro/upload-release-action@2.9.0
+        uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.archive_name }}
@@ -149,17 +149,14 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-20.04
           - ubuntu-22.04
           - ubuntu-24.04
           - windows-2019
           - windows-2022
-          - macos-12
-          - macos-13
-          - macos-14
+          - macos-14-large
 
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             name: linux
             archive_name: rage.tar.gz
             asset_suffix: x86_64-linux.tar.gz
@@ -184,12 +181,7 @@ jobs:
             archive_name: rage.zip
             asset_suffix: x86_64-windows.zip
 
-          - os: macos-12
-            name: macos
-            archive_name: rage.tar.gz
-            asset_suffix: x86_64-darwin.tar.gz
-
-          - os: macos-13
+          - os: macos-14-large
             name: macos
             archive_name: rage.tar.gz
             asset_suffix: x86_64-darwin.tar.gz
@@ -201,7 +193,7 @@ jobs:
 
     steps:
       - name: Download archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: rage-${{ matrix.asset_suffix }}
 
@@ -225,7 +217,7 @@ jobs:
 
   deb:
     name: Debian ${{ matrix.name }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         name: [linux, linux-musl, armv7, armv7-musl, arm64, arm64-musl]
@@ -279,7 +271,7 @@ jobs:
             deb_flags: --variant=musl
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
         with:
@@ -310,19 +302,19 @@ jobs:
         run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
         with:
           subject-path: 'target/${{ matrix.target }}/debian/*.deb'
 
       - name: Upload Debian package as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: rage-${{ matrix.name }}.deb
           path: target/${{ matrix.target }}/debian/*.deb
         if: github.event.inputs.test == 'true'
 
       - name: Upload Debian package to release
-        uses: svenstaro/upload-release-action@2.9.0
+        uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # 2.11.3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.target }}/debian/*.deb
@@ -338,12 +330,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-22.04, ubuntu-24.04]
         variant: [linux, linux-musl]
 
     steps:
       - name: Download Debian package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: rage-${{ matrix.variant }}.deb
       - name: Install Debian package

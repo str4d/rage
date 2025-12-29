@@ -55,6 +55,7 @@ fn binary_name(plugin_name: &str) -> String {
     format!("age-plugin-{}", plugin_name)
 }
 
+#[allow(dead_code)]
 struct SlowPluginGuard(mpsc::Sender<()>);
 
 impl SlowPluginGuard {

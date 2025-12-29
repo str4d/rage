@@ -1,5 +1,21 @@
 version: 2
 updates:
+  - package-ecosystem: cargo
+    directories:
+      - /
+      - fuzz
+      - fuzz-afl
+    schedule:
+      interval: weekly
+    cooldown: # applies only to non-security updates
+      semver-patch: 3 # wait 3 days before applying patch updates
+      semver-minor: 7
+      semver-major: 14
+    open-pull-requests-limit: 10
+    reviewers:
+      - str4d
+    assignees:
+      - str4d
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

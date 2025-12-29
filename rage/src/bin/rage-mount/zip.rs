@@ -192,7 +192,7 @@ impl FilesystemMT for AgeZipFs {
             files: inner.len() as u64,
             ffree: 0,
             bsize: 64 * 1024,
-            namelen: u32::max_value(),
+            namelen: u32::MAX,
             frsize: 64 * 1024,
         })
     }
@@ -233,8 +233,7 @@ impl FilesystemMT for AgeZipFs {
                 }
 
                 // Skip to offset
-                let mut buf = vec![];
-                buf.resize(offset as usize, 0);
+                let mut buf = vec![0; offset as usize];
                 if zf.read_exact(&mut buf).is_err() {
                     return callback(Err(libc::EIO));
                 }

@@ -388,6 +388,7 @@ mod tests {
                 let f = e.wrap_async_output(&mut encrypted);
                 pin_mut!(f);
 
+                #[allow(clippy::never_loop)]
                 loop {
                     match f.as_mut().poll(&mut cx) {
                         Poll::Ready(Ok(w)) => break w,
@@ -407,6 +408,7 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
+            #[allow(clippy::never_loop)]
             loop {
                 match w.as_mut().poll_close(&mut cx) {
                     Poll::Ready(Ok(())) => break,
@@ -420,6 +422,7 @@ mod tests {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
+            #[allow(clippy::never_loop)]
             loop {
                 match f.as_mut().poll(&mut cx) {
                     Poll::Ready(Ok(w)) => break w,

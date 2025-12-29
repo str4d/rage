@@ -226,7 +226,7 @@ impl FilesystemMT for AgeTarFs {
             files: self.file_map.len() as u64,
             ffree: 0,
             bsize: 64 * 1024,
-            namelen: u32::max_value(),
+            namelen: u32::MAX,
             frsize: 64 * 1024,
         })
     }
@@ -270,8 +270,7 @@ impl FilesystemMT for AgeTarFs {
 
             // Read bytes
             let to_read = usize::min(size as usize, (file_size - offset) as usize);
-            let mut buf = vec![];
-            buf.resize(to_read, 0);
+            let mut buf = vec![0; to_read];
             match inner.read_exact(&mut buf) {
                 Ok(_) => callback(Ok(&buf)),
                 Err(_) => callback(Err(libc::EIO)),

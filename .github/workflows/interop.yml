@@ -16,11 +16,11 @@ jobs:
           -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / Build rage"}'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: cargo build
         run: cargo build --release --features unstable
         working-directory: ./rage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: rage
           path: |
@@ -48,10 +48,10 @@ jobs:
           -H 'Authorization: token ${{ secrets.AGE_STATUS_ACCESS_TOKEN }}' \
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / Build age"}'
 
-      - name: Set up Go 1.19
-        uses: actions/setup-go@v5
+      - name: Set up Go 1.24
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
-          go-version: 1.19
+          go-version: 1.24
         id: go
 
       - name: Use specified FiloSottile/age commit
@@ -62,7 +62,7 @@ jobs:
         run: echo "AGE_REF=refs/heads/main" >> $GITHUB_ENV
 
       - name: Check out FiloSottile/age
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: FiloSottile/age
           ref: ${{ env.AGE_REF }}
@@ -72,7 +72,7 @@ jobs:
           cd $GITHUB_WORKSPACE/go-age/age
           go build filippo.io/age/cmd/age
           go build filippo.io/age/cmd/age-keygen
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: age
           path: |
@@ -108,10 +108,10 @@ jobs:
           --data '{"state": "pending", "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description": "In progress", "context": "Interoperability tests / ${{ matrix.alice }} -> ${{ matrix.bob }} [${{ matrix.recipient }}]"}'
 
       # Download the binaries to test
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: rage
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: age
       - run: chmod +x rage
@@ -141,7 +141,7 @@ jobs:
         if: matrix.recipient == 'ssh-rsa' || matrix.recipient == 'ssh-ed25519'
         run: echo "AGE_PUBKEY=-R key.txt.pub" >> $GITHUB_ENV
       - name: Store key.txt in case we need it
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_key.txt
           path: key.txt
@@ -152,7 +152,7 @@ jobs:
       - name: Decrypt from file
         run: ./${{ matrix.bob }} -d -i key.txt test.age | grep -q "^Test string$"
       - name: Store test.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test.age
@@ -165,7 +165,7 @@ jobs:
       - name: Decrypt from ASCII-armored file
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store test2.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
@@ -176,7 +176,7 @@ jobs:
       - name: Decrypt from ASCII-armored CRLF file
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store CRLF-ed test2.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test2.age
@@ -185,7 +185,7 @@ jobs:
       - name: Pipes!
         run: echo "Test string 3 - ASCII Drift" | ./${{ matrix.alice }} $AGE_PUBKEY | tee --output-error=warn test3.age | ./${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
       - name: Store test3.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test3.age
@@ -196,7 +196,7 @@ jobs:
       - name: Explicit stdin during decryption
         run: cat test4.age | ./${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
       - name: Store test4.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test4.age
@@ -209,7 +209,7 @@ jobs:
       - name: Decrypt with identity in a named pipe
         run: ./${{ matrix.bob }} -d -i <(cat key.txt) test5.age | grep -q "^Test 5$"
       - name: Store test5.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test5.age
@@ -220,7 +220,7 @@ jobs:
       - name: Decrypt with identity in standard input
         run: cat key.txt | ./${{ matrix.bob }} -d -i - test6.age | grep -q "^Test 5$"
       - name: Store test6.age
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ${{ matrix.alice }}_${{ matrix.bob }}_${{ matrix.recipient }}_test6.age

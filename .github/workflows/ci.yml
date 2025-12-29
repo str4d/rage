@@ -11,7 +11,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Run tests
         run: >
           cargo test
@@ -36,7 +36,7 @@ jobs:
           - wasm32-wasi
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Add target
         run: rustup target add ${{ matrix.target }}
       - run: cargo fetch
@@ -48,7 +48,7 @@ jobs:
     name: Bitrot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Install linux build dependencies
         run: sudo apt update && sudo apt install libfuse-dev
       - run: cargo check --all-targets --all-features
@@ -57,14 +57,15 @@ jobs:
     name: Clippy (MSRV)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Install linux build dependencies
         run: sudo apt update && sudo apt install libfuse-dev
-      - name: Clippy check
-        uses: actions-rs/clippy-check@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # v1.15.2
         with:
-          name: Clippy (MSRV)
-          token: ${{ secrets.GITHUB_TOKEN }}
+          components: clippy
+      - name: Clippy check
+        uses: clechasseur/rs-clippy-check@286fd9545eb133adad54b4af34bcb642e266ddd1 # v5.0.2
+        with:
           args: --all-features --all-targets -- -D warnings
 
   codecov:
@@ -75,7 +76,7 @@ jobs:
       options: --security-opt seccomp=unconfined
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: dtolnay/rust-toolchain@stable
         id: toolchain
       - run: rustup override set ${{steps.toolchain.outputs.name}}
@@ -91,7 +92,7 @@ jobs:
           --timeout 180
           --out xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4.6.0
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -100,7 +101,7 @@ jobs:
     name: Intra-doc links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: cargo fetch
       # Requires #![deny(rustdoc::broken_intra_doc_links)] in crates.
       - name: Check intra-doc links
@@ -110,6 +111,6 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Check formatting
         run: cargo fmt --all -- --check
