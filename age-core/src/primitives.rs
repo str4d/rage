@@ -1,8 +1,8 @@
 //! Primitive cryptographic operations used across various `age` components.
 
-use chacha20poly1305::{
-    aead::{self, generic_array::typenum::Unsigned, Aead, AeadCore, KeyInit},
-    ChaCha20Poly1305,
+use aws_lc_rs::{
+    aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305},
+    error,
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -13,9 +13,18 @@ use sha2::Sha256;
 ///
 /// [RFC 7539]: https://tools.ietf.org/html/rfc7539
 pub fn aead_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
-    let c = ChaCha20Poly1305::new(key.into());
-    c.encrypt(&[0; 12].into(), plaintext)
-        .expect("we won't overflow the ChaCha20 block counter")
+    let k = LessSafeKey::new(
+        UnboundKey::new(&CHACHA20_POLY1305, key).expect("byte length of key will match expected"),
+    );
+    let mut buffer = Vec::with_capacity(plaintext.len() + CHACHA20_POLY1305.tag_len());
+    buffer.extend_from_slice(plaintext);
+    k.seal_in_place_append_tag(
+        Nonce::assume_unique_for_key([0; 12]),
+        Aad::empty(),
+        &mut buffer,
+    )
+    .expect("encryption won't fail");
+    buffer
 }
 
 /// `decrypt[key](ciphertext)` - decrypts a message of an expected fixed size.
@@ -31,13 +40,22 @@ pub fn aead_decrypt(
     key: &[u8; 32],
     size: usize,
     ciphertext: &[u8],
-) -> Result<Vec<u8>, aead::Error> {
-    if ciphertext.len() != size + <ChaCha20Poly1305 as AeadCore>::TagSize::to_usize() {
-        return Err(aead::Error);
+) -> Result<Vec<u8>, error::Unspecified> {
+    if ciphertext.len() != size + CHACHA20_POLY1305.tag_len() {
+        return Err(error::Unspecified);
     }
 
-    let c = ChaCha20Poly1305::new(key.into());
-    c.decrypt(&[0; 12].into(), ciphertext)
+    let k = LessSafeKey::new(
+        UnboundKey::new(&CHACHA20_POLY1305, key).expect("byte length of key will match expected"),
+    );
+    let mut buffer = Vec::from(ciphertext);
+    k.open_in_place(
+        Nonce::assume_unique_for_key([0; 12]),
+        Aad::empty(),
+        &mut buffer,
+    )?;
+    buffer.truncate(buffer.len() - CHACHA20_POLY1305.tag_len());
+    Ok(buffer)
 }
 
 /// `HKDF[salt, label](key, 32)`
