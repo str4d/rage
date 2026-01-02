@@ -233,10 +233,6 @@ criteria = "safe-to-deploy"
 version = "0.9.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.dunce]]
-version = "1.0.5"
-criteria = "safe-to-run"
-
 [[exemptions.encode_unicode]]
 version = "0.3.6"
 criteria = "safe-to-deploy"
@@ -288,10 +284,6 @@ criteria = "safe-to-deploy"
 [[exemptions.ghash]]
 version = "0.5.1"
 criteria = "safe-to-deploy"
-
-[[exemptions.glob]]
-version = "0.3.3"
-criteria = "safe-to-run"
 
 [[exemptions.hashbrown]]
 version = "0.15.5"
@@ -557,10 +549,6 @@ criteria = "safe-to-deploy"
 version = "1.0.8"
 criteria = "safe-to-deploy"
 
-[[exemptions.rustversion]]
-version = "1.0.22"
-criteria = "safe-to-deploy"
-
 [[exemptions.ryu]]
 version = "1.0.15"
 criteria = "safe-to-run"
@@ -595,10 +583,6 @@ criteria = "safe-to-run"
 
 [[exemptions.slab]]
 version = "0.4.11"
-criteria = "safe-to-deploy"
-
-[[exemptions.smallvec]]
-version = "1.15.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.snapbox]]
