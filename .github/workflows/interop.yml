@@ -95,7 +95,11 @@ jobs:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
-        recipient: [x25519, ssh-rsa, ssh-ed25519]
+        recipient: [x25519, tag, ssh-rsa, ssh-ed25519]
+        include:
+          - identity: true
+          - recipient: tag
+            identity: false
       fail-fast: false
 
     steps:
@@ -131,6 +135,12 @@ jobs:
       - name: Set the corresponding age x25519 recipient
         if: matrix.recipient == 'x25519'
         run: echo "AGE_PUBKEY=-r age1y8m84r6pwd4da5d45zzk03rlgv2xr7fn9px80suw3psrahul44ashl0usm" >> $GITHUB_ENV
+      - name: Save the age tag recipient
+        if: matrix.recipient == 'tag'
+        run: echo "age1tag1qt8lw0ual6avlwmwatk888yqnmdamm7xfd0wak53ut6elz5c4swx2yqdj4e" >key.txt.pub
+      - name: Set the age tag recipient
+        if: matrix.recipient == 'tag'
+        run: echo "AGE_PUBKEY=-r age1tag1qt8lw0ual6avlwmwatk888yqnmdamm7xfd0wak53ut6elz5c4swx2yqdj4e" >> $GITHUB_ENV
       - name: Generate an ssh-rsa key
         if: matrix.recipient == 'ssh-rsa'
         run: ssh-keygen -t rsa -N "" -f key.txt
@@ -151,6 +161,7 @@ jobs:
         run: echo "Test string" | ./${{ matrix.alice }} -o test.age $AGE_PUBKEY
       - name: Decrypt from file
         run: ./${{ matrix.bob }} -d -i key.txt test.age | grep -q "^Test string$"
+        if: matrix.identity
       - name: Store test.age
         uses: actions/upload-artifact@v4
         if: failure()
@@ -163,6 +174,7 @@ jobs:
       - name: Encrypt to ASCII-armored file
         run: ./${{ matrix.alice }} -a -o test2.age $AGE_PUBKEY test2.txt
       - name: Decrypt from ASCII-armored file
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store test2.age
         uses: actions/upload-artifact@v4
@@ -174,6 +186,7 @@ jobs:
       - name: Convert file to CRLF
         run: unix2dos test2.age
       - name: Decrypt from ASCII-armored CRLF file
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store CRLF-ed test2.age
         uses: actions/upload-artifact@v4
@@ -183,6 +196,7 @@ jobs:
           path: test2.age
 
       - name: Pipes!
+        if: matrix.identity
         run: echo "Test string 3 - ASCII Drift" | ./${{ matrix.alice }} $AGE_PUBKEY | tee --output-error=warn test3.age | ./${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
       - name: Store test3.age
         uses: actions/upload-artifact@v4
@@ -194,6 +208,7 @@ jobs:
       - name: Explicit stdout during encryption
         run: ./${{ matrix.alice }} -a -o - $AGE_PUBKEY test2.txt >test4.age
       - name: Explicit stdin during decryption
+        if: matrix.identity
         run: cat test4.age | ./${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
       - name: Store test4.age
         uses: actions/upload-artifact@v4
@@ -205,8 +220,10 @@ jobs:
       - name: Generate a file to encrypt
         run: echo "Test 5" > test5.txt
       - name: Encrypt to identity in a named pipe
+        if: matrix.identity
         run: ./${{ matrix.alice }} -e -i <(cat key.txt) -o test5.age test5.txt
       - name: Decrypt with identity in a named pipe
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i <(cat key.txt) test5.age | grep -q "^Test 5$"
       - name: Store test5.age
         uses: actions/upload-artifact@v4
@@ -218,6 +235,7 @@ jobs:
       - name: Encrypt to recipient in standard input
         run: cat key.txt.pub | ./${{ matrix.alice }} -e -R - -o test6.age test5.txt
       - name: Decrypt with identity in standard input
+        if: matrix.identity
         run: cat key.txt | ./${{ matrix.bob }} -d -i - test6.age | grep -q "^Test 5$"
       - name: Store test6.age
         uses: actions/upload-artifact@v4
@@ -227,6 +245,7 @@ jobs:
           path: test6.age
 
       - name: Keygen prevents overwriting an existing file
+        if: matrix.identity
         run: |
           touch do_not_overwrite_key.txt
           if $(./${{ matrix.alice }}-keygen -o do_not_overwrite_key.txt); then
@@ -236,6 +255,7 @@ jobs:
           fi
 
       - name: Keygen supports conversion from stdin
+        if: matrix.identity
         run: ./${{ matrix.alice }}-keygen | ./${{ matrix.bob }}-keygen -y
 
       - name: Keygen supports conversion from file
