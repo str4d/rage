@@ -123,7 +123,7 @@ fuse_mt = { version = ">=0.6.0, <0.6.2", optional = true } # fuse_mt 0.6.2 requi
 fuser = { version = "0.13", optional = true } # fuser 0.16 has MSRV 1.85
 libc = { version = "0.2", optional = true }
 tar = { version = "0.4", optional = true }
-time = { version = ">=0.3.7, <0.3.24", optional = true } # time 0.3.24 has MSRV 1.67
+time = { version = ">=0.3.7, <0.3.42", optional = true } # time 0.3.42 has MSRV 1.81
 zip = { version = "0.6.2", optional = true }
 
 [build-dependencies]
