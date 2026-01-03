@@ -179,7 +179,7 @@
 #![deny(missing_docs)]
 
 use age_core::secrecy::SecretString;
-use bech32::Variant;
+use bech32::{Bech32, Hrp};
 use std::io;
 
 pub mod identity;
@@ -193,27 +193,23 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 ///
 /// A "created" time is included in the output, set to the current local time.
 pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) {
-    use bech32::ToBase32;
-
     println!(
         "# created: {}",
         chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     );
     println!(
         "# recipient: {}",
-        bech32::encode(
-            &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name),
-            recipient.to_base32(),
-            Variant::Bech32
+        bech32::encode::<Bech32>(
+            Hrp::parse_unchecked(&format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name)),
+            recipient,
         )
         .expect("HRP is valid")
     );
     println!(
         "{}",
-        bech32::encode(
-            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
-            identity.to_base32(),
-            Variant::Bech32,
+        bech32::encode::<Bech32>(
+            Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+            identity,
         )
         .expect("HRP is valid")
         .to_uppercase()

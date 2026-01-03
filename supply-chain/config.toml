@@ -94,7 +94,7 @@ version = "0.10.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bech32]]
-version = "0.9.1"
+version = "0.11.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.block-padding]]

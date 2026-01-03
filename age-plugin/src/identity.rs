@@ -6,7 +6,7 @@ use age_core::{
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::FromBase32;
+use bech32::{primitives::decode::CheckedHrpstring, Bech32};
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -265,14 +265,14 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    bech32::decode(&item)
+                    CheckedHrpstring::new::<Bech32>(&item)
                         .ok()
-                        .and_then(|(hrp, data, variant)| {
-                            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
-                                && hrp.ends_with('-')
-                                && variant == bech32::Variant::Bech32
+                        .and_then(|parsed| {
+                            let hrp = parsed.hrp();
+                            if hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX)
+                                && hrp.as_str().ends_with('-')
                             {
-                                Vec::from_base32(&data).ok().map(|data| (hrp, data))
+                                Some((hrp, parsed.byte_iter().collect::<Vec<_>>()))
                             } else {
                                 None
                             }
@@ -284,7 +284,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                         .and_then(|(hrp, bytes)| {
                             plugin.add_identity(
                                 index,
-                                &hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
+                                &hrp.as_str()[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
                                 &bytes,
                             )
                         })

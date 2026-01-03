@@ -41,7 +41,7 @@ scrypt = { version = "0.11", default-features = false }
 rand = "0.8"
 
 # - Key encoding
-bech32 = "0.9"
+bech32 = "0.11"
 
 # Parsing
 cookie-factory = "0.3.1"
