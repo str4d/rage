@@ -124,7 +124,13 @@ fuser = { version = "0.13", optional = true } # fuser 0.16 has MSRV 1.85
 libc = { version = "0.2", optional = true }
 tar = { version = "0.4", optional = true }
 time = { version = ">=0.3.7, <0.3.42", optional = true } # time 0.3.42 has MSRV 1.81
-zip = { version = "0.6.2", optional = true }
+zip = { version = "1", optional = true, default-features = false, features = [
+    "aes-crypto",
+    "deflate",
+    "bzip2",
+    "time",
+    "zstd",
+] }
 
 [build-dependencies]
 clap = { workspace = true, features = ["string", "unstable-styles"] }

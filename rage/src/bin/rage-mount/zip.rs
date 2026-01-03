@@ -107,7 +107,7 @@ impl AgeZipFs {
                 .by_index(i)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             if let Some(path) = zf.enclosed_name() {
-                add_dir_to_map(&mut dir_map, path, zipfile_to_filetype(&zf));
+                add_dir_to_map(&mut dir_map, &path, zipfile_to_filetype(&zf));
             }
         }
 
@@ -202,7 +202,7 @@ impl FilesystemMT for AgeZipFs {
         let mut open_files = self.open_files.lock().unwrap();
 
         for i in 0..inner.len() {
-            if inner.by_index(i).unwrap().enclosed_name() == Some(zip_path(path)) {
+            if inner.by_index(i).unwrap().enclosed_name().as_deref() == Some(zip_path(path)) {
                 let fh = open_files.1;
                 open_files.0.insert(fh, i);
                 open_files.1 = open_files.1.wrapping_add(1);
