@@ -761,10 +761,6 @@ criteria = "safe-to-deploy"
 version = "0.2.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows_i686_gnullvm]]
-version = "0.52.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.winnow]]
 version = "0.5.40"
 criteria = "safe-to-run"

@@ -72,7 +72,7 @@ web-sys = { version = "0.3", optional = true, features = ["Window", "Performance
 memchr = { version = "2.5", optional = true }
 
 # Common CLI dependencies
-console = { version = "0.15", optional = true, default-features = false }
+console = { workspace = true, optional = true, features = ["std"] }
 is-terminal = { version = "0.4", optional = true }
 rpassword = { version = "7", optional = true }
 
