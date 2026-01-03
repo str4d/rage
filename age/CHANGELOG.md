@@ -14,7 +14,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.70.0.
-- Migrated to `i18n-embed 0.16`.
+- Migrated to `base64 0.22`, `i18n-embed 0.16`.
 - `age::IdentityFile::into_identities` now returns
   `Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError>` instead of
   `Result<Vec<Box<dyn crate::Identity>>, DecryptError>`. This re-enables
