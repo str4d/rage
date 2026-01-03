@@ -78,7 +78,7 @@ rpassword = { version = "7", optional = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 # Plugin management
-which = { version = "4", optional = true }
+which = { version = "8", optional = true }
 wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]

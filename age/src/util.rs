@@ -19,7 +19,7 @@ pub(crate) mod read {
     use std::str::FromStr;
 
     use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-    use nom::{character::complete::digit1, combinator::verify, ParseTo};
+    use nom::{character::complete::digit1, combinator::verify, ParseTo, Parser};
 
     #[cfg(feature = "ssh")]
     use nom::{
@@ -65,7 +65,8 @@ pub(crate) mod read {
                     engine.decode_slice([65, 65, c, c], &mut [0, 0, 0]).is_ok()
                 }),
                 |data| engine.decode(data),
-            )(input)
+            )
+            .parse(input)
         }
     }
 
@@ -91,7 +92,8 @@ pub(crate) mod read {
                     let data = chunks.join("");
                     engine.decode(data)
                 },
-            )(input)
+            )
+            .parse(input)
         }
     }
 
@@ -111,7 +113,8 @@ pub(crate) mod read {
 
     /// Parses a decimal number composed only of digits with no leading zeros.
     pub(crate) fn decimal_digit_arg<T: FromStr>(arg: &str) -> Option<T> {
-        verify::<_, _, _, (), _, _>(digit1, |n: &str| !n.starts_with('0'))(arg)
+        verify::<_, _, (), _, _>(digit1, |n: &str| !n.starts_with('0'))
+            .parse_complete(arg)
             .ok()
             .and_then(|(_, n)| n.parse_to())
     }

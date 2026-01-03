@@ -45,10 +45,10 @@ bech32 = "0.9"
 
 # Parsing
 cookie-factory = "0.3.1"
-nom = { version = "7", default-features = false, features = ["alloc"] }
+nom = { version = "8", default-features = false, features = ["alloc"] }
 
 # Secret management
-pinentry = "0.6"
+pinentry = "0.8"
 secrecy = "0.10"
 subtle = "2"
 zeroize = "1"

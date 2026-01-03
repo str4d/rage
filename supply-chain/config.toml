@@ -237,6 +237,10 @@ criteria = "safe-to-deploy"
 version = "0.3.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.env_home]]
+version = "0.1.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.env_logger]]
 version = "0.10.2"
 criteria = "safe-to-deploy"
@@ -295,10 +299,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.hkdf]]
 version = "0.12.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.home]]
-version = "0.5.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.humantime]]
@@ -362,10 +362,6 @@ version = "0.1.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.linux-raw-sys]]
-version = "0.4.15"
-criteria = "safe-to-deploy"
-
-[[exemptions.linux-raw-sys]]
 version = "0.9.4"
 criteria = "safe-to-deploy"
 
@@ -377,12 +373,12 @@ criteria = "safe-to-deploy"
 version = "2.6.3"
 criteria = "safe-to-deploy"
 
-[[exemptions.minimal-lexical]]
-version = "0.2.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.nix]]
 version = "0.26.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.nom]]
+version = "8.0.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.num-bigint-dig]]
@@ -542,10 +538,6 @@ version = "8.3.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustix]]
-version = "0.38.44"
-criteria = "safe-to-deploy"
-
-[[exemptions.rustix]]
 version = "1.0.8"
 criteria = "safe-to-deploy"
 
@@ -701,6 +693,10 @@ criteria = "safe-to-run"
 version = "0.9.5"
 criteria = "safe-to-deploy"
 
+[[exemptions.wait-timeout]]
+version = "0.2.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.walkdir]]
 version = "2.5.0"
 criteria = "safe-to-deploy"
@@ -738,7 +734,7 @@ version = "0.3.65"
 criteria = "safe-to-deploy"
 
 [[exemptions.which]]
-version = "4.3.0"
+version = "8.0.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.winapi]]
@@ -772,6 +768,10 @@ criteria = "safe-to-deploy"
 [[exemptions.winnow]]
 version = "0.5.40"
 criteria = "safe-to-run"
+
+[[exemptions.winsafe]]
+version = "0.0.19"
+criteria = "safe-to-deploy"
 
 [[exemptions.wsl]]
 version = "0.1.0"
