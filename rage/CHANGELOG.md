@@ -12,6 +12,7 @@ to 1.0.0 are beta releases.
 ### Added
 - Support for the new native age recipient types:
   - `age1tag1..`
+  - `age1tagpq1..`
 
 ### Changed
 - MSRV is now 1.74.0.
