@@ -21,6 +21,7 @@ maintenance = { status = "experimental" }
 # (Breaking upgrades to these require a breaking upgrade to this crate.)
 chacha20poly1305.workspace = true
 cookie-factory.workspace = true
+hpke.workspace = true
 io_tee = "0.1.1"
 nom.workspace = true
 secrecy.workspace = true
@@ -33,9 +34,15 @@ rand.workspace = true
 sha2.workspace = true
 tempfile = { version = "3.2.0", optional = true }
 
+[dev-dependencies]
+hpke = { workspace = true, features = ["p256"] }
+
 [features]
 plugin = ["tempfile"]
 unstable = []
 
 [lib]
 bench = false
+
+[lints]
+workspace = true

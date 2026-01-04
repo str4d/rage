@@ -10,7 +10,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.74"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
@@ -25,14 +25,26 @@ base64 = "0.22"
 # - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 
+# - SHA3-256 from FIPS 202
+sha3 = "0.10"
+
+# - ML-KEM from FIPS 203
+ml-kem = { version = "0.2", features = ["deterministic"] }
+
 # - X25519 from RFC 7748
 x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+# - P-256
+p256 = { version = "0.13", default-features = false, features = ["arithmetic"] }
 
 # - HKDF from RFC 5869 with SHA-256
 # - HMAC from RFC 2104 with SHA-256
 hkdf = "0.12"
 hmac = "0.12"
 sha2 = "0.10"
+
+# - HPKE from RFC 9180
+hpke = { version = "0.12", default-features = false, features = ["alloc"] }
 
 # - scrypt from RFC 7914
 scrypt = { version = "0.11", default-features = false }
@@ -50,7 +62,7 @@ nom = { version = "8", default-features = false, features = ["alloc"] }
 # Secret management
 pinentry = "0.8"
 secrecy = "0.10"
-subtle = "2"
+subtle = "2.6"
 zeroize = "1"
 
 # Localization
@@ -65,3 +77,7 @@ clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
 env_logger = "0.10"
 log = "0.4"
+
+[workspace.lints.rust]
+# Requires MSRV 1.80
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

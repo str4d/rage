@@ -95,7 +95,13 @@ jobs:
       matrix:
         alice: [rage, age]
         bob: [rage, age]
-        recipient: [x25519, ssh-rsa, ssh-ed25519]
+        recipient: [x25519, tag, tagpq, ssh-rsa, ssh-ed25519]
+        include:
+          - identity: true
+          - recipient: tag
+            identity: false
+          - recipient: tagpq
+            identity: false
       fail-fast: false
 
     steps:
@@ -131,6 +137,18 @@ jobs:
       - name: Set the corresponding age x25519 recipient
         if: matrix.recipient == 'x25519'
         run: echo "AGE_PUBKEY=-r age1y8m84r6pwd4da5d45zzk03rlgv2xr7fn9px80suw3psrahul44ashl0usm" >> $GITHUB_ENV
+      - name: Save the age tag recipient
+        if: matrix.recipient == 'tag'
+        run: echo "age1tag1qt8lw0ual6avlwmwatk888yqnmdamm7xfd0wak53ut6elz5c4swx2yqdj4e" >key.txt.pub
+      - name: Set the age tag recipient
+        if: matrix.recipient == 'tag'
+        run: echo "AGE_PUBKEY=-r age1tag1qt8lw0ual6avlwmwatk888yqnmdamm7xfd0wak53ut6elz5c4swx2yqdj4e" >> $GITHUB_ENV
+      - name: Save the age tagpq recipient
+        if: matrix.recipient == 'tagpq'
+        run: echo "age1tagpq1m3e4wvp6hzcrn9exhy0ae3xfx2sjymp594k3tg7j4dpmj922we65vtnmrt2pyallax8669zqkr2pmfchptr4n38kug2xmcmp3adk2lnjqu00x5kxz5pvhmrltvfh9wuq973pcx35cnq8syn9qd3tzpehgztl4xpzr3tpd67g8af9trnjpc05gh7wu536aq4qt2y8zhsm4tvrfpsfl36qs5fpzysnk3sp9w77qzeg49357xex40v4s2lvt620swyys7u8yxdcnu4rkkwxdmt55gsuc3h5c5swahnegjgqwc60hn085ec3sjztwm45l44y3j2at9t6v9zra4ek3kek6waecqm98yaxl37w0d2zra626nz63jdm5sg59w7lyptw83zm6fntd8d0x03a9z6h9prfgpygzar6zrxjcrt4cdctk2mhf95s4a6v4zklfd49xhpsaeujm57thx2x3e3hwzc86ftfhmq5mkxxz3d6r8ws24xj4qfn73eyezg2wy094e3why592pghz27ruq3vkyegrv80eftnw9wqzwgvnwyseaus0yt84fylzrpzp6x2fguxuqjmgudr8xd33qm30evdpxd3jvjg8qh4q60kyq80jgff369k7nrepdc38grd2dava520excqp0ey0x39khx8ry03yffcatgv84fsx5j49djpapedsy693zute5xv5g2ewzrlj5se7akvkc4g4vmzhputpq8eyj9wz5dz6qtn7g3cfpd95nahw4ytspan0feyye04dcylv24ege7zkaj004gjwcxqxfqu2quawa83sx452jqjn8t48czp0xspwgnmvjyhttzzy6nhq8xzkdwnvsfefkwva6asrqc93zjn4rly5gnlv93xy3uzmr39szvjnf63426qzyeyvguc4vdcquwgsxgq236afcpqz866ny4tn7ckc0umefj242rt5vtvwqzzrvfev2mpvqcufp9pqvefyv4ftyuhgausfzuaadsczeykmft5wv3frzgrcp9ztr93h478ke4t86spp2uhyjkj73mp9g92ddk2fpv7v3njzsqgwhq3789sqrgkskehn0zjscckhwftyq4vet7vrlx2hs5kd9cwnq6t0djffhh3zquh4j3p0yaj9z2rc9wykg0usqw7983rrgur9jg8rnnqypwcz2lyclnnc705fc5g3an93ps60q6mxqp85u0ewtxdjlqcks84yduft0a0g6e7naew3v9u2d08knarvajn8q3gq9pgxde3s7nx94lus48wwvw2xjm7k82tvylec2393jdsuvch2xpe77w8hpv9nvsxfsrs270njpmfvpmgyk2cffl9tjp3qqcc4dfkf5rme2dg0x7ew8g39www5smm705q5da4eqvnqwrkavtq6xje9ss38hnkglz4eddz8f5qruvqmq2ff9l22gwkv8h432rdkysy0grkul8e2fedvkyyapfxt760udcgu92m54wl9yavmj4ga3ph9r5n99cjrq6wj5v33x33fe5vkjvfwnnt40wuv2hyexc9f4ylyqv9ldqq9epd4yuv8vrsfx2qy2kqz08kqhnzspy6s0x8fa5c2xkg5y2q0rvz4vnk7rp0acg6eksc3t7cxnn8y7glkjsqja3p56uz6vvhcw55d3ysad0hvsqxpjnc7svenf2gc5xn5kyr0et2vvyruxlnpqcdpqh9pzplumy5yzjxftyzh9ujfw0jq7ee60zx2x23p0jzyh9dvmly8p9h9ysptlqu7kwnejd65dnr75a0np2fvke8xen38r57w6z3wz3mycjmmn267wwxndfh9jdps7uxtct2wwfgamkpa5ap8s96lhfjztpwcm6fguhphu38yunu2v4vz3syzrvgwtqpemkewzp766nyu6texxvjlaemnhyyqutkcy6a42vqfsz49rw5wr4gt70r4vdaasehqjg46fnyts4sthrxadfllha3avu49wsj2c4jx" >key.txt.pub
+      - name: Set the age tagpq recipient
+        if: matrix.recipient == 'tagpq'
+        run: echo "AGE_PUBKEY=-r age1tagpq1m3e4wvp6hzcrn9exhy0ae3xfx2sjymp594k3tg7j4dpmj922we65vtnmrt2pyallax8669zqkr2pmfchptr4n38kug2xmcmp3adk2lnjqu00x5kxz5pvhmrltvfh9wuq973pcx35cnq8syn9qd3tzpehgztl4xpzr3tpd67g8af9trnjpc05gh7wu536aq4qt2y8zhsm4tvrfpsfl36qs5fpzysnk3sp9w77qzeg49357xex40v4s2lvt620swyys7u8yxdcnu4rkkwxdmt55gsuc3h5c5swahnegjgqwc60hn085ec3sjztwm45l44y3j2at9t6v9zra4ek3kek6waecqm98yaxl37w0d2zra626nz63jdm5sg59w7lyptw83zm6fntd8d0x03a9z6h9prfgpygzar6zrxjcrt4cdctk2mhf95s4a6v4zklfd49xhpsaeujm57thx2x3e3hwzc86ftfhmq5mkxxz3d6r8ws24xj4qfn73eyezg2wy094e3why592pghz27ruq3vkyegrv80eftnw9wqzwgvnwyseaus0yt84fylzrpzp6x2fguxuqjmgudr8xd33qm30evdpxd3jvjg8qh4q60kyq80jgff369k7nrepdc38grd2dava520excqp0ey0x39khx8ry03yffcatgv84fsx5j49djpapedsy693zute5xv5g2ewzrlj5se7akvkc4g4vmzhputpq8eyj9wz5dz6qtn7g3cfpd95nahw4ytspan0feyye04dcylv24ege7zkaj004gjwcxqxfqu2quawa83sx452jqjn8t48czp0xspwgnmvjyhttzzy6nhq8xzkdwnvsfefkwva6asrqc93zjn4rly5gnlv93xy3uzmr39szvjnf63426qzyeyvguc4vdcquwgsxgq236afcpqz866ny4tn7ckc0umefj242rt5vtvwqzzrvfev2mpvqcufp9pqvefyv4ftyuhgausfzuaadsczeykmft5wv3frzgrcp9ztr93h478ke4t86spp2uhyjkj73mp9g92ddk2fpv7v3njzsqgwhq3789sqrgkskehn0zjscckhwftyq4vet7vrlx2hs5kd9cwnq6t0djffhh3zquh4j3p0yaj9z2rc9wykg0usqw7983rrgur9jg8rnnqypwcz2lyclnnc705fc5g3an93ps60q6mxqp85u0ewtxdjlqcks84yduft0a0g6e7naew3v9u2d08knarvajn8q3gq9pgxde3s7nx94lus48wwvw2xjm7k82tvylec2393jdsuvch2xpe77w8hpv9nvsxfsrs270njpmfvpmgyk2cffl9tjp3qqcc4dfkf5rme2dg0x7ew8g39www5smm705q5da4eqvnqwrkavtq6xje9ss38hnkglz4eddz8f5qruvqmq2ff9l22gwkv8h432rdkysy0grkul8e2fedvkyyapfxt760udcgu92m54wl9yavmj4ga3ph9r5n99cjrq6wj5v33x33fe5vkjvfwnnt40wuv2hyexc9f4ylyqv9ldqq9epd4yuv8vrsfx2qy2kqz08kqhnzspy6s0x8fa5c2xkg5y2q0rvz4vnk7rp0acg6eksc3t7cxnn8y7glkjsqja3p56uz6vvhcw55d3ysad0hvsqxpjnc7svenf2gc5xn5kyr0et2vvyruxlnpqcdpqh9pzplumy5yzjxftyzh9ujfw0jq7ee60zx2x23p0jzyh9dvmly8p9h9ysptlqu7kwnejd65dnr75a0np2fvke8xen38r57w6z3wz3mycjmmn267wwxndfh9jdps7uxtct2wwfgamkpa5ap8s96lhfjztpwcm6fguhphu38yunu2v4vz3syzrvgwtqpemkewzp766nyu6texxvjlaemnhyyqutkcy6a42vqfsz49rw5wr4gt70r4vdaasehqjg46fnyts4sthrxadfllha3avu49wsj2c4jx" >> $GITHUB_ENV
       - name: Generate an ssh-rsa key
         if: matrix.recipient == 'ssh-rsa'
         run: ssh-keygen -t rsa -N "" -f key.txt
@@ -151,6 +169,7 @@ jobs:
         run: echo "Test string" | ./${{ matrix.alice }} -o test.age $AGE_PUBKEY
       - name: Decrypt from file
         run: ./${{ matrix.bob }} -d -i key.txt test.age | grep -q "^Test string$"
+        if: matrix.identity
       - name: Store test.age
         uses: actions/upload-artifact@v4
         if: failure()
@@ -163,6 +182,7 @@ jobs:
       - name: Encrypt to ASCII-armored file
         run: ./${{ matrix.alice }} -a -o test2.age $AGE_PUBKEY test2.txt
       - name: Decrypt from ASCII-armored file
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store test2.age
         uses: actions/upload-artifact@v4
@@ -174,6 +194,7 @@ jobs:
       - name: Convert file to CRLF
         run: unix2dos test2.age
       - name: Decrypt from ASCII-armored CRLF file
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i key.txt test2.age | grep -q "^2 test 2 string$"
       - name: Store CRLF-ed test2.age
         uses: actions/upload-artifact@v4
@@ -183,6 +204,7 @@ jobs:
           path: test2.age
 
       - name: Pipes!
+        if: matrix.identity
         run: echo "Test string 3 - ASCII Drift" | ./${{ matrix.alice }} $AGE_PUBKEY | tee --output-error=warn test3.age | ./${{ matrix.bob }} -d -i key.txt | grep -q "^Test string 3 - ASCII Drift$"
       - name: Store test3.age
         uses: actions/upload-artifact@v4
@@ -194,6 +216,7 @@ jobs:
       - name: Explicit stdout during encryption
         run: ./${{ matrix.alice }} -a -o - $AGE_PUBKEY test2.txt >test4.age
       - name: Explicit stdin during decryption
+        if: matrix.identity
         run: cat test4.age | ./${{ matrix.bob }} -d -i key.txt - | grep -q "^2 test 2 string$"
       - name: Store test4.age
         uses: actions/upload-artifact@v4
@@ -205,8 +228,10 @@ jobs:
       - name: Generate a file to encrypt
         run: echo "Test 5" > test5.txt
       - name: Encrypt to identity in a named pipe
+        if: matrix.identity
         run: ./${{ matrix.alice }} -e -i <(cat key.txt) -o test5.age test5.txt
       - name: Decrypt with identity in a named pipe
+        if: matrix.identity
         run: ./${{ matrix.bob }} -d -i <(cat key.txt) test5.age | grep -q "^Test 5$"
       - name: Store test5.age
         uses: actions/upload-artifact@v4
@@ -218,6 +243,7 @@ jobs:
       - name: Encrypt to recipient in standard input
         run: cat key.txt.pub | ./${{ matrix.alice }} -e -R - -o test6.age test5.txt
       - name: Decrypt with identity in standard input
+        if: matrix.identity
         run: cat key.txt | ./${{ matrix.bob }} -d -i - test6.age | grep -q "^Test 5$"
       - name: Store test6.age
         uses: actions/upload-artifact@v4
@@ -227,6 +253,7 @@ jobs:
           path: test6.age
 
       - name: Keygen prevents overwriting an existing file
+        if: matrix.identity
         run: |
           touch do_not_overwrite_key.txt
           if $(./${{ matrix.alice }}-keygen -o do_not_overwrite_key.txt); then
@@ -236,6 +263,7 @@ jobs:
           fi
 
       - name: Keygen supports conversion from stdin
+        if: matrix.identity
         run: ./${{ matrix.alice }}-keygen | ./${{ matrix.bob }}-keygen -y
 
       - name: Keygen supports conversion from file
