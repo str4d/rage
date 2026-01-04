@@ -143,7 +143,7 @@ lazy_static.workspace = true
 rust-embed.workspace = true
 
 [dev-dependencies]
-trycmd = "0.14"
+trycmd = ">= 0.15.0, < 0.15.10" # trycmd 0.15.10 breaks line ending normalization on Windows.
 
 [features]
 default = ["ssh"]

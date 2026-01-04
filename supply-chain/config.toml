@@ -61,8 +61,12 @@ criteria = "safe-to-deploy"
 version = "0.3.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.anstream]]
+version = "0.6.21"
+criteria = "safe-to-run"
+
 [[exemptions.anstyle]]
-version = "1.0.8"
+version = "1.0.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.anstyle-parse]]
@@ -77,9 +81,17 @@ criteria = "safe-to-deploy"
 version = "1.0.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.anstyle-wincon]]
+version = "3.0.11"
+criteria = "safe-to-run"
+
 [[exemptions.arc-swap]]
 version = "1.7.1"
 criteria = "safe-to-deploy"
+
+[[exemptions.automod]]
+version = "1.0.15"
+criteria = "safe-to-run"
 
 [[exemptions.backtrace]]
 version = "0.3.73"
@@ -242,7 +254,7 @@ version = "0.10.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.filetime]]
-version = "0.2.25"
+version = "0.2.26"
 criteria = "safe-to-deploy"
 
 [[exemptions.find-crate]]
@@ -337,6 +349,10 @@ criteria = "safe-to-deploy"
 version = "0.4.16"
 criteria = "safe-to-deploy"
 
+[[exemptions.is_terminal_polyfill]]
+version = "1.70.1"
+criteria = "safe-to-run"
+
 [[exemptions.jobserver]]
 version = "0.1.24"
 criteria = "safe-to-deploy"
@@ -346,7 +362,7 @@ version = "0.3.76"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]
-version = "0.2.175"
+version = "0.2.179"
 criteria = "safe-to-deploy"
 
 [[exemptions.libm]]
@@ -408,6 +424,10 @@ criteria = "safe-to-run"
 [[exemptions.once_cell]]
 version = "1.15.0"
 criteria = "safe-to-deploy"
+
+[[exemptions.once_cell_polyfill]]
+version = "1.70.2"
+criteria = "safe-to-run"
 
 [[exemptions.os_pipe]]
 version = "1.2.2"
@@ -582,11 +602,11 @@ version = "0.4.11"
 criteria = "safe-to-deploy"
 
 [[exemptions.snapbox]]
-version = "0.4.11"
+version = "0.6.23"
 criteria = "safe-to-run"
 
 [[exemptions.snapbox-macros]]
-version = "0.3.4"
+version = "0.4.0"
 criteria = "safe-to-run"
 
 [[exemptions.spin]]
@@ -670,11 +690,15 @@ version = "0.5.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.toml_datetime]]
+version = "0.6.11"
+criteria = "safe-to-run"
+
+[[exemptions.toml_datetime]]
 version = "0.7.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.toml_edit]]
-version = "0.19.14"
+version = "0.22.27"
 criteria = "safe-to-run"
 
 [[exemptions.toml_edit]]
@@ -685,8 +709,12 @@ criteria = "safe-to-deploy"
 version = "1.0.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.toml_write]]
+version = "0.1.2"
+criteria = "safe-to-run"
+
 [[exemptions.trycmd]]
-version = "0.14.16"
+version = "0.15.9"
 criteria = "safe-to-run"
 
 [[exemptions.type-map]]
@@ -776,10 +804,6 @@ criteria = "safe-to-deploy"
 [[exemptions.windows-result]]
 version = "0.2.0"
 criteria = "safe-to-deploy"
-
-[[exemptions.winnow]]
-version = "0.5.40"
-criteria = "safe-to-run"
 
 [[exemptions.winnow]]
 version = "0.7.14"
