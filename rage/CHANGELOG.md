@@ -14,7 +14,7 @@ to 1.0.0 are beta releases.
   - `age1tag1..`
 
 ### Changed
-- MSRV is now 1.70.0.
+- MSRV is now 1.74.0.
 
 ## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-12-18
 ### Security

@@ -43,3 +43,6 @@ unstable = []
 
 [lib]
 bench = false
+
+[lints]
+workspace = true

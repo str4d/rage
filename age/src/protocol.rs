@@ -388,12 +388,10 @@ mod tests {
                 let f = e.wrap_async_output(&mut encrypted);
                 pin_mut!(f);
 
-                loop {
-                    match f.as_mut().poll(&mut cx) {
-                        Poll::Ready(Ok(w)) => break w,
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                        Poll::Pending => panic!("Unexpected Pending"),
-                    }
+                match f.as_mut().poll(&mut cx) {
+                    Poll::Ready(Ok(w)) => w,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
                 }
             };
             pin_mut!(w);
@@ -407,12 +405,10 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-            loop {
-                match w.as_mut().poll_close(&mut cx) {
-                    Poll::Ready(Ok(())) => break,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match w.as_mut().poll_close(&mut cx) {
+                Poll::Ready(Ok(())) => (),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         }
 
@@ -420,12 +416,10 @@ mod tests {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
-            loop {
-                match f.as_mut().poll(&mut cx) {
-                    Poll::Ready(Ok(w)) => break w,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match f.as_mut().poll(&mut cx) {
+                Poll::Ready(Ok(w)) => w,
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         };
 
