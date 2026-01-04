@@ -345,6 +345,10 @@ criteria = "safe-to-deploy"
 version = "1.1.1"
 criteria = "safe-to-run"
 
+[[exemptions.hybrid-array]]
+version = "0.2.0-rc.9"
+criteria = "safe-to-deploy"
+
 [[exemptions.i18n-config]]
 version = "0.4.8"
 criteria = "safe-to-deploy"
@@ -385,6 +389,10 @@ criteria = "safe-to-deploy"
 version = "0.3.76"
 criteria = "safe-to-deploy"
 
+[[exemptions.kem]]
+version = "0.3.0-pre.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.libc]]
 version = "0.2.179"
 criteria = "safe-to-deploy"
@@ -411,6 +419,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.memchr]]
 version = "2.6.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.ml-kem]]
+version = "0.2.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.nix]]
