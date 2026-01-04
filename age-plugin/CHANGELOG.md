@@ -11,7 +11,7 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 
 ### Changed
-- MSRV is now 1.70.0.
+- MSRV is now 1.74.0.
 
 ## [0.6.1] - 2025-12-07
 ### Changed

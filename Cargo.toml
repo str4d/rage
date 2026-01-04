@@ -10,7 +10,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.74"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
@@ -71,3 +71,7 @@ clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
 env_logger = "0.10"
 log = "0.4"
+
+[workspace.lints.rust]
+# Requires MSRV 1.80
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

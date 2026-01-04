@@ -233,8 +233,7 @@ impl FilesystemMT for AgeZipFs {
                 }
 
                 // Skip to offset
-                let mut buf = vec![];
-                buf.resize(offset as usize, 0);
+                let mut buf = vec![0; offset as usize];
                 if zf.read_exact(&mut buf).is_err() {
                     return callback(Err(libc::EIO));
                 }
