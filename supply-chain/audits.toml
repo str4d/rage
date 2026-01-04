@@ -4,13 +4,21 @@
 [criteria.crypto-reviewed]
 description = "The cryptographic code in this crate has been reviewed for correctness by a member of a designated set of cryptography experts within the project."
 
-[audits]
+[[audits.console]]
+who = "Jack Grigg <thestr4d@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "0.16.1 -> 0.16.0"
+notes = """
+Downgrade lowers MSRV. Change to `unsafe` code is to remove a `target_os = \"nto\"`
+specific handler, so this will fail to run on QNX due to missing `cfmakeraw`; on
+other platforms there is no change.
+"""
 
 [[trusted.pinentry]]
 criteria = "safe-to-deploy"
 user-id = 6289 # Jack Grigg (str4d)
 start = "2020-01-12"
-end = "2025-11-03"
+end = "2027-01-03"
 
 [[trusted.windows-core]]
 criteria = "safe-to-deploy"
@@ -40,52 +48,58 @@ end = "2026-08-18"
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-11-15"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows-targets]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2022-09-09"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_aarch64_gnullvm]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2022-09-01"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_aarch64_msvc]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-11-05"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_i686_gnu]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-10-28"
-end = "2024-08-06"
+end = "2027-01-03"
+
+[[trusted.windows_i686_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2024-04-02"
+end = "2027-01-03"
 
 [[trusted.windows_i686_msvc]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-10-27"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_x86_64_gnu]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-10-28"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_x86_64_gnullvm]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2022-09-01"
-end = "2024-08-06"
+end = "2027-01-03"
 
 [[trusted.windows_x86_64_msvc]]
 criteria = "safe-to-deploy"
 user-id = 64539 # Kenny Kerr (kennykerr)
 start = "2021-10-27"
-end = "2024-08-06"
+end = "2027-01-03"
