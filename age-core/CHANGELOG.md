@@ -8,6 +8,12 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Added
+- `age_core::primitives`:
+  - `bech32_encode`
+  - `bech32_encode_to_fmt`
+  - `bech32_decode`
+
 ### Changed
 - MSRV is now 1.70.0.
 

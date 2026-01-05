@@ -1,15 +1,7 @@
-use bech32::{primitives::decode::CheckedHrpstring, Bech32};
-
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
 #[cfg(all(any(feature = "armor", feature = "cli-common"), not(windows)))]
 pub(crate) const LINE_ENDING: &str = "\n";
-
-pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
-    CheckedHrpstring::new::<Bech32>(s)
-        .ok()
-        .map(|parsed| (parsed.hrp().as_str().into(), parsed.byte_iter().collect()))
-}
 
 pub(crate) mod read {
     use std::str::FromStr;

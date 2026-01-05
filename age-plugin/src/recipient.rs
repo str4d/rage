@@ -3,10 +3,10 @@
 use age_core::{
     format::{is_arbitrary_string, FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    primitives::bech32_decode,
     secrecy::SecretString,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::{primitives::decode::CheckedHrpstring, Bech32};
 
 use std::collections::HashSet;
 use std::convert::Infallible;
@@ -341,16 +341,18 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    let decoded = CheckedHrpstring::new::<Bech32>(&item).ok();
-                    decoded
-                        .map(|parsed| (parsed.hrp(), parsed))
-                        .as_ref()
-                        .and_then(|(hrp, parsed)| {
+                    bech32_decode(
+                        &item,
+                        |_| (),
+                        |_| Ok(()),
+                        |hrp, bytes| {
                             plugin_name(hrp.as_str())
-                                .map(|plugin_name| (plugin_name, parsed.byte_iter().collect()))
-                        })
-                        .ok_or_else(|| error(index))
-                        .and_then(|(plugin_name, bytes)| adder(index, plugin_name, bytes))
+                                .map(|plugin_name| (plugin_name.to_string(), bytes.collect()))
+                                .ok_or(())
+                        },
+                    )
+                    .map_err(|()| error(index))
+                    .and_then(|(plugin_name, bytes)| adder(index, &plugin_name, bytes))
                 })
                 .filter_map(|res| res.err())
                 .collect();
