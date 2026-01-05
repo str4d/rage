@@ -5,11 +5,12 @@ use std::fmt;
 
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
+    primitives::{
+        aead_decrypt, aead_encrypt, bech32_decode, bech32_encode, bech32_encode_to_fmt, hkdf,
+    },
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::{Bech32, Hrp};
 use rand::rngs::OsRng;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -17,11 +18,11 @@ use zeroize::Zeroize;
 
 use crate::{
     error::{DecryptError, EncryptError},
-    util::{parse_bech32, read::base64_arg},
+    util::read::base64_arg,
 };
 
-const SECRET_KEY_PREFIX: &str = "AGE-SECRET-KEY-";
-const PUBLIC_KEY_PREFIX: &str = "age";
+const SECRET_KEY_PREFIX: bech32::Hrp = bech32::Hrp::parse_unchecked("AGE-SECRET-KEY-");
+const PUBLIC_KEY_PREFIX: bech32::Hrp = bech32::Hrp::parse_unchecked("age");
 
 pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
@@ -39,18 +40,21 @@ impl std::str::FromStr for Identity {
 
     /// Parses an X25519 identity from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, bytes)| {
-                if hrp == SECRET_KEY_PREFIX {
-                    TryInto::<[u8; 32]>::try_into(&bytes[..])
-                        .map_err(|_| "incorrect identity length")
-                        .map(StaticSecret::from)
-                        .map(Identity)
-                } else {
-                    Err("incorrect HRP")
-                }
-            })
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
+                (hrp == SECRET_KEY_PREFIX)
+                    .then_some(())
+                    .ok_or("incorrect HRP")
+            },
+            |_, bytes| {
+                TryInto::<[u8; 32]>::try_into(bytes.collect::<Vec<_>>())
+                    .map_err(|_| "incorrect identity length")
+                    .map(StaticSecret::from)
+                    .map(Identity)
+            },
+        )
     }
 }
 
@@ -64,9 +68,7 @@ impl Identity {
     /// Serializes this secret key as a string.
     pub fn to_string(&self) -> SecretString {
         let mut sk_bytes = self.0.to_bytes();
-        let mut encoded =
-            bech32::encode::<Bech32>(Hrp::parse_unchecked(SECRET_KEY_PREFIX), &sk_bytes)
-                .expect("HRP is valid");
+        let mut encoded = bech32_encode(SECRET_KEY_PREFIX, &sk_bytes);
         let ret = SecretString::from(encoded.to_uppercase());
 
         // Clear intermediates
@@ -154,29 +156,29 @@ impl std::str::FromStr for Recipient {
 
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, bytes)| {
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
                 if hrp == PUBLIC_KEY_PREFIX {
-                    TryInto::<[u8; 32]>::try_into(&bytes[..])
-                        .map_err(|_| "incorrect pubkey length")
-                        .map(PublicKey::from)
-                        .map(Recipient)
+                    Ok(())
                 } else {
                     Err("incorrect HRP")
                 }
-            })
+            },
+            |_, bytes| {
+                TryInto::<[u8; 32]>::try_into(bytes.collect::<Vec<_>>())
+                    .map_err(|_| "incorrect pubkey length")
+                    .map(PublicKey::from)
+                    .map(Recipient)
+            },
+        )
     }
 }
 
 impl fmt::Display for Recipient {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            bech32::encode::<Bech32>(Hrp::parse_unchecked(PUBLIC_KEY_PREFIX), self.0.as_bytes(),)
-                .expect("HRP is valid")
-        )
+        bech32_encode_to_fmt(f, PUBLIC_KEY_PREFIX, self.0.as_bytes())
     }
 }
 

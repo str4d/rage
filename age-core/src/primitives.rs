@@ -1,5 +1,8 @@
 //! Primitive cryptographic operations used across various `age` components.
 
+use core::fmt;
+
+use bech32::primitives::decode::CheckedHrpstring;
 use chacha20poly1305::{
     aead::{self, generic_array::typenum::Unsigned, Aead, AeadCore, KeyInit},
     ChaCha20Poly1305,
@@ -53,9 +56,73 @@ pub fn hkdf(salt: &[u8], label: &[u8], ikm: &[u8]) -> [u8; 32] {
     okm
 }
 
+/// The bech32 checksum algorithm, defined in [BIP-173].
+///
+/// This is identical to [`bech32::Bech32`] except it does not enforce the length
+/// restriction, allowing for a reduction in error-correcting properties.
+///
+/// [BIP-173]: <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki>
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Bech32Long {}
+impl bech32::Checksum for Bech32Long {
+    type MidstateRepr = u32;
+    const CODE_LENGTH: usize = usize::MAX;
+    const CHECKSUM_LENGTH: usize = bech32::Bech32::CHECKSUM_LENGTH;
+    const GENERATOR_SH: [u32; 5] = bech32::Bech32::GENERATOR_SH;
+    const TARGET_RESIDUE: u32 = bech32::Bech32::TARGET_RESIDUE;
+}
+
+/// Encodes data as a Bech32-encoded string with the given HRP.
+///
+/// This implements Bech32 as defined in [BIP-173], except it does not enforce the length
+/// restriction, allowing for a reduction in error-correcting properties.
+///
+/// [BIP-173]: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+pub fn bech32_encode(hrp: bech32::Hrp, data: &[u8]) -> String {
+    bech32::encode_lower::<Bech32Long>(hrp, data).expect("we don't enforce the Bech32 length limit")
+}
+
+/// Encodes data to a format writer as a Bech32-encoded string with the given HRP.
+///
+/// This implements Bech32 as defined in [BIP-173], except it does not enforce the length
+/// restriction, allowing for a reduction in error-correcting properties.
+///
+/// [BIP-173]: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+pub fn bech32_encode_to_fmt(f: &mut impl fmt::Write, hrp: bech32::Hrp, data: &[u8]) -> fmt::Result {
+    bech32::encode_lower_to_fmt::<Bech32Long, _>(f, hrp, data).map_err(|e| match e {
+        bech32::EncodeError::Fmt(error) => error,
+        bech32::EncodeError::TooLong(_) => unreachable!("we don't enforce the Bech32 length limit"),
+        _ => panic!("Unexpected error: {e}"),
+    })
+}
+
+/// Decodes a Bech32-encoded string, checks its HRP, and returns its contained data.
+///
+/// This implements Bech32 as defined in [BIP-173], except it does not enforce the length
+/// restriction, allowing for a reduction in error-correcting properties.
+///
+/// [BIP-173]: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+pub fn bech32_decode<E, F, G, H, T>(
+    s: &str,
+    parse_err: F,
+    hrp_filter: G,
+    data_parse: H,
+) -> Result<T, E>
+where
+    F: FnOnce(bech32::primitives::decode::CheckedHrpstringError) -> E,
+    G: FnOnce(bech32::Hrp) -> Result<(), E>,
+    H: FnOnce(bech32::Hrp, bech32::primitives::decode::ByteIter) -> Result<T, E>,
+{
+    CheckedHrpstring::new::<Bech32Long>(s)
+        .map_err(parse_err)
+        .and_then(|parsed| {
+            hrp_filter(parsed.hrp()).and_then(|()| data_parse(parsed.hrp(), parsed.byte_iter()))
+        })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{aead_decrypt, aead_encrypt};
+    use super::{aead_decrypt, aead_encrypt, bech32_decode, bech32_encode};
 
     #[test]
     fn aead_round_trip() {
@@ -64,5 +131,20 @@ mod tests {
         let encrypted = aead_encrypt(&key, plaintext);
         let decrypted = aead_decrypt(&key, plaintext.len(), &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn bech32_round_trip() {
+        let hrp = bech32::Hrp::parse_unchecked("12345678");
+        let data = [14; 32];
+        let encoded = bech32_encode(hrp, &data);
+        let decoded = bech32_decode(
+            &encoded,
+            |_| (),
+            |parsed_hrp| (parsed_hrp == hrp).then_some(()).ok_or(()),
+            |_, bytes| Ok(bytes.collect::<Vec<_>>()),
+        )
+        .unwrap();
+        assert_eq!(decoded, data);
     }
 }
