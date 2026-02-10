@@ -65,7 +65,13 @@ jobs:
       - uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
         with:
           tool: cargo-mutants
-      - run: cargo mutants --package "${{ matrix.package }}" --all-features -vV --in-place
+      - run: >
+          cargo mutants
+          --package "${{ matrix.package }}"
+          --all-features
+          -vV
+          --in-place
+          --test-workspace true
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
