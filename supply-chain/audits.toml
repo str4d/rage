@@ -9,7 +9,7 @@ who = "Jack Grigg <thestr4d@gmail.com>"
 criteria = "safe-to-deploy"
 delta = "0.16.1 -> 0.16.0"
 notes = """
-Downgrade lowers MSRV. Change to `unsafe` code is to remove a `target_os = \"nto\"`
+Downgrade lowers MSRV. Change to `unsafe` code is to remove a `target_os = "nto"`
 specific handler, so this will fail to run on QNX due to missing `cfmakeraw`; on
 other platforms there is no change.
 """
