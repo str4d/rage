@@ -17,11 +17,12 @@ impl<R: Read> DebugReader<R> {
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     pub(crate) fn new(reader: R, debug_enabled: bool) -> Self {
+        // Only enable debug tee in debug builds to prevent accidental plaintext leakage
+        #[cfg(debug_assertions)]
         if debug_enabled {
-            DebugReader::On(reader.tee_dbg())
-        } else {
-            DebugReader::Off(reader)
+            return DebugReader::On(reader.tee_dbg());
         }
+        DebugReader::Off(reader)
     }
 }
 
@@ -44,11 +45,12 @@ impl<W: Write> DebugWriter<W> {
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     pub(crate) fn new(writer: W, debug_enabled: bool) -> Self {
+        // Only enable debug tee in debug builds to prevent accidental plaintext leakage
+        #[cfg(debug_assertions)]
         if debug_enabled {
-            DebugWriter::On(writer.tee_dbg())
-        } else {
-            DebugWriter::Off(writer)
+            return DebugWriter::On(writer.tee_dbg());
         }
+        DebugWriter::Off(writer)
     }
 }
 
