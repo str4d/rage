@@ -1,0 +1,73 @@
+name: Mutation testing
+
+env:
+  CARGO_TERM_COLOR: always
+
+on:
+  # Run weekly on Sundays at 2 AM UTC
+  schedule:
+    - cron: "0 2 * * 0"
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to test (select 'all' for all packages)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - age
+          - age-core
+          - age-plugin
+          - rage
+
+permissions:
+  contents: read
+
+# Only run one mutation test at a time
+concurrency:
+  group: mutation-testing
+  cancel-in-progress: false
+
+jobs:
+  mutants:
+    name: Mutation testing of ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - age
+          - age-core
+          - age-plugin
+          - rage
+        # Only filter if a specific package was requested via workflow_dispatch
+        # For push/pull_request events, inputs.package is undefined, so default to 'all'
+        exclude:
+          - package: ${{ case((github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'age',        'age',        'NONE') }}
+          - package: ${{ case((github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'age-core',   'age-core',   'NONE') }}
+          - package: ${{ case((github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'age-plugin', 'age-plugin', 'NONE') }}
+          - package: ${{ case((github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'rage',       'rage',       'NONE') }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
+      - run: rustup override set "${TOOLCHAIN}"
+        shell: sh
+        env:
+          TOOLCHAIN: ${{steps.toolchain.outputs.name}}
+      - uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
+        with:
+          tool: cargo-mutants
+      - run: cargo mutants --package "${{ matrix.package }}" --all-features -vV --in-place
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: mutants-${{ matrix.package }}
+          path: |
+            mutants.out/
+          retention-days: 30
