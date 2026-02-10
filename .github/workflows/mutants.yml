@@ -60,6 +60,8 @@ jobs:
         shell: sh
         env:
           TOOLCHAIN: ${{steps.toolchain.outputs.name}}
+      - name: Install linux build dependencies
+        run: sudo apt update && sudo apt install libfuse-dev
       - uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 # v2.67.18
         with:
           tool: cargo-mutants
