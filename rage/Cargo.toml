@@ -163,3 +163,6 @@ bench = false
 name = "rage-mount"
 required-features = ["mount"]
 bench = false
+
+[lints]
+workspace = true

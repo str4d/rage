@@ -11,9 +11,12 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age::encrypted::EncryptedIdentity`
+- Support for the new native age recipient types:
+  - `age::tag::Recipient` (encryption-only)
+  - `age::tagpq::Recipient` (encryption-only)
 
 ### Changed
-- MSRV is now 1.70.0.
+- MSRV is now 1.74.0.
 - Migrated to `base64 0.22`, `i18n-embed 0.16`.
 - `age::IdentityFile::into_identities` now returns
   `Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError>` instead of

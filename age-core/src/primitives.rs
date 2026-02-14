@@ -53,9 +53,68 @@ pub fn hkdf(salt: &[u8], label: &[u8], ikm: &[u8]) -> [u8; 32] {
     okm
 }
 
+/// `HPKE.SealBase(pk_recip, info, aad = "", plaintext)`
+///
+/// HPKE from [RFC 9180] with:
+/// - KDF: HKDF-SHA256
+/// - AEAD: ChaCha20Poly1305
+/// - `aad = ""` (empty)
+///
+/// # Panics
+///
+/// Panics if the configured `Kem` produces an error. The native age recipient types that
+/// use HPKE are configured with parameters that ensure errors either cannot occur or are
+/// cryptographically negligible. If you are using this method for an age plugin, ensure
+/// that you choose a KEM with equivalent properties.
+///
+/// [RFC 9180]: https://tools.ietf.org/html/rfc9180
+pub fn hpke_seal<Kem: hpke::Kem, R: rand::RngCore + rand::CryptoRng>(
+    pk_recip: &Kem::PublicKey,
+    info: &[u8],
+    plaintext: &[u8],
+    rng: &mut R,
+) -> (Kem::EncappedKey, Vec<u8>) {
+    hpke::single_shot_seal::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, Kem, R>(
+        &hpke::OpModeS::Base,
+        pk_recip,
+        info,
+        plaintext,
+        &[],
+        rng,
+    )
+    .expect("no errors should occur with these HPKE parameters")
+}
+
+/// `HPKE.OpenBase(enc, sk_recip, info, aad = "", ciphertext)`
+///
+/// HPKE from [RFC 9180] with:
+/// - KDF: HKDF-SHA256
+/// - AEAD: ChaCha20Poly1305
+/// - `aad = ""` (empty)
+///
+/// [RFC 9180]: https://tools.ietf.org/html/rfc9180
+pub fn hpke_open<Kem: hpke::Kem>(
+    encapped_key: &Kem::EncappedKey,
+    sk_recip: &Kem::PrivateKey,
+    info: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, hpke::HpkeError> {
+    hpke::single_shot_open::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, Kem>(
+        &hpke::OpModeR::Base,
+        sk_recip,
+        encapped_key,
+        info,
+        ciphertext,
+        &[],
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{aead_decrypt, aead_encrypt};
+    use hpke::Kem;
+    use rand::rngs::OsRng;
+
+    use super::{aead_decrypt, aead_encrypt, hpke_open, hpke_seal};
 
     #[test]
     fn aead_round_trip() {
@@ -63,6 +122,22 @@ mod tests {
         let plaintext = b"12345678";
         let encrypted = aead_encrypt(&key, plaintext);
         let decrypted = aead_decrypt(&key, plaintext.len(), &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn hpke_round_trip() {
+        type Kem = hpke::kem::DhP256HkdfSha256;
+        let mut rng = OsRng;
+
+        let (sk_recip, pk_recip) = Kem::gen_keypair(&mut rng);
+
+        let info = b"foobar";
+        let plaintext = b"12345678";
+
+        let (encapped_key, ciphertext) = hpke_seal::<Kem, _>(&pk_recip, info, plaintext, &mut rng);
+        let decrypted = hpke_open::<Kem>(&encapped_key, &sk_recip, info, &ciphertext).unwrap();
+
         assert_eq!(decrypted, plaintext);
     }
 }

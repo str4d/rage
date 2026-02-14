@@ -42,13 +42,19 @@ pinentry = { workspace = true, optional = true }
 # Dependencies used internally:
 # (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)
 bech32.workspace = true
+cipher = { version = "0.4.3", features = ["alloc"] }
 cookie-factory.workspace = true
+hkdf.workspace = true
+hpke = { workspace = true, features = ["p256"] }
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true
+ml-kem.workspace = true
 nom.workspace = true
+p256.workspace = true
 rust-embed.workspace = true
 scrypt.workspace = true
 sha2.workspace = true
+sha3.workspace = true
 subtle.workspace = true
 x25519-dalek.workspace = true
 zeroize.workspace = true
@@ -62,7 +68,6 @@ aes = { version = "0.8", optional = true }
 aes-gcm = { version = "0.10", optional = true }
 bcrypt-pbkdf = { version = "0.10", optional = true }
 cbc = { version = "0.1", optional = true }
-cipher = { version = "0.4.3", features = ["alloc"], optional = true }
 ctr = { version = "0.9", optional = true }
 
 # scrypt Performance timer
@@ -107,7 +112,6 @@ ssh = [
     "aes-gcm",
     "bcrypt-pbkdf",
     "cbc",
-    "cipher",
     "ctr",
     "curve25519-dalek",
     "num-traits",
@@ -137,3 +141,6 @@ harness = false
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
