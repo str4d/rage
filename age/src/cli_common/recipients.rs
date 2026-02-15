@@ -1,9 +1,9 @@
 use std::io::{self, BufReader};
 
 use super::StdinGuard;
-use super::{identities::parse_identity_files, ReadError};
+use super::{ReadError, identities::parse_identity_files};
 use crate::identity::RecipientsAccumulator;
-use crate::{x25519, Recipient};
+use crate::{Recipient, x25519};
 
 #[cfg(feature = "plugin")]
 use crate::{cli_common::UiCallbacks, plugin};

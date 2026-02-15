@@ -2,8 +2,8 @@
 
 use age_core::secrecy::{ExposeSecret, SecretSlice};
 use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, KeyInit, KeySizeUser},
     ChaCha20Poly1305,
+    aead::{Aead, KeyInit, KeySizeUser, array::Array},
 };
 use pin_project::pin_project;
 use std::cmp;
@@ -23,9 +23,7 @@ const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
-pub(crate) struct PayloadKey(
-    pub(crate) GenericArray<u8, <ChaCha20Poly1305 as KeySizeUser>::KeySize>,
-);
+pub(crate) struct PayloadKey(pub(crate) Array<u8, <ChaCha20Poly1305 as KeySizeUser>::KeySize>);
 
 impl Drop for PayloadKey {
     fn drop(&mut self) {
@@ -514,10 +512,10 @@ impl<R: AsyncRead + Unpin> AsyncRead for StreamReader<R> {
         if self.chunk.is_none() {
             while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
                 let this = self.as_mut().project();
-                match ready!(this
-                    .inner
-                    .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..]))
-                {
+                match ready!(
+                    this.inner
+                        .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..])
+                ) {
                     Ok(0) => break,
                     Ok(n) => self.encrypted_pos += n,
                     Err(e) => match e.kind() {
@@ -562,8 +560,7 @@ impl<R: Read + Seek> StreamReader<R> {
                 let ct_len = ct_end - ct_start;
 
                 // Use ceiling division to determine the number of chunks.
-                let num_chunks =
-                    (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
+                let num_chunks = ct_len.div_ceil(ENCRYPTED_CHUNK_SIZE as u64);
 
                 // Authenticate the ciphertext length by checking that we can successfully
                 // decrypt the last chunk _as_ a last chunk.
@@ -679,7 +676,7 @@ mod tests {
     use age_core::secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{PayloadKey, Stream, CHUNK_SIZE};
+    use super::{CHUNK_SIZE, PayloadKey, Stream};
 
     #[cfg(feature = "async")]
     use futures::{

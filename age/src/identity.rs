@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
 
-use crate::{x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks};
+use crate::{Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks, x25519};
 
 #[cfg(feature = "cli-common")]
 use crate::cli_common::file_io::InputReader;

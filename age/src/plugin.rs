@@ -3,10 +3,10 @@
 use age_core::{
     format::{FileKey, Stanza},
     io::{DebugReader, DebugWriter},
-    plugin::{Connection, Reply, Response, UnidirSend, IDENTITY_V1, RECIPIENT_V1},
+    plugin::{Connection, IDENTITY_V1, RECIPIENT_V1, Reply, Response, UnidirSend},
     secrecy::ExposeSecret,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use bech32::{Bech32, Hrp};
 
 use std::borrow::Borrow;
@@ -21,10 +21,11 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 use crate::{
+    Callbacks,
     error::{DecryptError, EncryptError, PluginError},
     fl,
     util::parse_bech32,
-    wfl, wlnfl, Callbacks,
+    wfl, wlnfl,
 };
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
@@ -89,6 +90,12 @@ impl SlowPluginGuard {
         });
 
         SlowPluginGuard(send)
+    }
+}
+
+impl Drop for SlowPluginGuard {
+    fn drop(&mut self) {
+        _ = self.0
     }
 }
 
@@ -741,8 +748,8 @@ mod tests {
     use crate::{DecryptError, EncryptError, NoCallbacks};
 
     use super::{
-        Identity, IdentityPluginV1, Recipient, RecipientPluginV1, PLUGIN_IDENTITY_PREFIX,
-        PLUGIN_RECIPIENT_PREFIX,
+        Identity, IdentityPluginV1, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX, Recipient,
+        RecipientPluginV1,
     };
 
     const INVALID_PLUGIN_NAME: &str = "foobar/../../../../../../../usr/bin/echo";

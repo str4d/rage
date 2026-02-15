@@ -1,19 +1,18 @@
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{aead_decrypt, hkdf},
     secrecy::{ExposeSecret, SecretBox},
 };
 use base64::prelude::BASE64_STANDARD;
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::streaming::{is_not, tag},
     character::streaming::{line_ending, newline},
     combinator::{map_opt, opt},
     sequence::{pair, preceded, terminated},
-    IResult, Parser,
 };
-use rand::rngs::OsRng;
-use rsa::{pkcs1::DecodeRsaPrivateKey, Oaep};
+use rsa::{Oaep, pkcs1::DecodeRsaPrivateKey};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::io;
@@ -21,14 +20,15 @@ use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
 use super::{
-    read_ssh, ssh_tag, write_ssh, EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL,
-    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
+    EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL, SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL,
+    SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES, read_ssh, ssh_tag, write_ssh,
 };
 use crate::{
+    Callbacks,
     error::DecryptError,
     fl,
     util::read::{base64_arg, wrapped_str_while_encoded},
-    wfl, wlnfl, Callbacks,
+    wfl, wlnfl,
 };
 
 /// An SSH private key for decrypting an age file.
@@ -63,19 +63,19 @@ impl UnencryptedKey {
     pub(crate) fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         match (self, stanza.tag.as_str()) {
             (UnencryptedKey::SshRsa(ssh_key, sk), SSH_RSA_RECIPIENT_TAG) => {
-                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.get(0)?)?;
+                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.first()?)?;
                 if ssh_tag(ssh_key) != tag {
                     return None;
                 }
 
-                let mut rng = OsRng;
+                let mut rng = rand::rng();
 
                 // A failure to decrypt is fatal, because we assume that we won't
                 // encounter 32-bit collisions on the key tag embedded in the header.
                 Some(
                     sk.decrypt_blinded(
                         &mut rng,
-                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::<Sha256>::new_with_label(SSH_RSA_OAEP_LABEL),
                         &stanza.body,
                     )
                     .map_err(DecryptError::from)
@@ -95,7 +95,7 @@ impl UnencryptedKey {
                 )
             }
             (UnencryptedKey::SshEd25519(ssh_key, privkey), SSH_ED25519_RECIPIENT_TAG) => {
-                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.get(0)?)?;
+                let tag = base64_arg::<_, TAG_LEN_BYTES, 6>(stanza.args.first()?)?;
                 if ssh_tag(ssh_key) != tag {
                     return None;
                 }
@@ -345,7 +345,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                             .ok()
                             .map(|privkey| {
                                 let mut ssh_key = vec![];
-                                cookie_factory::gen(
+                                cookie_factory::r#gen(
                                     write_ssh::rsa_pubkey(&privkey.to_public_key()),
                                     &mut ssh_key,
                                 )
@@ -388,11 +388,11 @@ pub(crate) mod tests {
 
     use super::{Identity, UnsupportedKey};
     use crate::{
-        ssh::recipient::{
-            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
-            Recipient,
-        },
         Callbacks, Identity as _, Recipient as _,
+        ssh::recipient::{
+            Recipient,
+            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+        },
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----

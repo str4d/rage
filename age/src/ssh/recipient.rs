@@ -7,27 +7,27 @@ use age_core::{
     secrecy::ExposeSecret,
 };
 use base64::{
-    prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
     Engine,
+    prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
 };
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::streaming::{is_not, tag},
     combinator::map_opt,
     sequence::{pair, preceded, separated_pair},
-    IResult, Parser,
 };
-use rand::rngs::OsRng;
-use rsa::{traits::PublicKeyParts, Oaep};
+use rsa::{Oaep, traits::PublicKeyParts};
 use sha2::Sha256;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 use super::{
+    EncryptedKey, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+    UnsupportedKey,
     identity::{Identity, UnencryptedKey},
-    read_ssh, ssh_tag, EncryptedKey, UnsupportedKey, SSH_ED25519_KEY_PREFIX,
-    SSH_ED25519_RECIPIENT_KEY_LABEL, SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX,
-    SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+    read_ssh, ssh_tag,
 };
 use crate::{
     error::EncryptError,
@@ -150,14 +150,14 @@ impl crate::Recipient for Recipient {
         &self,
         file_key: &FileKey,
     ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
 
         let stanzas = match self {
             Recipient::SshRsa(ssh_key, pk) => {
                 let encrypted_file_key = pk
                     .encrypt(
                         &mut rng,
-                        Oaep::new_with_label::<Sha256, _>(SSH_RSA_OAEP_LABEL),
+                        Oaep::<Sha256>::new_with_label(SSH_RSA_OAEP_LABEL),
                         file_key.expose_secret(),
                     )
                     .expect("pubkey is valid and file key is not too long");
@@ -173,7 +173,7 @@ impl crate::Recipient for Recipient {
             Recipient::SshEd25519(ssh_key, ed25519_pk) => {
                 let pk: X25519PublicKey = ed25519_pk.to_montgomery().to_bytes().into();
 
-                let esk = EphemeralSecret::random_from_rng(rng);
+                let esk = EphemeralSecret::random_from_rng(&mut rng);
                 let epk: X25519PublicKey = (&esk).into();
 
                 let tweak: StaticSecret =

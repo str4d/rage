@@ -11,7 +11,7 @@ use aes::{Aes128, Aes192, Aes256};
 use aes_gcm::{AeadCore, Aes256Gcm};
 use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
-use cipher::Unsigned;
+use cipher::typenum::Unsigned;
 use nom::Parser;
 use sha2::{Digest, Sha256};
 
@@ -27,7 +27,7 @@ pub(crate) const SSH_RSA_KEY_PREFIX: &str = "ssh-rsa";
 pub(crate) const SSH_ED25519_KEY_PREFIX: &str = "ssh-ed25519";
 
 pub(super) const SSH_RSA_RECIPIENT_TAG: &str = "ssh-rsa";
-const SSH_RSA_OAEP_LABEL: &str = "age-encryption.org/v1/ssh-rsa";
+const SSH_RSA_OAEP_LABEL: &[u8] = b"age-encryption.org/v1/ssh-rsa";
 
 pub(super) const SSH_ED25519_RECIPIENT_TAG: &str = "ssh-ed25519";
 const SSH_ED25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/ssh-ed25519";
@@ -138,27 +138,27 @@ impl EncryptedKey {
 }
 
 mod decrypt {
-    use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher};
-    use aes_gcm::aead::{AeadMut, KeyInit};
+    use aes::cipher::{BlockModeDecrypt, KeyIvInit, StreamCipher, block_padding::NoPadding};
+    use aes_gcm::aead::{Aead, KeyInit};
     use age_core::secrecy::SecretString;
-    use cipher::generic_array::{ArrayLength, GenericArray};
+    use cipher::array::{Array, ArraySize};
 
     use super::OpenSshKdf;
     use crate::error::DecryptError;
 
-    fn derive_key_material<KeySize: ArrayLength<u8>, IvSize: ArrayLength<u8>>(
+    fn derive_key_material<KeySize: ArraySize, IvSize: ArraySize>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
-    ) -> (GenericArray<u8, KeySize>, GenericArray<u8, IvSize>) {
+    ) -> (Array<u8, KeySize>, Array<u8, IvSize>) {
         let kdf_output = kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE);
         let (key, iv) = kdf_output.split_at(KeySize::USIZE);
         (
-            GenericArray::from_exact_iter(key.iter().copied()).expect("key is correct length"),
-            GenericArray::from_exact_iter(iv.iter().copied()).expect("iv is correct length"),
+            Array::from_iter(key.iter().copied()),
+            Array::from_iter(iv.iter().copied()),
         )
     }
 
-    pub(super) fn aes_cbc<C: BlockDecryptMut + KeyIvInit>(
+    pub(super) fn aes_cbc<C: BlockModeDecrypt + KeyIvInit>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
@@ -166,7 +166,7 @@ mod decrypt {
         let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
         let cipher = C::new(&key, &iv);
         cipher
-            .decrypt_padded_vec_mut::<NoPadding>(ciphertext)
+            .decrypt_padded_vec::<NoPadding>(ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
     }
 
@@ -182,13 +182,13 @@ mod decrypt {
         plaintext
     }
 
-    pub(super) fn aes_gcm<C: AeadMut + KeyInit>(
+    pub(super) fn aes_gcm<C: Aead + KeyInit>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
         let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase);
-        let mut cipher = C::new(&key);
+        let cipher = C::new(&key);
         cipher
             .decrypt(&nonce, ciphertext)
             .map_err(|_| DecryptError::KeyDecryptionFailed)
@@ -199,21 +199,20 @@ mod read_ssh {
     use age_core::secrecy::SecretBox;
     use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
     use nom::{
+        IResult, Parser,
         branch::alt,
         bytes::complete::{tag, take},
         combinator::{flat_map, map, map_opt, map_parser, map_res, recognize, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
         sequence::{delimited, pair, preceded, terminated},
-        IResult, Parser,
     };
-    use num_traits::Zero;
-    use rsa::BigUint;
+    use rsa::BoxedUint;
 
     use super::{
-        identity::{UnencryptedKey, UnsupportedKey},
         EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX,
         SSH_RSA_KEY_PREFIX,
+        identity::{UnencryptedKey, UnsupportedKey},
     };
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
@@ -240,10 +239,10 @@ mod read_ssh {
     /// included.  The value zero MUST be stored as a string with zero
     /// bytes of data.
     /// ```
-    fn mpint(input: &[u8]) -> IResult<&[u8], BigUint> {
+    fn mpint(input: &[u8]) -> IResult<&[u8], BoxedUint> {
         map_opt(string, |bytes| {
             if bytes.is_empty() {
-                Some(BigUint::zero())
+                Some(BoxedUint::zero())
             } else {
                 // Enforce canonicity
                 let mut non_zero_bytes = bytes;
@@ -259,7 +258,7 @@ mod read_ssh {
                     return None;
                 }
 
-                Some(BigUint::from_bytes_be(bytes))
+                Some(BoxedUint::from_be_slice_vartime(bytes))
             }
         })
         .parse_complete(input)
@@ -405,11 +404,7 @@ mod read_ssh {
             // Repeated checkint, intended for verifying correct decryption.
             // Don't copy this idea into a new protocol; use an AEAD instead.
             map_opt(pair(take(4usize), take(4usize)), |(c1, c2)| {
-                if c1 == c2 {
-                    Some(c1)
-                } else {
-                    None
-                }
+                if c1 == c2 { Some(c1) } else { None }
             }),
             alt((
                 map(openssh_rsa_privkey, move |sk| {
@@ -536,9 +531,8 @@ mod read_ssh {
 }
 
 mod write_ssh {
-    use cookie_factory::{bytes::be_u32, combinator::slice, sequence::tuple, SerializeFn};
-    use num_traits::identities::Zero;
-    use rsa::{traits::PublicKeyParts, BigUint};
+    use cookie_factory::{SerializeFn, bytes::be_u32, combinator::slice, sequence::tuple};
+    use rsa::{BoxedUint, traits::PublicKeyParts};
     use std::io::Write;
 
     use super::SSH_RSA_KEY_PREFIX;
@@ -549,16 +543,16 @@ mod write_ssh {
     }
 
     /// Writes the SSH `mpint` data type.
-    fn mpint<W: Write>(value: &BigUint) -> impl SerializeFn<W> {
-        let mut bytes = value.to_bytes_be();
+    fn mpint<W: Write>(value: &BoxedUint) -> impl SerializeFn<W> {
+        let mut bytes = value.to_be_bytes_trimmed_vartime().to_vec();
 
         // From RFC 4251 section 5:
         //     If the most significant bit would be set for a positive number,
         //     the number MUST be preceded by a zero byte. Unnecessary leading
         //     bytes with the value 0 or 255 MUST NOT be included. The value
         //     zero MUST be stored as a string with zero bytes of data.
-        if value.is_zero() {
-            // BigUint represents zero as vec![0]
+        if value.is_zero().into() {
+            // BoxedUint represents zero as vec![0]
             bytes = vec![];
         } else if bytes[0] >> 7 != 0 {
             bytes.insert(0, 0);
