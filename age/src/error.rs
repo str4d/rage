@@ -1,6 +1,6 @@
 //! Error type.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::io;
 
@@ -171,15 +171,15 @@ pub enum EncryptError {
     /// The encryptor was given recipients that declare themselves incompatible.
     IncompatibleRecipients {
         /// The set of labels from the first recipient provided to the encryptor.
-        l_labels: HashSet<String>,
+        l_labels: BTreeSet<String>,
         /// The set of labels from the first non-matching recipient.
-        r_labels: HashSet<String>,
+        r_labels: BTreeSet<String>,
     },
     /// One or more of the labels from the first recipient provided to the encryptor are
     /// invalid.
     ///
     /// Labels must be valid age "arbitrary string"s (`1*VCHAR` in ABNF).
-    InvalidRecipientLabels(HashSet<String>),
+    InvalidRecipientLabels(BTreeSet<String>),
     /// An I/O error occurred during encryption.
     Io(io::Error),
     /// A required plugin could not be found.
@@ -229,7 +229,7 @@ impl Clone for EncryptError {
     }
 }
 
-fn print_labels(labels: &HashSet<String>) -> String {
+fn print_labels(labels: &BTreeSet<String>) -> String {
     let mut s = String::new();
     for (i, label) in labels.iter().enumerate() {
         s.push_str(label);

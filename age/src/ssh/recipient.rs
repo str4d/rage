@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use age_core::{
@@ -149,7 +149,7 @@ impl crate::Recipient for Recipient {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError> {
         let mut rng = OsRng;
 
         let stanzas = match self {
@@ -203,7 +203,7 @@ impl crate::Recipient for Recipient {
             }
         };
 
-        Ok((stanzas, HashSet::new()))
+        Ok((stanzas, BTreeSet::new()))
     }
 }
 

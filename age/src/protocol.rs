@@ -332,7 +332,7 @@ impl<R: AsyncBufRead + Unpin> Decryptor<R> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::BTreeSet;
     use std::io::{BufReader, Read, Write};
     use std::iter;
 
@@ -564,7 +564,7 @@ mod tests {
         fn wrap_file_key(
             &self,
             file_key: &age_core::format::FileKey,
-        ) -> Result<(Vec<age_core::format::Stanza>, HashSet<String>), EncryptError> {
+        ) -> Result<(Vec<age_core::format::Stanza>, BTreeSet<String>), EncryptError> {
             self.0.wrap_file_key(file_key).map(|(stanzas, mut labels)| {
                 labels.insert("incompatible".into());
                 (stanzas, labels)

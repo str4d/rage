@@ -205,7 +205,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 // Re-export crates that are used in our public API.
 pub use age_core::secrecy;
@@ -365,7 +365,7 @@ pub trait Recipient {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError>;
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError>;
 }
 
 /// Callbacks that might be triggered during encryption or decryption.
