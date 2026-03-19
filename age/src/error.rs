@@ -413,8 +413,8 @@ impl fmt::Display for DecryptError {
     }
 }
 
-impl From<chacha20poly1305::aead::Error> for DecryptError {
-    fn from(_: chacha20poly1305::aead::Error) -> Self {
+impl From<ring::error::Unspecified> for DecryptError {
+    fn from(_: ring::error::Unspecified) -> Self {
         DecryptError::DecryptionFailed
     }
 }
