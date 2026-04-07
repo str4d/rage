@@ -184,13 +184,6 @@ pub enum EncryptError {
     InvalidRecipientLabels(HashSet<String>),
     /// An I/O error occurred during encryption.
     Io(io::Error),
-    /// A required plugin could not be found.
-    #[cfg(feature = "plugin")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
-    MissingPlugin {
-        /// The plugin's binary name.
-        binary_name: String,
-    },
     /// The encryptor was not given any recipients.
     MissingRecipients,
     /// [`scrypt::Recipient`] was mixed with other recipient types.
@@ -201,6 +194,10 @@ pub enum EncryptError {
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     Plugin(Vec<PluginError>),
+    /// Errors from resolving a plugin.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    PluginResolve(crate::plugin::ResolveError),
 }
 
 impl From<io::Error> for EncryptError {
@@ -219,14 +216,12 @@ impl Clone for EncryptError {
             },
             Self::InvalidRecipientLabels(labels) => Self::InvalidRecipientLabels(labels.clone()),
             Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
-            #[cfg(feature = "plugin")]
-            Self::MissingPlugin { binary_name } => Self::MissingPlugin {
-                binary_name: binary_name.clone(),
-            },
             Self::MissingRecipients => Self::MissingRecipients,
             Self::MixedRecipientAndPassphrase => Self::MixedRecipientAndPassphrase,
             #[cfg(feature = "plugin")]
             Self::Plugin(e) => Self::Plugin(e.clone()),
+            #[cfg(feature = "plugin")]
+            Self::PluginResolve(e) => Self::PluginResolve(e.clone()),
         }
     }
 }
@@ -277,11 +272,6 @@ impl fmt::Display for EncryptError {
                 labels = print_labels(labels),
             ),
             EncryptError::Io(e) => e.fmt(f),
-            #[cfg(feature = "plugin")]
-            EncryptError::MissingPlugin { binary_name } => {
-                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
-                wfl!(f, "rec-missing-plugin")
-            }
             EncryptError::MissingRecipients => wfl!(f, "err-missing-recipients"),
             EncryptError::MixedRecipientAndPassphrase => {
                 wfl!(f, "err-mixed-recipient-passphrase")
@@ -298,6 +288,8 @@ impl fmt::Display for EncryptError {
                     Ok(())
                 }
             },
+            #[cfg(feature = "plugin")]
+            EncryptError::PluginResolve(e) => e.fmt(f),
         }
     }
 }
@@ -333,19 +325,16 @@ pub enum DecryptError {
     Io(io::Error),
     /// Failed to decrypt an encrypted key.
     KeyDecryptionFailed,
-    /// A required plugin could not be found.
-    #[cfg(feature = "plugin")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
-    MissingPlugin {
-        /// The plugin's binary name.
-        binary_name: String,
-    },
     /// None of the provided keys could be used to decrypt the age file.
     NoMatchingKeys,
     /// Errors from a plugin.
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
     Plugin(Vec<PluginError>),
+    /// Errors from resolving a plugin.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    PluginResolve(crate::plugin::ResolveError),
     /// An unknown age format, probably from a newer version.
     UnknownFormat,
 }
@@ -362,13 +351,11 @@ impl Clone for DecryptError {
             Self::InvalidMac => Self::InvalidMac,
             Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
             Self::KeyDecryptionFailed => Self::KeyDecryptionFailed,
-            #[cfg(feature = "plugin")]
-            Self::MissingPlugin { binary_name } => Self::MissingPlugin {
-                binary_name: binary_name.clone(),
-            },
             Self::NoMatchingKeys => Self::NoMatchingKeys,
             #[cfg(feature = "plugin")]
             Self::Plugin(e) => Self::Plugin(e.clone()),
+            #[cfg(feature = "plugin")]
+            Self::PluginResolve(e) => Self::PluginResolve(e.clone()),
             Self::UnknownFormat => Self::UnknownFormat,
         }
     }
@@ -390,11 +377,6 @@ impl fmt::Display for DecryptError {
             DecryptError::InvalidMac => wfl!(f, "err-header-mac-invalid"),
             DecryptError::Io(e) => e.fmt(f),
             DecryptError::KeyDecryptionFailed => wfl!(f, "err-key-decryption"),
-            #[cfg(feature = "plugin")]
-            DecryptError::MissingPlugin { binary_name } => {
-                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
-                wfl!(f, "rec-missing-plugin")
-            }
             DecryptError::NoMatchingKeys => wfl!(f, "err-no-matching-keys"),
             #[cfg(feature = "plugin")]
             DecryptError::Plugin(errors) => match &errors[..] {
@@ -408,6 +390,8 @@ impl fmt::Display for DecryptError {
                     Ok(())
                 }
             },
+            #[cfg(feature = "plugin")]
+            DecryptError::PluginResolve(e) => e.fmt(f),
             DecryptError::UnknownFormat => {
                 wlnfl!(f, "err-unknown-format")?;
                 wfl!(f, "rec-unknown-format")

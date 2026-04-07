@@ -31,7 +31,7 @@ impl IdentityFileEntry {
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(
                 crate::plugin::Plugin::new(i.plugin())
-                    .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                    .map_err(DecryptError::PluginResolve)
                     .map(|plugin| {
                         crate::plugin::IdentityPluginV1::from_parts(plugin, vec![i], callbacks)
                     })?,
@@ -279,13 +279,15 @@ impl RecipientsAccumulator {
 
             // Find the required plugins.
             for plugin_name in plugin_names {
-                self.recipients
-                    .push(Box::new(plugin::RecipientPluginV1::new(
+                self.recipients.push(Box::new(
+                    plugin::RecipientPluginV1::new(
                         plugin_name,
                         &self.plugin_recipients,
                         &self.plugin_identities,
                         callbacks.clone(),
-                    )?))
+                    )
+                    .map_err(EncryptError::PluginResolve)?,
+                ))
             }
         }
 

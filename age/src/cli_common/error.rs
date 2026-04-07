@@ -3,9 +3,6 @@ use std::io;
 
 use crate::{wfl, DecryptError};
 
-#[cfg(feature = "plugin")]
-use crate::wlnfl;
-
 /// Errors that can occur while reading recipients or identities.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -27,17 +24,14 @@ pub enum ReadError {
     },
     /// An I/O error occurred while reading.
     Io(io::Error),
-    /// A required plugin could not be found.
-    #[cfg(feature = "plugin")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
-    MissingPlugin {
-        /// The plugin's binary name.
-        binary_name: String,
-    },
     /// The given recipients file could not be found.
     MissingRecipientsFile(String),
     /// Standard input was used by multiple files.
     MultipleStdin,
+    /// Errors from resolving a plugin.
+    #[cfg(feature = "plugin")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
+    PluginResolve(crate::plugin::ResolveError),
     /// A recipient is an `ssh-rsa` public key with a modulus larger than we support.
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
@@ -90,17 +84,14 @@ impl fmt::Display for ReadError {
                 line_number = line_number,
             ),
             ReadError::Io(e) => write!(f, "{}", e),
-            #[cfg(feature = "plugin")]
-            ReadError::MissingPlugin { binary_name } => {
-                wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
-                wfl!(f, "rec-missing-plugin")
-            }
             ReadError::MissingRecipientsFile(filename) => wfl!(
                 f,
                 "err-read-missing-recipients-file",
                 filename = filename.as_str(),
             ),
             ReadError::MultipleStdin => wfl!(f, "err-read-multiple-stdin"),
+            #[cfg(feature = "plugin")]
+            ReadError::PluginResolve(e) => write!(f, "{}", e),
             #[cfg(feature = "ssh")]
             ReadError::RsaModulusTooLarge => {
                 wfl!(f, "err-read-rsa-modulus-too-large", max_size = 4096)

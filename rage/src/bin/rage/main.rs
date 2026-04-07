@@ -278,9 +278,11 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
         read_identities(opts.identity, opts.max_work_factor, &mut stdin_guard)?
     } else {
         if !valid_plugin_name(plugin_name) {
-            return Err(age::DecryptError::MissingPlugin {
-                binary_name: plugin_name.into(),
-            }
+            return Err(age::DecryptError::PluginResolve(
+                age::plugin::ResolveError::MissingPlugin {
+                    binary_name: plugin_name.into(),
+                },
+            )
             .into());
         }
         // Construct the default plugin.
