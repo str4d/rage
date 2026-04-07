@@ -193,8 +193,8 @@ pub fn read_recipients(
             // Only one error can occur here.
             #[cfg(feature = "plugin")]
             {
-                if let EncryptError::MissingPlugin { binary_name } = _e {
-                    ReadError::MissingPlugin { binary_name }
+                if let EncryptError::PluginResolve(e) = _e {
+                    ReadError::PluginResolve(e)
                 } else {
                     unreachable!()
                 }

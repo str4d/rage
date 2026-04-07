@@ -583,6 +583,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
 
 /// The various errors that can be returned while parsing the armored format.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ArmoredReadError {
     /// An error occurred while parsing Base64.
     Base64(base64::DecodeSliceError),

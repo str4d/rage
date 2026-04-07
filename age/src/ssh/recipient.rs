@@ -52,6 +52,7 @@ pub(crate) enum ParsedRecipient {
 
 /// Error conditions when parsing an SSH recipient.
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ParseRecipientKeyError {
     /// The string is a parseable value that should be ignored. This case is for handling
     /// SSH recipient types that may occur in files we want to be able to parse, but that

@@ -11,6 +11,7 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 ### Added
 - `age::encrypted::EncryptedIdentity`
+- `age::plugin::ResolveError`
 
 ### Changed
 - MSRV is now 1.70.0.
@@ -20,6 +21,21 @@ to 1.0.0 are beta releases.
   `Result<Vec<Box<dyn crate::Identity>>, DecryptError>`. This re-enables
   cross-thread uses of `IdentityFile`, which were unintentionally disabled in
   0.11.0.
+- `age::plugin`:
+  - The following methods now returns `Result<Self, ResolveError>`:
+    - `Identity::default_for_plugin`
+    - `RecipientPluginV1::new`
+    - `IdentityPluginV1::new`
+- All existing error enums nameable in the public API are now non-exhaustive:
+  - `age::{EncryptError, DecryptError}`
+  - `age::IdentityFileConvertError`
+  - `age::armor::ArmoredReadError`
+  - `age::cli_common::ReadError`
+  - `age::ssh::ParseRecipientKeyError`
+- Removed the following error enum variants:
+  - `age::DecryptError::MissingPlugin`
+  - `age::EncryptError::MissingPlugin`
+  - `age::cli_common::ReadError::MissingPlugin`
 
 ## [0.11.2] - 2025-12-07
 ### Fixed
