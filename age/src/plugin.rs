@@ -199,22 +199,19 @@ impl fmt::Display for Identity {
 
 impl Identity {
     /// Returns the identity corresponding to the given plugin name in its default mode.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `plugin_name` contains invalid characters.
-    pub fn default_for_plugin(plugin_name: &str) -> Self {
+    pub fn default_for_plugin(plugin_name: &str) -> Result<Self, ResolveError> {
         if valid_plugin_name(plugin_name) {
-            bech32_encode(
+            Ok(bech32_encode(
                 Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
                 &[],
             )
             .to_uppercase()
             .parse()
-            .unwrap()
+            .unwrap())
         } else {
-            // TODO: Change the API to be fallible.
-            panic!("invalid plugin name")
+            Err(ResolveError::InvalidPluginName {
+                name: plugin_name.into(),
+            })
         }
     }
 
@@ -232,9 +229,11 @@ pub(crate) struct Plugin {
 
 impl Plugin {
     /// Finds the age plugin with the given name in `$PATH`.
-    ///
-    /// On error, returns the binary name that could not be located.
     pub(crate) fn new(name: &str) -> Result<Self, ResolveError> {
+        if !valid_plugin_name(name) {
+            return Err(ResolveError::InvalidPluginName { name: name.into() });
+        }
+
         let binary_name = binary_name(name);
         match which::which(&binary_name).or_else(|e| {
             // If we are running in WSL, try appending `.exe`; plugins installed in
@@ -394,26 +393,20 @@ impl<C: Callbacks> RecipientPluginV1<C> {
         identities: &[Identity],
         callbacks: C,
     ) -> Result<Self, ResolveError> {
-        if valid_plugin_name(plugin_name) {
-            Plugin::new(plugin_name).map(|plugin| RecipientPluginV1 {
-                plugin,
-                recipients: recipients
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect(),
-                identities: identities
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect(),
-                callbacks,
-            })
-        } else {
-            Err(ResolveError::MissingPlugin {
-                binary_name: plugin_name.to_string(),
-            })
-        }
+        Plugin::new(plugin_name).map(|plugin| RecipientPluginV1 {
+            plugin,
+            recipients: recipients
+                .iter()
+                .filter(|r| r.name == plugin_name)
+                .cloned()
+                .collect(),
+            identities: identities
+                .iter()
+                .filter(|r| r.name == plugin_name)
+                .cloned()
+                .collect(),
+            callbacks,
+        })
     }
 }
 
@@ -602,20 +595,14 @@ impl<C: Callbacks> IdentityPluginV1<C> {
         identities: &[Identity],
         callbacks: C,
     ) -> Result<Self, ResolveError> {
-        if valid_plugin_name(plugin_name) {
-            Plugin::new(plugin_name).map(|plugin| {
-                let identities = identities
-                    .iter()
-                    .filter(|r| r.name == plugin_name)
-                    .cloned()
-                    .collect();
-                Self::from_parts(plugin, identities, callbacks)
-            })
-        } else {
-            Err(ResolveError::MissingPlugin {
-                binary_name: plugin_name.to_string(),
-            })
-        }
+        Plugin::new(plugin_name).map(|plugin| {
+            let identities = identities
+                .iter()
+                .filter(|r| r.name == plugin_name)
+                .cloned()
+                .collect();
+            Self::from_parts(plugin, identities, callbacks)
+        })
     }
 
     pub(crate) fn from_parts(plugin: Plugin, identities: Vec<Identity>, callbacks: C) -> Self {
@@ -742,6 +729,11 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum ResolveError {
+    /// A provided plugin name was invalid.
+    InvalidPluginName {
+        /// The provided name.
+        name: String,
+    },
     /// A required plugin could not be found.
     MissingPlugin {
         /// The plugin's binary name.
@@ -752,6 +744,9 @@ pub enum ResolveError {
 impl fmt::Display for ResolveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ResolveError::InvalidPluginName { name } => {
+                wfl!(f, "err-invalid-plugin-name", name = name.as_str())
+            }
             ResolveError::MissingPlugin { binary_name } => {
                 wlnfl!(f, "err-missing-plugin", plugin_name = binary_name.as_str())?;
                 wfl!(f, "rec-missing-plugin")
@@ -779,7 +774,7 @@ mod tests {
     #[test]
     fn default_for_plugin() {
         assert_eq!(
-            Identity::default_for_plugin("foobar").to_string(),
+            Identity::default_for_plugin("foobar").unwrap().to_string(),
             "AGE-PLUGIN-FOOBAR-1QVHULF",
         );
     }
@@ -826,22 +821,26 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn identity_default_for_plugin_rejects_empty_name() {
-        Identity::default_for_plugin("");
+        assert!(matches!(
+            Identity::default_for_plugin(""),
+            Err(ResolveError::InvalidPluginName { name }) if name.is_empty(),
+        ));
     }
 
     #[test]
-    #[should_panic]
     fn identity_default_for_plugin_rejects_invalid_chars() {
-        Identity::default_for_plugin(INVALID_PLUGIN_NAME);
+        assert!(matches!(
+            Identity::default_for_plugin(INVALID_PLUGIN_NAME),
+            Err(ResolveError::InvalidPluginName { name }) if name == INVALID_PLUGIN_NAME,
+        ));
     }
 
     #[test]
     fn recipient_plugin_v1_rejects_empty_name() {
         assert!(matches!(
             RecipientPluginV1::new("", &[], &[], NoCallbacks),
-            Err(ResolveError::MissingPlugin { binary_name }) if binary_name.is_empty(),
+            Err(ResolveError::InvalidPluginName { name }) if name.is_empty(),
         ));
     }
 
@@ -849,7 +848,7 @@ mod tests {
     fn recipient_plugin_v1_rejects_invalid_chars() {
         assert!(matches!(
             RecipientPluginV1::new(INVALID_PLUGIN_NAME, &[], &[], NoCallbacks),
-            Err(ResolveError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+            Err(ResolveError::InvalidPluginName { name }) if name == INVALID_PLUGIN_NAME,
         ));
     }
 
@@ -857,7 +856,7 @@ mod tests {
     fn identity_plugin_v1_rejects_empty_name() {
         assert!(matches!(
             IdentityPluginV1::new("", &[], NoCallbacks),
-            Err(ResolveError::MissingPlugin { binary_name }) if binary_name.is_empty(),
+            Err(ResolveError::InvalidPluginName { name }) if name.is_empty(),
         ));
     }
 
@@ -865,7 +864,7 @@ mod tests {
     fn identity_plugin_v1_rejects_invalid_chars() {
         assert!(matches!(
             IdentityPluginV1::new(INVALID_PLUGIN_NAME, &[], NoCallbacks),
-            Err(ResolveError::MissingPlugin { binary_name }) if binary_name == INVALID_PLUGIN_NAME,
+            Err(ResolveError::InvalidPluginName { name }) if name == INVALID_PLUGIN_NAME,
         ));
     }
 }

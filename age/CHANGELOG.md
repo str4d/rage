@@ -22,8 +22,10 @@ to 1.0.0 are beta releases.
   cross-thread uses of `IdentityFile`, which were unintentionally disabled in
   0.11.0.
 - `age::plugin`:
-  - `RecipientPluginV1::new` now returns `Result<Self, ResolveError>`.
-  - `IdentityPluginV1::new` now returns `Result<Self, ResolveError>`.
+  - The following methods now returns `Result<Self, ResolveError>`:
+    - `Identity::default_for_plugin`
+    - `RecipientPluginV1::new`
+    - `IdentityPluginV1::new`
 - All existing error enums nameable in the public API are now non-exhaustive:
   - `age::{EncryptError, DecryptError}`
   - `age::IdentityFileConvertError`
