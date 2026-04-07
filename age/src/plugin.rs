@@ -4,10 +4,11 @@ use age_core::{
     format::{FileKey, Stanza},
     io::{DebugReader, DebugWriter},
     plugin::{Connection, Reply, Response, UnidirSend, IDENTITY_V1, RECIPIENT_V1},
+    primitives::{bech32_decode, bech32_encode},
     secrecy::ExposeSecret,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::{Bech32, Hrp};
+use bech32::Hrp;
 
 use std::borrow::Borrow;
 use std::collections::HashSet;
@@ -22,9 +23,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     error::{DecryptError, EncryptError, PluginError},
-    fl,
-    util::parse_bech32,
-    wfl, wlnfl, Callbacks,
+    fl, wfl, wlnfl, Callbacks,
 };
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
@@ -106,25 +105,31 @@ impl std::str::FromStr for Recipient {
 
     /// Parses a plugin recipient from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, _)| {
-                if hrp.len() > PLUGIN_RECIPIENT_PREFIX.len()
-                    && hrp.starts_with(PLUGIN_RECIPIENT_PREFIX)
-                {
-                    let name = hrp.split_at(PLUGIN_RECIPIENT_PREFIX.len()).1.to_owned();
-                    if valid_plugin_name(&name) {
-                        Ok(Recipient {
-                            name,
-                            recipient: s.to_owned(),
-                        })
-                    } else {
-                        Err("invalid plugin name")
-                    }
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
+                (hrp.len() > PLUGIN_RECIPIENT_PREFIX.len()
+                    && hrp.as_str().starts_with(PLUGIN_RECIPIENT_PREFIX))
+                .then_some(())
+                .ok_or("invalid HRP")
+            },
+            |hrp, _| {
+                let name = hrp
+                    .as_str()
+                    .split_at(PLUGIN_RECIPIENT_PREFIX.len())
+                    .1
+                    .to_owned();
+                if valid_plugin_name(&name) {
+                    Ok(Recipient {
+                        name,
+                        recipient: s.to_owned(),
+                    })
                 } else {
-                    Err("invalid HRP")
+                    Err("invalid plugin name")
                 }
-            })
+            },
+        )
     }
 }
 
@@ -155,30 +160,33 @@ impl std::str::FromStr for Identity {
 
     /// Parses a plugin identity from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, _)| {
-                if hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
-                    && hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
-                {
-                    // TODO: Decide whether to allow plugin names to end in -
-                    let name = hrp
-                        .split_at(PLUGIN_IDENTITY_PREFIX.len())
-                        .1
-                        .trim_end_matches('-')
-                        .to_owned();
-                    if valid_plugin_name(&name) {
-                        Ok(Identity {
-                            name,
-                            identity: s.to_owned(),
-                        })
-                    } else {
-                        Err("invalid plugin name")
-                    }
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
+                (hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
+                    && hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX))
+                .then_some(())
+                .ok_or("invalid HRP")
+            },
+            |hrp, _| {
+                // TODO: Decide whether to allow plugin names to end in -
+                let name = hrp
+                    .as_str()
+                    .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                    .1
+                    .trim_end_matches('-')
+                    .to_owned();
+                if valid_plugin_name(&name) {
+                    Ok(Identity {
+                        name,
+                        identity: s.to_owned(),
+                    })
                 } else {
-                    Err("invalid HRP")
+                    Err("invalid plugin name")
                 }
-            })
+            },
+        )
     }
 }
 
@@ -196,11 +204,10 @@ impl Identity {
     /// Panics if `plugin_name` contains invalid characters.
     pub fn default_for_plugin(plugin_name: &str) -> Self {
         if valid_plugin_name(plugin_name) {
-            bech32::encode::<Bech32>(
+            bech32_encode(
                 Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
                 &[],
             )
-            .expect("HRP is valid")
             .to_uppercase()
             .parse()
             .unwrap()
@@ -736,7 +743,8 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 
 #[cfg(test)]
 mod tests {
-    use bech32::{Bech32, Hrp};
+    use age_core::primitives::bech32_encode;
+    use bech32::Hrp;
 
     use crate::{DecryptError, EncryptError, NoCallbacks};
 
@@ -757,45 +765,41 @@ mod tests {
 
     #[test]
     fn recipient_rejects_empty_name() {
-        let invalid_recipient =
-            bech32::encode::<Bech32>(Hrp::parse_unchecked(PLUGIN_RECIPIENT_PREFIX), &[]).unwrap();
+        let invalid_recipient = bech32_encode(Hrp::parse_unchecked(PLUGIN_RECIPIENT_PREFIX), &[]);
         assert!(invalid_recipient.parse::<Recipient>().is_err());
     }
 
     #[test]
     fn recipient_rejects_invalid_chars() {
-        let invalid_recipient = bech32::encode::<Bech32>(
+        let invalid_recipient = bech32_encode(
             Hrp::parse_unchecked(&format!(
                 "{}{}",
                 PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME
             )),
             &[],
-        )
-        .unwrap();
+        );
         assert!(invalid_recipient.parse::<Recipient>().is_err());
     }
 
     #[test]
     fn identity_rejects_empty_name() {
-        let invalid_identity = bech32::encode::<Bech32>(
+        let invalid_identity = bech32_encode(
             Hrp::parse_unchecked(&format!("{}-", PLUGIN_IDENTITY_PREFIX)),
             &[],
         )
-        .expect("HRP is valid")
         .to_uppercase();
         assert!(invalid_identity.parse::<Identity>().is_err());
     }
 
     #[test]
     fn identity_rejects_invalid_chars() {
-        let invalid_identity = bech32::encode::<Bech32>(
+        let invalid_identity = bech32_encode(
             Hrp::parse_unchecked(&format!(
                 "{}{}-",
                 PLUGIN_IDENTITY_PREFIX, INVALID_PLUGIN_NAME
             )),
             &[],
         )
-        .expect("HRP is valid")
         .to_uppercase();
         assert!(invalid_identity.parse::<Identity>().is_err());
     }

@@ -3,10 +3,10 @@
 use age_core::{
     format::{FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    primitives::bech32_decode,
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::{primitives::decode::CheckedHrpstring, Bech32};
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -265,29 +265,28 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    CheckedHrpstring::new::<Bech32>(&item)
-                        .ok()
-                        .and_then(|parsed| {
-                            let hrp = parsed.hrp();
-                            if hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX)
-                                && hrp.as_str().ends_with('-')
-                            {
-                                Some((hrp, parsed.byte_iter().collect::<Vec<_>>()))
-                            } else {
-                                None
-                            }
-                        })
-                        .ok_or_else(|| Error::Identity {
+                    bech32_decode(
+                        &item,
+                        |_| (),
+                        |hrp| {
+                            (hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX)
+                                && hrp.as_str().ends_with('-'))
+                            .then_some(())
+                            .ok_or(())
+                        },
+                        |hrp, bytes| Ok((hrp, bytes.collect::<Vec<_>>())),
+                    )
+                    .map_err(|()| Error::Identity {
+                        index,
+                        message: "Invalid identity encoding".to_owned(),
+                    })
+                    .and_then(|(hrp, bytes)| {
+                        plugin.add_identity(
                             index,
-                            message: "Invalid identity encoding".to_owned(),
-                        })
-                        .and_then(|(hrp, bytes)| {
-                            plugin.add_identity(
-                                index,
-                                &hrp.as_str()[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
-                                &bytes,
-                            )
-                        })
+                            &hrp.as_str()[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
+                            &bytes,
+                        )
+                    })
                 })
                 .filter_map(|res| res.err())
                 .collect();

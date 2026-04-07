@@ -178,8 +178,11 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
-use age_core::secrecy::SecretString;
-use bech32::{Bech32, Hrp};
+use age_core::{
+    primitives::bech32_encode,
+    secrecy::{zeroize::Zeroize, SecretString},
+};
+use bech32::Hrp;
 use std::io;
 
 pub mod identity;
@@ -193,27 +196,25 @@ const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
 ///
 /// A "created" time is included in the output, set to the current local time.
 pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) {
+    let mut identity_lower = bech32_encode(
+        Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+        identity,
+    );
+
     println!(
         "# created: {}",
         chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     );
     println!(
         "# recipient: {}",
-        bech32::encode::<Bech32>(
+        bech32_encode(
             Hrp::parse_unchecked(&format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name)),
             recipient,
         )
-        .expect("HRP is valid")
     );
-    println!(
-        "{}",
-        bech32::encode::<Bech32>(
-            Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
-            identity,
-        )
-        .expect("HRP is valid")
-        .to_uppercase()
-    );
+    println!("{}", identity_lower.to_uppercase());
+
+    identity_lower.zeroize();
 }
 
 /// Runs the plugin state machine defined by `state_machine`.
