@@ -165,7 +165,8 @@ impl std::str::FromStr for Identity {
             |_| "invalid Bech32 encoding",
             |hrp| {
                 (hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
-                    && hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX))
+                    && hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX)
+                    && hrp.as_str().ends_with('-'))
                 .then_some(())
                 .ok_or("invalid HRP")
             },
@@ -176,7 +177,7 @@ impl std::str::FromStr for Identity {
                     .split_at(PLUGIN_IDENTITY_PREFIX.len())
                     .1
                     .trim_end_matches('-')
-                    .to_owned();
+                    .to_lowercase();
                 if valid_plugin_name(&name) {
                     Ok(Identity {
                         name,

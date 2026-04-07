@@ -331,7 +331,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     // and add them to the plugin.
     fn parse_and_add(
         items: Result<Vec<String>, Vec<Error>>,
-        plugin_name: impl Fn(&str) -> Option<&str>,
+        plugin_name: impl Fn(&str) -> Option<String>,
         error: impl Fn(usize) -> Error,
         mut adder: impl FnMut(usize, &str, Vec<u8>) -> Result<(), Error>,
     ) -> Result<usize, Vec<Error>> {
@@ -347,7 +347,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                         |_| Ok(()),
                         |hrp, bytes| {
                             plugin_name(hrp.as_str())
-                                .map(|plugin_name| (plugin_name.to_string(), bytes.collect()))
+                                .map(|plugin_name| (plugin_name, bytes.collect()))
                                 .ok_or(())
                         },
                     )
@@ -366,7 +366,10 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     }
     let recipients = parse_and_add(
         recipients,
-        |hrp| hrp.strip_prefix(PLUGIN_RECIPIENT_PREFIX),
+        |hrp| {
+            hrp.strip_prefix(PLUGIN_RECIPIENT_PREFIX)
+                .map(|s| s.to_owned())
+        },
         |index| Error::Recipient {
             index,
             message: "Invalid recipient encoding".to_owned(),
@@ -376,8 +379,17 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     let identities = parse_and_add(
         identities,
         |hrp| {
-            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX) && hrp.ends_with('-') {
-                Some(&hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1])
+            if hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
+                && hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
+                && hrp.ends_with('-')
+            {
+                // TODO: Decide whether to allow plugin names to end in -
+                let name = hrp
+                    .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                    .1
+                    .trim_end_matches('-')
+                    .to_lowercase();
+                Some(name)
             } else {
                 None
             }
