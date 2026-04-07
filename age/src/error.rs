@@ -11,6 +11,7 @@ use age_core::format::Stanza;
 
 /// Errors returned when converting an identity file to a recipients file.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum IdentityFileConvertError {
     /// An I/O error occurred while writing out a recipient corresponding to an identity
     /// in this file.
@@ -165,6 +166,7 @@ impl fmt::Display for PluginError {
 
 /// The various errors that can be returned during the encryption process.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum EncryptError {
     /// An error occured while decrypting passphrase-encrypted identities.
     EncryptedIdentities(DecryptError),
@@ -312,6 +314,7 @@ impl std::error::Error for EncryptError {
 
 /// The various errors that can be returned during the decryption process.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DecryptError {
     /// The age file failed to decrypt.
     DecryptionFailed,

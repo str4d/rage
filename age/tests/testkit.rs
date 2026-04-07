@@ -704,11 +704,7 @@ fn check_decrypt_error(filename: &str, testfile: TestFile, e: DecryptError) {
         DecryptError::DecryptionFailed | DecryptError::NoMatchingKeys => {
             assert_eq!(testfile.expect, Expect::NoMatch)
         }
-        DecryptError::KeyDecryptionFailed => todo!(),
-        #[cfg(feature = "plugin")]
-        DecryptError::MissingPlugin { .. } => todo!(),
-        #[cfg(feature = "plugin")]
-        DecryptError::Plugin(_) => todo!(),
+        _ => todo!(),
     }
 }
 

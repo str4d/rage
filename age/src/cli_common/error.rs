@@ -8,6 +8,7 @@ use crate::wlnfl;
 
 /// Errors that can occur while reading recipients or identities.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ReadError {
     /// An error occured while decrypting passphrase-encrypted identities.
     EncryptedIdentities(DecryptError),
