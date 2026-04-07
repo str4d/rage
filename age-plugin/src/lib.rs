@@ -190,7 +190,7 @@ pub mod recipient;
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
 const PLUGIN_RECIPIENT_PREFIX: &str = "age1";
-const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
+const PLUGIN_IDENTITY_PREFIX: &str = "AGE-PLUGIN-";
 
 /// Prints the newly-created identity and corresponding recipient to standard out.
 ///
