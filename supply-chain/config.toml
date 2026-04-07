@@ -233,10 +233,6 @@ criteria = "safe-to-deploy"
 version = "0.1.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.der]]
-version = "0.7.8"
-criteria = "safe-to-deploy"
-
 [[exemptions.digest]]
 version = "0.9.0"
 criteria = "safe-to-deploy"
@@ -381,10 +377,6 @@ criteria = "safe-to-deploy"
 version = "0.4.13"
 criteria = "safe-to-deploy"
 
-[[exemptions.log]]
-version = "0.4.29"
-criteria = "safe-to-deploy"
-
 [[exemptions.memchr]]
 version = "2.6.3"
 criteria = "safe-to-deploy"
@@ -495,14 +487,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.proc-macro-crate]]
 version = "3.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.proc-macro-error-attr2]]
-version = "2.0.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.proc-macro-error2]]
-version = "2.0.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.proptest]]
