@@ -1,3 +1,6 @@
+// To avoid a lint in the `test_case` macro.
+#![allow(clippy::items_after_test_module)]
+
 use std::{
     fs::File,
     io::{self, BufRead, BufReader, Read},
