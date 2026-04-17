@@ -1,6 +1,6 @@
 //! The classic recipient type, native to age.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use age_core::{
@@ -192,7 +192,7 @@ impl crate::Recipient for Recipient {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError> {
         let rng = OsRng;
         let esk = EphemeralSecret::random_from_rng(rng);
         let epk: PublicKey = (&esk).into();
@@ -227,7 +227,7 @@ impl crate::Recipient for Recipient {
                 args: vec![encoded_epk],
                 body: encrypted_file_key,
             }],
-            HashSet::new(),
+            BTreeSet::new(),
         ))
     }
 }
