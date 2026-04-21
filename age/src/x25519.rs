@@ -42,12 +42,17 @@ impl std::str::FromStr for Identity {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse_bech32(s)
             .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, bytes)| {
+            .and_then(|(hrp, mut bytes)| {
                 if hrp == SECRET_KEY_PREFIX {
-                    TryInto::<[u8; 32]>::try_into(&bytes[..])
+                    let identity = TryInto::<[u8; 32]>::try_into(&bytes[..])
                         .map_err(|_| "incorrect identity length")
                         .map(StaticSecret::from)
-                        .map(Identity)
+                        .map(Identity);
+
+                    // Clear intermediates
+                    bytes.zeroize();
+
+                    identity
                 } else {
                     Err("incorrect HRP")
                 }
