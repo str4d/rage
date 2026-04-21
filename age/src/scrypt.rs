@@ -200,6 +200,13 @@ impl Identity {
     ///
     /// This method must be called before [`Self::unwrap_stanza`] to have an effect.
     ///
+    /// # Security
+    ///
+    /// This sets the bounds on CPU/memory cost. Large values (e.g. > 22) can allow
+    /// attempted decryption of a malicious file that takes hours and tens of GiB of RAM.
+    /// When setting this value in your application, take care to limit it appropriately
+    /// and avoid Denial-of-Service issues.
+    ///
     /// [`Self::unwrap_stanza`]: crate::Identity::unwrap_stanza
     pub fn set_max_work_factor(&mut self, max_log_n: u8) {
         self.max_work_factor = max_log_n;
