@@ -12,6 +12,8 @@ to 1.0.0 are beta releases.
 ### Fixed
 - `age::ssh::EncryptedKey::decrypt` now returns an error instead of panicking
   when given an empty passphrase.
+- `age::stream::StreamReader` no longer panics in debug mode when seeking on a
+  ciphertext truncated to just after the nonce (i.e. with zero chunk data).
 
 ## [0.11.2] - 2025-12-07
 ### Fixed
