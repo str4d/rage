@@ -10,8 +10,12 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 ### Fixed
-- `age::plugin::{RecipientPluginV1, IdentityPluginV1}` no longer panic when a
-  plugin sends an unusually-formatted error in phase 2.
+- `age::plugin`:
+  - `{RecipientPluginV1, IdentityPluginV1}` no longer panic when a plugin sends
+    an unusually-formatted error in phase 2.
+  - `IdentityPluginV1` no longer panics when a plugin violates the specification
+    and returns a file key for a file index that was not provided, or sends more
+    than one file key per file index.
 - `age::ssh::EncryptedKey::decrypt` now returns an error instead of panicking
   when given an empty passphrase.
 - `age::stream::StreamReader` no longer panics in debug mode when seeking on a

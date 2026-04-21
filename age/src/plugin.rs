@@ -700,18 +700,20 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                     }
                 }
                 CMD_FILE_KEY => {
-                    // We only support a single file.
-                    assert!(command.args[0] == "0");
-                    assert!(file_key.is_none());
-                    file_key = Some(FileKey::try_init_with_mut(|file_key| {
-                        if command.body.len() == file_key.len() {
-                            file_key.copy_from_slice(&command.body);
-                            Ok(())
-                        } else {
-                            Err(DecryptError::DecryptionFailed)
-                        }
-                    }));
-                    reply.ok(None)
+                    // We only requested one file key be unwrapped.
+                    if command.args.len() == 1 && command.args[0] == "0" && file_key.is_none() {
+                        file_key = Some(FileKey::try_init_with_mut(|file_key| {
+                            if command.body.len() == file_key.len() {
+                                file_key.copy_from_slice(&command.body);
+                                Ok(())
+                            } else {
+                                Err(DecryptError::DecryptionFailed)
+                            }
+                        }));
+                        reply.ok(None)
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_ERROR => {
                     if command.args.len() == 2 && command.args[0] == "identity" {
