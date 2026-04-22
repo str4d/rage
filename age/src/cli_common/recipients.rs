@@ -3,6 +3,7 @@ use std::io::{self, BufReader};
 use super::StdinGuard;
 use super::{identities::parse_identity_files, ReadError};
 use crate::identity::RecipientsAccumulator;
+use crate::util::LimitedReader;
 use crate::{x25519, Recipient};
 
 #[cfg(feature = "plugin")]
@@ -16,6 +17,8 @@ use crate::ssh;
 
 #[cfg(any(feature = "armor", feature = "plugin"))]
 use crate::EncryptError;
+
+const RECIPIENT_FILE_SIZE_LIMIT: usize = 1 << 24; // 16 MiB
 
 /// Handles error mapping for the given SSH recipient parser.
 ///
@@ -126,6 +129,8 @@ fn read_recipients_list<R: io::BufRead>(
 /// `recipients_file_strings` and `identity_strings` may collectively contain at most one
 /// entry of `"-"`, which will be interpreted as reading from standard input. An error
 /// will be returned if `stdin_guard` is guarding an existing usage of standard input.
+///
+/// Each file in `recipients_file_strings` and `identity_strings` may be at most 16 MiB.
 pub fn read_recipients(
     recipient_strings: Vec<String>,
     recipients_file_strings: Vec<String>,
@@ -146,7 +151,7 @@ pub fn read_recipients(
             }
             _ => e,
         })?;
-        let buf = BufReader::new(f);
+        let buf = LimitedReader::new(BufReader::new(f), RECIPIENT_FILE_SIZE_LIMIT);
         read_recipients_list(&arg, buf, &mut recipients)?;
     }
 

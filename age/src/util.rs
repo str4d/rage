@@ -1,3 +1,5 @@
+use std::io;
+
 use bech32::{FromBase32, Variant};
 
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
@@ -13,6 +15,47 @@ pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
             None
         }
     })
+}
+
+pub(crate) struct LimitedReader<R> {
+    inner: R,
+    n: usize,
+}
+impl<R> LimitedReader<R> {
+    pub(crate) fn new(reader: R, n: usize) -> Self {
+        Self { inner: reader, n }
+    }
+}
+
+impl<R: io::Read> io::Read for LimitedReader<R> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        if self.n == 0 {
+            Ok(0)
+        } else {
+            if buf.len() > self.n {
+                buf = &mut buf[..self.n];
+            }
+            let read = self.inner.read(buf)?;
+            self.n -= read;
+            Ok(read)
+        }
+    }
+}
+
+impl<R: io::BufRead> io::BufRead for LimitedReader<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.n == 0 {
+            Ok(&[])
+        } else {
+            let buf = self.inner.fill_buf()?;
+            Ok(&buf[..buf.len().min(self.n)])
+        }
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.n -= amount;
+        self.inner.consume(amount);
+    }
 }
 
 pub(crate) mod read {

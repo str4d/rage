@@ -9,6 +9,9 @@ use crate::{wfl, wlnfl};
 #[cfg(feature = "plugin")]
 use age_core::format::Stanza;
 
+#[cfg(feature = "plugin")]
+use crate::plugin::CMD_ERROR;
+
 /// Errors returned when converting an identity file to a recipients file.
 #[derive(Debug)]
 pub enum IdentityFileConvertError {
@@ -110,8 +113,12 @@ pub enum PluginError {
 #[cfg(feature = "plugin")]
 impl From<Stanza> for PluginError {
     fn from(mut s: Stanza) -> Self {
-        assert!(s.tag == "error");
-        let kind = s.args.remove(0);
+        assert_eq!(s.tag, CMD_ERROR);
+        let kind = if s.args.is_empty() {
+            "unknown".into()
+        } else {
+            s.args.remove(0)
+        };
         PluginError::Other {
             kind,
             metadata: s.args,
