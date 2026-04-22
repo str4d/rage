@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.11.3] - 2026-04-22
 ### Changed
 - Recipient and identity files (parsed via `age::IdentityFile` or
   `age::cli_common::{read_recipients, read_identities}`) is now limited to at
