@@ -30,7 +30,7 @@ use crate::{
 const PLUGIN_RECIPIENT_PREFIX: &str = "age1";
 const PLUGIN_IDENTITY_PREFIX: &str = "AGE-PLUGIN-";
 
-const CMD_ERROR: &str = "error";
+pub(crate) const CMD_ERROR: &str = "error";
 const CMD_RECIPIENT_STANZA: &str = "recipient-stanza";
 const CMD_LABELS: &str = "labels";
 const CMD_MSG: &str = "msg";
@@ -529,18 +529,32 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                 }
                 CMD_ERROR => {
                     if command.args.len() == 2 && command.args[0] == "recipient" {
-                        let index: usize = command.args[1].parse().unwrap();
-                        errors.push(PluginError::Recipient {
-                            binary_name: binary_name(&self.recipients[index].name),
-                            recipient: self.recipients[index].recipient.clone(),
-                            message: String::from_utf8_lossy(&command.body).to_string(),
-                        });
+                        if let Some(r) = command.args[1]
+                            .parse()
+                            .ok()
+                            .and_then(|index: usize| self.recipients.get(index))
+                        {
+                            errors.push(PluginError::Recipient {
+                                binary_name: binary_name(&r.name),
+                                recipient: r.recipient.clone(),
+                                message: String::from_utf8_lossy(&command.body).to_string(),
+                            });
+                        } else {
+                            errors.push(PluginError::from(command));
+                        }
                     } else if command.args.len() == 2 && command.args[0] == "identity" {
-                        let index: usize = command.args[1].parse().unwrap();
-                        errors.push(PluginError::Identity {
-                            binary_name: binary_name(&self.identities[index].name),
-                            message: String::from_utf8_lossy(&command.body).to_string(),
-                        });
+                        if let Some(identity) = command.args[1]
+                            .parse()
+                            .ok()
+                            .and_then(|index: usize| self.identities.get(index))
+                        {
+                            errors.push(PluginError::Identity {
+                                binary_name: binary_name(&identity.name),
+                                message: String::from_utf8_lossy(&command.body).to_string(),
+                            });
+                        } else {
+                            errors.push(PluginError::from(command));
+                        }
                     } else {
                         errors.push(PluginError::from(command));
                     }
@@ -676,26 +690,35 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                     }
                 }
                 CMD_FILE_KEY => {
-                    // We only support a single file.
-                    assert!(command.args[0] == "0");
-                    assert!(file_key.is_none());
-                    file_key = Some(FileKey::try_init_with_mut(|file_key| {
-                        if command.body.len() == file_key.len() {
-                            file_key.copy_from_slice(&command.body);
-                            Ok(())
-                        } else {
-                            Err(DecryptError::DecryptionFailed)
-                        }
-                    }));
-                    reply.ok(None)
+                    // We only requested one file key be unwrapped.
+                    if command.args.len() == 1 && command.args[0] == "0" && file_key.is_none() {
+                        file_key = Some(FileKey::try_init_with_mut(|file_key| {
+                            if command.body.len() == file_key.len() {
+                                file_key.copy_from_slice(&command.body);
+                                Ok(())
+                            } else {
+                                Err(DecryptError::DecryptionFailed)
+                            }
+                        }));
+                        reply.ok(None)
+                    } else {
+                        reply.fail()
+                    }
                 }
                 CMD_ERROR => {
                     if command.args.len() == 2 && command.args[0] == "identity" {
-                        let index: usize = command.args[1].parse().unwrap();
-                        errors.push(PluginError::Identity {
-                            binary_name: binary_name(&self.identities[index].name),
-                            message: String::from_utf8_lossy(&command.body).to_string(),
-                        });
+                        if let Some(identity) = command.args[1]
+                            .parse()
+                            .ok()
+                            .and_then(|index: usize| self.identities.get(index))
+                        {
+                            errors.push(PluginError::Identity {
+                                binary_name: binary_name(&identity.name),
+                                message: String::from_utf8_lossy(&command.body).to_string(),
+                            });
+                        } else {
+                            errors.push(PluginError::from(command));
+                        }
                     } else {
                         errors.push(PluginError::from(command));
                     }

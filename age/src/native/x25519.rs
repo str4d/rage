@@ -49,10 +49,16 @@ impl std::str::FromStr for Identity {
                     .ok_or("incorrect HRP")
             },
             |_, bytes| {
-                TryInto::<[u8; 32]>::try_into(bytes.collect::<Vec<_>>())
+                let mut buf = bytes.collect::<Vec<_>>();
+                let identity = TryInto::<[u8; 32]>::try_into(buf.as_slice())
                     .map_err(|_| "incorrect identity length")
                     .map(StaticSecret::from)
-                    .map(Identity)
+                    .map(Identity);
+
+                // Clear intermediates
+                buf.zeroize();
+
+                identity
             },
         )
     }

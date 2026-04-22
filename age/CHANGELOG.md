@@ -40,6 +40,26 @@ to 1.0.0 are beta releases.
   - `age::EncryptError::MissingPlugin`
   - `age::cli_common::ReadError::MissingPlugin`
 
+## [0.11.3] - 2026-04-22
+### Changed
+- Recipient and identity files (parsed via `age::IdentityFile` or
+  `age::cli_common::{read_recipients, read_identities}`) is now limited to at
+  most 16 MiB, matching the Go implementation.
+- `age::cli_common::read_identities` now limits SSH keys to at most 16 kiB,
+  matching the Go implementation.
+
+### Fixed
+- `age::plugin`:
+  - `{RecipientPluginV1, IdentityPluginV1}` no longer panic when a plugin sends
+    an unusually-formatted error in phase 2.
+  - `IdentityPluginV1` no longer panics when a plugin violates the specification
+    and returns a file key for a file index that was not provided, or sends more
+    than one file key per file index.
+- `age::ssh::EncryptedKey::decrypt` now returns an error instead of panicking
+  when given an empty passphrase.
+- `age::stream::StreamReader` no longer panics in debug mode when seeking on a
+  ciphertext truncated to just after the nonce (i.e. with zero chunk data).
+
 ## [0.11.2] - 2025-12-07
 ### Fixed
 - `age::armor::ArmoredWriter::poll_write` no longer panics when writing more

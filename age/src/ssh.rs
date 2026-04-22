@@ -77,9 +77,9 @@ impl OpenSshCipher {
     ) -> Result<Vec<u8>, DecryptError> {
         match self {
             OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256CbcDec>(kdf, p, ct),
-            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct)),
-            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct)),
-            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct)),
+            OpenSshCipher::Aes128Ctr => decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct),
+            OpenSshCipher::Aes192Ctr => decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct),
+            OpenSshCipher::Aes256Ctr => decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct),
             OpenSshCipher::Aes256Gcm => decrypt::aes_gcm::<Aes256Gcm>(kdf, p, ct),
         }
     }
@@ -92,13 +92,15 @@ enum OpenSshKdf {
 }
 
 impl OpenSshKdf {
-    fn derive(&self, passphrase: SecretString, out_len: usize) -> Vec<u8> {
+    fn derive(&self, passphrase: SecretString, out_len: usize) -> Option<Vec<u8>> {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
                 let mut output = vec![0; out_len];
                 bcrypt_pbkdf(passphrase.expose_secret(), salt, *rounds, &mut output)
-                    .expect("parameters are valid");
-                output
+                    // The only error that can occur is if `passphrase` is empty. All
+                    // other errors are prevented by construction.
+                    .ok()
+                    .map(|()| output)
             }
         }
     }
@@ -149,13 +151,17 @@ mod decrypt {
     fn derive_key_material<KeySize: ArrayLength<u8>, IvSize: ArrayLength<u8>>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
-    ) -> (GenericArray<u8, KeySize>, GenericArray<u8, IvSize>) {
-        let kdf_output = kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE);
-        let (key, iv) = kdf_output.split_at(KeySize::USIZE);
-        (
-            GenericArray::from_exact_iter(key.iter().copied()).expect("key is correct length"),
-            GenericArray::from_exact_iter(iv.iter().copied()).expect("iv is correct length"),
-        )
+    ) -> Option<(GenericArray<u8, KeySize>, GenericArray<u8, IvSize>)> {
+        kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE)
+            .map(|kdf_output| {
+                let (key, iv) = kdf_output.split_at(KeySize::USIZE);
+                (
+                    GenericArray::from_exact_iter(key.iter().copied())
+                        .expect("key is correct length"),
+                    GenericArray::from_exact_iter(iv.iter().copied())
+                        .expect("iv is correct length"),
+                )
+            })
     }
 
     pub(super) fn aes_cbc<C: BlockDecryptMut + KeyIvInit>(
@@ -163,7 +169,8 @@ mod decrypt {
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let cipher = C::new(&key, &iv);
         cipher
             .decrypt_padded_vec_mut::<NoPadding>(ciphertext)
@@ -174,12 +181,13 @@ mod decrypt {
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
-    ) -> Vec<u8> {
-        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+    ) -> Result<Vec<u8>, DecryptError> {
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let mut cipher = C::new(&key, &iv);
         let mut plaintext = ciphertext.to_vec();
         cipher.apply_keystream(&mut plaintext);
-        plaintext
+        Ok(plaintext)
     }
 
     pub(super) fn aes_gcm<C: AeadMut + KeyInit>(
@@ -187,7 +195,8 @@ mod decrypt {
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase);
+        let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let mut cipher = C::new(&key);
         cipher
             .decrypt(&nonce, ciphertext)

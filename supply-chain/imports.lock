@@ -724,6 +724,15 @@ criteria = "safe-to-deploy"
 delta = "3.21.0 -> 3.23.0"
 notes = "Doc/test/platform updates, nothing out of the ordinary."
 
+[[audits.bytecode-alliance.audits.unarray]]
+who = "Alex Crichton <alex@alexcrichton.com>"
+criteria = "safe-to-deploy"
+version = "0.1.4"
+notes = """
+Crate is sound, albeit leaky, and not actively malicious. Probably not the best
+crate to use in practice but it's suitable for testing dependencies.
+"""
+
 [[audits.embark-studios.audits.similar]]
 who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"

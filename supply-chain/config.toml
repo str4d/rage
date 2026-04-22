@@ -757,10 +757,6 @@ criteria = "safe-to-deploy"
 version = "1.18.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.unarray]]
-version = "0.1.4"
-criteria = "safe-to-run"
-
 [[exemptions.uuid]]
 version = "1.18.0"
 criteria = "safe-to-run"

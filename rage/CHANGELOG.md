@@ -1,12 +1,14 @@
 # Changelog
 All notable changes to the rage CLI tools themselves will be documented in this
-file. Changes to the [age crate](../age/CHANGELOG.md) also apply to the rage CLI
+file. Changes to the [age crate] also apply to the rage CLI
 tools, and are not duplicated here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Rust's notion of
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). All versions prior
 to 1.0.0 are beta releases.
+
+[age crate]: ../age/CHANGELOG.md
 
 ## [Unreleased]
 ### Added
@@ -16,6 +18,17 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.74.0.
+
+## [0.11.2] - 2026-04-22
+### Changed
+- Recipient and identity files are now limited to at most 16 MiB, and SSH keys
+  are now limited to at most 16 kiB, matching the Go implementation.
+
+### Fixed
+- Plugin encryption and decryption no longer panic when a plugin sends certain
+  invalid responses. See the [age crate] for details.
+- Decryption with an encrypted SSH key no longer panics when given an empty
+  passphrase.
 
 ## [0.6.1, 0.7.2, 0.8.2, 0.9.3, 0.10.1, 0.11.1] - 2024-12-18
 ### Security
