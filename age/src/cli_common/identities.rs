@@ -11,6 +11,8 @@ use crate::{armor::ArmoredReader, cli_common::file_io::InputReader};
 /// `filenames` may contain at most one entry of `"-"`, which will be interpreted as
 /// reading from standard input. An error will be returned if `stdin_guard` is guarding an
 /// existing usage of standard input.
+///
+/// Each file in `filenames` may be at most 16 MiB.
 pub fn read_identities(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
