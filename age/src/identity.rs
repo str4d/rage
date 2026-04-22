@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io;
 
+use zeroize::Zeroize;
+
 use crate::{x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks};
 
 #[cfg(feature = "cli-common")]
@@ -71,7 +73,7 @@ impl IdentityFile<NoCallbacks> {
         let mut identities = vec![];
 
         for (line_number, line) in data.lines().enumerate() {
-            let line = line?;
+            let mut line = line?;
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
@@ -96,6 +98,8 @@ impl IdentityFile<NoCallbacks> {
                 #[cfg(not(feature = "plugin"))]
                 let _: () = identity;
             } else {
+                line.zeroize();
+
                 // Return a line number in place of the line, so we don't leak the file
                 // contents in error messages.
                 return Err(io::Error::new(
@@ -114,6 +118,8 @@ impl IdentityFile<NoCallbacks> {
                     },
                 ));
             }
+
+            line.zeroize();
         }
 
         Ok(IdentityFile {
