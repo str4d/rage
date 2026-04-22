@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
 - Recipient and identity files (parsed via `age::IdentityFile` or
   `age::cli_common::{read_recipients, read_identities}`) is now limited to at
   most 16 MiB, matching the Go implementation.
+- `age::cli_common::read_identities` now limits SSH keys to at most 16 kiB,
+  matching the Go implementation.
 
 ### Fixed
 - `age::plugin`:
