@@ -334,11 +334,9 @@ impl<R: AsyncBufRead + Unpin> Decryptor<R> {
 mod tests {
     use std::collections::HashSet;
     use std::io::{BufReader, Read, Write};
+    use std::iter;
 
     use age_core::secrecy::SecretString;
-
-    #[cfg(feature = "ssh")]
-    use std::iter;
 
     use super::{Decryptor, Encryptor};
     use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
@@ -390,12 +388,10 @@ mod tests {
                 let f = e.wrap_async_output(&mut encrypted);
                 pin_mut!(f);
 
-                loop {
-                    match f.as_mut().poll(&mut cx) {
-                        Poll::Ready(Ok(w)) => break w,
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                        Poll::Pending => panic!("Unexpected Pending"),
-                    }
+                match f.as_mut().poll(&mut cx) {
+                    Poll::Ready(Ok(w)) => w,
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
                 }
             };
             pin_mut!(w);
@@ -409,12 +405,10 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-            loop {
-                match w.as_mut().poll_close(&mut cx) {
-                    Poll::Ready(Ok(())) => break,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match w.as_mut().poll_close(&mut cx) {
+                Poll::Ready(Ok(())) => (),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         }
 
@@ -422,12 +416,10 @@ mod tests {
             let f = Decryptor::new_async(&encrypted[..]);
             pin_mut!(f);
 
-            loop {
-                match f.as_mut().poll(&mut cx) {
-                    Poll::Ready(Ok(w)) => break w,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match f.as_mut().poll(&mut cx) {
+                Poll::Ready(Ok(w)) => w,
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         };
 
@@ -457,7 +449,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_round_trip(
             iter::once(&pk as _),
-            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
         );
     }
 
@@ -469,7 +461,7 @@ mod tests {
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
         recipient_async_round_trip(
             iter::once(&pk as _),
-            f.into_identities().unwrap().iter().map(|i| i.as_ref()),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
         );
     }
 

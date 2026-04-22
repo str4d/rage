@@ -1,15 +1,16 @@
-//! The "x25519" recipient type, native to age.
+//! The classic recipient type, native to age.
 
 use std::collections::HashSet;
 use std::fmt;
 
 use age_core::{
     format::{FileKey, Stanza, FILE_KEY_BYTES},
-    primitives::{aead_decrypt, aead_encrypt, hkdf},
+    primitives::{
+        aead_decrypt, aead_encrypt, bech32_decode, bech32_encode, bech32_encode_to_fmt, hkdf,
+    },
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::{ToBase32, Variant};
 use rand::rngs::OsRng;
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -17,20 +18,19 @@ use zeroize::Zeroize;
 
 use crate::{
     error::{DecryptError, EncryptError},
-    util::{parse_bech32, read::base64_arg},
+    util::read::base64_arg,
 };
 
-// Use lower-case HRP to avoid https://github.com/rust-bitcoin/rust-bech32/issues/40
-const SECRET_KEY_PREFIX: &str = "age-secret-key-";
-const PUBLIC_KEY_PREFIX: &str = "age";
+const SECRET_KEY_PREFIX: bech32::Hrp = bech32::Hrp::parse_unchecked("AGE-SECRET-KEY-");
+const PUBLIC_KEY_PREFIX: bech32::Hrp = bech32::Hrp::parse_unchecked("age");
 
 pub(super) const X25519_RECIPIENT_TAG: &str = "X25519";
 const X25519_RECIPIENT_KEY_LABEL: &[u8] = b"age-encryption.org/v1/X25519";
 
-pub(super) const EPK_LEN_BYTES: usize = 32;
-pub(super) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
+pub(crate) const EPK_LEN_BYTES: usize = 32;
+pub(crate) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
-/// The standard age identity type, which can decrypt files encrypted to the corresponding
+/// The classic age identity type, which can decrypt files encrypted to the corresponding
 /// [`Recipient`].
 #[derive(Clone)]
 pub struct Identity(StaticSecret);
@@ -40,23 +40,27 @@ impl std::str::FromStr for Identity {
 
     /// Parses an X25519 identity from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, mut bytes)| {
-                if hrp == SECRET_KEY_PREFIX {
-                    let identity = TryInto::<[u8; 32]>::try_into(&bytes[..])
-                        .map_err(|_| "incorrect identity length")
-                        .map(StaticSecret::from)
-                        .map(Identity);
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
+                (hrp == SECRET_KEY_PREFIX)
+                    .then_some(())
+                    .ok_or("incorrect HRP")
+            },
+            |_, bytes| {
+                let mut buf = bytes.collect::<Vec<_>>();
+                let identity = TryInto::<[u8; 32]>::try_into(buf.as_slice())
+                    .map_err(|_| "incorrect identity length")
+                    .map(StaticSecret::from)
+                    .map(Identity);
 
-                    // Clear intermediates
-                    bytes.zeroize();
+                // Clear intermediates
+                buf.zeroize();
 
-                    identity
-                } else {
-                    Err("incorrect HRP")
-                }
-            })
+                identity
+            },
+        )
     }
 }
 
@@ -70,15 +74,11 @@ impl Identity {
     /// Serializes this secret key as a string.
     pub fn to_string(&self) -> SecretString {
         let mut sk_bytes = self.0.to_bytes();
-        let sk_base32 = sk_bytes.to_base32();
-        let mut encoded =
-            bech32::encode(SECRET_KEY_PREFIX, sk_base32, Variant::Bech32).expect("HRP is valid");
+        let mut encoded = bech32_encode(SECRET_KEY_PREFIX, &sk_bytes);
         let ret = SecretString::from(encoded.to_uppercase());
 
         // Clear intermediates
         sk_bytes.zeroize();
-        // TODO: bech32::u5 doesn't implement Zeroize
-        // sk_base32.zeroize();
         encoded.zeroize();
 
         ret
@@ -149,7 +149,7 @@ impl crate::Identity for Identity {
     }
 }
 
-/// The standard age recipient type. Files encrypted to this recipient can be decrypted
+/// The classic age recipient type. Files encrypted to this recipient can be decrypted
 /// with the corresponding [`Identity`].
 ///
 /// This recipient type is anonymous, in the sense that an attacker can't tell from the
@@ -162,33 +162,29 @@ impl std::str::FromStr for Recipient {
 
     /// Parses a recipient key from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bech32(s)
-            .ok_or("invalid Bech32 encoding")
-            .and_then(|(hrp, bytes)| {
+        bech32_decode(
+            s,
+            |_| "invalid Bech32 encoding",
+            |hrp| {
                 if hrp == PUBLIC_KEY_PREFIX {
-                    TryInto::<[u8; 32]>::try_into(&bytes[..])
-                        .map_err(|_| "incorrect pubkey length")
-                        .map(PublicKey::from)
-                        .map(Recipient)
+                    Ok(())
                 } else {
                     Err("incorrect HRP")
                 }
-            })
+            },
+            |_, bytes| {
+                TryInto::<[u8; 32]>::try_into(bytes.collect::<Vec<_>>())
+                    .map_err(|_| "incorrect pubkey length")
+                    .map(PublicKey::from)
+                    .map(Recipient)
+            },
+        )
     }
 }
 
 impl fmt::Display for Recipient {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            bech32::encode(
-                PUBLIC_KEY_PREFIX,
-                self.0.as_bytes().to_base32(),
-                Variant::Bech32
-            )
-            .expect("HRP is valid")
-        )
+        bech32_encode_to_fmt(f, PUBLIC_KEY_PREFIX, self.0.as_bytes())
     }
 }
 

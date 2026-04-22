@@ -16,7 +16,7 @@ use nom::{
     bytes::streaming::{is_not, tag},
     combinator::map_opt,
     sequence::{pair, preceded, separated_pair},
-    IResult,
+    IResult, Parser,
 };
 use rand::rngs::OsRng;
 use rsa::{traits::PublicKeyParts, Oaep};
@@ -52,6 +52,7 @@ pub(crate) enum ParsedRecipient {
 
 /// Error conditions when parsing an SSH recipient.
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ParseRecipientKeyError {
     /// The string is a parseable value that should be ignored. This case is for handling
     /// SSH recipient types that may occur in files we want to be able to parse, but that
@@ -223,7 +224,8 @@ fn ssh_rsa_pubkey(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecip
                     Err(_) => None,
                 },
             ),
-        )(input)
+        )
+        .parse(input)
     }
 }
 
@@ -239,7 +241,8 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
                 Err(_) => None,
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
@@ -256,7 +259,8 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
                 .map(|_| ParsedRecipient::Unsupported(key_type.to_string()))
                 .ok()
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 pub(crate) fn ssh_recipient(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecipient> {
@@ -265,7 +269,8 @@ pub(crate) fn ssh_recipient(max_size: usize) -> impl Fn(&str) -> IResult<&str, P
             ssh_rsa_pubkey(max_size),
             ssh_ed25519_pubkey,
             ssh_ignore_pubkey,
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 

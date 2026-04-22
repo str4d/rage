@@ -1,3 +1,6 @@
+// To avoid a lint in the `test_case` macro.
+#![allow(clippy::items_after_test_module)]
+
 use std::{
     fs::File,
     io::{self, BufRead, BufReader, Read},
@@ -704,11 +707,7 @@ fn check_decrypt_error(filename: &str, testfile: TestFile, e: DecryptError) {
         DecryptError::DecryptionFailed | DecryptError::NoMatchingKeys => {
             assert_eq!(testfile.expect, Expect::NoMatch)
         }
-        DecryptError::KeyDecryptionFailed => todo!(),
-        #[cfg(feature = "plugin")]
-        DecryptError::MissingPlugin { .. } => todo!(),
-        #[cfg(feature = "plugin")]
-        DecryptError::Plugin(_) => todo!(),
+        _ => todo!(),
     }
 }
 

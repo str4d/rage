@@ -1,21 +1,9 @@
 use std::io;
 
-use bech32::{FromBase32, Variant};
-
 #[cfg(all(any(feature = "armor", feature = "cli-common"), windows))]
 pub(crate) const LINE_ENDING: &str = "\r\n";
 #[cfg(all(any(feature = "armor", feature = "cli-common"), not(windows)))]
 pub(crate) const LINE_ENDING: &str = "\n";
-
-pub(crate) fn parse_bech32(s: &str) -> Option<(String, Vec<u8>)> {
-    bech32::decode(s).ok().and_then(|(hrp, data, variant)| {
-        if let Variant::Bech32 = variant {
-            Vec::from_base32(&data).ok().map(|d| (hrp, d))
-        } else {
-            None
-        }
-    })
-}
 
 pub(crate) struct LimitedReader<R> {
     inner: R,
@@ -62,7 +50,7 @@ pub(crate) mod read {
     use std::str::FromStr;
 
     use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-    use nom::{character::complete::digit1, combinator::verify, ParseTo};
+    use nom::{character::complete::digit1, combinator::verify, ParseTo, Parser};
 
     #[cfg(feature = "ssh")]
     use nom::{
@@ -108,7 +96,8 @@ pub(crate) mod read {
                     engine.decode_slice([65, 65, c, c], &mut [0, 0, 0]).is_ok()
                 }),
                 |data| engine.decode(data),
-            )(input)
+            )
+            .parse(input)
         }
     }
 
@@ -132,9 +121,10 @@ pub(crate) mod read {
                 ),
                 |chunks| {
                     let data = chunks.join("");
-                    engine.decode(&data)
+                    engine.decode(data)
                 },
-            )(input)
+            )
+            .parse(input)
         }
     }
 
@@ -154,7 +144,8 @@ pub(crate) mod read {
 
     /// Parses a decimal number composed only of digits with no leading zeros.
     pub(crate) fn decimal_digit_arg<T: FromStr>(arg: &str) -> Option<T> {
-        verify::<_, _, _, (), _, _>(digit1, |n: &str| !n.starts_with('0'))(arg)
+        verify::<_, _, (), _, _>(digit1, |n: &str| !n.starts_with('0'))
+            .parse_complete(arg)
             .ok()
             .and_then(|(_, n)| n.parse_to())
     }

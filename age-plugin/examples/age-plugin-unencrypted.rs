@@ -33,7 +33,7 @@ impl PluginHandler for FullHandler {
     type IdentityV1 = IdentityPlugin;
 
     fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
-        Ok(RecipientPlugin)
+        Ok(RecipientPlugin::new())
     }
 
     fn identity_v1(self) -> io::Result<Self::IdentityV1> {
@@ -48,7 +48,7 @@ impl PluginHandler for RecipientHandler {
     type IdentityV1 = Infallible;
 
     fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
-        Ok(RecipientPlugin)
+        Ok(RecipientPlugin::new())
     }
 }
 
@@ -63,19 +63,32 @@ impl PluginHandler for IdentityHandler {
     }
 }
 
-struct RecipientPlugin;
+struct RecipientPlugin {
+    recipients: Vec<Vec<u8>>,
+    identities: Vec<Vec<u8>>,
+}
+
+impl RecipientPlugin {
+    fn new() -> Self {
+        Self {
+            recipients: Vec::new(),
+            identities: Vec::new(),
+        }
+    }
+}
 
 impl RecipientPluginV1 for RecipientPlugin {
     fn add_recipient(
         &mut self,
         index: usize,
         plugin_name: &str,
-        _bytes: &[u8],
+        bytes: &[u8],
     ) -> Result<(), recipient::Error> {
         eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_recipient called");
         explode("recipient");
         if plugin_name == PLUGIN_NAME {
-            // A real plugin would store the recipient here.
+            // A real plugin would parse the recipient here.
+            self.recipients.push(bytes.to_vec());
             Ok(())
         } else {
             Err(recipient::Error::Recipient {
@@ -89,12 +102,13 @@ impl RecipientPluginV1 for RecipientPlugin {
         &mut self,
         index: usize,
         plugin_name: &str,
-        _bytes: &[u8],
+        bytes: &[u8],
     ) -> Result<(), recipient::Error> {
         eprintln!("age-plugin-unencrypted: RecipientPluginV1::add_identity called");
         explode("identity");
         if plugin_name == PLUGIN_NAME {
-            // A real plugin would store the identity.
+            // A real plugin would parse the identity.
+            self.identities.push(bytes.to_vec());
             Ok(())
         } else {
             Err(recipient::Error::Identity {
@@ -127,12 +141,21 @@ impl RecipientPluginV1 for RecipientPlugin {
         Ok(Ok(file_keys
             .into_iter()
             .map(|file_key| {
-                // TODO: This should return one stanza per recipient and identity.
-                vec![Stanza {
-                    tag: RECIPIENT_TAG.to_owned(),
-                    args: vec!["does".to_owned(), "nothing".to_owned()],
-                    body: file_key.expose_secret().to_vec(),
-                }]
+                self.recipients
+                    .iter()
+                    .chain(&self.identities)
+                    .flat_map(|_| {
+                        let count = match env::var("AGE_PLUGIN_STANZAS_PER_RECIPIENT") {
+                            Ok(n) => n.parse().unwrap_or(1),
+                            Err(_) => 1,
+                        };
+                        (0..count).map(|_| Stanza {
+                            tag: RECIPIENT_TAG.to_owned(),
+                            args: vec!["does".to_owned(), "nothing".to_owned()],
+                            body: file_key.expose_secret().to_vec(),
+                        })
+                    })
+                    .collect()
             })
             .collect()))
     }

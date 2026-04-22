@@ -261,7 +261,7 @@ mod read {
         combinator::{map, map_opt},
         multi::many1,
         sequence::{pair, preceded, terminated},
-        IResult,
+        IResult, Parser,
     };
 
     use super::*;
@@ -274,7 +274,7 @@ mod read {
                 pair(
                     many1(legacy_age_stanza),
                     preceded(
-                        pair(tag(MAC_TAG), tag(b" ")),
+                        pair(tag(MAC_TAG), tag(" ")),
                         terminated(
                             map_opt(take(ENCODED_MAC_LENGTH), |tag| {
                                 base64_arg::<_, 32, 33>(&tag)
@@ -289,7 +289,8 @@ mod read {
                     encoded_bytes: None,
                 },
             ),
-        )(input)
+        )
+        .parse(input)
     }
 
     /// From the age specification:
@@ -307,7 +308,8 @@ mod read {
                     Header::Unknown(s.to_string())
                 }),
             )),
-        )(input)
+        )
+        .parse(input)
     }
 }
 

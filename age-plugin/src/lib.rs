@@ -178,8 +178,11 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
-use age_core::secrecy::SecretString;
-use bech32::Variant;
+use age_core::{
+    primitives::bech32_encode,
+    secrecy::{zeroize::Zeroize, SecretString},
+};
+use bech32::Hrp;
 use std::io;
 
 pub mod identity;
@@ -187,13 +190,16 @@ pub mod recipient;
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
 const PLUGIN_RECIPIENT_PREFIX: &str = "age1";
-const PLUGIN_IDENTITY_PREFIX: &str = "age-plugin-";
+const PLUGIN_IDENTITY_PREFIX: &str = "AGE-PLUGIN-";
 
 /// Prints the newly-created identity and corresponding recipient to standard out.
 ///
 /// A "created" time is included in the output, set to the current local time.
 pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) {
-    use bech32::ToBase32;
+    let mut identity_lower = bech32_encode(
+        Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+        identity,
+    );
 
     println!(
         "# created: {}",
@@ -201,29 +207,34 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
     );
     println!(
         "# recipient: {}",
-        bech32::encode(
-            &format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name),
-            recipient.to_base32(),
-            Variant::Bech32
+        bech32_encode(
+            Hrp::parse_unchecked(&format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name)),
+            recipient,
         )
-        .expect("HRP is valid")
     );
-    println!(
-        "{}",
-        bech32::encode(
-            &format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name),
-            identity.to_base32(),
-            Variant::Bech32,
-        )
-        .expect("HRP is valid")
-        .to_uppercase()
-    );
+    println!("{}", identity_lower.to_uppercase());
+
+    identity_lower.zeroize();
 }
 
 /// Runs the plugin state machine defined by `state_machine`.
 ///
 /// This should be triggered if the `--age-plugin=state_machine` flag is provided as an
 /// argument when starting the plugin.
+///
+/// # Panics
+///
+/// The state machine will panic if the `PluginHandler` implementation violates any
+/// **MUST** requirements of the [age plugin specification]. Examples include:
+/// - Returning fewer stanzas from [`RecipientPluginV1::wrap_file_keys`] than the number
+///   of recipients and identities that were provided (instead of returning an error if
+///   any could not be encrypted to).
+///   - Note that this currently prohibits plugins from automatically deduplicating
+///     provided recipients and identities; either duplicate stanzas must be produced, or
+///     an error returned. This prohibition might be lifted in a future release.
+///
+/// [age plugin specification]: https://c2sp.org/age-plugin
+/// [`RecipientPluginV1::wrap_file_keys`]: crate::recipient::RecipientPluginV1::wrap_file_keys
 pub fn run_state_machine(state_machine: &str, handler: impl PluginHandler) -> io::Result<()> {
     use age_core::plugin::{IDENTITY_V1, RECIPIENT_V1};
 

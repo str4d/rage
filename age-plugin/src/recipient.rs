@@ -3,10 +3,10 @@
 use age_core::{
     format::{is_arbitrary_string, FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    primitives::bech32_decode,
     secrecy::SecretString,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::FromBase32;
 
 use std::collections::HashSet;
 use std::convert::Infallible;
@@ -85,8 +85,8 @@ pub trait RecipientPluginV1 {
     /// Plugins may return more than one stanza per "actual recipient", e.g. to support
     /// multiple formats, to build group aliases, or to act as a proxy.
     ///
-    /// If one or more recipients or identities could not be wrapped to, no stanzas are
-    /// returned for any of the file keys.
+    /// If one or more recipients or identities could not be wrapped to, `Err(_)` **MUST**
+    /// be returned.
     ///
     /// `callbacks` can be used to interact with the user, to have them take some physical
     /// action or request a secret value.
@@ -331,7 +331,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     // and add them to the plugin.
     fn parse_and_add(
         items: Result<Vec<String>, Vec<Error>>,
-        plugin_name: impl Fn(&str) -> Option<&str>,
+        plugin_name: impl Fn(&str) -> Option<String>,
         error: impl Fn(usize) -> Error,
         mut adder: impl FnMut(usize, &str, Vec<u8>) -> Result<(), Error>,
     ) -> Result<usize, Vec<Error>> {
@@ -341,17 +341,18 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    let decoded = bech32::decode(&item).ok();
-                    decoded
-                        .as_ref()
-                        .and_then(|(hrp, data, variant)| match (plugin_name(hrp), variant) {
-                            (Some(plugin_name), &bech32::Variant::Bech32) => {
-                                Vec::from_base32(data).ok().map(|data| (plugin_name, data))
-                            }
-                            _ => None,
-                        })
-                        .ok_or_else(|| error(index))
-                        .and_then(|(plugin_name, bytes)| adder(index, plugin_name, bytes))
+                    bech32_decode(
+                        &item,
+                        |_| (),
+                        |_| Ok(()),
+                        |hrp, bytes| {
+                            plugin_name(hrp.as_str())
+                                .map(|plugin_name| (plugin_name, bytes.collect()))
+                                .ok_or(())
+                        },
+                    )
+                    .map_err(|()| error(index))
+                    .and_then(|(plugin_name, bytes)| adder(index, &plugin_name, bytes))
                 })
                 .filter_map(|res| res.err())
                 .collect();
@@ -365,7 +366,10 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     }
     let recipients = parse_and_add(
         recipients,
-        |hrp| hrp.strip_prefix(PLUGIN_RECIPIENT_PREFIX),
+        |hrp| {
+            hrp.strip_prefix(PLUGIN_RECIPIENT_PREFIX)
+                .map(|s| s.to_owned())
+        },
         |index| Error::Recipient {
             index,
             message: "Invalid recipient encoding".to_owned(),
@@ -375,8 +379,17 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
     let identities = parse_and_add(
         identities,
         |hrp| {
-            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX) && hrp.ends_with('-') {
-                Some(&hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1])
+            if hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
+                && hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
+                && hrp.ends_with('-')
+            {
+                // TODO: Decide whether to allow plugin names to end in -
+                let name = hrp
+                    .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                    .1
+                    .trim_end_matches('-')
+                    .to_lowercase();
+                Some(name)
             } else {
                 None
             }
@@ -448,9 +461,8 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             Ok(files) => {
                 for (file_index, stanzas) in files.into_iter().enumerate() {
                     // The plugin MUST generate an error if one or more recipients or
-                    // identities cannot be wrapped to. And it's a programming error
-                    // to return more stanzas than recipients and identities.
-                    assert_eq!(stanzas.len(), expected_stanzas);
+                    // identities cannot be wrapped to.
+                    assert!(stanzas.len() >= expected_stanzas);
 
                     for stanza in stanzas {
                         phase

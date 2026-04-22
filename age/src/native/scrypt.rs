@@ -23,7 +23,7 @@ use crate::{
     util::read::{base64_arg, decimal_digit_arg},
 };
 
-pub(super) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
+pub(crate) const SCRYPT_RECIPIENT_TAG: &str = "scrypt";
 const SCRYPT_SALT_LABEL: &[u8] = b"age-encryption.org/v1/scrypt";
 const ONE_SECOND: Duration = Duration::from_secs(1);
 

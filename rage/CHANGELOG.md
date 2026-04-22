@@ -11,6 +11,13 @@ to 1.0.0 are beta releases.
 [age crate]: ../age/CHANGELOG.md
 
 ## [Unreleased]
+### Added
+- Support for the new native age recipient types:
+  - `age1tag1..`
+  - `age1tagpq1..`
+
+### Changed
+- MSRV is now 1.74.0.
 
 ## [0.11.2] - 2026-04-22
 ### Changed

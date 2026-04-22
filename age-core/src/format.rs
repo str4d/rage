@@ -163,7 +163,7 @@ pub mod read {
         combinator::{map, map_opt, opt, verify},
         multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
-        IResult,
+        IResult, Parser,
     };
 
     use super::{AgeStanza, STANZA_TAG};
@@ -211,7 +211,8 @@ pub mod read {
         map(take_while1(|c| (33..=126).contains(&c)), |bytes| {
             // Safety: ASCII bytes are valid UTF-8
             unsafe { std::str::from_utf8_unchecked(bytes) }
-        })(input)
+        })
+        .parse(input)
     }
 
     fn wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<&[u8]>> {
@@ -240,7 +241,8 @@ pub mod read {
                 chunks.push(partial_chunk);
                 chunks
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn legacy_wrapped_encoded_data(input: &[u8]) -> IResult<&[u8], Vec<&[u8]>> {
@@ -263,7 +265,8 @@ pub mod read {
                     Some(chunks)
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Reads an age stanza.
@@ -289,7 +292,8 @@ pub mod read {
                 let tag = args.remove(0);
                 AgeStanza { tag, args, body }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     fn legacy_age_stanza_inner(input: &[u8]) -> IResult<&[u8], AgeStanza<'_>> {
@@ -306,7 +310,8 @@ pub mod read {
                     body: body.unwrap_or_else(|| vec![&[]]),
                 }
             },
-        )(input)
+        )
+        .parse(input)
     }
 
     /// Reads a age stanza, allowing the legacy encoding of an body.
@@ -330,7 +335,7 @@ pub mod read {
     ///
     /// [`grease_the_joint`]: super::grease_the_joint
     pub fn legacy_age_stanza(input: &[u8]) -> IResult<&[u8], AgeStanza<'_>> {
-        alt((age_stanza, legacy_age_stanza_inner))(input)
+        alt((age_stanza, legacy_age_stanza_inner)).parse(input)
     }
 
     #[cfg(test)]

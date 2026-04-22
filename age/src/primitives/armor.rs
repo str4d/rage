@@ -373,7 +373,7 @@ impl<W: Write> ArmoredWriter<W> {
             } => {
                 let byte_buf = byte_buf.unwrap();
                 let encoded = BASE64_STANDARD
-                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .encode_slice(byte_buf, &mut encoded_buf[..])
                     .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 inner.write_all(&encoded_buf[..encoded])?;
                 inner.finish()
@@ -561,7 +561,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
                 // Finish the armored format with a partial line (if necessary) and the end
                 // marker.
                 let encoded = BASE64_STANDARD
-                    .encode_slice(&byte_buf, &mut encoded_buf[..])
+                    .encode_slice(byte_buf, &mut encoded_buf[..])
                     .expect("byte_buf.len() <= BASE64_CHUNK_SIZE_BYTES");
                 *encoded_line = Some(EncodedBytes {
                     offset: 0,
@@ -583,6 +583,7 @@ impl<W: AsyncWrite> AsyncWrite for ArmoredWriter<W> {
 
 /// The various errors that can be returned while parsing the armored format.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ArmoredReadError {
     /// An error occurred while parsing Base64.
     Base64(base64::DecodeSliceError),
@@ -1227,7 +1228,7 @@ impl<R: Read + Seek> ArmoredReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
             StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let current = self.inner.stream_position()?;
                 let start = current - offset;
 
                 // Cache the start for future calls.
@@ -1400,12 +1401,10 @@ mod tests {
                         Poll::Pending => panic!("Unexpected Pending"),
                     }
                 }
-                loop {
-                    match w.as_mut().poll_close(&mut cx) {
-                        Poll::Ready(Ok(())) => break,
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                        Poll::Pending => panic!("Unexpected Pending"),
-                    }
+                match w.as_mut().poll_close(&mut cx) {
+                    Poll::Ready(Ok(())) => (),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
 
@@ -1554,12 +1553,10 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-            loop {
-                match w.as_mut().poll_close(&mut cx) {
-                    Poll::Ready(Ok(())) => break,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match w.as_mut().poll_close(&mut cx) {
+                Poll::Ready(Ok(())) => (),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         }
 
