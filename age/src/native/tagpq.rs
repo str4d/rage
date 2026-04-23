@@ -1,6 +1,6 @@
 //! The "tagpq" recipient type, native to age.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use age_core::{
@@ -91,7 +91,7 @@ impl crate::Recipient for Recipient {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError> {
         let (enc, ct) = hpke_seal::<Kem, _>(
             &self.0,
             MLKEM768P256TAG_SALT.as_bytes(),
