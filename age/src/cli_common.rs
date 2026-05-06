@@ -10,6 +10,7 @@ use rand::{
 use rpassword::prompt_password;
 
 use std::io;
+use std::process::Command;
 use subtle::ConstantTimeEq;
 
 use crate::{fl, Callbacks};
@@ -79,10 +80,54 @@ fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool
     }
 }
 
+/// Requests a secret via an external askpass program.
+///
+/// Follows the same convention as `SSH_ASKPASS`: the program receives the prompt as
+/// its first argument, prints the secret to stdout, and exits 0 on success or non-zero
+/// on cancel/failure.
+fn read_secret_askpass(askpass: &str, description: &str) -> pinentry::Result<SecretString> {
+    let output = Command::new(askpass)
+        .arg(description)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .map_err(|e| {
+            pinentry::Error::Io(io::Error::new(
+                e.kind(),
+                format!("failed to run AGE_ASKPASS program '{}': {}", askpass, e),
+            ))
+        })?;
+
+    if !output.status.success() {
+        return Err(pinentry::Error::Cancelled);
+    }
+
+    let secret = String::from_utf8(output.stdout)
+        .map_err(|_| {
+            pinentry::Error::Io(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "AGE_ASKPASS program returned non-UTF-8 output",
+            ))
+        })?
+        .trim_end_matches('\n')
+        .trim_end_matches('\r')
+        .to_string();
+
+    if secret.is_empty() {
+        return Err(pinentry::Error::Cancelled);
+    }
+
+    Ok(SecretString::from(secret))
+}
+
 /// Requests a secret from the user.
 ///
-/// If a `pinentry` binary is available on the system, it is used to request the secret.
-/// If not, we fall back to requesting directly in the CLI via a TTY.
+/// The secret is obtained using the following priority:
+/// 1. If `AGE_ASKPASS` is set, the specified program is called with the prompt as its
+///    first argument (following the `SSH_ASKPASS` convention).
+/// 2. If a `pinentry` binary is available on the system, it is used to request the secret.
+/// 3. Otherwise, we fall back to requesting directly in the CLI via a TTY.
 ///
 /// This API does not take the secret directly from stdin, because it is specifically
 /// intended to take the secret from a human.
@@ -101,6 +146,29 @@ pub fn read_secret(
     prompt: &str,
     confirm: Option<&str>,
 ) -> pinentry::Result<SecretString> {
+    // First priority: AGE_ASKPASS external program (SSH_ASKPASS-style convention).
+    if let Ok(askpass) = std::env::var("AGE_ASKPASS") {
+        if !askpass.is_empty() {
+            let secret = read_secret_askpass(&askpass, description)?;
+            if let Some(confirm_prompt) = confirm {
+                let confirmed = read_secret_askpass(&askpass, confirm_prompt)?;
+                if !bool::from(
+                    secret
+                        .expose_secret()
+                        .as_bytes()
+                        .ct_eq(confirmed.expose_secret().as_bytes()),
+                ) {
+                    return Err(pinentry::Error::Io(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        fl!("cli-secret-input-mismatch"),
+                    )));
+                }
+            }
+            return Ok(secret);
+        }
+    }
+
+    // Second priority: pinentry binary.
     // Check for the pinentry environment variable. If it's not present try to use the default
     // binary.
     let input = if let Ok(pinentry) = std::env::var("PINENTRY_PROGRAM") {
