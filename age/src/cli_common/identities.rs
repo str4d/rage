@@ -6,11 +6,19 @@ use crate::{identity::IdentityFile, Identity};
 #[cfg(feature = "armor")]
 use crate::{armor::ArmoredReader, cli_common::file_io::InputReader};
 
+#[cfg(feature = "ssh")]
+use crate::util::LimitedReader;
+
+#[cfg(feature = "ssh")]
+const SSH_IDENTITY_SIZE_LIMIT: usize = 1 << 14; // 16 KiB
+
 /// Reads identities from the provided files.
 ///
 /// `filenames` may contain at most one entry of `"-"`, which will be interpreted as
 /// reading from standard input. An error will be returned if `stdin_guard` is guarding an
 /// existing usage of standard input.
+///
+/// Each file in `filenames` may be at most 16 MiB. SSH keys are limited to 16 kiB.
 pub fn read_identities(
     filenames: Vec<String>,
     max_work_factor: Option<u8>,
@@ -39,20 +47,18 @@ pub fn read_identities(
             #[cfg(feature = "plugin")]
             let new_identities = new_identities.map_err(|e| match e {
                 #[cfg(feature = "plugin")]
-                crate::DecryptError::MissingPlugin { binary_name } => {
-                    ReadError::MissingPlugin { binary_name }
-                }
-                // DecryptError::MissingPlugin is the only possible error kind returned by
+                crate::DecryptError::PluginResolve(e) => ReadError::PluginResolve(e),
+                // DecryptError::PluginResolve is the only possible error kind returned by
                 // IdentityFileEntry::into_identity.
                 _ => unreachable!(),
             })?;
 
-            // IdentityFileEntry::into_identity will never return a MissingPlugin error
+            // IdentityFileEntry::into_identity will never return a PluginResolve error
             // when plugin feature is not enabled.
             #[cfg(not(feature = "plugin"))]
             let new_identities = new_identities.unwrap();
 
-            identities.extend(new_identities);
+            identities.extend(new_identities.into_iter().map(|i| i as _));
 
             Ok(())
         },
@@ -123,7 +129,10 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
 
         // Try parsing as a single multi-line SSH identity.
         #[cfg(feature = "ssh")]
-        match crate::ssh::Identity::from_buffer(&mut reader, Some(filename.clone())) {
+        match crate::ssh::Identity::from_buffer(
+            LimitedReader::new(&mut reader, SSH_IDENTITY_SIZE_LIMIT),
+            Some(filename.clone()),
+        ) {
             Ok(crate::ssh::Identity::Unsupported(k)) => {
                 return Err(ReadError::UnsupportedKey(filename, k).into())
             }

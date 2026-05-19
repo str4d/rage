@@ -87,6 +87,8 @@ err-no-matching-keys = No matching keys found
 err-unknown-format = Unknown {-age} format.
 rec-unknown-format = Have you tried upgrading to the latest version?
 
+err-invalid-plugin-name = Invalid plugin name '{$name}'.
+
 err-missing-plugin = Could not find '{$plugin_name}' on the PATH.
 rec-missing-plugin = Have you installed the plugin?
 

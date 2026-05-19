@@ -1,13 +1,22 @@
-use std::fs::File;
-use std::io;
+use std::{
+    fs::File,
+    io::{self, BufRead},
+};
 
-use crate::{x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks};
+use zeroize::Zeroize;
+
+use crate::{
+    util::LimitedReader, x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError,
+    NoCallbacks,
+};
 
 #[cfg(feature = "cli-common")]
 use crate::cli_common::file_io::InputReader;
 
 #[cfg(feature = "plugin")]
 use crate::plugin;
+
+const IDENTITY_SIZE_LIMIT: usize = 1 << 24; // 16 MiB
 
 /// The supported kinds of identities within an [`IdentityFile`].
 #[derive(Clone)]
@@ -25,13 +34,13 @@ impl IdentityFileEntry {
     pub(crate) fn into_identity(
         self,
         callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+    ) -> Result<Box<dyn crate::Identity + Send + Sync>, DecryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(
                 crate::plugin::Plugin::new(i.plugin())
-                    .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                    .map_err(DecryptError::PluginResolve)
                     .map(|plugin| {
                         crate::plugin::IdentityPluginV1::from_parts(plugin, vec![i], callbacks)
                     })?,
@@ -41,6 +50,8 @@ impl IdentityFileEntry {
 }
 
 /// A list of identities that has been parsed from some input file.
+///
+/// The maximum supported file size is 16 MiB.
 pub struct IdentityFile<C: Callbacks> {
     filename: Option<String>,
     identities: Vec<IdentityFileEntry>,
@@ -70,8 +81,10 @@ impl IdentityFile<NoCallbacks> {
     fn parse_identities<R: io::BufRead>(filename: Option<String>, data: R) -> io::Result<Self> {
         let mut identities = vec![];
 
+        let data = LimitedReader::new(data, IDENTITY_SIZE_LIMIT);
+
         for (line_number, line) in data.lines().enumerate() {
-            let line = line?;
+            let mut line = line?;
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
@@ -96,6 +109,8 @@ impl IdentityFile<NoCallbacks> {
                 #[cfg(not(feature = "plugin"))]
                 let _: () = identity;
             } else {
+                line.zeroize();
+
                 // Return a line number in place of the line, so we don't leak the file
                 // contents in error messages.
                 return Err(io::Error::new(
@@ -114,6 +129,8 @@ impl IdentityFile<NoCallbacks> {
                     },
                 ));
             }
+
+            line.zeroize();
         }
 
         Ok(IdentityFile {
@@ -184,14 +201,17 @@ impl<C: Callbacks> IdentityFile<C> {
     /// Returns the identities in this file.
     pub(crate) fn to_identities(
         &self,
-    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
+    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>> + '_
+    {
         self.identities
             .iter()
             .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Result<Vec<Box<dyn crate::Identity>>, DecryptError> {
+    pub fn into_identities(
+        self,
+    ) -> Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError> {
         self.identities
             .into_iter()
             .map(|entry| entry.into_identity(self.callbacks.clone()))
@@ -276,13 +296,15 @@ impl RecipientsAccumulator {
 
             // Find the required plugins.
             for plugin_name in plugin_names {
-                self.recipients
-                    .push(Box::new(plugin::RecipientPluginV1::new(
+                self.recipients.push(Box::new(
+                    plugin::RecipientPluginV1::new(
                         plugin_name,
                         &self.plugin_recipients,
                         &self.plugin_identities,
                         callbacks.clone(),
-                    )?))
+                    )
+                    .map_err(EncryptError::PluginResolve)?,
+                ))
             }
         }
 

@@ -12,6 +12,7 @@ use aes_gcm::{AeadCore, Aes256Gcm};
 use age_core::secrecy::{ExposeSecret, SecretString};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use cipher::Unsigned;
+use nom::Parser;
 use sha2::{Digest, Sha256};
 
 use crate::error::DecryptError;
@@ -76,9 +77,9 @@ impl OpenSshCipher {
     ) -> Result<Vec<u8>, DecryptError> {
         match self {
             OpenSshCipher::Aes256Cbc => decrypt::aes_cbc::<Aes256CbcDec>(kdf, p, ct),
-            OpenSshCipher::Aes128Ctr => Ok(decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct)),
-            OpenSshCipher::Aes192Ctr => Ok(decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct)),
-            OpenSshCipher::Aes256Ctr => Ok(decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct)),
+            OpenSshCipher::Aes128Ctr => decrypt::aes_ctr::<Aes128Ctr>(kdf, p, ct),
+            OpenSshCipher::Aes192Ctr => decrypt::aes_ctr::<Aes192Ctr>(kdf, p, ct),
+            OpenSshCipher::Aes256Ctr => decrypt::aes_ctr::<Aes256Ctr>(kdf, p, ct),
             OpenSshCipher::Aes256Gcm => decrypt::aes_gcm::<Aes256Gcm>(kdf, p, ct),
         }
     }
@@ -91,13 +92,15 @@ enum OpenSshKdf {
 }
 
 impl OpenSshKdf {
-    fn derive(&self, passphrase: SecretString, out_len: usize) -> Vec<u8> {
+    fn derive(&self, passphrase: SecretString, out_len: usize) -> Option<Vec<u8>> {
         match self {
             OpenSshKdf::Bcrypt { salt, rounds } => {
                 let mut output = vec![0; out_len];
                 bcrypt_pbkdf(passphrase.expose_secret(), salt, *rounds, &mut output)
-                    .expect("parameters are valid");
-                output
+                    // The only error that can occur is if `passphrase` is empty. All
+                    // other errors are prevented by construction.
+                    .ok()
+                    .map(|()| output)
             }
         }
     }
@@ -124,7 +127,8 @@ impl EncryptedKey {
             .decrypt(&self.kdf, passphrase, &self.encrypted)?;
 
         let mut parser = read_ssh::openssh_unencrypted_privkey(&self.ssh_key);
-        match parser(&decrypted)
+        match parser
+            .parse_complete(&decrypted)
             .map(|(_, sk)| sk)
             .map_err(|_| DecryptError::KeyDecryptionFailed)?
         {
@@ -147,13 +151,17 @@ mod decrypt {
     fn derive_key_material<KeySize: ArrayLength<u8>, IvSize: ArrayLength<u8>>(
         kdf: &OpenSshKdf,
         passphrase: SecretString,
-    ) -> (GenericArray<u8, KeySize>, GenericArray<u8, IvSize>) {
-        let kdf_output = kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE);
-        let (key, iv) = kdf_output.split_at(KeySize::USIZE);
-        (
-            GenericArray::from_exact_iter(key.iter().copied()).expect("key is correct length"),
-            GenericArray::from_exact_iter(iv.iter().copied()).expect("iv is correct length"),
-        )
+    ) -> Option<(GenericArray<u8, KeySize>, GenericArray<u8, IvSize>)> {
+        kdf.derive(passphrase, KeySize::USIZE + IvSize::USIZE)
+            .map(|kdf_output| {
+                let (key, iv) = kdf_output.split_at(KeySize::USIZE);
+                (
+                    GenericArray::from_exact_iter(key.iter().copied())
+                        .expect("key is correct length"),
+                    GenericArray::from_exact_iter(iv.iter().copied())
+                        .expect("iv is correct length"),
+                )
+            })
     }
 
     pub(super) fn aes_cbc<C: BlockDecryptMut + KeyIvInit>(
@@ -161,7 +169,8 @@ mod decrypt {
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let cipher = C::new(&key, &iv);
         cipher
             .decrypt_padded_vec_mut::<NoPadding>(ciphertext)
@@ -172,12 +181,13 @@ mod decrypt {
         kdf: &OpenSshKdf,
         passphrase: SecretString,
         ciphertext: &[u8],
-    ) -> Vec<u8> {
-        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase);
+    ) -> Result<Vec<u8>, DecryptError> {
+        let (key, iv) = derive_key_material::<C::KeySize, C::IvSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let mut cipher = C::new(&key, &iv);
         let mut plaintext = ciphertext.to_vec();
         cipher.apply_keystream(&mut plaintext);
-        plaintext
+        Ok(plaintext)
     }
 
     pub(super) fn aes_gcm<C: AeadMut + KeyInit>(
@@ -185,7 +195,8 @@ mod decrypt {
         passphrase: SecretString,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase);
+        let (key, nonce) = derive_key_material::<C::KeySize, C::NonceSize>(kdf, passphrase)
+            .ok_or(DecryptError::KeyDecryptionFailed)?;
         let mut cipher = C::new(&key);
         cipher
             .decrypt(&nonce, ciphertext)
@@ -202,8 +213,8 @@ mod read_ssh {
         combinator::{flat_map, map, map_opt, map_parser, map_res, recognize, rest, verify},
         multi::{length_data, length_value},
         number::complete::be_u32,
-        sequence::{delimited, pair, preceded, terminated, tuple},
-        IResult,
+        sequence::{delimited, pair, preceded, terminated},
+        IResult, Parser,
     };
     use num_traits::Zero;
     use rsa::BigUint;
@@ -216,13 +227,13 @@ mod read_ssh {
 
     /// The SSH `string` [data type](https://tools.ietf.org/html/rfc4251#section-5).
     pub(crate) fn string(input: &[u8]) -> IResult<&[u8], &[u8]> {
-        length_data(be_u32)(input)
+        length_data(be_u32).parse_complete(input)
     }
 
     /// Recognizes an SSH `string` matching a tag.
     #[allow(clippy::needless_lifetimes)] // false positive
     pub fn string_tag<'a>(value: &'a str) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> {
-        move |input: &[u8]| length_value(be_u32, tag(value))(input)
+        move |input: &[u8]| length_value(be_u32, tag(value)).parse_complete(input)
     }
 
     /// The SSH `mpint` data type, restricted to non-negative integers.
@@ -259,7 +270,8 @@ mod read_ssh {
 
                 Some(BigUint::from_bytes_be(bytes))
             }
-        })(input)
+        })
+        .parse_complete(input)
     }
 
     enum CipherResult {
@@ -272,11 +284,11 @@ mod read_ssh {
         alt((
             // If either cipher or KDF is None, both must be.
             map(
-                tuple((string_tag("none"), string_tag("none"), string_tag(""))),
+                (string_tag("none"), string_tag("none"), string_tag("")),
                 |_| None,
             ),
             map(
-                tuple((
+                (
                     alt((
                         map(string_tag("aes256-cbc"), |_| {
                             CipherResult::Supported(OpenSshCipher::Aes256Cbc)
@@ -298,10 +310,7 @@ mod read_ssh {
                         }),
                     )),
                     map_opt(
-                        preceded(
-                            string_tag("bcrypt"),
-                            map_parser(string, tuple((string, be_u32))),
-                        ),
+                        preceded(string_tag("bcrypt"), map_parser(string, (string, be_u32))),
                         |(salt, rounds)| {
                             if salt.is_empty() || rounds == 0 {
                                 // Invalid parameters
@@ -314,10 +323,11 @@ mod read_ssh {
                             }
                         },
                     ),
-                )),
+                ),
                 Some,
             ),
-        ))(input)
+        ))
+        .parse_complete(input)
     }
 
     /// Parses the comment from an OpenSSH privkey and verifies its deterministic padding.
@@ -329,7 +339,8 @@ mod read_ssh {
             verify(rest, |padding: &[u8]| {
                 padding.iter().enumerate().all(|(i, b)| *b == (i + 1) as u8)
             }),
-        )(input)
+        )
+        .parse_complete(input)
     }
 
     /// Internal OpenSSH encoding of an RSA private key.
@@ -339,11 +350,12 @@ mod read_ssh {
         delimited(
             string_tag(SSH_RSA_KEY_PREFIX),
             map_res(
-                tuple((mpint, mpint, mpint, mpint, mpint, mpint)),
+                (mpint, mpint, mpint, mpint, mpint, mpint),
                 |(n, e, d, _iqmp, p, q)| rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]),
             ),
             comment_and_padding,
-        )(input)
+        )
+        .parse_complete(input)
     }
 
     /// Internal OpenSSH encoding of an Ed25519 private key.
@@ -352,7 +364,7 @@ mod read_ssh {
     fn openssh_ed25519_privkey(input: &[u8]) -> IResult<&[u8], SecretBox<[u8; 64]>> {
         delimited(
             string_tag(SSH_ED25519_KEY_PREFIX),
-            map_opt(tuple((string, string)), |(pubkey_bytes, privkey_bytes)| {
+            map_opt((string, string), |(pubkey_bytes, privkey_bytes)| {
                 if privkey_bytes.len() == 64 && pubkey_bytes == &privkey_bytes[32..64] {
                     let mut privkey = Box::new([0; 64]);
                     privkey.copy_from_slice(privkey_bytes);
@@ -362,7 +374,8 @@ mod read_ssh {
                 }
             }),
             comment_and_padding,
-        )(input)
+        )
+        .parse_complete(input)
     }
 
     /// Unencrypted, padded list of private keys.
@@ -392,7 +405,7 @@ mod read_ssh {
     #[allow(clippy::needless_lifetimes)]
     pub(super) fn openssh_unencrypted_privkey<'a>(
         ssh_key: &[u8],
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Identity> {
+    ) -> impl Parser<&'a [u8], Output = Identity, Error = nom::error::Error<&'a [u8]>> {
         // We need to own, move, and clone these in order to keep them alive.
         let ssh_key_rsa = ssh_key.to_vec();
         let ssh_key_ed25519 = ssh_key.to_vec();
@@ -428,16 +441,17 @@ mod read_ssh {
     pub(super) fn openssh_privkey(input: &[u8]) -> IResult<&[u8], Identity> {
         flat_map(
             pair(
-                preceded(tag(b"openssh-key-v1\x00"), encryption_header),
+                preceded(tag("openssh-key-v1\x00"), encryption_header),
                 preceded(
                     // We only support a single key, like OpenSSH:
                     // https://github.com/openssh/openssh-portable/blob/4103a3ec/sshkey.c#L4171
-                    tag(b"\x00\x00\x00\x01"),
+                    tag("\x00\x00\x00\x01"),
                     string, // The public key in SSH format
                 ),
             ),
             openssh_privkey_inner,
-        )(input)
+        )
+        .parse_complete(input)
     }
 
     /// Encrypted, padded list of private keys.
@@ -459,7 +473,7 @@ mod read_ssh {
         });
 
         move |input: &[u8]| match &encryption {
-            None => map_parser(string, openssh_unencrypted_privkey(ssh_key))(input),
+            None => map_parser(string, openssh_unencrypted_privkey(ssh_key)).parse_complete(input),
             Some((cipher_res, kdf)) => map(
                 map_parser(
                     recognize(pair(string, take(expected_remainder))),
@@ -478,7 +492,8 @@ mod read_ssh {
                         UnsupportedKey::EncryptedSsh(cipher.clone()).into()
                     }
                 },
-            )(input),
+            )
+            .parse_complete(input),
         }
     }
 
@@ -498,13 +513,14 @@ mod read_ssh {
         move |input| {
             preceded(
                 string_tag(SSH_RSA_KEY_PREFIX),
-                map_res(tuple((mpint, mpint)), |(exponent, modulus)| {
+                map_res((mpint, mpint), |(exponent, modulus)| {
                     match rsa::RsaPublicKey::new_with_max_size(modulus, exponent, max_size) {
                         Err(rsa::Error::ModulusTooLarge) => Ok(None),
                         res => res.map(Some),
                     }
                 }),
-            )(input)
+            )
+            .parse_complete(input)
         }
     }
 
@@ -523,7 +539,8 @@ mod read_ssh {
                     .ok()
                     .and_then(|p| p.decompress())
             }),
-        )(input)
+        )
+        .parse_complete(input)
     }
 }
 

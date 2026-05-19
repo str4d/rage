@@ -23,7 +23,7 @@ For more plugins, implementations, tools, and integrations, check out the
 
 | Environment | CLI command |
 |-------------|-------------|
-| Cargo (Rust 1.65+) | `cargo install rage` |
+| Cargo (Rust 1.74+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew install rage` |
 | MacPorts | `port install rage` |
 | Alpine Linux (edge) | `apk add rage` |
@@ -31,7 +31,7 @@ For more plugins, implementations, tools, and integrations, check out the
 | Debian | [Debian packages](https://github.com/str4d/rage/releases) |
 | NixOS | Add to config: `environment.systemPackages = [ pkgs.rage ];`<br>Or run `nix-env -i rage` |
 | openSUSE Tumbleweed | `zypper install rage-encryption` |
-| Ubuntu 20.04+ | [Debian packages](https://github.com/str4d/rage/releases) |
+| Ubuntu 22.04+ | [Debian packages](https://github.com/str4d/rage/releases) |
 | FreeBSD | `pkg install rage-encryption` |
 | Scoop (Windows) | `scoop bucket add main`<br>`scoop install main/rage` |
 

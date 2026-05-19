@@ -548,7 +548,7 @@ impl<R: Read + Seek> StreamReader<R> {
     fn start(&mut self) -> io::Result<u64> {
         match self.start {
             StartPos::Implicit(offset) => {
-                let current = self.inner.seek(SeekFrom::Current(0))?;
+                let current = self.inner.stream_position()?;
                 let start = current - offset;
 
                 // Cache the start for future calls.
@@ -566,7 +566,7 @@ impl<R: Read + Seek> StreamReader<R> {
             None => {
                 // Cache the current position and nonce, and then grab the start and end
                 // ciphertext positions.
-                let cur_pos = self.inner.seek(SeekFrom::Current(0))?;
+                let cur_pos = self.inner.stream_position()?;
                 let cur_nonce = self.stream.nonce.0;
                 let ct_start = self.start()?;
                 let ct_end = self.inner.seek(SeekFrom::End(0))?;
@@ -576,13 +576,22 @@ impl<R: Read + Seek> StreamReader<R> {
                 let num_chunks =
                     (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
 
+                // If we have no ciphertext data then there is no last chunk, which is
+                // invalid.
+                let non_last_chunks = num_chunks.checked_sub(1).ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Last chunk is invalid, stream might be truncated",
+                    )
+                })?;
+
                 // Authenticate the ciphertext length by checking that we can successfully
                 // decrypt the last chunk _as_ a last chunk.
-                let last_chunk_start = ct_start + ((num_chunks - 1) * ENCRYPTED_CHUNK_SIZE as u64);
+                let last_chunk_start = ct_start + (non_last_chunks * ENCRYPTED_CHUNK_SIZE as u64);
                 let mut last_chunk = Vec::with_capacity((ct_end - last_chunk_start) as usize);
                 self.inner.seek(SeekFrom::Start(last_chunk_start))?;
                 self.inner.read_to_end(&mut last_chunk)?;
-                self.stream.nonce.set_counter(num_chunks - 1);
+                self.stream.nonce.set_counter(non_last_chunks);
                 self.stream.decrypt_chunk(&last_chunk, true).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -1040,7 +1049,7 @@ mod tests {
     use age_core::secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{PayloadKey, Stream, CHUNK_SIZE};
+    use super::{PayloadKey, Stream, CHUNK_SIZE, TAG_SIZE};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -1168,12 +1177,10 @@ mod tests {
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
-            loop {
-                match w.as_mut().poll_close(&mut cx) {
-                    Poll::Ready(Ok(())) => break,
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
-                    Poll::Pending => panic!("Unexpected Pending"),
-                }
+            match w.as_mut().poll_close(&mut cx) {
+                Poll::Ready(Ok(())) => (),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Pending => panic!("Unexpected Pending"),
             }
         };
 
@@ -1378,6 +1385,44 @@ mod tests {
             }
             Ok(_) => panic!("This is a security issue."),
         }
+    }
+
+    #[test]
+    fn seek_from_end_with_empty_fails_on_truncation() {
+        // The empty plaintext means we should encrypt to a single chunk.
+        let plaintext: Vec<u8> = b"".to_vec();
+
+        // Encrypt the plaintext just like the example code in the docs.
+        let mut encrypted = vec![];
+        {
+            let mut w = Stream::encrypt(PayloadKey([7; 32].into()), &mut encrypted);
+            w.write_all(&plaintext).unwrap();
+            w.finish().unwrap();
+        };
+        assert_eq!(encrypted.len(), TAG_SIZE);
+
+        // Every truncated length should result in an error.
+        for i in 0..TAG_SIZE {
+            let truncated_ciphertext = &encrypted[..i];
+            let mut truncated_reader = Stream::decrypt(
+                PayloadKey([7; 32].into()),
+                Cursor::new(truncated_ciphertext),
+            );
+            match truncated_reader.seek(SeekFrom::End(0)) {
+                Err(e) => {
+                    assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+                    assert_eq!(
+                        &e.to_string(),
+                        "Last chunk is invalid, stream might be truncated",
+                    );
+                }
+                Ok(_) => panic!("This is a security issue."),
+            }
+        }
+
+        // Decrypting without truncation should show an empty file.
+        let mut reader = Stream::decrypt(PayloadKey([7; 32].into()), Cursor::new(encrypted));
+        assert_eq!(reader.len().unwrap(), 0);
     }
 
     #[test]
