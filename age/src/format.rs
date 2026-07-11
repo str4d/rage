@@ -221,12 +221,7 @@ impl Header {
     pub(crate) fn write<W: Write>(&self, mut output: W) -> io::Result<()> {
         cookie_factory::gen(write::header(self), &mut output)
             .map(|_| ())
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to write header: {}", e),
-                )
-            })
+            .map_err(|e| io::Error::other(format!("failed to write header: {e}")))
     }
 
     #[cfg(feature = "async")]
@@ -235,12 +230,7 @@ impl Header {
         let mut buf = vec![];
         cookie_factory::gen(write::header(self), &mut buf)
             .map(|_| ())
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to write header: {}", e),
-                )
-            })?;
+            .map_err(|e| io::Error::other(format!("failed to write header: {e}")))?;
 
         output.write_all(&buf).await
     }

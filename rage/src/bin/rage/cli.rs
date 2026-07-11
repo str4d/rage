@@ -19,7 +19,7 @@ fn binary_name(suffix: Option<&str>) -> String {
                 .extension()
                 .map(|extension| format!(".{}", extension.to_string_lossy()))
                 .unwrap_or_default();
-            format!("{}{}{}", stem, suffix, extension)
+            format!("{stem}{suffix}{extension}")
         } else {
             path.file_name()
                 .expect("is not directory")
@@ -58,16 +58,11 @@ pub(crate) fn after_help_content(keygen_name: &str) -> String {
 fn after_help() -> String {
     let keygen_name = binary_name(Some("-keygen"));
     let binary_name = binary_name(None);
-    let example_a = format!("$ {} -o key.txt", keygen_name);
+    let example_a = format!("$ {keygen_name} -o key.txt");
     let example_a_output = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
-    let example_b = format!(
-        "$ tar cvz ~/data | {} -r {} > data.tar.gz.age",
-        binary_name, example_a_output,
-    );
-    let example_c = format!(
-        "$ {} -d -i key.txt -o data.tar.gz data.tar.gz.age",
-        binary_name,
-    );
+    let example_b =
+        format!("$ tar cvz ~/data | {binary_name} -r {example_a_output} > data.tar.gz.age",);
+    let example_c = format!("$ {binary_name} -d -i key.txt -o data.tar.gz data.tar.gz.age",);
 
     format!(
         "{}\n\n{}",

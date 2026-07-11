@@ -157,13 +157,13 @@ impl fmt::Display for PluginError {
                 metadata,
                 message,
             } => {
-                write!(f, "({}", kind)?;
+                write!(f, "({kind}")?;
                 for d in metadata {
-                    write!(f, " {}", d)?;
+                    write!(f, " {d}")?;
                 }
                 write!(f, ")")?;
                 if !message.is_empty() {
-                    write!(f, " {}", message)?;
+                    write!(f, " {message}")?;
                 }
                 Ok(())
             }
@@ -286,11 +286,11 @@ impl fmt::Display for EncryptError {
             #[cfg(feature = "plugin")]
             EncryptError::Plugin(errors) => match &errors[..] {
                 [] => unreachable!(),
-                [e] => write!(f, "{}", e),
+                [e] => write!(f, "{e}"),
                 _ => {
                     wlnfl!(f, "err-plugin-multiple")?;
                     for e in errors {
-                        writeln!(f, "- {}", e)?;
+                        writeln!(f, "- {e}")?;
                     }
                     Ok(())
                 }
@@ -388,11 +388,11 @@ impl fmt::Display for DecryptError {
             #[cfg(feature = "plugin")]
             DecryptError::Plugin(errors) => match &errors[..] {
                 [] => unreachable!(),
-                [e] => write!(f, "{}", e),
+                [e] => write!(f, "{e}"),
                 _ => {
                     wlnfl!(f, "err-plugin-multiple")?;
                     for e in errors {
-                        writeln!(f, "- {}", e)?;
+                        writeln!(f, "- {e}")?;
                     }
                     Ok(())
                 }

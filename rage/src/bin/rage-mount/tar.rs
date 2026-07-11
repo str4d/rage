@@ -25,8 +25,7 @@ fn tar_to_filetype<R: Read>(entry: &Entry<R>) -> Option<FileType> {
 }
 
 fn tar_to_fuse<R: Read>(entry: &Entry<R>) -> io::Result<FileAttr> {
-    let kind = tar_to_filetype(entry)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unsupported filetype"))?;
+    let kind = tar_to_filetype(entry).ok_or_else(|| io::Error::other("Unsupported filetype"))?;
     let perm = (entry.header().mode()? & 0o7777) as u16;
 
     let mtime = SystemTime::UNIX_EPOCH + Duration::new(entry.header().mtime()?, 0);

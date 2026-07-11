@@ -190,7 +190,7 @@ impl fmt::Display for Recipient {
 
 impl fmt::Debug for Recipient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 

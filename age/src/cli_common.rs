@@ -66,7 +66,7 @@ fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool
     } else {
         // Fall back to CLI interface.
         let term = console::Term::stderr();
-        let initial = format!("{}: (y/n) ", query);
+        let initial = format!("{query}: (y/n) ");
         loop {
             term.write_str(&initial)?;
             let response = term.read_line()?.to_lowercase();
@@ -125,10 +125,10 @@ pub fn read_secret(
         input.interact()
     } else {
         // Fall back to CLI interface.
-        let passphrase = prompt_password(format!("{}: ", description)).map(SecretString::from)?;
+        let passphrase = prompt_password(format!("{description}: ")).map(SecretString::from)?;
         if let Some(confirm_prompt) = confirm {
             let confirm_passphrase =
-                prompt_password(format!("{}: ", confirm_prompt)).map(SecretString::from)?;
+                prompt_password(format!("{confirm_prompt}: ")).map(SecretString::from)?;
 
             if !bool::from(
                 passphrase
@@ -155,7 +155,7 @@ pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
     fn display_message(&self, message: &str) {
-        eprintln!("{}", message);
+        eprintln!("{message}");
     }
 
     fn confirm(&self, message: &str, yes_string: &str, no_string: Option<&str>) -> Option<bool> {

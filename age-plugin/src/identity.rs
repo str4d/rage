@@ -227,8 +227,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                 ([identity], []) => Ok(identity.clone()),
                 _ => Err(Error::Internal {
                     message: format!(
-                        "{} command must have exactly one metadata argument and no data",
-                        ADD_IDENTITY
+                        "{ADD_IDENTITY} command must have exactly one metadata argument and no data"
                     ),
                 }),
             }),
@@ -241,15 +240,13 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                         .map(|i| (i, s))
                         .map_err(|_| Error::Internal {
                             message: format!(
-                                "first metadata argument to {} must be an integer",
-                                RECIPIENT_STANZA
+                                "first metadata argument to {RECIPIENT_STANZA} must be an integer"
                             ),
                         })
                 } else {
                     Err(Error::Internal {
                         message: format!(
-                            "{} command must have at least two metadata arguments",
-                            RECIPIENT_STANZA
+                            "{RECIPIENT_STANZA} command must have at least two metadata arguments"
                         ),
                     })
                 }
@@ -313,8 +310,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                 } else {
                     errors.push(Error::Internal {
                         message: format!(
-                            "{} file indices are not ordered and monotonically increasing",
-                            RECIPIENT_STANZA
+                            "{RECIPIENT_STANZA} file indices are not ordered and monotonically increasing"
                         ),
                     });
                 }
@@ -355,7 +351,7 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                     phase
                         .send(
                             "file-key",
-                            &[&format!("{}", file_index)],
+                            &[&format!("{file_index}")],
                             file_key.expose_secret(),
                         )?
                         .unwrap();

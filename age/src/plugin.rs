@@ -51,10 +51,13 @@ fn valid_plugin_name(plugin_name: &str) -> bool {
 }
 
 fn binary_name(plugin_name: &str) -> String {
-    format!("age-plugin-{}", plugin_name)
+    format!("age-plugin-{plugin_name}")
 }
 
-struct SlowPluginGuard(mpsc::Sender<()>);
+/// A guard that keeps the timer thread (started by [`SlowPluginGuard::new`])
+/// alive. The held [`mpsc::Sender`] is never read; it exists solely so that
+/// dropping the guard disconnects the channel, signalling the thread to stop.
+struct SlowPluginGuard(#[allow(dead_code)] mpsc::Sender<()>);
 
 impl SlowPluginGuard {
     /// Starts a thread to print out a progress message after 10 seconds if the plugin
@@ -202,7 +205,7 @@ impl Identity {
     pub fn default_for_plugin(plugin_name: &str) -> Result<Self, ResolveError> {
         if valid_plugin_name(plugin_name) {
             Ok(bech32_encode(
-                Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+                Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}{plugin_name}-")),
                 &[],
             )
             .to_uppercase()
@@ -240,7 +243,7 @@ impl Plugin {
             // the Windows host are available to us, but `which` only trials PATHEXT
             // extensions automatically when compiled for Windows.
             if wsl::is_wsl() {
-                which::which(format!("{}.exe", binary_name)).map_err(|_| e)
+                which::which(format!("{binary_name}.exe")).map_err(|_| e)
             } else {
                 Err(e)
             }
@@ -333,10 +336,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
             errors.push(PluginError::Other {
                 kind: "internal".to_owned(),
                 metadata: vec![],
-                message: format!(
-                    "{} command must have at least one metadata argument",
-                    CMD_CONFIRM
-                ),
+                message: format!("{CMD_CONFIRM} command must have at least one metadata argument"),
             });
             return reply.fail();
         }
@@ -345,8 +345,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
                 kind: "internal".to_owned(),
                 metadata: vec![],
                 message: format!(
-                    "The first two metadata arguments to the {} command must be Base64-encoded",
-                    CMD_CONFIRM
+                    "The first two metadata arguments to the {CMD_CONFIRM} command must be Base64-encoded"
                 ),
             });
             return reply.fail();
@@ -492,8 +491,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                             kind: "internal".to_owned(),
                             metadata: vec![],
                             message: format!(
-                                "{} command must have at least two metadata arguments",
-                                CMD_RECIPIENT_STANZA
+                                "{CMD_RECIPIENT_STANZA} command must have at least two metadata arguments"
                             ),
                         });
                     }
@@ -510,8 +508,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                                 kind: "internal".to_owned(),
                                 metadata: vec![],
                                 message: format!(
-                                    "{} command must not contain duplicate labels",
-                                    CMD_LABELS
+                                    "{CMD_LABELS} command must not contain duplicate labels"
                                 ),
                             });
                         }
@@ -520,8 +517,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                             kind: "internal".to_owned(),
                             metadata: vec![],
                             message: format!(
-                                "{} command must not be sent more than once",
-                                CMD_LABELS
+                                "{CMD_LABELS} command must not be sent more than once"
                             ),
                         });
                     }
@@ -811,10 +807,7 @@ mod tests {
     #[test]
     fn recipient_rejects_invalid_chars() {
         let invalid_recipient = bech32_encode(
-            Hrp::parse_unchecked(&format!(
-                "{}{}",
-                PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME
-            )),
+            Hrp::parse_unchecked(&format!("{PLUGIN_RECIPIENT_PREFIX}{INVALID_PLUGIN_NAME}")),
             &[],
         );
         assert!(invalid_recipient.parse::<Recipient>().is_err());
@@ -823,7 +816,7 @@ mod tests {
     #[test]
     fn identity_rejects_empty_name() {
         let invalid_identity = bech32_encode(
-            Hrp::parse_unchecked(&format!("{}-", PLUGIN_IDENTITY_PREFIX)),
+            Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}-")),
             &[],
         )
         .to_uppercase();
@@ -833,10 +826,7 @@ mod tests {
     #[test]
     fn identity_rejects_invalid_chars() {
         let invalid_identity = bech32_encode(
-            Hrp::parse_unchecked(&format!(
-                "{}{}-",
-                PLUGIN_IDENTITY_PREFIX, INVALID_PLUGIN_NAME
-            )),
+            Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}{INVALID_PLUGIN_NAME}-")),
             &[],
         )
         .to_uppercase();

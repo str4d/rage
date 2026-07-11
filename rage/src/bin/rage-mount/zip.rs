@@ -96,16 +96,13 @@ impl AgeZipFs {
         stream: StreamReader<ArmoredReader<BufReader<File>>>,
         destroy_tx: mpsc::SyncSender<()>,
     ) -> io::Result<Self> {
-        let mut archive =
-            ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut archive = ZipArchive::new(stream).map_err(io::Error::other)?;
 
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root
         for i in 0..archive.len() {
-            let zf = archive
-                .by_index(i)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            let zf = archive.by_index(i).map_err(io::Error::other)?;
             if let Some(path) = zf.enclosed_name() {
                 add_dir_to_map(&mut dir_map, &path, zipfile_to_filetype(&zf));
             }

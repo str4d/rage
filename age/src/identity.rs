@@ -342,44 +342,44 @@ pub(crate) mod tests {
 
     #[test]
     fn secret_key_lf() {
-        valid_secret_key_encoding(&format!("{}\n", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("{TEST_SK}\n"), 1);
     }
 
     #[test]
     fn two_secret_keys_lf() {
-        valid_secret_key_encoding(&format!("{}\n{}", TEST_SK, TEST_SK), 2);
+        valid_secret_key_encoding(&format!("{TEST_SK}\n{TEST_SK}"), 2);
     }
 
     #[test]
     fn secret_key_with_comment_lf() {
-        valid_secret_key_encoding(&format!("# Foo bar baz\n{}", TEST_SK), 1);
-        valid_secret_key_encoding(&format!("{}\n# Foo bar baz", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("# Foo bar baz\n{TEST_SK}"), 1);
+        valid_secret_key_encoding(&format!("{TEST_SK}\n# Foo bar baz"), 1);
     }
 
     #[test]
     fn secret_key_with_empty_line_lf() {
-        valid_secret_key_encoding(&format!("\n\n{}", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("\n\n{TEST_SK}"), 1);
     }
 
     #[test]
     fn secret_key_crlf() {
-        valid_secret_key_encoding(&format!("{}\r\n", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("{TEST_SK}\r\n"), 1);
     }
 
     #[test]
     fn two_secret_keys_crlf() {
-        valid_secret_key_encoding(&format!("{}\r\n{}", TEST_SK, TEST_SK), 2);
+        valid_secret_key_encoding(&format!("{TEST_SK}\r\n{TEST_SK}"), 2);
     }
 
     #[test]
     fn secret_key_with_comment_crlf() {
-        valid_secret_key_encoding(&format!("# Foo bar baz\r\n{}", TEST_SK), 1);
-        valid_secret_key_encoding(&format!("{}\r\n# Foo bar baz", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("# Foo bar baz\r\n{TEST_SK}"), 1);
+        valid_secret_key_encoding(&format!("{TEST_SK}\r\n# Foo bar baz"), 1);
     }
 
     #[test]
     fn secret_key_with_empty_line_crlf() {
-        valid_secret_key_encoding(&format!("\r\n\r\n{}", TEST_SK), 1);
+        valid_secret_key_encoding(&format!("\r\n\r\n{TEST_SK}"), 1);
     }
 
     #[test]

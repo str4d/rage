@@ -203,7 +203,7 @@ impl Cli {
             cmd: Command,
             custom: impl FnOnce(&Man, &mut GzEncoder<fs::File>) -> io::Result<()>,
         ) -> io::Result<()> {
-            let file = fs::File::create(out_dir.join(format!("{}.1.gz", name)))?;
+            let file = fs::File::create(out_dir.join(format!("{name}.1.gz")))?;
             let mut w = GzEncoder::new(file, Compression::best());
 
             let man = Man::new(cmd);

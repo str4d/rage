@@ -247,7 +247,7 @@ fn expand_key(
 
 fn p256_random_scalar(seed: &[u8; 128]) -> p256::SecretKey {
     for sk in seed.chunks_exact(32) {
-        if let Ok(sk) = p256::SecretKey::from_bytes(sk.try_into().expect("correct length")) {
+        if let Ok(sk) = p256::SecretKey::from_bytes(sk.into()) {
             return sk;
         }
     }

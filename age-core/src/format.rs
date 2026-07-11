@@ -523,7 +523,7 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.
@@ -560,7 +560,7 @@ dy
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.
@@ -596,7 +596,7 @@ ddd
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.
