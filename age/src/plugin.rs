@@ -11,7 +11,7 @@ use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use bech32::Hrp;
 
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::io;
 use std::iter;
@@ -414,7 +414,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError> {
         // Open connection
         let mut conn = self.plugin.connect(RECIPIENT_V1)?;
 
@@ -502,7 +502,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                 CMD_LABELS => {
                     if labels.is_none() {
                         let labels_count = command.args.len();
-                        let label_set = command.args.into_iter().collect::<HashSet<_>>();
+                        let label_set = command.args.into_iter().collect::<BTreeSet<_>>();
                         if label_set.len() == labels_count {
                             labels = Some(label_set);
                         } else {

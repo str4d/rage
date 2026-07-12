@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use hkdf::Hkdf;
 use sha2::{Digest, Sha256};
@@ -20,6 +20,6 @@ fn stanza_tag(ikm: &[u8], salt: &str) -> [u8; 4] {
     tag[..4].try_into().expect("correct length")
 }
 
-fn label_pq_only() -> HashSet<String> {
+fn label_pq_only() -> BTreeSet<String> {
     ["postquantum".into()].into_iter().collect()
 }

@@ -1,6 +1,6 @@
 //! The "scrypt" passphrase-based recipient type, native to age.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::iter;
 use std::time::Duration;
 
@@ -138,7 +138,7 @@ impl crate::Recipient for Recipient {
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
-    ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
+    ) -> Result<(Vec<Stanza>, BTreeSet<String>), EncryptError> {
         let mut rng = OsRng;
 
         let mut salt = [0; SALT_LEN];
