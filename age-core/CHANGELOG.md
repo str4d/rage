@@ -8,6 +8,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-13
 ### Added
 - `age_core::primitives`:
   - `bech32_encode`

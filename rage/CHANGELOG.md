@@ -11,6 +11,8 @@ to 1.0.0 are beta releases.
 [age crate]: ../age/CHANGELOG.md
 
 ## [Unreleased]
+
+## [0.12.0] - 2026-07-13
 ### Added
 - Support for the new native age recipient types:
   - `age1tag1..`
