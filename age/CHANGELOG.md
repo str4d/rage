@@ -9,6 +9,8 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+
+## [0.12.0] - 2026-07-13
 ### Added
 - Support for new native age recipient types:
   - `age::tag::Recipient` (encryption-only)

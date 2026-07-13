@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.11.4"
+version = "0.12.0"
 dependencies = [
  "age-core",
  "base64",
@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "bech32",
