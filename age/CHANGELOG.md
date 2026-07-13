@@ -10,6 +10,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Added
+- Support for new native age recipient types:
+  - `age::pq`
+
 ### Changed
 - MSRV is now 1.85.0.
 - Migrated to `chacha20poly1305 0.11`, `curve25519-dalek 5`, `hmac 0.13`,

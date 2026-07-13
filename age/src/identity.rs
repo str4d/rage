@@ -6,7 +6,7 @@ use std::{
 use zeroize::Zeroize;
 
 use crate::{
-    Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks,
+    Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks, pq,
     util::LimitedReader, x25519,
 };
 
@@ -21,8 +21,10 @@ const IDENTITY_SIZE_LIMIT: usize = 1 << 24; // 16 MiB
 /// The supported kinds of identities within an [`IdentityFile`].
 #[derive(Clone)]
 enum IdentityFileEntry {
-    /// The standard age identity type.
-    Native(x25519::Identity),
+    /// The classic age identity type.
+    Classic(x25519::Identity),
+    /// The "pq" age identity type.
+    Pq(pq::Identity),
     /// A plugin-compatible identity.
     #[cfg(feature = "plugin")]
     #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
@@ -36,7 +38,8 @@ impl IdentityFileEntry {
         callbacks: impl Callbacks,
     ) -> Result<Box<dyn crate::Identity + Send + Sync>, DecryptError> {
         match self {
-            IdentityFileEntry::Native(i) => Ok(Box::new(i)),
+            IdentityFileEntry::Classic(i) => Ok(Box::new(i)),
+            IdentityFileEntry::Pq(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(
                 crate::plugin::Plugin::new(i.plugin())
@@ -89,50 +92,47 @@ impl IdentityFile<NoCallbacks> {
                 continue;
             }
 
-            match line.parse::<x25519::Identity>() {
-                Ok(identity) => {
-                    identities.push(IdentityFileEntry::Native(identity));
+            if let Ok(identity) = line.parse::<x25519::Identity>() {
+                identities.push(IdentityFileEntry::Classic(identity));
+            } else if let Ok(identity) = line.parse::<pq::Identity>() {
+                identities.push(IdentityFileEntry::Pq(identity));
+            } else if let Some(identity) = {
+                #[cfg(feature = "plugin")]
+                {
+                    line.parse::<plugin::Identity>().ok()
                 }
-                _ => {
-                    if let Some(identity) = {
-                        #[cfg(feature = "plugin")]
-                        {
-                            line.parse::<plugin::Identity>().ok()
-                        }
 
-                        #[cfg(not(feature = "plugin"))]
-                        None
-                    } {
-                        #[cfg(feature = "plugin")]
-                        {
-                            identities.push(IdentityFileEntry::Plugin(identity));
-                        }
+                #[cfg(not(feature = "plugin"))]
+                None
+            } {
+                #[cfg(feature = "plugin")]
+                {
+                    identities.push(IdentityFileEntry::Plugin(identity));
+                }
 
-                        // Add a binding to provide a type when plugins are disabled.
-                        #[cfg(not(feature = "plugin"))]
-                        let _: () = identity;
+                // Add a binding to provide a type when plugins are disabled.
+                #[cfg(not(feature = "plugin"))]
+                let _: () = identity;
+            } else {
+                line.zeroize();
+
+                // Return a line number in place of the line, so we don't leak the file
+                // contents in error messages.
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    if let Some(filename) = filename {
+                        format!(
+                            "identity file {} contains non-identity data on line {}",
+                            filename,
+                            line_number + 1
+                        )
                     } else {
-                        line.zeroize();
-
-                        // Return a line number in place of the line, so we don't leak the file
-                        // contents in error messages.
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            if let Some(filename) = filename {
-                                format!(
-                                    "identity file {} contains non-identity data on line {}",
-                                    filename,
-                                    line_number + 1
-                                )
-                            } else {
-                                format!(
-                                    "identity file contains non-identity data on line {}",
-                                    line_number + 1
-                                )
-                            },
-                        ));
-                    }
-                }
+                        format!(
+                            "identity file contains non-identity data on line {}",
+                            line_number + 1
+                        )
+                    },
+                ));
             }
 
             line.zeroize();
@@ -174,7 +174,9 @@ impl<C: Callbacks> IdentityFile<C> {
 
         for identity in &self.identities {
             match identity {
-                IdentityFileEntry::Native(sk) => writeln!(output, "{}", sk.to_public())
+                IdentityFileEntry::Classic(sk) => writeln!(output, "{}", sk.to_public())
+                    .map_err(IdentityFileConvertError::FailedToWriteOutput)?,
+                IdentityFileEntry::Pq(i) => writeln!(output, "{}", i.to_public())
                     .map_err(IdentityFileConvertError::FailedToWriteOutput)?,
                 #[cfg(feature = "plugin")]
                 IdentityFileEntry::Plugin(id) => {
@@ -265,7 +267,8 @@ impl RecipientsAccumulator {
     pub(crate) fn with_identities<C: Callbacks>(&mut self, identity_file: IdentityFile<C>) {
         for entry in identity_file.identities {
             match entry {
-                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Classic(i) => self.recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Pq(i) => self.recipients.push(Box::new(i.to_public())),
                 #[cfg(feature = "plugin")]
                 IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i),
             }
@@ -275,7 +278,8 @@ impl RecipientsAccumulator {
     pub(crate) fn with_identities_ref<C: Callbacks>(&mut self, identity_file: &IdentityFile<C>) {
         for entry in &identity_file.identities {
             match entry {
-                IdentityFileEntry::Native(i) => self.recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Classic(i) => self.recipients.push(Box::new(i.to_public())),
+                IdentityFileEntry::Pq(i) => self.recipients.push(Box::new(i.to_public())),
                 #[cfg(feature = "plugin")]
                 IdentityFileEntry::Plugin(i) => self.plugin_identities.push(i.clone()),
             }
@@ -332,9 +336,10 @@ pub(crate) mod tests {
         let f = IdentityFile::from_buffer(buf).unwrap();
         assert_eq!(f.identities.len(), num_keys);
         match &f.identities[0] {
-            IdentityFileEntry::Native(identity) => {
+            IdentityFileEntry::Classic(identity) => {
                 assert_eq!(identity.to_string().expose_secret(), TEST_SK)
             }
+            IdentityFileEntry::Pq(_) => panic!(),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(_) => panic!(),
         }

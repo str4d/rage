@@ -2,7 +2,9 @@ use std::io::{self, BufReader};
 
 use super::StdinGuard;
 use super::{ReadError, identities::parse_identity_files};
-use crate::{Recipient, identity::RecipientsAccumulator, tag, tagpq, util::LimitedReader, x25519};
+use crate::{
+    Recipient, identity::RecipientsAccumulator, pq, tag, tagpq, util::LimitedReader, x25519,
+};
 
 #[cfg(feature = "plugin")]
 use crate::{cli_common::UiCallbacks, plugin};
@@ -57,6 +59,8 @@ fn parse_recipient(
     recipients: &mut RecipientsAccumulator,
 ) -> Result<(), ReadError> {
     if let Ok(pk) = s.parse::<x25519::Recipient>() {
+        recipients.push(Box::new(pk));
+    } else if let Ok(pk) = s.parse::<pq::Recipient>() {
         recipients.push(Box::new(pk));
     } else if let Ok(pk) = s.parse::<tag::Recipient>() {
         recipients.push(Box::new(pk));

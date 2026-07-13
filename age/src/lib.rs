@@ -9,8 +9,8 @@
 //! - For most cases (including programmatic usage):
 //!   - Use [`Encryptor::with_recipients`] with a compatible set of recipients:
 //!     - Classic: [`x25519::Recipient`] and/or [`tag::Recipient`].
-//!     - Post-quantum: [`tagpq::Recipient`].
-//!   - Use [`Decryptor`] with [`x25519::Identity`].
+//!     - Post-quantum: [`pq::Recipient`] and/or [`tagpq::Recipient`].
+//!   - Use [`Decryptor`] with [`pq::Recipient`] and/or [`x25519::Identity`].
 //! - For passphrase-based encryption and decryption, use [`scrypt::Recipient`] and
 //!   [`scrypt::Identity`], or the helper method [`Encryptor::with_user_passphrase`].
 //!   These should only be used with passphrases that were provided by (or generated for)
@@ -253,6 +253,7 @@ pub use simple::encrypt_and_armor;
 //
 
 mod native;
+pub use native::pq;
 pub use native::scrypt;
 pub use native::tag;
 pub use native::tagpq;
