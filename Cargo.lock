@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.11.3"
+version = "0.11.4"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2194,7 +2194,7 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rage"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "age",
  "chrono",

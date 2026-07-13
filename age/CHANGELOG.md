@@ -40,6 +40,11 @@ to 1.0.0 are beta releases.
   - `age::EncryptError::MissingPlugin`
   - `age::cli_common::ReadError::MissingPlugin`
 
+## [0.11.4] - 2026-07-13
+### Fixed
+- Parsing of recipient and identity files now returns an error if the input is
+  larger than the limit, instead of silently truncating.
+
 ## [0.11.3] - 2026-04-22
 ### Changed
 - Recipient and identity files (parsed via `age::IdentityFile` or

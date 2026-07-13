@@ -8,17 +8,40 @@ pub(crate) const LINE_ENDING: &str = "\n";
 pub(crate) struct LimitedReader<R> {
     inner: R,
     n: usize,
+    limit_exceeded: bool,
 }
 impl<R> LimitedReader<R> {
     pub(crate) fn new(reader: R, n: usize) -> Self {
-        Self { inner: reader, n }
+        Self {
+            inner: reader,
+            n,
+            limit_exceeded: false,
+        }
+    }
+
+    fn limit_exceeded() -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, "reader exceeded size limit")
     }
 }
 
 impl<R: io::Read> io::Read for LimitedReader<R> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        if self.limit_exceeded {
+            return Err(Self::limit_exceeded());
+        }
+
         if self.n == 0 {
-            Ok(0)
+            let mut probe = [0];
+            if self.inner.read(&mut probe)? == 0 {
+                Ok(0)
+            } else {
+                self.limit_exceeded = true;
+                Err(Self::limit_exceeded())
+            }
         } else {
             if buf.len() > self.n {
                 buf = &mut buf[..self.n];
@@ -32,8 +55,17 @@ impl<R: io::Read> io::Read for LimitedReader<R> {
 
 impl<R: io::BufRead> io::BufRead for LimitedReader<R> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.limit_exceeded {
+            return Err(Self::limit_exceeded());
+        }
+
         if self.n == 0 {
-            Ok(&[])
+            if self.inner.fill_buf()?.is_empty() {
+                Ok(&[])
+            } else {
+                self.limit_exceeded = true;
+                Err(Self::limit_exceeded())
+            }
         } else {
             let buf = self.inner.fill_buf()?;
             Ok(&buf[..buf.len().min(self.n)])
@@ -43,6 +75,54 @@ impl<R: io::BufRead> io::BufRead for LimitedReader<R> {
     fn consume(&mut self, amount: usize) {
         self.n -= amount;
         self.inner.consume(amount);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LimitedReader;
+    use std::io::{self, BufRead, Cursor, Read};
+
+    #[test]
+    fn limited_reader_read() {
+        for (input, limit) in [(&b"abc"[..], 4), (&b"abc"[..], 3)] {
+            let mut output = vec![];
+            LimitedReader::new(input, limit)
+                .read_to_end(&mut output)
+                .unwrap();
+            assert_eq!(output, input);
+        }
+
+        let mut output = vec![];
+        let mut reader = LimitedReader::new(&b"abcd"[..], 3);
+        let err = reader.read_to_end(&mut output).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(output, b"abc");
+        assert_eq!(
+            reader.read(&mut [0]).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
+    }
+
+    #[test]
+    fn limited_reader_bufread() {
+        for (input, limit) in [(&b"abc"[..], 4), (&b"abc"[..], 3)] {
+            let mut output = vec![];
+            LimitedReader::new(Cursor::new(input), limit)
+                .read_until(b'\n', &mut output)
+                .unwrap();
+            assert_eq!(output, input);
+        }
+
+        let mut output = vec![];
+        let mut reader = LimitedReader::new(Cursor::new(&b"abcd"[..]), 3);
+        let err = reader.read_until(b'\n', &mut output).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(output, b"abc");
+        assert_eq!(
+            reader.fill_buf().unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
     }
 }
 
