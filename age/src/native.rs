@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use hkdf::Hkdf;
 use sha2::{Digest, Sha256};
 
+pub mod pq;
 pub mod scrypt;
 pub mod tag;
 pub mod tagpq;

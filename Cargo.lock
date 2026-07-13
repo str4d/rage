@@ -1386,6 +1386,7 @@ checksum = "34d620bb85b79e01a3447fa82ac496a7b8e1c4e63d961c18593f0a80f2f4741b"
 dependencies = [
  "aead",
  "chacha20poly1305",
+ "curve25519-dalek",
  "hkdf",
  "hybrid-array",
  "ml-kem",
@@ -1399,6 +1400,7 @@ dependencies = [
  "subtle",
  "turboshake",
  "x-wing",
+ "x25519-dalek",
  "zeroize",
 ]
 

@@ -50,7 +50,7 @@ bech32.workspace = true
 cipher = { version = "0.5", features = ["alloc"] }
 cookie-factory.workspace = true
 hkdf.workspace = true
-hpke = { workspace = true, features = ["mlkem", "nistp"] }
+hpke = { workspace = true, features = ["mlkem", "nistp", "x25519"] }
 i18n-embed-fl.workspace = true
 ml-kem.workspace = true
 nom.workspace = true

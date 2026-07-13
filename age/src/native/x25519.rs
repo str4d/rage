@@ -31,7 +31,9 @@ pub(crate) const EPK_LEN_BYTES: usize = 32;
 pub(crate) const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
 /// The classic age identity type, which can decrypt files encrypted to the corresponding
-/// [`Recipient`].
+/// [`Recipient`]. For post-quantum resistance, use [pq::Identity].
+///
+/// [pq::Identity]: crate::pq::Identity
 #[derive(Clone)]
 pub struct Identity(StaticSecret);
 
@@ -150,10 +152,12 @@ impl crate::Identity for Identity {
 }
 
 /// The classic age recipient type. Files encrypted to this recipient can be decrypted
-/// with the corresponding [`Identity`].
+/// with the corresponding [`Identity`]. For post-quantum resistance, use [pq::Recipient].
 ///
 /// This recipient type is anonymous, in the sense that an attacker can't tell from the
 /// age-encrypted file alone if it is encrypted to a certain recipient.
+///
+/// [pq::Recipient]: crate::pq::Recipient
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Recipient(PublicKey);
 
