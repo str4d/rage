@@ -6,8 +6,8 @@ use std::{
 use zeroize::Zeroize;
 
 use crate::{
-    util::LimitedReader, x25519, Callbacks, DecryptError, EncryptError, IdentityFileConvertError,
-    NoCallbacks,
+    Callbacks, DecryptError, EncryptError, IdentityFileConvertError, NoCallbacks,
+    util::LimitedReader, x25519,
 };
 
 #[cfg(feature = "cli-common")]
@@ -89,45 +89,50 @@ impl IdentityFile<NoCallbacks> {
                 continue;
             }
 
-            if let Ok(identity) = line.parse::<x25519::Identity>() {
-                identities.push(IdentityFileEntry::Native(identity));
-            } else if let Some(identity) = {
-                #[cfg(feature = "plugin")]
-                {
-                    line.parse::<plugin::Identity>().ok()
+            match line.parse::<x25519::Identity>() {
+                Ok(identity) => {
+                    identities.push(IdentityFileEntry::Native(identity));
                 }
+                _ => {
+                    if let Some(identity) = {
+                        #[cfg(feature = "plugin")]
+                        {
+                            line.parse::<plugin::Identity>().ok()
+                        }
 
-                #[cfg(not(feature = "plugin"))]
-                None
-            } {
-                #[cfg(feature = "plugin")]
-                {
-                    identities.push(IdentityFileEntry::Plugin(identity));
-                }
+                        #[cfg(not(feature = "plugin"))]
+                        None
+                    } {
+                        #[cfg(feature = "plugin")]
+                        {
+                            identities.push(IdentityFileEntry::Plugin(identity));
+                        }
 
-                // Add a binding to provide a type when plugins are disabled.
-                #[cfg(not(feature = "plugin"))]
-                let _: () = identity;
-            } else {
-                line.zeroize();
-
-                // Return a line number in place of the line, so we don't leak the file
-                // contents in error messages.
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    if let Some(filename) = filename {
-                        format!(
-                            "identity file {} contains non-identity data on line {}",
-                            filename,
-                            line_number + 1
-                        )
+                        // Add a binding to provide a type when plugins are disabled.
+                        #[cfg(not(feature = "plugin"))]
+                        let _: () = identity;
                     } else {
-                        format!(
-                            "identity file contains non-identity data on line {}",
-                            line_number + 1
-                        )
-                    },
-                ));
+                        line.zeroize();
+
+                        // Return a line number in place of the line, so we don't leak the file
+                        // contents in error messages.
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            if let Some(filename) = filename {
+                                format!(
+                                    "identity file {} contains non-identity data on line {}",
+                                    filename,
+                                    line_number + 1
+                                )
+                            } else {
+                                format!(
+                                    "identity file contains non-identity data on line {}",
+                                    line_number + 1
+                                )
+                            },
+                        ));
+                    }
+                }
             }
 
             line.zeroize();

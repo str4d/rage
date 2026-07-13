@@ -6,7 +6,7 @@ use age_core::{
     primitives::bech32_decode,
     secrecy::{ExposeSecret, SecretString},
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 
 use std::collections::HashMap;
 use std::convert::Infallible;

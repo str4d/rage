@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 
 use crate::{
-    format::{grease_the_joint, read, write, Stanza},
+    format::{Stanza, grease_the_joint, read, write},
     io::{DebugReader, DebugWriter},
 };
 
@@ -174,7 +174,7 @@ impl<R: Read, W: Write> Connection<R, W> {
         Ok(stanza)
     }
 
-    fn grease_gun(&mut self) -> impl Iterator<Item = Stanza> {
+    fn grease_gun(&mut self) -> impl Iterator<Item = Stanza> + use<R, W> {
         // Add 5% grease
         let mut rng = rand::rng();
         (0..2).filter_map(move |_| {

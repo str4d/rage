@@ -2,8 +2,8 @@
 
 use age_core::secrecy::{ExposeSecret, SecretSlice};
 use chacha20poly1305::{
-    aead::{array::Array, Aead, KeyInit, KeySizeUser},
     ChaCha20Poly1305,
+    aead::{Aead, KeyInit, KeySizeUser, array::Array},
 };
 use pin_project::pin_project;
 use std::cmp;
@@ -512,10 +512,10 @@ impl<R: AsyncRead + Unpin> AsyncRead for StreamReader<R> {
         if self.chunk.is_none() {
             while self.encrypted_pos < ENCRYPTED_CHUNK_SIZE {
                 let this = self.as_mut().project();
-                match ready!(this
-                    .inner
-                    .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..]))
-                {
+                match ready!(
+                    this.inner
+                        .poll_read(cx, &mut this.encrypted_chunk[*this.encrypted_pos..])
+                ) {
                     Ok(0) => break,
                     Ok(n) => self.encrypted_pos += n,
                     Err(e) => match e.kind() {
@@ -685,7 +685,7 @@ mod tests {
     use age_core::secrecy::ExposeSecret;
     use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
-    use super::{PayloadKey, Stream, CHUNK_SIZE, TAG_SIZE};
+    use super::{CHUNK_SIZE, PayloadKey, Stream, TAG_SIZE};
 
     #[cfg(feature = "async")]
     use futures::{

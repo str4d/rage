@@ -1,14 +1,14 @@
 #![forbid(unsafe_code)]
 
 use age::{
+    Identity,
     armor::{ArmoredReader, ArmoredWriter, Format},
     cli_common::{
-        file_io, read_identities, read_or_generate_passphrase, read_recipients, read_secret,
-        Passphrase, StdinGuard, UiCallbacks,
+        Passphrase, StdinGuard, UiCallbacks, file_io, read_identities, read_or_generate_passphrase,
+        read_recipients, read_secret,
     },
     plugin, scrypt,
     secrecy::ExposeSecret,
-    Identity,
 };
 use clap::{CommandFactory, Parser};
 use i18n_embed::DesktopLanguageRequester;

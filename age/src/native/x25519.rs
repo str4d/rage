@@ -4,13 +4,13 @@ use std::collections::HashSet;
 use std::fmt;
 
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{
         aead_decrypt, aead_encrypt, bech32_decode, bech32_encode, bech32_encode_to_fmt, hkdf,
     },
     secrecy::{ExposeSecret, SecretString},
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use rand::{rand_core::UnwrapErr, rngs::SysRng};
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};

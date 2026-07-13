@@ -5,16 +5,16 @@ use std::iter;
 use std::time::Duration;
 
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{aead_decrypt, aead_encrypt},
     secrecy::{ExposeSecret, SecretString},
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use rand::{
+    Rng,
     distr::{Alphanumeric, SampleString},
     rand_core::UnwrapErr,
     rngs::SysRng,
-    Rng,
 };
 use zeroize::Zeroize;
 

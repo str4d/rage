@@ -180,7 +180,7 @@
 
 use age_core::{
     primitives::bech32_encode,
-    secrecy::{zeroize::Zeroize, SecretString},
+    secrecy::{SecretString, zeroize::Zeroize},
 };
 use bech32::Hrp;
 use std::io;

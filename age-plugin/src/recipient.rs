@@ -1,12 +1,12 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{is_arbitrary_string, FileKey, Stanza},
+    format::{FileKey, Stanza, is_arbitrary_string},
     plugin::{self, BidirSend, Connection},
     primitives::bech32_decode,
     secrecy::SecretString,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 
 use std::collections::HashSet;
 use std::convert::Infallible;
@@ -39,7 +39,7 @@ pub trait RecipientPluginV1 {
     ///
     /// Returns an error if the recipient is unknown or invalid.
     fn add_recipient(&mut self, index: usize, plugin_name: &str, bytes: &[u8])
-        -> Result<(), Error>;
+    -> Result<(), Error>;
 
     /// Stores an identity that the user would like to encrypt age files to.
     ///

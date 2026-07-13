@@ -8,10 +8,11 @@ use std::{
 };
 
 use age::{
+    DecryptError, Decryptor, Identity,
     armor::{ArmoredReadError, ArmoredReader},
     scrypt,
     secrecy::SecretString,
-    x25519, DecryptError, Decryptor, Identity,
+    x25519,
 };
 use futures::AsyncReadExt;
 use sha2::{Digest, Sha256};

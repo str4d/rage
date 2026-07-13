@@ -2,7 +2,7 @@
 
 use age::{
     armor::ArmoredReader,
-    cli_common::{read_identities, read_secret, StdinGuard},
+    cli_common::{StdinGuard, read_identities, read_secret},
     scrypt,
     stream::StreamReader,
 };

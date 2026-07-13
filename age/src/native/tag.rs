@@ -8,11 +8,11 @@ use age_core::{
     primitives::{bech32_decode, bech32_encode_to_fmt, hpke_seal},
     secrecy::ExposeSecret,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use hpke::{Deserializable, Serializable};
 use p256::{
-    elliptic_curve::sec1::{FromSec1Point, ToSec1Point},
     PublicKey, Sec1Point,
+    elliptic_curve::sec1::{FromSec1Point, ToSec1Point},
 };
 use rand::{rand_core::UnwrapErr, rngs::SysRng};
 

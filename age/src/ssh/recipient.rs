@@ -7,27 +7,28 @@ use age_core::{
     secrecy::ExposeSecret,
 };
 use base64::{
-    prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
     Engine,
+    prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
 };
 use curve25519_dalek::edwards::EdwardsPoint;
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::streaming::{is_not, tag},
     combinator::map_opt,
     sequence::{pair, preceded, separated_pair},
-    IResult, Parser,
 };
 use rand::{rand_core::UnwrapErr, rngs::SysRng};
-use rsa::{traits::PublicKeyParts, Oaep};
+use rsa::{Oaep, traits::PublicKeyParts};
 use sha2::Sha256;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 use super::{
+    EncryptedKey, SSH_ED25519_KEY_PREFIX, SSH_ED25519_RECIPIENT_KEY_LABEL,
+    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+    UnsupportedKey,
     identity::{Identity, UnencryptedKey},
-    read_ssh, ssh_tag, EncryptedKey, UnsupportedKey, SSH_ED25519_KEY_PREFIX,
-    SSH_ED25519_RECIPIENT_KEY_LABEL, SSH_ED25519_RECIPIENT_TAG, SSH_RSA_KEY_PREFIX,
-    SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG,
+    read_ssh, ssh_tag,
 };
 use crate::{
     error::EncryptError,
@@ -120,22 +121,27 @@ impl TryFrom<Identity> for Recipient {
             Identity::Unencrypted(UnencryptedKey::SshRsa(ssh_key, _))
             | Identity::Unencrypted(UnencryptedKey::SshEd25519(ssh_key, _))
             | Identity::Encrypted(EncryptedKey { ssh_key, .. }) => {
-                if let Ok((_, pk)) = read_ssh::rsa_pubkey(rsa::RsaPublicKey::MAX_SIZE)(&ssh_key) {
-                    if let Some(pk) = pk {
-                        Ok(Recipient::SshRsa(ssh_key, pk))
-                    } else {
-                        Err(ParseRecipientKeyError::RsaModulusTooLarge)
+                match read_ssh::rsa_pubkey(rsa::RsaPublicKey::MAX_SIZE)(&ssh_key) {
+                    Ok((_, pk)) => {
+                        if let Some(pk) = pk {
+                            Ok(Recipient::SshRsa(ssh_key, pk))
+                        } else {
+                            Err(ParseRecipientKeyError::RsaModulusTooLarge)
+                        }
                     }
-                } else if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
-                    Ok(Recipient::SshEd25519(ssh_key, pk))
-                } else if let Ok((_, key_type)) = read_ssh::string(&ssh_key) {
-                    Err(ParseRecipientKeyError::Unsupported(
-                        String::from_utf8_lossy(key_type).to_string(),
-                    ))
-                } else {
-                    Err(ParseRecipientKeyError::Invalid(
-                        "Invalid SSH pubkey in SSH privkey",
-                    ))
+                    _ => {
+                        if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
+                            Ok(Recipient::SshEd25519(ssh_key, pk))
+                        } else if let Ok((_, key_type)) = read_ssh::string(&ssh_key) {
+                            Err(ParseRecipientKeyError::Unsupported(
+                                String::from_utf8_lossy(key_type).to_string(),
+                            ))
+                        } else {
+                            Err(ParseRecipientKeyError::Invalid(
+                                "Invalid SSH pubkey in SSH privkey",
+                            ))
+                        }
+                    }
                 }
             }
             Identity::Unsupported(

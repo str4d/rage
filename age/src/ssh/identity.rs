@@ -1,19 +1,19 @@
 use age_core::{
-    format::{FileKey, Stanza, FILE_KEY_BYTES},
+    format::{FILE_KEY_BYTES, FileKey, Stanza},
     primitives::{aead_decrypt, hkdf},
     secrecy::{ExposeSecret, SecretBox},
 };
 use base64::prelude::BASE64_STANDARD;
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::streaming::{is_not, tag},
     character::streaming::{line_ending, newline},
     combinator::{map_opt, opt},
     sequence::{pair, preceded, terminated},
-    IResult, Parser,
 };
 use rand::{rand_core::UnwrapErr, rngs::SysRng};
-use rsa::{pkcs1::DecodeRsaPrivateKey, Oaep};
+use rsa::{Oaep, pkcs1::DecodeRsaPrivateKey};
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
 use std::io;
@@ -21,14 +21,15 @@ use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 use zeroize::Zeroize;
 
 use super::{
-    read_ssh, ssh_tag, write_ssh, EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL,
-    SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL, SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES,
+    EncryptedKey, SSH_ED25519_RECIPIENT_KEY_LABEL, SSH_ED25519_RECIPIENT_TAG, SSH_RSA_OAEP_LABEL,
+    SSH_RSA_RECIPIENT_TAG, TAG_LEN_BYTES, read_ssh, ssh_tag, write_ssh,
 };
 use crate::{
+    Callbacks,
     error::DecryptError,
     fl,
     util::read::{base64_arg, wrapped_str_while_encoded},
-    wfl, wlnfl, Callbacks,
+    wfl, wlnfl,
 };
 
 /// An SSH private key for decrypting an age file.
@@ -345,7 +346,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                             .ok()
                             .map(|privkey| {
                                 let mut ssh_key = vec![];
-                                cookie_factory::gen(
+                                cookie_factory::r#gen(
                                     write_ssh::rsa_pubkey(&privkey.to_public_key()),
                                     &mut ssh_key,
                                 )
@@ -388,11 +389,11 @@ pub(crate) mod tests {
 
     use super::{Identity, UnsupportedKey};
     use crate::{
-        ssh::recipient::{
-            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
-            Recipient,
-        },
         Callbacks, Identity as _, Recipient as _,
+        ssh::recipient::{
+            Recipient,
+            tests::{TEST_SSH_ED25519_PK, TEST_SSH_RSA_PK},
+        },
     };
 
     pub(crate) const TEST_SSH_RSA_SK: &str = "-----BEGIN RSA PRIVATE KEY-----

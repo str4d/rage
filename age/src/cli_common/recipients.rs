@@ -1,8 +1,8 @@
 use std::io::{self, BufReader};
 
 use super::StdinGuard;
-use super::{identities::parse_identity_files, ReadError};
-use crate::{identity::RecipientsAccumulator, tag, tagpq, util::LimitedReader, x25519, Recipient};
+use super::{ReadError, identities::parse_identity_files};
+use crate::{Recipient, identity::RecipientsAccumulator, tag, tagpq, util::LimitedReader, x25519};
 
 #[cfg(feature = "plugin")]
 use crate::{cli_common::UiCallbacks, plugin};
@@ -62,30 +62,38 @@ fn parse_recipient(
         recipients.push(Box::new(pk));
     } else if let Ok(pk) = s.parse::<tagpq::Recipient>() {
         recipients.push(Box::new(pk));
-    } else if let Some(pk) = {
-        #[cfg(feature = "ssh")]
-        {
-            parse_ssh_recipient(|| s.parse::<ssh::Recipient>(), || Ok(None), _filename)?
-        }
-
-        #[cfg(not(feature = "ssh"))]
-        None
-    } {
-        recipients.push(pk);
-    } else if let Some(_recipient) = {
-        #[cfg(feature = "plugin")]
-        {
-            // TODO Do something with the error?
-            s.parse::<plugin::Recipient>().ok()
-        }
-
-        #[cfg(not(feature = "plugin"))]
-        None::<Infallible>
-    } {
-        #[cfg(feature = "plugin")]
-        recipients.push_plugin(_recipient);
     } else {
-        return Err(ReadError::InvalidRecipient(s));
+        #[cfg_attr(feature = "ssh", allow(clippy::blocks_in_conditions))]
+        match {
+            #[cfg(feature = "ssh")]
+            {
+                parse_ssh_recipient(|| s.parse::<ssh::Recipient>(), || Ok(None), _filename)?
+            }
+
+            #[cfg(not(feature = "ssh"))]
+            None
+        } {
+            Some(pk) => {
+                recipients.push(pk);
+            }
+            _ => {
+                if let Some(_recipient) = {
+                    #[cfg(feature = "plugin")]
+                    {
+                        // TODO Do something with the error?
+                        s.parse::<plugin::Recipient>().ok()
+                    }
+
+                    #[cfg(not(feature = "plugin"))]
+                    None::<Infallible>
+                } {
+                    #[cfg(feature = "plugin")]
+                    recipients.push_plugin(_recipient);
+                } else {
+                    return Err(ReadError::InvalidRecipient(s));
+                }
+            }
+        }
     }
 
     Ok(())
@@ -166,10 +174,11 @@ pub fn read_recipients(
         |recipients, identity| {
             recipients.extend(identity.recipients().map_err(|e| {
                 // Only one error can occur here.
-                if let EncryptError::EncryptedIdentities(e) = e {
-                    ReadError::EncryptedIdentities(e)
-                } else {
-                    unreachable!()
+                match e {
+                    EncryptError::EncryptedIdentities(e) => ReadError::EncryptedIdentities(e),
+                    _ => {
+                        unreachable!()
+                    }
                 }
             })?);
             Ok(())
@@ -200,10 +209,11 @@ pub fn read_recipients(
             // Only one error can occur here.
             #[cfg(feature = "plugin")]
             {
-                if let EncryptError::PluginResolve(e) = _e {
-                    ReadError::PluginResolve(e)
-                } else {
-                    unreachable!()
+                match _e {
+                    EncryptError::PluginResolve(e) => ReadError::PluginResolve(e),
+                    _ => {
+                        unreachable!()
+                    }
                 }
             }
 

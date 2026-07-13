@@ -3,17 +3,17 @@
 use age_core::secrecy::{ExposeSecret, SecretString};
 use pinentry::{ConfirmationDialog, PassphraseInput};
 use rand::{
+    CryptoRng,
     distr::{Distribution, Uniform},
     rand_core::UnwrapErr,
     rngs::SysRng,
-    CryptoRng,
 };
 use rpassword::prompt_password;
 
 use std::io;
 use subtle::ConstantTimeEq;
 
-use crate::{fl, Callbacks};
+use crate::{Callbacks, fl};
 
 mod error;
 pub use error::ReadError;

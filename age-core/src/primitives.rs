@@ -4,8 +4,8 @@ use core::fmt;
 
 use bech32::primitives::decode::CheckedHrpstring;
 use chacha20poly1305::{
-    aead::{self, common::typenum::Unsigned, Aead, AeadCore, KeyInit},
     ChaCha20Poly1305,
+    aead::{self, Aead, AeadCore, KeyInit, common::typenum::Unsigned},
 };
 use hkdf::Hkdf;
 use sha2::Sha256;

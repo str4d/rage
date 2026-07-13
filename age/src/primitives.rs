@@ -2,10 +2,10 @@
 
 use age_core::secrecy::{ExposeSecret, SecretBox};
 use hmac::{
-    digest::{CtOutput, MacError},
     Hmac, KeyInit, Mac,
+    digest::{CtOutput, MacError},
 };
-use scrypt::{errors::InvalidParams, scrypt as scrypt_inner, Params as ScryptParams};
+use scrypt::{Params as ScryptParams, errors::InvalidParams, scrypt as scrypt_inner};
 use sha2::Sha256;
 use std::io::{self, Write};
 

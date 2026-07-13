@@ -5,12 +5,12 @@ use age_core::{
     primitives::hkdf,
     secrecy::{ExposeSecret, SecretBox},
 };
-use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
+use rand::{Rng, rand_core::UnwrapErr, rngs::SysRng};
 
 use crate::{
     error::DecryptError,
     format::HeaderV1,
-    primitives::{stream::PayloadKey, HmacKey},
+    primitives::{HmacKey, stream::PayloadKey},
     protocol::Nonce,
 };
 

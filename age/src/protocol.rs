@@ -1,17 +1,18 @@
 //! Encryption and decryption routines for age.
 
 use age_core::{format::is_arbitrary_string, secrecy::SecretString};
-use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
+use rand::{Rng, rand_core::UnwrapErr, rngs::SysRng};
 
 use std::io::{self, BufRead, Read, Write};
 use std::iter;
 
 use crate::{
+    Identity, Recipient,
     error::{DecryptError, EncryptError},
     format::{Header, HeaderV1},
     keys::{mac_key, new_file_key, v1_payload_key},
     primitives::stream::{PayloadKey, Stream, StreamReader, StreamWriter},
-    scrypt, Identity, Recipient,
+    scrypt,
 };
 
 #[cfg(feature = "async")]
@@ -84,25 +85,30 @@ impl Encryptor {
                 have_recipients = true;
                 let (mut r_stanzas, r_labels) = recipient.wrap_file_key(&file_key)?;
 
-                if let Some(l_labels) = control.take() {
-                    if l_labels != r_labels {
-                        // Improve error message.
-                        let err = if stanzas
-                            .iter()
-                            .chain(&r_stanzas)
-                            .any(|stanza| stanza.tag == crate::scrypt::SCRYPT_RECIPIENT_TAG)
-                        {
-                            EncryptError::MixedRecipientAndPassphrase
-                        } else {
-                            EncryptError::IncompatibleRecipients { l_labels, r_labels }
-                        };
-                        return Err(err);
+                match control.take() {
+                    Some(l_labels) => {
+                        if l_labels != r_labels {
+                            // Improve error message.
+                            let err = if stanzas
+                                .iter()
+                                .chain(&r_stanzas)
+                                .any(|stanza| stanza.tag == crate::scrypt::SCRYPT_RECIPIENT_TAG)
+                            {
+                                EncryptError::MixedRecipientAndPassphrase
+                            } else {
+                                EncryptError::IncompatibleRecipients { l_labels, r_labels }
+                            };
+                            return Err(err);
+                        }
+                        control = Some(l_labels);
                     }
-                    control = Some(l_labels);
-                } else if r_labels.iter().all(is_arbitrary_string) {
-                    control = Some(r_labels);
-                } else {
-                    return Err(EncryptError::InvalidRecipientLabels(r_labels));
+                    _ => {
+                        if r_labels.iter().all(is_arbitrary_string) {
+                            control = Some(r_labels);
+                        } else {
+                            return Err(EncryptError::InvalidRecipientLabels(r_labels));
+                        }
+                    }
                 }
 
                 stanzas.append(&mut r_stanzas);
@@ -339,14 +345,14 @@ mod tests {
     use age_core::secrecy::SecretString;
 
     use super::{Decryptor, Encryptor};
-    use crate::{identity::IdentityFile, scrypt, x25519, EncryptError, Identity, Recipient};
+    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, scrypt, x25519};
 
     #[cfg(feature = "async")]
     use futures::{
+        Future,
         io::{AsyncRead, AsyncWrite},
         pin_mut,
         task::Poll,
-        Future,
     };
     #[cfg(feature = "async")]
     use futures_test::task::noop_context;
