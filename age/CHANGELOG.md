@@ -9,6 +9,9 @@ and this project adheres to Rust's notion of
 to 1.0.0 are beta releases.
 
 ## [Unreleased]
+### Fixed
+- Parsing of recipient and identity files now returns an error if the input is
+  larger than the limit, instead of silently truncating.
 
 ## [0.11.3] - 2026-04-22
 ### Changed
