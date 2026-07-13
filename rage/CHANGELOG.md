@@ -12,6 +12,11 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-07-13
+### Fixed
+- Parsing of recipient and identity files now returns an error if the input is
+  larger than the limit, instead of silently truncating.
+
 ## [0.11.2] - 2026-04-22
 ### Changed
 - Recipient and identity files are now limited to at most 16 MiB, and SSH keys
