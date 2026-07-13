@@ -3,11 +3,11 @@
 use age_core::{
     format::{FileKey, Stanza},
     io::{DebugReader, DebugWriter},
-    plugin::{Connection, Reply, Response, UnidirSend, IDENTITY_V1, RECIPIENT_V1},
+    plugin::{Connection, IDENTITY_V1, RECIPIENT_V1, Reply, Response, UnidirSend},
     primitives::{bech32_decode, bech32_encode},
     secrecy::ExposeSecret,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use bech32::Hrp;
 
 use std::borrow::Borrow;
@@ -22,8 +22,9 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 use crate::{
+    Callbacks,
     error::{DecryptError, EncryptError, PluginError},
-    fl, wfl, wlnfl, Callbacks,
+    fl, wfl, wlnfl,
 };
 
 // Plugin HRPs are age1[name] and AGE-PLUGIN-[NAME]-
@@ -51,9 +52,10 @@ fn valid_plugin_name(plugin_name: &str) -> bool {
 }
 
 fn binary_name(plugin_name: &str) -> String {
-    format!("age-plugin-{}", plugin_name)
+    format!("age-plugin-{plugin_name}")
 }
 
+#[allow(dead_code)]
 struct SlowPluginGuard(mpsc::Sender<()>);
 
 impl SlowPluginGuard {
@@ -202,7 +204,7 @@ impl Identity {
     pub fn default_for_plugin(plugin_name: &str) -> Result<Self, ResolveError> {
         if valid_plugin_name(plugin_name) {
             Ok(bech32_encode(
-                Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+                Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}{plugin_name}-")),
                 &[],
             )
             .to_uppercase()
@@ -240,7 +242,7 @@ impl Plugin {
             // the Windows host are available to us, but `which` only trials PATHEXT
             // extensions automatically when compiled for Windows.
             if wsl::is_wsl() {
-                which::which(format!("{}.exe", binary_name)).map_err(|_| e)
+                which::which(format!("{binary_name}.exe")).map_err(|_| e)
             } else {
                 Err(e)
             }
@@ -333,10 +335,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
             errors.push(PluginError::Other {
                 kind: "internal".to_owned(),
                 metadata: vec![],
-                message: format!(
-                    "{} command must have at least one metadata argument",
-                    CMD_CONFIRM
-                ),
+                message: format!("{CMD_CONFIRM} command must have at least one metadata argument"),
             });
             return reply.fail();
         }
@@ -345,8 +344,7 @@ fn handle_confirm<R: io::Read, W: io::Write, C: Callbacks>(
                 kind: "internal".to_owned(),
                 metadata: vec![],
                 message: format!(
-                    "The first two metadata arguments to the {} command must be Base64-encoded",
-                    CMD_CONFIRM
+                    "The first two metadata arguments to the {CMD_CONFIRM} command must be Base64-encoded"
                 ),
             });
             return reply.fail();
@@ -454,23 +452,21 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                 }
                 CMD_CONFIRM => handle_confirm(command, reply, &mut errors, &self.callbacks),
                 CMD_REQUEST_PUBLIC => {
-                    if let Some(value) = self
+                    match self
                         .callbacks
                         .request_public_string(&String::from_utf8_lossy(&command.body))
                     {
-                        reply.ok(Some(value.as_bytes()))
-                    } else {
-                        reply.fail()
+                        Some(value) => reply.ok(Some(value.as_bytes())),
+                        _ => reply.fail(),
                     }
                 }
                 CMD_REQUEST_SECRET => {
-                    if let Some(secret) = self
+                    match self
                         .callbacks
                         .request_passphrase(&String::from_utf8_lossy(&command.body))
                     {
-                        reply.ok(Some(secret.expose_secret().as_bytes()))
-                    } else {
-                        reply.fail()
+                        Some(secret) => reply.ok(Some(secret.expose_secret().as_bytes())),
+                        _ => reply.fail(),
                     }
                 }
                 CMD_RECIPIENT_STANZA => {
@@ -492,8 +488,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                             kind: "internal".to_owned(),
                             metadata: vec![],
                             message: format!(
-                                "{} command must have at least two metadata arguments",
-                                CMD_RECIPIENT_STANZA
+                                "{CMD_RECIPIENT_STANZA} command must have at least two metadata arguments"
                             ),
                         });
                     }
@@ -510,8 +505,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                                 kind: "internal".to_owned(),
                                 metadata: vec![],
                                 message: format!(
-                                    "{} command must not contain duplicate labels",
-                                    CMD_LABELS
+                                    "{CMD_LABELS} command must not contain duplicate labels"
                                 ),
                             });
                         }
@@ -520,8 +514,7 @@ impl<C: Callbacks> crate::Recipient for RecipientPluginV1<C> {
                             kind: "internal".to_owned(),
                             metadata: vec![],
                             message: format!(
-                                "{} command must not be sent more than once",
-                                CMD_LABELS
+                                "{CMD_LABELS} command must not be sent more than once"
                             ),
                         });
                     }
@@ -670,23 +663,21 @@ impl<C: Callbacks> IdentityPluginV1<C> {
                 }
                 CMD_CONFIRM => handle_confirm(command, reply, &mut errors, &self.callbacks),
                 CMD_REQUEST_PUBLIC => {
-                    if let Some(value) = self
+                    match self
                         .callbacks
                         .request_public_string(&String::from_utf8_lossy(&command.body))
                     {
-                        reply.ok(Some(value.as_bytes()))
-                    } else {
-                        reply.fail()
+                        Some(value) => reply.ok(Some(value.as_bytes())),
+                        _ => reply.fail(),
                     }
                 }
                 CMD_REQUEST_SECRET => {
-                    if let Some(secret) = self
+                    match self
                         .callbacks
                         .request_passphrase(&String::from_utf8_lossy(&command.body))
                     {
-                        reply.ok(Some(secret.expose_secret().as_bytes()))
-                    } else {
-                        reply.fail()
+                        Some(secret) => reply.ok(Some(secret.expose_secret().as_bytes())),
+                        _ => reply.fail(),
                     }
                 }
                 CMD_FILE_KEY => {
@@ -788,8 +779,8 @@ mod tests {
     use crate::NoCallbacks;
 
     use super::{
-        Identity, IdentityPluginV1, Recipient, RecipientPluginV1, ResolveError,
-        PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX,
+        Identity, IdentityPluginV1, PLUGIN_IDENTITY_PREFIX, PLUGIN_RECIPIENT_PREFIX, Recipient,
+        RecipientPluginV1, ResolveError,
     };
 
     const INVALID_PLUGIN_NAME: &str = "foobar/../../../../../../../usr/bin/echo";
@@ -811,10 +802,7 @@ mod tests {
     #[test]
     fn recipient_rejects_invalid_chars() {
         let invalid_recipient = bech32_encode(
-            Hrp::parse_unchecked(&format!(
-                "{}{}",
-                PLUGIN_RECIPIENT_PREFIX, INVALID_PLUGIN_NAME
-            )),
+            Hrp::parse_unchecked(&format!("{PLUGIN_RECIPIENT_PREFIX}{INVALID_PLUGIN_NAME}")),
             &[],
         );
         assert!(invalid_recipient.parse::<Recipient>().is_err());
@@ -823,7 +811,7 @@ mod tests {
     #[test]
     fn identity_rejects_empty_name() {
         let invalid_identity = bech32_encode(
-            Hrp::parse_unchecked(&format!("{}-", PLUGIN_IDENTITY_PREFIX)),
+            Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}-")),
             &[],
         )
         .to_uppercase();
@@ -833,10 +821,7 @@ mod tests {
     #[test]
     fn identity_rejects_invalid_chars() {
         let invalid_identity = bech32_encode(
-            Hrp::parse_unchecked(&format!(
-                "{}{}-",
-                PLUGIN_IDENTITY_PREFIX, INVALID_PLUGIN_NAME
-            )),
+            Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}{INVALID_PLUGIN_NAME}-")),
             &[],
         )
         .to_uppercase();

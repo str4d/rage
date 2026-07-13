@@ -55,8 +55,8 @@ fn age_test_vectors() -> Result<(), Box<dyn std::error::Error>> {
                 let mut buf = vec![];
                 r.read_to_end(&mut buf)?;
             }
-            (Ok(_), true) => panic!("Test vector {} did not fail as expected", name),
-            (Err(e), false) => panic!("Test vector {} failed unexpectedly: {:?}", name, e),
+            (Ok(_), true) => panic!("Test vector {name} did not fail as expected"),
+            (Err(e), false) => panic!("Test vector {name} failed unexpectedly: {e:?}"),
             (Err(_), true) => (),
         }
     }

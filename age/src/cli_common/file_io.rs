@@ -308,7 +308,7 @@ impl LazyFile {
             .as_mut()
             .unwrap()
             .as_mut()
-            .map_err(|e| io::Error::new(e.kind(), format!("Failed to open file '{}'", filename)))
+            .map_err(|e| io::Error::new(e.kind(), format!("Failed to open file '{filename}'")))
     }
 }
 
@@ -395,10 +395,7 @@ impl OutputWriter {
         } else if is_tty {
             if let OutputFormat::Binary = format {
                 // If output == Some("-") then this error is skipped.
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    FileError::DenyBinaryOutput,
-                ));
+                return Err(io::Error::other(FileError::DenyBinaryOutput));
             }
         }
 

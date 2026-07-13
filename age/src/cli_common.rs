@@ -3,16 +3,17 @@
 use age_core::secrecy::{ExposeSecret, SecretString};
 use pinentry::{ConfirmationDialog, PassphraseInput};
 use rand::{
-    distributions::{Distribution, Uniform},
-    rngs::OsRng,
-    CryptoRng, RngCore,
+    CryptoRng,
+    distr::{Distribution, Uniform},
+    rand_core::UnwrapErr,
+    rngs::SysRng,
 };
 use rpassword::prompt_password;
 
 use std::io;
 use subtle::ConstantTimeEq;
 
-use crate::{fl, Callbacks};
+use crate::{Callbacks, fl};
 
 mod error;
 pub use error::ReadError;
@@ -66,7 +67,7 @@ fn confirm(query: &str, ok: &str, cancel: Option<&str>) -> pinentry::Result<bool
     } else {
         // Fall back to CLI interface.
         let term = console::Term::stderr();
-        let initial = format!("{}: (y/n) ", query);
+        let initial = format!("{query}: (y/n) ");
         loop {
             term.write_str(&initial)?;
             let response = term.read_line()?.to_lowercase();
@@ -125,10 +126,10 @@ pub fn read_secret(
         input.interact()
     } else {
         // Fall back to CLI interface.
-        let passphrase = prompt_password(format!("{}: ", description)).map(SecretString::from)?;
+        let passphrase = prompt_password(format!("{description}: ")).map(SecretString::from)?;
         if let Some(confirm_prompt) = confirm {
             let confirm_passphrase =
-                prompt_password(format!("{}: ", confirm_prompt)).map(SecretString::from)?;
+                prompt_password(format!("{confirm_prompt}: ")).map(SecretString::from)?;
 
             if !bool::from(
                 passphrase
@@ -155,7 +156,7 @@ pub struct UiCallbacks;
 
 impl Callbacks for UiCallbacks {
     fn display_message(&self, message: &str) {
-        eprintln!("{}", message);
+        eprintln!("{message}");
     }
 
     fn confirm(&self, message: &str, yes_string: &str, no_string: Option<&str>) -> Option<bool> {
@@ -183,8 +184,8 @@ pub enum Passphrase {
 
 impl Passphrase {
     /// Generates a secure passphrase.
-    pub fn random<R: RngCore + CryptoRng>(mut rng: R) -> Self {
-        let between = Uniform::from(0..2048);
+    pub fn random<R: CryptoRng>(mut rng: R) -> Self {
+        let between = Uniform::try_from(0..2048).expect("valid");
         let new_passphrase = (0..10)
             .map(|_| {
                 BIP39_WORDLIST
@@ -212,7 +213,7 @@ pub fn read_or_generate_passphrase() -> pinentry::Result<Passphrase> {
     )?;
 
     if res.expose_secret().is_empty() {
-        Ok(Passphrase::random(OsRng))
+        Ok(Passphrase::random(UnwrapErr(SysRng)))
     } else {
         Ok(Passphrase::Typed(res))
     }

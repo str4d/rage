@@ -8,6 +8,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Changed
+- MSRV is now 1.85.0.
+- Migrated to `chacha20poly1305 0.11`, `hpke 0.14`.
+
 ## [0.12.0] - 2026-07-13
 ### Added
 - `age_core::primitives`:

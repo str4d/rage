@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 
-use crate::{wfl, DecryptError};
+use crate::{DecryptError, wfl};
 
 /// Errors that can occur while reading recipients or identities.
 #[derive(Debug)]
@@ -83,7 +83,7 @@ impl fmt::Display for ReadError {
                 filename = filename.as_str(),
                 line_number = line_number,
             ),
-            ReadError::Io(e) => write!(f, "{}", e),
+            ReadError::Io(e) => write!(f, "{e}"),
             ReadError::MissingRecipientsFile(filename) => wfl!(
                 f,
                 "err-read-missing-recipients-file",
@@ -91,7 +91,7 @@ impl fmt::Display for ReadError {
             ),
             ReadError::MultipleStdin => wfl!(f, "err-read-multiple-stdin"),
             #[cfg(feature = "plugin")]
-            ReadError::PluginResolve(e) => write!(f, "{}", e),
+            ReadError::PluginResolve(e) => write!(f, "{e}"),
             #[cfg(feature = "ssh")]
             ReadError::RsaModulusTooLarge => {
                 wfl!(f, "err-read-rsa-modulus-too-large", max_size = 4096)
