@@ -6,13 +6,13 @@ use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, mpsc};
 use std::time::{Duration, SystemTime};
-use zip::{ZipArchive, read::ZipFile};
+use zip::{ExtraField, ZipArchive, read::ZipFile};
 
 fn zip_path(path: &Path) -> &Path {
     path.strip_prefix("/").unwrap()
 }
 
-fn zipfile_to_filetype(zf: &ZipFile) -> FileType {
+fn zipfile_to_filetype<R: Read>(zf: &ZipFile<R>) -> FileType {
     if zf.is_dir() {
         FileType::Directory
     } else {
@@ -20,18 +20,43 @@ fn zipfile_to_filetype(zf: &ZipFile) -> FileType {
     }
 }
 
-fn zipfile_to_fuse(zf: &ZipFile) -> FileAttr {
+fn zipfile_to_fuse<R: Read>(zf: &ZipFile<R>) -> FileAttr {
     let kind = zipfile_to_filetype(zf);
     let perm = (zf.unix_mode().unwrap_or(0) & 0o7777) as u16;
-    let mtime: SystemTime = zf.last_modified().to_time().unwrap().into();
+
+    let (atime, mtime, ctime, crtime) = if let Some(t) =
+        zf.extra_data_fields().find_map(|f| match f {
+            ExtraField::ExtendedTimestamp(t) => Some(t),
+            _ => None,
+        }) {
+        let to_st = |t: Option<u32>| {
+            SystemTime::UNIX_EPOCH
+                + t.map(|atime| Duration::from_secs(atime.into()))
+                    .unwrap_or_default()
+        };
+
+        let atime = to_st(t.ac_time());
+        let mtime = to_st(t.mod_time());
+        let crtime = to_st(t.cr_time());
+
+        (atime, mtime, mtime, crtime)
+    } else {
+        let mtime = zf
+            .last_modified()
+            .and_then(|mtime| time::PrimitiveDateTime::try_from(mtime).ok())
+            .map(|mtime| mtime.assume_utc().into())
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+
+        (mtime, mtime, mtime, SystemTime::UNIX_EPOCH)
+    };
 
     FileAttr {
         size: zf.size(),
         blocks: 1,
-        atime: mtime,
+        atime,
         mtime,
-        ctime: mtime,
-        crtime: SystemTime::UNIX_EPOCH,
+        ctime,
+        crtime,
         kind,
         perm,
         nlink: 1,
@@ -96,16 +121,13 @@ impl AgeZipFs {
         stream: StreamReader<ArmoredReader<BufReader<File>>>,
         destroy_tx: mpsc::SyncSender<()>,
     ) -> io::Result<Self> {
-        let mut archive =
-            ZipArchive::new(stream).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut archive = ZipArchive::new(stream).map_err(io::Error::other)?;
 
         // Build a directory listing for the archive
         let mut dir_map: HashMap<PathBuf, Vec<DirectoryEntry>> = HashMap::new();
         dir_map.insert(PathBuf::new(), vec![]); // the root
         for i in 0..archive.len() {
-            let zf = archive
-                .by_index(i)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            let zf = archive.by_index(i).map_err(io::Error::other)?;
             if let Some(path) = zf.enclosed_name() {
                 add_dir_to_map(&mut dir_map, &path, zipfile_to_filetype(&zf));
             }

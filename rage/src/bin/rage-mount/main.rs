@@ -92,13 +92,13 @@ impl fmt::Debug for Error {
         match self {
             Error::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
-                    writeln!(f, "{}", e)?;
+                    writeln!(f, "{e}")?;
                     wfl!(f, "rec-dec-excessive-work", wf = required)
                 }
-                _ => write!(f, "{}", e),
+                _ => write!(f, "{e}"),
             },
-            Error::IdentityRead(e) => write!(f, "{}", e),
-            Error::Io(e) => write!(f, "{}", e),
+            Error::IdentityRead(e) => write!(f, "{e}"),
+            Error::Io(e) => write!(f, "{e}"),
             Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
             Error::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;

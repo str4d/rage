@@ -14,6 +14,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.85.0.
+- MSRV for `rage-mount` (behind the `mount` feature flag) is now 1.88.0.
 
 ## [0.12.0] - 2026-07-13
 ### Added
