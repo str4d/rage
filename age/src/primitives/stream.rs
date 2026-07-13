@@ -2,7 +2,7 @@
 
 use age_core::secrecy::{ExposeSecret, SecretSlice};
 use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, KeyInit, KeySizeUser},
+    aead::{array::Array, Aead, KeyInit, KeySizeUser},
     ChaCha20Poly1305,
 };
 use pin_project::pin_project;
@@ -23,9 +23,7 @@ const CHUNK_SIZE: usize = 64 * 1024;
 const TAG_SIZE: usize = 16;
 const ENCRYPTED_CHUNK_SIZE: usize = CHUNK_SIZE + TAG_SIZE;
 
-pub(crate) struct PayloadKey(
-    pub(crate) GenericArray<u8, <ChaCha20Poly1305 as KeySizeUser>::KeySize>,
-);
+pub(crate) struct PayloadKey(pub(crate) Array<u8, <ChaCha20Poly1305 as KeySizeUser>::KeySize>);
 
 impl Drop for PayloadKey {
     fn drop(&mut self) {

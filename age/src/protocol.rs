@@ -1,7 +1,7 @@
 //! Encryption and decryption routines for age.
 
 use age_core::{format::is_arbitrary_string, secrecy::SecretString};
-use rand::{rngs::OsRng, RngCore};
+use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
 
 use std::io::{self, BufRead, Read, Write};
 use std::iter;
@@ -28,7 +28,7 @@ impl AsRef<[u8]> for Nonce {
 impl Nonce {
     fn random() -> Self {
         let mut nonce = [0; 16];
-        OsRng.fill_bytes(&mut nonce);
+        UnwrapErr(SysRng).fill_bytes(&mut nonce);
         Nonce(nonce)
     }
 

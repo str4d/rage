@@ -2,8 +2,8 @@
 
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use rand::{
-    distributions::{Distribution, Uniform},
-    thread_rng, RngCore,
+    distr::{Distribution, Uniform},
+    Rng,
 };
 use secrecy::{ExposeSecret, ExposeSecretMut, SecretBox};
 
@@ -121,23 +121,24 @@ pub fn is_arbitrary_string<S: AsRef<str>>(s: &S) -> bool {
 /// about the stanza's fields.
 pub fn grease_the_joint() -> Stanza {
     // Generate arbitrary strings between 1 and 9 characters long.
-    fn gen_arbitrary_string<R: RngCore>(rng: &mut R) -> String {
-        let length = Uniform::from(1..9).sample(rng);
-        Uniform::from(33..=126)
+    fn gen_arbitrary_string<R: Rng>(rng: &mut R) -> String {
+        let length = Uniform::try_from(1..9).expect("valid").sample(rng);
+        Uniform::try_from(33..=126)
+            .expect("valid")
             .sample_iter(rng)
             .map(char::from)
             .take(length)
             .collect()
     }
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // Add a suffix to the random tag so users know what is going on.
     let tag = format!("{}-grease", gen_arbitrary_string(&mut rng));
 
     // Between this and the above generation bounds, the first line of the recipient
     // stanza will be between eight and 66 characters.
-    let args = (0..Uniform::from(0..5).sample(&mut rng))
+    let args = (0..Uniform::try_from(0..5).expect("valid").sample(&mut rng))
         .map(|_| gen_arbitrary_string(&mut rng))
         .collect();
 
@@ -148,7 +149,7 @@ pub fn grease_the_joint() -> Stanza {
     // - Two lines, second short
     // - Two lines, both full
     // - Three lines, last short
-    let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
+    let mut body = vec![0; Uniform::try_from(0..100).expect("valid").sample(&mut rng)];
     rng.fill_bytes(&mut body);
 
     Stanza { tag, args, body }

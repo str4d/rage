@@ -11,7 +11,7 @@ use age_core::{
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use rand::rngs::OsRng;
+use rand::{rand_core::UnwrapErr, rngs::SysRng};
 use subtle::ConstantTimeEq;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::Zeroize;
@@ -67,8 +67,8 @@ impl std::str::FromStr for Identity {
 impl Identity {
     /// Generates a new secret key.
     pub fn generate() -> Self {
-        let rng = OsRng;
-        Identity(StaticSecret::random_from_rng(rng))
+        let mut rng = UnwrapErr(SysRng);
+        Identity(StaticSecret::random_from_rng(&mut rng))
     }
 
     /// Serializes this secret key as a string.
@@ -199,8 +199,8 @@ impl crate::Recipient for Recipient {
         &self,
         file_key: &FileKey,
     ) -> Result<(Vec<Stanza>, HashSet<String>), EncryptError> {
-        let rng = OsRng;
-        let esk = EphemeralSecret::random_from_rng(rng);
+        let mut rng = UnwrapErr(SysRng);
+        let esk = EphemeralSecret::random_from_rng(&mut rng);
         let epk: PublicKey = (&esk).into();
         let shared_secret = esk.diffie_hellman(&self.0);
 

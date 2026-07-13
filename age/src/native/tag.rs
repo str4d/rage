@@ -11,10 +11,10 @@ use age_core::{
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use hpke::{Deserializable, Serializable};
 use p256::{
-    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
-    EncodedPoint, PublicKey,
+    elliptic_curve::sec1::{FromSec1Point, ToSec1Point},
+    PublicKey, Sec1Point,
 };
-use rand::rngs::OsRng;
+use rand::{rand_core::UnwrapErr, rngs::SysRng};
 
 use crate::EncryptError;
 
@@ -34,7 +34,7 @@ type Kem = hpke::kem::DhP256HkdfSha256;
 #[derive(Clone, PartialEq, Eq)]
 pub struct Recipient {
     /// Compressed encoding of the recipient public key.
-    compressed: EncodedPoint,
+    compressed: Sec1Point,
     /// Cached in-memory representation, for HPKE.
     pk_recip: <Kem as hpke::Kem>::PublicKey,
 }
@@ -55,17 +55,17 @@ impl std::str::FromStr for Recipient {
             |_, bytes| Ok(bytes.collect::<Vec<_>>()),
         )?;
 
-        let encoded = EncodedPoint::from_bytes(bytes).map_err(|_| "invalid SEC-1 encoding")?;
+        let encoded = Sec1Point::from_bytes(bytes).map_err(|_| "invalid SEC-1 encoding")?;
         if !encoded.is_compressed() {
             return Err("not a compressed SEC-1 encoding");
         }
 
-        let point = PublicKey::from_encoded_point(&encoded)
+        let point = PublicKey::from_sec1_point(&encoded)
             .into_option()
             .ok_or("invalid P-256 point")?;
 
         let pk_recip =
-            <Kem as hpke::Kem>::PublicKey::from_bytes(point.to_encoded_point(false).as_bytes())
+            <Kem as hpke::Kem>::PublicKey::from_bytes(point.to_sec1_point(false).as_bytes())
                 .expect("valid");
 
         Ok(Self {
@@ -96,7 +96,7 @@ impl crate::Recipient for Recipient {
             &self.pk_recip,
             P256TAG_SALT.as_bytes(),
             file_key.expose_secret(),
-            &mut OsRng,
+            &mut UnwrapErr(SysRng),
         );
 
         let ikm = enc

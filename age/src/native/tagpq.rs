@@ -6,43 +6,23 @@ use std::fmt;
 use age_core::{
     format::{FileKey, Stanza},
     primitives::{bech32_decode, bech32_encode_to_fmt, hpke_seal},
-    secrecy::{zeroize::Zeroize, ExposeSecret},
+    secrecy::ExposeSecret,
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use cipher::{typenum::Unsigned, KeySizeUser};
 use hpke::{Deserializable, Serializable};
-use ml_kem::{KemCore, MlKem768};
-use p256::elliptic_curve::sec1::ToEncodedPoint;
-use rand::rngs::OsRng;
+use ml_kem::{Kem as KemCore, MlKem768};
+use rand::{rand_core::UnwrapErr, rngs::SysRng};
 
 use crate::EncryptError;
-
-mod kem;
 
 const RECIPIENT_PREFIX: bech32::Hrp = bech32::Hrp::parse_unchecked("age1tagpq");
 
 const MLKEM768P256TAG_RECIPIENT_TAG: &str = "mlkem768p256tag";
 const MLKEM768P256TAG_SALT: &str = "age-encryption.org/mlkem768p256tag";
 
-type Kem = kem::MlKem768P256;
-
-pub(crate) fn expand_pq_key(
-    seed: &[u8; 64],
-) -> (
-    <MlKem768 as KemCore>::DecapsulationKey,
-    <MlKem768 as KemCore>::EncapsulationKey,
-) {
-    let mut d = [0; 32];
-    let mut z = [0; 32];
-    d.copy_from_slice(&seed[..32]);
-    z.copy_from_slice(&seed[32..]);
-
-    let (dk_pq, ek_pq) = MlKem768::generate_deterministic(&d.into(), &z.into());
-
-    d.zeroize();
-    z.zeroize();
-
-    (dk_pq, ek_pq)
-}
+type Kem = hpke::kem::MlKem768P256;
+type KemNek = <<MlKem768 as KemCore>::EncapsulationKey as KeySizeUser>::KeySize;
 
 /// The hybrid post-quantum tagged age recipient type, designed for hardware keys where
 /// decryption potentially requires user presence.
@@ -96,15 +76,14 @@ impl crate::Recipient for Recipient {
             &self.0,
             MLKEM768P256TAG_SALT.as_bytes(),
             file_key.expose_secret(),
-            &mut OsRng,
+            &mut UnwrapErr(SysRng),
         );
 
+        let kem_nek = KemNek::to_usize();
         let ikm = enc
             .to_bytes()
             .into_iter()
-            .chain(super::static_tag(
-                self.0.ek_t.to_encoded_point(false).as_bytes(),
-            ))
+            .chain(super::static_tag(&self.0.to_bytes()[kem_nek..]))
             .collect::<Vec<u8>>();
         let tag = super::stanza_tag(&ikm, MLKEM768P256TAG_SALT);
 

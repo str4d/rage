@@ -5,7 +5,7 @@ use age_core::{
     primitives::hkdf,
     secrecy::{ExposeSecret, SecretBox},
 };
-use rand::{rngs::OsRng, RngCore};
+use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
 
 use crate::{
     error::DecryptError,
@@ -18,7 +18,7 @@ const HEADER_KEY_LABEL: &[u8] = b"header";
 const PAYLOAD_KEY_LABEL: &[u8] = b"payload";
 
 pub(crate) fn new_file_key() -> FileKey {
-    FileKey::init_with_mut(|file_key| OsRng.fill_bytes(file_key))
+    FileKey::init_with_mut(|file_key| UnwrapErr(SysRng).fill_bytes(file_key))
 }
 
 pub(crate) fn mac_key(file_key: &FileKey) -> HmacKey {
