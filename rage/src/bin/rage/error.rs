@@ -134,6 +134,12 @@ impl From<age::DecryptError> for DecryptError {
     }
 }
 
+impl From<age::plugin::ResolveError> for DecryptError {
+    fn from(e: age::plugin::ResolveError) -> Self {
+        DecryptError::Age(age::DecryptError::PluginResolve(e))
+    }
+}
+
 impl From<age::cli_common::ReadError> for DecryptError {
     fn from(e: age::cli_common::ReadError) -> Self {
         DecryptError::IdentityRead(e)

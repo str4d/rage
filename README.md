@@ -23,7 +23,7 @@ For more plugins, implementations, tools, and integrations, check out the
 
 | Environment | CLI command |
 |-------------|-------------|
-| Cargo (Rust 1.65+) | `cargo install rage` |
+| Cargo (Rust 1.74+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew install rage` |
 | MacPorts | `port install rage` |
 | Alpine Linux (edge) | `apk add rage` |

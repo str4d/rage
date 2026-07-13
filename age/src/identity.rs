@@ -34,13 +34,13 @@ impl IdentityFileEntry {
     pub(crate) fn into_identity(
         self,
         callbacks: impl Callbacks,
-    ) -> Result<Box<dyn crate::Identity>, DecryptError> {
+    ) -> Result<Box<dyn crate::Identity + Send + Sync>, DecryptError> {
         match self {
             IdentityFileEntry::Native(i) => Ok(Box::new(i)),
             #[cfg(feature = "plugin")]
             IdentityFileEntry::Plugin(i) => Ok(Box::new(
                 crate::plugin::Plugin::new(i.plugin())
-                    .map_err(|binary_name| DecryptError::MissingPlugin { binary_name })
+                    .map_err(DecryptError::PluginResolve)
                     .map(|plugin| {
                         crate::plugin::IdentityPluginV1::from_parts(plugin, vec![i], callbacks)
                     })?,
@@ -201,14 +201,17 @@ impl<C: Callbacks> IdentityFile<C> {
     /// Returns the identities in this file.
     pub(crate) fn to_identities(
         &self,
-    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity>, DecryptError>> + '_ {
+    ) -> impl Iterator<Item = Result<Box<dyn crate::Identity + Send + Sync>, DecryptError>> + '_
+    {
         self.identities
             .iter()
             .map(|entry| entry.clone().into_identity(self.callbacks.clone()))
     }
 
     /// Returns the identities in this file.
-    pub fn into_identities(self) -> Result<Vec<Box<dyn crate::Identity>>, DecryptError> {
+    pub fn into_identities(
+        self,
+    ) -> Result<Vec<Box<dyn crate::Identity + Send + Sync>>, DecryptError> {
         self.identities
             .into_iter()
             .map(|entry| entry.into_identity(self.callbacks.clone()))
@@ -293,13 +296,15 @@ impl RecipientsAccumulator {
 
             // Find the required plugins.
             for plugin_name in plugin_names {
-                self.recipients
-                    .push(Box::new(plugin::RecipientPluginV1::new(
+                self.recipients.push(Box::new(
+                    plugin::RecipientPluginV1::new(
                         plugin_name,
                         &self.plugin_recipients,
                         &self.plugin_identities,
                         callbacks.clone(),
-                    )?))
+                    )
+                    .map_err(EncryptError::PluginResolve)?,
+                ))
             }
         }
 

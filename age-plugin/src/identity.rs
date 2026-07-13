@@ -3,10 +3,10 @@
 use age_core::{
     format::{FileKey, Stanza},
     plugin::{self, BidirSend, Connection},
+    primitives::bech32_decode,
     secrecy::{ExposeSecret, SecretString},
 };
 use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
-use bech32::FromBase32;
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -265,29 +265,32 @@ pub(crate) fn run_v1<P: IdentityPluginV1>(mut plugin: P) -> io::Result<()> {
                 .into_iter()
                 .enumerate()
                 .map(|(index, item)| {
-                    bech32::decode(&item)
-                        .ok()
-                        .and_then(|(hrp, data, variant)| {
-                            if hrp.starts_with(PLUGIN_IDENTITY_PREFIX)
-                                && hrp.ends_with('-')
-                                && variant == bech32::Variant::Bech32
-                            {
-                                Vec::from_base32(&data).ok().map(|data| (hrp, data))
-                            } else {
-                                None
-                            }
-                        })
-                        .ok_or_else(|| Error::Identity {
-                            index,
-                            message: "Invalid identity encoding".to_owned(),
-                        })
-                        .and_then(|(hrp, bytes)| {
-                            plugin.add_identity(
-                                index,
-                                &hrp[PLUGIN_IDENTITY_PREFIX.len()..hrp.len() - 1],
-                                &bytes,
-                            )
-                        })
+                    bech32_decode(
+                        &item,
+                        |_| "invalid Bech32 encoding",
+                        |hrp| {
+                            (hrp.len() > PLUGIN_IDENTITY_PREFIX.len()
+                                && hrp.as_str().starts_with(PLUGIN_IDENTITY_PREFIX)
+                                && hrp.as_str().ends_with('-'))
+                            .then_some(())
+                            .ok_or("invalid HRP")
+                        },
+                        |hrp, bytes| Ok((hrp, bytes.collect::<Vec<_>>())),
+                    )
+                    .map_err(|message| Error::Identity {
+                        index,
+                        message: message.to_owned(),
+                    })
+                    .and_then(|(hrp, bytes)| {
+                        // TODO: Decide whether to allow plugin names to end in -
+                        let name = hrp
+                            .as_str()
+                            .split_at(PLUGIN_IDENTITY_PREFIX.len())
+                            .1
+                            .trim_end_matches('-')
+                            .to_lowercase();
+                        plugin.add_identity(index, &name, &bytes)
+                    })
                 })
                 .filter_map(|res| res.err())
                 .collect();

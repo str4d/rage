@@ -1,5 +1,6 @@
 bin.name = "rage"
 args = "--help"
+env.add.LANGUAGE = "it"
 env.add.LC_ALL = "it"
 stdout = """
 Utilizzo: rage[EXE] [--encrypt] (-r DESTINATARIO | -R PERCORSO)... [-i IDENTITÀ] [-a] [-o OUTPUT] [INPUT]

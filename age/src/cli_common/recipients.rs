@@ -2,9 +2,7 @@ use std::io::{self, BufReader};
 
 use super::StdinGuard;
 use super::{identities::parse_identity_files, ReadError};
-use crate::identity::RecipientsAccumulator;
-use crate::util::LimitedReader;
-use crate::{x25519, Recipient};
+use crate::{identity::RecipientsAccumulator, tag, tagpq, util::LimitedReader, x25519, Recipient};
 
 #[cfg(feature = "plugin")]
 use crate::{cli_common::UiCallbacks, plugin};
@@ -59,6 +57,10 @@ fn parse_recipient(
     recipients: &mut RecipientsAccumulator,
 ) -> Result<(), ReadError> {
     if let Ok(pk) = s.parse::<x25519::Recipient>() {
+        recipients.push(Box::new(pk));
+    } else if let Ok(pk) = s.parse::<tag::Recipient>() {
+        recipients.push(Box::new(pk));
+    } else if let Ok(pk) = s.parse::<tagpq::Recipient>() {
         recipients.push(Box::new(pk));
     } else if let Some(pk) = {
         #[cfg(feature = "ssh")]
@@ -198,8 +200,8 @@ pub fn read_recipients(
             // Only one error can occur here.
             #[cfg(feature = "plugin")]
             {
-                if let EncryptError::MissingPlugin { binary_name } = _e {
-                    ReadError::MissingPlugin { binary_name }
+                if let EncryptError::PluginResolve(e) = _e {
+                    ReadError::PluginResolve(e)
                 } else {
                     unreachable!()
                 }
