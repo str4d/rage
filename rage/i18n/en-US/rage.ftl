@@ -15,8 +15,10 @@
 -rage = rage
 -rage-keygen = rage-keygen
 -stdin = "-"
--recipient-prefix = age1
--identity-prefix = AGE-SECRET-KEY-1
+-pq-recipient-prefix = age1pq1
+-pq-identity-prefix = AGE-SECRET-KEY-PQ-1
+-x25519-recipient-prefix = age1
+-x25519-identity-prefix = AGE-SECRET-KEY-1
 -armor-pem-type = AGE ENCRYPTED FILE
 
 -rage-mount = rage-mount
@@ -356,21 +358,36 @@ man-rage-recipients-and-identities =
     to. {identities} are private values, like a private key, that allow decrypting
     a file encrypted to the corresponding {recipient}.
 
-man-rage-native-x25519-keys-heading = Native X25519 keys
+man-rage-native-x25519-keys-heading = Native keys
 man-rage-native-x25519-keys =
     Native {-age} key pairs are generated with {-rage-keygen}(1), and provide small
-    encodings and strong encryption based on X25519. They are the recommended
-    recipient type for most applications.
+    encodings and strong encryption based on X25519 for classic keys, and X25519 +
+    ML-KEM-768 for post-quantum hybrid keys. The post-quantum hybrid keys are secure
+    against future quantum computers and are the recommended recipient type for most
+    applications.
 
-    A {recipient} encoding begins with "{-recipient-prefix}" and looks like the
-    following:
+    A hybrid {recipient} encoding begins with "{-pq-recipient-prefix}" and looks like
+    the following:
+
+    {"    "}{$example_age_pq_recipient}
+
+    A hybrid {identity} encoding begins with "{-pq-identity-prefix}" and looks like
+    the following:
+
+    {"    "}{$example_age_pq_identity}
+
+    A classic {recipient} encoding begins with "{-x25519-recipient-prefix}" and looks
+    like the following:
 
     {"    "}{$example_age_recipient}
 
-    An {identity} encoding begins with "{-identity-prefix}" and looks like the
-    following:
+    A classic {identity} encoding begins with "{-x25519-identity-prefix}" and looks
+    like the following:
 
     {"    "}{$example_age_identity}
+
+    A file can't be encrypted to both post-quantum and classic keys, as that would
+    defeat the post-quantum security of the encryption.
 
     An encrypted file can't be linked to the native recipient it's encrypted to
     without access to the corresponding identity.

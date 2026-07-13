@@ -12,6 +12,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Added
+- Support for new native age recipient types:
+  - `age1pq1..`
+
 ### Changed
 - MSRV is now 1.85.0.
 - MSRV for `rage-mount` (behind the `mount` feature flag) is now 1.88.0.

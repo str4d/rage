@@ -345,7 +345,7 @@ mod tests {
     use age_core::secrecy::SecretString;
 
     use super::{Decryptor, Encryptor};
-    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, scrypt, x25519};
+    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, pq, scrypt, x25519};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -465,6 +465,29 @@ mod tests {
         let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        recipient_async_round_trip(
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
+        );
+    }
+
+    #[test]
+    fn pq_round_trip() {
+        let buf = BufReader::new(crate::pq::tests::TEST_IDENTITY.as_bytes());
+        let f = IdentityFile::from_buffer(buf).unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
+        recipient_round_trip(
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
+        );
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn pq_async_round_trip() {
+        let buf = BufReader::new(crate::pq::tests::TEST_IDENTITY.as_bytes());
+        let f = IdentityFile::from_buffer(buf).unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
         recipient_async_round_trip(
             iter::once(&pk as _),
             f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),

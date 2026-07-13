@@ -1379,6 +1379,7 @@ dependencies = [
  "subtle",
  "turboshake",
  "x-wing",
+ "x25519-dalek",
  "zeroize",
 ]
 

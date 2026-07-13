@@ -3,8 +3,8 @@
 # rage: Rust implementation of age
 
 rage is a simple, modern, and secure file encryption tool, using the *age*
-format. It features small explicit keys, no config options, and UNIX-style
-composability.
+format. It features small explicit keys, post-quantum support, no config options,
+and UNIX-style composability.
 
 The format specification is at [age-encryption.org/v1](https://age-encryption.org/v1).
 age was designed by [@Benjojo](https://benjojo.co.uk/) and

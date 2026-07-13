@@ -258,6 +258,9 @@ impl Cli {
                     .subheading(fl!("man-rage-native-x25519-keys-heading"))
                     .paragraph(fl!(
                         "man-rage-native-x25519-keys",
+                        example_age_pq_recipient = "age1pq167[... 1950 more characters ...]",
+                        example_age_pq_identity =
+                            "AGE-SECRET-KEY-PQ-1K30MYPZAHAXHR22YHH27EGDVLU0QNSUH3DSV7J7NR3X6D9LHXNWSDLTV4T",
                         example_age_recipient = "age1gde3ncmahlqd9gg50tanl99r960llztrhfapnmx853s4tjum03uqfssgdh",
                         example_age_identity =
                             "AGE-SECRET-KEY-1KTYK6RVLN5TAPE7VF6FQQSKZ9HWWCDSKUGXXNUQDWZ7XXT5YK5LSF3UTKQ",
