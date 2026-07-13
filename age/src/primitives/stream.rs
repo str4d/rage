@@ -562,8 +562,7 @@ impl<R: Read + Seek> StreamReader<R> {
                 let ct_len = ct_end - ct_start;
 
                 // Use ceiling division to determine the number of chunks.
-                let num_chunks =
-                    (ct_len + (ENCRYPTED_CHUNK_SIZE as u64 - 1)) / ENCRYPTED_CHUNK_SIZE as u64;
+                let num_chunks = ct_len.div_ceil(ENCRYPTED_CHUNK_SIZE as u64);
 
                 // If we have no ciphertext data then there is no last chunk, which is
                 // invalid.

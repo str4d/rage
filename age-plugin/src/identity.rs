@@ -74,7 +74,7 @@ impl IdentityPluginV1 for Infallible {
 /// The interface that age plugins can use to interact with an age implementation.
 struct BidirCallbacks<'a, 'b, R: io::Read, W: io::Write>(&'b mut BidirSend<'a, R, W>);
 
-impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 'b, R, W> {
+impl<R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'_, '_, R, W> {
     /// Shows a message to the user.
     ///
     /// This can be used to prompt the user to take some physical action, such as

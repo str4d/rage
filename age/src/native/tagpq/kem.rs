@@ -247,7 +247,7 @@ fn expand_key(
 
 fn p256_random_scalar(seed: &[u8; 128]) -> p256::SecretKey {
     for sk in seed.chunks_exact(32) {
-        if let Ok(sk) = p256::SecretKey::from_bytes(sk.try_into().expect("correct length")) {
+        if let Ok(sk) = p256::SecretKey::from_bytes(sk.into()) {
             return sk;
         }
     }
@@ -325,7 +325,7 @@ mod tests {
         struct FakeCsprng<'a> {
             bytes: &'a [u8],
         }
-        impl<'a> RngCore for FakeCsprng<'a> {
+        impl RngCore for FakeCsprng<'_> {
             fn next_u32(&mut self) -> u32 {
                 rand_core::impls::next_u32_via_fill(self)
             }
@@ -349,7 +349,7 @@ mod tests {
                 }
             }
         }
-        impl<'a> CryptoRng for FakeCsprng<'a> {}
+        impl CryptoRng for FakeCsprng<'_> {}
 
         for tv in TEST_VECTORS {
             let dk = PrivateKey::from_bytes(&tv.dk).unwrap();

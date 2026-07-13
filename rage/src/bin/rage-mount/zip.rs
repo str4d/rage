@@ -192,7 +192,7 @@ impl FilesystemMT for AgeZipFs {
             files: inner.len() as u64,
             ffree: 0,
             bsize: 64 * 1024,
-            namelen: u32::max_value(),
+            namelen: u32::MAX,
             frsize: 64 * 1024,
         })
     }

@@ -313,7 +313,7 @@ impl<R: Read, W: Write> Connection<R, W> {
 /// Grease is applied automatically.
 pub struct UnidirSend<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> UnidirSend<'a, R, W> {
+impl<R: Read, W: Write> UnidirSend<'_, R, W> {
     /// Send a command.
     pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> io::Result<()> {
         for grease in self.0.grease_gun() {
@@ -341,7 +341,7 @@ impl<'a, R: Read, W: Write> UnidirSend<'a, R, W> {
 /// Grease is applied automatically.
 pub struct BidirSend<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
+impl<R: Read, W: Write> BidirSend<'_, R, W> {
     /// Send a command and receive a response.
     pub fn send(&mut self, command: &str, metadata: &[&str], data: &[u8]) -> Result<Stanza> {
         for grease in self.0.grease_gun() {
@@ -389,7 +389,7 @@ impl<'a, R: Read, W: Write> BidirSend<'a, R, W> {
 /// The possible replies to a bidirectional command.
 pub struct Reply<'a, R: Read, W: Write>(&'a mut Connection<R, W>);
 
-impl<'a, R: Read, W: Write> Reply<'a, R, W> {
+impl<R: Read, W: Write> Reply<'_, R, W> {
     /// Reply with `ok` and optional data.
     pub fn ok(self, data: Option<&[u8]>) -> Response {
         Response(

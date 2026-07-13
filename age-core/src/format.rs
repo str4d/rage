@@ -61,7 +61,7 @@ pub struct AgeStanza<'a> {
     body: Vec<&'a [u8]>,
 }
 
-impl<'a> AgeStanza<'a> {
+impl AgeStanza<'_> {
     /// Decodes and returns the body of this stanza.
     pub fn body(&self) -> Vec<u8> {
         // An AgeStanza will always contain at least one chunk.
