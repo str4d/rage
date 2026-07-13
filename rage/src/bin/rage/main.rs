@@ -162,10 +162,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             }
             Err(pinentry::Error::Gpg(e)) => {
                 // Pretend it is an I/O error
-                return Err(error::EncryptError::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("{}", e),
-                )));
+                return Err(error::EncryptError::Io(io::Error::other(format!("{e}"))));
             }
             Err(pinentry::Error::Io(e)) => return Err(error::EncryptError::Io(e)),
         }
@@ -338,10 +335,7 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             }
             Err(pinentry::Error::Gpg(e)) => {
                 // Pretend it is an I/O error
-                Err(error::DecryptError::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("{}", e),
-                )))
+                Err(error::DecryptError::Io(io::Error::other(format!("{e}"))))
             }
             Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e)),
         }

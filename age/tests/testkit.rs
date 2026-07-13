@@ -580,7 +580,7 @@ fn format_testkit_comment(testfile: &TestFile) -> String {
     testfile
         .comment
         .as_ref()
-        .map(|c| format!(" ({})", c))
+        .map(|c| format!(" ({c})"))
         .unwrap_or_default()
 }
 
@@ -604,9 +604,9 @@ fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<x25519::Id
 fn get_testkit_passphrase(testfile: &TestFile, comment: &str) -> SecretString {
     assert_eq!(testfile.identities.len(), 0);
     match testfile.passphrases.len() {
-        0 => panic!("Test file is missing passphrase{}", comment),
+        0 => panic!("Test file is missing passphrase{comment}"),
         1 => testfile.passphrases.first().cloned().unwrap().into(),
-        n => panic!("Too many passphrases ({}){}", n, comment),
+        n => panic!("Too many passphrases ({n}){comment}"),
     }
 }
 
@@ -657,7 +657,7 @@ fn check_decrypt_success(
             if actual.is_ok() {
                 format!("payload '{}'", String::from_utf8_lossy(payload))
             } else {
-                format!("{:?}", actual)
+                format!("{actual:?}")
             },
             comment,
         ),
@@ -733,7 +733,7 @@ struct TestFile {
 
 impl TestFile {
     fn parse(filename: &str) -> Self {
-        let file = File::open(format!("./tests/testdata/testkit/{}", filename)).unwrap();
+        let file = File::open(format!("./tests/testdata/testkit/{filename}")).unwrap();
         let mut r = BufReader::new(file);
         let mut line = String::new();
 
@@ -764,7 +764,7 @@ impl TestFile {
                 }
                 "HMAC failure" => Expect::HmacFailure,
                 "no match" => Expect::NoMatch,
-                e => panic!("Unknown testkit failure '{}'", e),
+                e => panic!("Unknown testkit failure '{e}'"),
             }
         };
 
@@ -791,7 +791,7 @@ impl TestFile {
                 "passphrase" => passphrases.push(data.to_owned()),
                 "armored" => armored = data == "yes",
                 "comment" => comment = Some(data.to_owned()),
-                _ => panic!("Unknown testkit metadata '{}'", prefix),
+                _ => panic!("Unknown testkit metadata '{prefix}'"),
             }
         }
 

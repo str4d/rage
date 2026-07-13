@@ -149,7 +149,7 @@ pub(crate) mod read {
         use nom::bytes::streaming::take;
 
         // Unpadded encoded length
-        let encoded_count = ((4 * count) + 2) / 3;
+        let encoded_count = (4 * count).div_ceil(3);
 
         move |input: &str| {
             let (i, data) = take(encoded_count)(input)?;

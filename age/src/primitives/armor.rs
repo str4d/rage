@@ -1399,13 +1399,13 @@ mod tests {
                     match w.as_mut().poll_write(&mut cx, tmp) {
                         Poll::Ready(Ok(0)) => break,
                         Poll::Ready(Ok(written)) => tmp = &tmp[written..],
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                         Poll::Pending => panic!("Unexpected Pending"),
                     }
                 }
                 match w.as_mut().poll_close(&mut cx) {
                     Poll::Ready(Ok(())) => (),
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
@@ -1422,7 +1422,7 @@ mod tests {
                     match input.as_mut().poll_read(&mut cx, &mut tmp) {
                         Poll::Ready(Ok(0)) => break,
                         Poll::Ready(Ok(read)) => buf.extend_from_slice(&tmp[..read]),
-                        Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                        Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                         Poll::Pending => panic!("Unexpected Pending"),
                     }
                 }
@@ -1551,13 +1551,13 @@ mod tests {
                 match w.as_mut().poll_write(&mut cx, tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
             match w.as_mut().poll_close(&mut cx) {
                 Poll::Ready(Ok(())) => (),
-                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                 Poll::Pending => panic!("Unexpected Pending"),
             }
         }
@@ -1582,7 +1582,7 @@ mod tests {
                 match input.as_mut().poll_read(&mut cx, &mut tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(read)) => buf_async.extend_from_slice(&tmp[..read]),
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }

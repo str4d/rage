@@ -63,10 +63,10 @@ impl fmt::Display for EncryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             EncryptError::Age(e @ age::EncryptError::MissingRecipients) => {
-                writeln!(f, "{}", e)?;
+                writeln!(f, "{e}")?;
                 wfl!(f, "rec-enc-missing-recipients")
             }
-            EncryptError::Age(e) => write!(f, "{}", e),
+            EncryptError::Age(e) => write!(f, "{e}"),
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
                     wlnfl!(f, "err-enc-broken-stdout", err = source.to_string())?;
@@ -75,8 +75,8 @@ impl fmt::Display for EncryptError {
                     wfl!(f, "err-enc-broken-file", err = source.to_string())
                 }
             }
-            EncryptError::IdentityRead(e) => write!(f, "{}", e),
-            EncryptError::Io(e) => write!(f, "{}", e),
+            EncryptError::IdentityRead(e) => write!(f, "{e}"),
+            EncryptError::Io(e) => write!(f, "{e}"),
             EncryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-enc-mixed-identity-passphrase")
             }
@@ -157,17 +157,17 @@ impl fmt::Display for DecryptError {
         match self {
             DecryptError::Age(e) => match e {
                 age::DecryptError::ExcessiveWork { required, .. } => {
-                    writeln!(f, "{}", e)?;
+                    writeln!(f, "{e}")?;
                     wfl!(f, "rec-dec-excessive-work", wf = required)
                 }
-                _ => write!(f, "{}", e),
+                _ => write!(f, "{e}"),
             },
             DecryptError::ArmorFlag => {
                 wlnfl!(f, "err-dec-armor-flag")?;
                 wfl!(f, "rec-dec-armor-flag")
             }
-            DecryptError::IdentityRead(e) => write!(f, "{}", e),
-            DecryptError::Io(e) => write!(f, "{}", e),
+            DecryptError::IdentityRead(e) => write!(f, "{e}"),
+            DecryptError::Io(e) => write!(f, "{e}"),
             DecryptError::MissingIdentities { stdin_identity } => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 if *stdin_identity {
@@ -228,8 +228,8 @@ impl From<EncryptError> for Error {
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Decryption(e) => writeln!(f, "{}", e)?,
-            Error::Encryption(e) => writeln!(f, "{}", e)?,
+            Error::Decryption(e) => writeln!(f, "{e}")?,
+            Error::Encryption(e) => writeln!(f, "{e}")?,
             Error::IdentityFlagAmbiguous => wlnfl!(f, "err-identity-ambiguous")?,
             Error::MixedEncryptAndDecrypt => wlnfl!(f, "err-mixed-encrypt-decrypt")?,
             Error::SameInputAndOutput(filename) => {

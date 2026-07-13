@@ -197,7 +197,7 @@ const PLUGIN_IDENTITY_PREFIX: &str = "AGE-PLUGIN-";
 /// A "created" time is included in the output, set to the current local time.
 pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) {
     let mut identity_lower = bech32_encode(
-        Hrp::parse_unchecked(&format!("{}{}-", PLUGIN_IDENTITY_PREFIX, plugin_name)),
+        Hrp::parse_unchecked(&format!("{PLUGIN_IDENTITY_PREFIX}{plugin_name}-")),
         identity,
     );
 
@@ -208,7 +208,7 @@ pub fn print_new_identity(plugin_name: &str, identity: &[u8], recipient: &[u8]) 
     println!(
         "# recipient: {}",
         bech32_encode(
-            Hrp::parse_unchecked(&format!("{}{}", PLUGIN_RECIPIENT_PREFIX, plugin_name)),
+            Hrp::parse_unchecked(&format!("{PLUGIN_RECIPIENT_PREFIX}{plugin_name}")),
             recipient,
         )
     );

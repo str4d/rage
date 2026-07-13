@@ -22,7 +22,7 @@ const RECIPIENT_TAG: &str = PLUGIN_NAME;
 fn explode(location: &str) {
     if let Ok(s) = env::var("AGE_EXPLODES") {
         if s == location {
-            panic!("Env variable AGE_EXPLODES={} is set. Boom! 💥", location);
+            panic!("Env variable AGE_EXPLODES={location} is set. Boom! 💥");
         }
     }
 }

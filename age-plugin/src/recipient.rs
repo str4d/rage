@@ -269,8 +269,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 ([recipient], []) => Ok(recipient.clone()),
                 _ => Err(Error::Internal {
                     message: format!(
-                        "{} command must have exactly one metadata argument and no data",
-                        ADD_RECIPIENT
+                        "{ADD_RECIPIENT} command must have exactly one metadata argument and no data"
                     ),
                 }),
             }),
@@ -278,8 +277,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 ([identity], []) => Ok(identity.clone()),
                 _ => Err(Error::Internal {
                     message: format!(
-                        "{} command must have exactly one metadata argument and no data",
-                        ADD_IDENTITY
+                        "{ADD_IDENTITY} command must have exactly one metadata argument and no data"
                     ),
                 }),
             }),
@@ -303,8 +301,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 (Ok(r), Ok(i)) if r.is_empty() && i.is_empty() => (
                     Err(vec![Error::Internal {
                         message: format!(
-                            "Need at least one {} or {} command",
-                            ADD_RECIPIENT, ADD_IDENTITY
+                            "Need at least one {ADD_RECIPIENT} or {ADD_IDENTITY} command"
                         ),
                     }]),
                     Err(vec![]),
@@ -313,7 +310,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             },
             match file_keys.unwrap() {
                 Ok(f) if f.is_empty() => Err(vec![Error::Internal {
-                    message: format!("Need at least one {} command", WRAP_FILE_KEY),
+                    message: format!("Need at least one {WRAP_FILE_KEY} command"),
                 }]),
                 r => r,
             },
@@ -321,7 +318,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 Ok(v) if v.is_empty() => Ok(false),
                 Ok(v) if v.len() == 1 => Ok(true),
                 _ => Err(vec![Error::Internal {
-                    message: format!("Received more than one {} command", EXTENSION_LABELS),
+                    message: format!("Received more than one {EXTENSION_LABELS} command"),
                 }]),
             },
         )

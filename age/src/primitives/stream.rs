@@ -809,13 +809,13 @@ mod tests {
                 match w.as_mut().poll_write(&mut cx, tmp) {
                     Poll::Ready(Ok(0)) => break,
                     Poll::Ready(Ok(written)) => tmp = &tmp[written..],
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
             match w.as_mut().poll_close(&mut cx) {
                 Poll::Ready(Ok(())) => (),
-                Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                 Poll::Pending => panic!("Unexpected Pending"),
             }
         };
@@ -832,7 +832,7 @@ mod tests {
                 match r.as_mut().poll_read(&mut cx, &mut tmp) {
                     Poll::Ready(Ok(0)) => break buf,
                     Poll::Ready(Ok(read)) => buf.extend_from_slice(&tmp[..read]),
-                    Poll::Ready(Err(e)) => panic!("Unexpected error: {}", e),
+                    Poll::Ready(Err(e)) => panic!("Unexpected error: {e}"),
                     Poll::Pending => panic!("Unexpected Pending"),
                 }
             }
@@ -880,7 +880,7 @@ mod tests {
 
         match result {
             Ok(written) => assert_eq!(written, data.len() as u64),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
         }
 
         let decrypted = {
@@ -892,7 +892,7 @@ mod tests {
 
             match result {
                 Ok(written) => assert_eq!(written, data.len() as u64),
-                Err(e) => panic!("Unexpected error: {}", e),
+                Err(e) => panic!("Unexpected error: {e}"),
             }
 
             buf

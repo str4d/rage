@@ -190,8 +190,7 @@ impl UnsupportedKey {
             )?,
             UnsupportedKey::EncryptedSsh(cipher) => {
                 let new_issue = format!(
-                    "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{}",
-                    cipher,
+                    "https://github.com/str4d/rage/issues/new?title=Support%20OpenSSH%20key%20encryption%20cipher%20{cipher}",
                 );
                 wfl!(
                     f,
@@ -549,14 +548,14 @@ AwQFBg==
     #[test]
     fn ssh_ed25519_round_trip() {
         for (kind, sk) in TEST_SSH_ED25519_SK_LIST {
-            eprintln!("Testing cipher '{}'", kind);
+            eprintln!("Testing cipher '{kind}'");
             let buf = BufReader::new(sk.as_bytes());
             let identity = Identity::from_buffer(buf, None).unwrap();
             match (*kind, &identity) {
                 ("none", Identity::Unencrypted(_)) => (),
                 ("none", _) => panic!("key should be unencrypted"),
                 (_, Identity::Encrypted(_)) => (),
-                (_, Identity::Unsupported(_)) => panic!("{} cipher is unsupported", kind),
+                (_, Identity::Unsupported(_)) => panic!("{kind} cipher is unsupported"),
                 (_, _) => panic!("key should be encrypted"),
             };
             let identity = identity.with_callbacks(TestPassphrase("passphrase"));

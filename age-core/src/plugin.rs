@@ -76,7 +76,7 @@ impl Connection<DebugReader<ChildStdout>, DebugWriter<ChildStdin>> {
         let working_dir = tempfile::tempdir()?;
         let debug_enabled = env::var("AGEDEBUG").map(|s| s == "plugin").unwrap_or(false);
         let process = Command::new(binary.canonicalize()?)
-            .arg(format!("--age-plugin={}", state_machine))
+            .arg(format!("--age-plugin={state_machine}"))
             .current_dir(working_dir.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -124,7 +124,7 @@ impl<R: Read, W: Write> Connection<R, W> {
         cookie_factory::gen_simple(write::age_stanza(command, metadata, data), &mut self.output)
             .map_err(|e| match e {
                 GenError::IoError(e) => e,
-                e => io::Error::new(io::ErrorKind::Other, format!("{}", e)),
+                e => io::Error::other(format!("{e}")),
             })
             .and_then(|w| w.flush())
     }
@@ -356,7 +356,7 @@ impl<R: Read, W: Write> BidirSend<'_, R, W> {
             RESPONSE_UNSUPPORTED => Ok(Err(Error::Unsupported)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("unexpected response: {}", tag),
+                format!("unexpected response: {tag}"),
             )),
         }
     }
@@ -380,7 +380,7 @@ impl<R: Read, W: Write> BidirSend<'_, R, W> {
             RESPONSE_UNSUPPORTED => Ok(Err(Error::Unsupported)),
             tag => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("unexpected response: {}", tag),
+                format!("unexpected response: {tag}"),
             )),
         }
     }
