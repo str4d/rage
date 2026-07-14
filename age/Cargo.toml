@@ -83,6 +83,7 @@ wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
+flate2.workspace = true
 futures-test = "0.3"
 hex = "0.4"
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
