@@ -21,6 +21,11 @@ const V1_MAGIC: &[u8] = b"v1";
 const MAC_TAG: &[u8] = b"---";
 const ENCODED_MAC_LENGTH: usize = 43;
 
+/// Maximum header size to prevent unbounded memory allocation.
+///
+/// This matches the limit used by the reference Go implementation.
+const MAX_HEADER_SIZE: usize = 64 * 1024; // 64 KiB
+
 #[derive(Debug, PartialEq)]
 pub(crate) struct HeaderV1 {
     pub(crate) recipients: Vec<Stanza>,
@@ -119,6 +124,12 @@ impl Header {
                     // remainder of the input will be truncated.
                     let m = data.len();
                     let new_len = m + n.get();
+                    
+                    // Prevent unbounded memory allocation.
+                    if new_len > MAX_HEADER_SIZE {
+                        break Err(DecryptError::InvalidHeader);
+                    }
+                    
                     data.resize(new_len, 0);
                     input.read_exact(&mut data[m..new_len])?;
                 }
@@ -149,6 +160,11 @@ impl Header {
                             "Incomplete header",
                         )));
                     }
+                    
+                    // Prevent unbounded memory allocation.
+                    if data.len() > MAX_HEADER_SIZE {
+                        break Err(DecryptError::InvalidHeader);
+                    }
                 }
                 Err(_) => {
                     break Err(DecryptError::InvalidHeader);
@@ -177,6 +193,12 @@ impl Header {
                     // remainder of the input will be truncated.
                     let m = data.len();
                     let new_len = m + n.get();
+                    
+                    // Prevent unbounded memory allocation.
+                    if new_len > MAX_HEADER_SIZE {
+                        break Err(DecryptError::InvalidHeader);
+                    }
+                    
                     data.resize(new_len, 0);
                     input.read_exact(&mut data[m..new_len]).await?;
                 }
@@ -210,6 +232,11 @@ impl Header {
                             io::ErrorKind::UnexpectedEof,
                             "Incomplete header",
                         )));
+                    }
+                    
+                    // Prevent unbounded memory allocation.
+                    if data.len() > MAX_HEADER_SIZE {
+                        break Err(DecryptError::InvalidHeader);
                     }
                 }
                 Err(_) => {
