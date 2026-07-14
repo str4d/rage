@@ -1082,6 +1082,10 @@ impl<R: AsyncBufRead + Unpin> AsyncBufRead for ArmoredReader<R> {
                     let mut this = self.as_mut().project();
                     let available = loop {
                         let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
+                        if buf.is_empty() {
+                            // Stream has reached EOF.
+                            return Poll::Ready(Ok(&[]));
+                        }
                         if buf.len() >= MIN_ARMOR_LEN {
                             break buf;
                         }

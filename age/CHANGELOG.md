@@ -13,6 +13,8 @@ to 1.0.0 are beta releases.
 - `age::armor::ArmoredReader`:
   - It now correctly implements the intended strict parsing profile (initially
     implemented in 0.9.0) by rejecting an empty final line.
+  - The async API now correctly rejects some classes of truncated files that
+    previously would cause it to hang.
 
 ## [0.11.4] - 2026-07-13
 ### Fixed
