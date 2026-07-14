@@ -4,8 +4,8 @@ use core::fmt;
 
 use bech32::primitives::decode::CheckedHrpstring;
 use chacha20poly1305::{
-    aead::{self, generic_array::typenum::Unsigned, Aead, AeadCore, KeyInit},
     ChaCha20Poly1305,
+    aead::{self, Aead, AeadCore, KeyInit, common::typenum::Unsigned},
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -135,13 +135,13 @@ where
 /// that you choose a KEM with equivalent properties.
 ///
 /// [RFC 9180]: https://tools.ietf.org/html/rfc9180
-pub fn hpke_seal<Kem: hpke::Kem, R: rand::RngCore + rand::CryptoRng>(
+pub fn hpke_seal<Kem: hpke::Kem, R: rand::CryptoRng>(
     pk_recip: &Kem::PublicKey,
     info: &[u8],
     plaintext: &[u8],
     rng: &mut R,
 ) -> (Kem::EncappedKey, Vec<u8>) {
-    hpke::single_shot_seal::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, Kem, R>(
+    hpke::single_shot_seal_with_rng::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, Kem>(
         &hpke::OpModeS::Base,
         pk_recip,
         info,
@@ -179,7 +179,7 @@ pub fn hpke_open<Kem: hpke::Kem>(
 #[cfg(test)]
 mod tests {
     use hpke::Kem;
-    use rand::rngs::OsRng;
+    use rand::{rand_core::UnwrapErr, rngs::SysRng};
 
     use super::{aead_decrypt, aead_encrypt, bech32_decode, bech32_encode, hpke_open, hpke_seal};
 
@@ -210,9 +210,9 @@ mod tests {
     #[test]
     fn hpke_round_trip() {
         type Kem = hpke::kem::DhP256HkdfSha256;
-        let mut rng = OsRng;
+        let mut rng = UnwrapErr(SysRng);
 
-        let (sk_recip, pk_recip) = Kem::gen_keypair(&mut rng);
+        let (sk_recip, pk_recip) = Kem::gen_keypair_with_rng(&mut rng);
 
         let info = b"foobar";
         let plaintext = b"12345678";

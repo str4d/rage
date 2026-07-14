@@ -1,12 +1,12 @@
 //! Recipient plugin helpers.
 
 use age_core::{
-    format::{is_arbitrary_string, FileKey, Stanza},
+    format::{FileKey, Stanza, is_arbitrary_string},
     plugin::{self, BidirSend, Connection},
     primitives::bech32_decode,
     secrecy::SecretString,
 };
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 
 use std::collections::HashSet;
 use std::convert::Infallible;
@@ -39,7 +39,7 @@ pub trait RecipientPluginV1 {
     ///
     /// Returns an error if the recipient is unknown or invalid.
     fn add_recipient(&mut self, index: usize, plugin_name: &str, bytes: &[u8])
-        -> Result<(), Error>;
+    -> Result<(), Error>;
 
     /// Stores an identity that the user would like to encrypt age files to.
     ///
@@ -126,7 +126,7 @@ impl RecipientPluginV1 for Infallible {
 /// The interface that age plugins can use to interact with an age implementation.
 struct BidirCallbacks<'a, 'b, R: io::Read, W: io::Write>(&'b mut BidirSend<'a, R, W>);
 
-impl<'a, 'b, R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'a, 'b, R, W> {
+impl<R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'_, '_, R, W> {
     /// Shows a message to the user.
     ///
     /// This can be used to prompt the user to take some physical action, such as
@@ -269,8 +269,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 ([recipient], []) => Ok(recipient.clone()),
                 _ => Err(Error::Internal {
                     message: format!(
-                        "{} command must have exactly one metadata argument and no data",
-                        ADD_RECIPIENT
+                        "{ADD_RECIPIENT} command must have exactly one metadata argument and no data"
                     ),
                 }),
             }),
@@ -278,8 +277,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 ([identity], []) => Ok(identity.clone()),
                 _ => Err(Error::Internal {
                     message: format!(
-                        "{} command must have exactly one metadata argument and no data",
-                        ADD_IDENTITY
+                        "{ADD_IDENTITY} command must have exactly one metadata argument and no data"
                     ),
                 }),
             }),
@@ -303,8 +301,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 (Ok(r), Ok(i)) if r.is_empty() && i.is_empty() => (
                     Err(vec![Error::Internal {
                         message: format!(
-                            "Need at least one {} or {} command",
-                            ADD_RECIPIENT, ADD_IDENTITY
+                            "Need at least one {ADD_RECIPIENT} or {ADD_IDENTITY} command"
                         ),
                     }]),
                     Err(vec![]),
@@ -313,7 +310,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
             },
             match file_keys.unwrap() {
                 Ok(f) if f.is_empty() => Err(vec![Error::Internal {
-                    message: format!("Need at least one {} command", WRAP_FILE_KEY),
+                    message: format!("Need at least one {WRAP_FILE_KEY} command"),
                 }]),
                 r => r,
             },
@@ -321,7 +318,7 @@ pub(crate) fn run_v1<P: RecipientPluginV1>(mut plugin: P) -> io::Result<()> {
                 Ok(v) if v.is_empty() => Ok(false),
                 Ok(v) if v.len() == 1 => Ok(true),
                 _ => Err(vec![Error::Internal {
-                    message: format!("Received more than one {} command", EXTENSION_LABELS),
+                    message: format!("Received more than one {EXTENSION_LABELS} command"),
                 }]),
             },
         )

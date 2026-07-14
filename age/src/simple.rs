@@ -2,8 +2,8 @@ use std::io::{Read, Write};
 use std::iter;
 
 use crate::{
-    error::{DecryptError, EncryptError},
     Decryptor, Encryptor, Identity, Recipient,
+    error::{DecryptError, EncryptError},
 };
 
 #[cfg(feature = "armor")]

@@ -2,7 +2,7 @@
 
 use std::{cell::Cell, io};
 
-use crate::{fl, scrypt, Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile};
+use crate::{Callbacks, DecryptError, Decryptor, EncryptError, IdentityFile, fl, scrypt};
 
 /// An encrypted age identity file.
 ///
@@ -229,7 +229,7 @@ mod tests {
     use age_core::secrecy::{ExposeSecret, SecretString};
 
     use super::Identity;
-    use crate::{x25519, Callbacks, DecryptError, Identity as _, Recipient as _};
+    use crate::{Callbacks, DecryptError, Identity as _, Recipient as _, x25519};
 
     #[cfg(feature = "armor")]
     use crate::armor::ArmoredReader;
@@ -306,10 +306,13 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
             .unwrap()
             .unwrap();
 
-            if let Err(e) = identity.unwrap_stanzas(&wrapped).unwrap() {
-                assert!(matches!(e, DecryptError::KeyDecryptionFailed));
-            } else {
-                panic!("Should have failed");
+            match identity.unwrap_stanzas(&wrapped).unwrap() {
+                Err(e) => {
+                    assert!(matches!(e, DecryptError::KeyDecryptionFailed));
+                }
+                _ => {
+                    panic!("Should have failed");
+                }
             }
         }
 
@@ -320,10 +323,13 @@ fOrxrKTj7xCdNS3+OrCdnBC8Z9cKDxjCGWW3fkjLsYha0Jo=
                 .unwrap()
                 .unwrap();
 
-            if let Err(e) = identity.unwrap_stanzas(&wrapped).unwrap() {
-                assert!(matches!(e, DecryptError::KeyDecryptionFailed));
-            } else {
-                panic!("Should have failed");
+            match identity.unwrap_stanzas(&wrapped).unwrap() {
+                Err(e) => {
+                    assert!(matches!(e, DecryptError::KeyDecryptionFailed));
+                }
+                _ => {
+                    panic!("Should have failed");
+                }
             }
         }
 

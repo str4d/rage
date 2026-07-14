@@ -118,13 +118,14 @@ pinentry.workspace = true
 rust-embed.workspace = true
 
 # rage-mount dependencies
+# Currently MSRV 1.88
 ctrlc = { version = "3.2", optional = true }
-fuse_mt = { version = ">=0.6.0, <0.6.2", optional = true } # fuse_mt 0.6.2 requires fuser 0.16
-fuser = { version = "0.13", optional = true } # fuser 0.16 has MSRV 1.85
+fuse_mt = { version = ">=0.6.0, <0.6.4", optional = true } # fuse_mt 0.6.4 has MSRV 1.91
+fuser = { version = "0.16", optional = true }
 libc = { version = "0.2", optional = true }
 tar = { version = "0.4", optional = true }
-time = { version = ">=0.3.7, <0.3.42", optional = true } # time 0.3.42 has MSRV 1.81
-zip = { version = "1", optional = true, default-features = false, features = [
+time = { version = "0.3", optional = true }
+zip = { version = "8", optional = true, default-features = false, features = [
     "aes-crypto",
     "deflate",
     "bzip2",

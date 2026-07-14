@@ -1,9 +1,9 @@
 //! Core types and encoding operations used by the age file format.
 
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use rand::{
-    distributions::{Distribution, Uniform},
-    thread_rng, RngCore,
+    Rng,
+    distr::{Distribution, Uniform},
 };
 use secrecy::{ExposeSecret, ExposeSecretMut, SecretBox};
 
@@ -61,7 +61,7 @@ pub struct AgeStanza<'a> {
     body: Vec<&'a [u8]>,
 }
 
-impl<'a> AgeStanza<'a> {
+impl AgeStanza<'_> {
     /// Decodes and returns the body of this stanza.
     pub fn body(&self) -> Vec<u8> {
         // An AgeStanza will always contain at least one chunk.
@@ -121,23 +121,24 @@ pub fn is_arbitrary_string<S: AsRef<str>>(s: &S) -> bool {
 /// about the stanza's fields.
 pub fn grease_the_joint() -> Stanza {
     // Generate arbitrary strings between 1 and 9 characters long.
-    fn gen_arbitrary_string<R: RngCore>(rng: &mut R) -> String {
-        let length = Uniform::from(1..9).sample(rng);
-        Uniform::from(33..=126)
+    fn gen_arbitrary_string<R: Rng>(rng: &mut R) -> String {
+        let length = Uniform::try_from(1..9).expect("valid").sample(rng);
+        Uniform::try_from(33..=126)
+            .expect("valid")
             .sample_iter(rng)
             .map(char::from)
             .take(length)
             .collect()
     }
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // Add a suffix to the random tag so users know what is going on.
     let tag = format!("{}-grease", gen_arbitrary_string(&mut rng));
 
     // Between this and the above generation bounds, the first line of the recipient
     // stanza will be between eight and 66 characters.
-    let args = (0..Uniform::from(0..5).sample(&mut rng))
+    let args = (0..Uniform::try_from(0..5).expect("valid").sample(&mut rng))
         .map(|_| gen_arbitrary_string(&mut rng))
         .collect();
 
@@ -148,7 +149,7 @@ pub fn grease_the_joint() -> Stanza {
     // - Two lines, second short
     // - Two lines, both full
     // - Three lines, last short
-    let mut body = vec![0; Uniform::from(0..100).sample(&mut rng)];
+    let mut body = vec![0; Uniform::try_from(0..100).expect("valid").sample(&mut rng)];
     rng.fill_bytes(&mut body);
 
     Stanza { tag, args, body }
@@ -157,13 +158,13 @@ pub fn grease_the_joint() -> Stanza {
 /// Decoding operations for age types.
 pub mod read {
     use nom::{
+        IResult, Parser,
         branch::alt,
-        bytes::streaming::{tag, take_while1, take_while_m_n},
+        bytes::streaming::{tag, take_while_m_n, take_while1},
         character::streaming::newline,
         combinator::{map, map_opt, opt, verify},
         multi::{many_till, separated_list1},
         sequence::{pair, preceded, terminated},
-        IResult, Parser,
     };
 
     use super::{AgeStanza, STANZA_TAG};
@@ -355,19 +356,21 @@ pub mod read {
 
 /// Encoding operations for age types.
 pub mod write {
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
     use cookie_factory::{
+        SerializeFn, WriteContext,
         combinator::string,
         multi::separated_list,
         sequence::{pair, tuple},
-        SerializeFn, WriteContext,
     };
     use std::io::Write;
     use std::iter;
 
     use super::STANZA_TAG;
 
-    fn wrapped_encoded_data<'a, W: 'a + Write>(data: &[u8]) -> impl SerializeFn<W> + 'a {
+    fn wrapped_encoded_data<'a, W: 'a + Write>(
+        data: &[u8],
+    ) -> impl SerializeFn<W> + 'a + use<'a, W> {
         let encoded = BASE64_STANDARD_NO_PAD.encode(data);
 
         move |mut w: WriteContext<W>| {
@@ -409,7 +412,7 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
-    use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
+    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
     use nom::error::ErrorKind;
 
     use super::{read, write};
@@ -523,7 +526,7 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.
@@ -560,7 +563,7 @@ dy
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.
@@ -596,7 +599,7 @@ ddd
         // should reject this artifact.
         match read::age_stanza(artifact.as_bytes()) {
             Err(nom::Err::Error(e)) => assert_eq!(e.code, ErrorKind::TakeWhileMN),
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
             Ok((rest, stanza)) => {
                 assert_eq!(rest, b"\n");
                 // This is where the fuzzer triggered a panic.

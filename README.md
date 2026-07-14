@@ -23,7 +23,7 @@ For more plugins, implementations, tools, and integrations, check out the
 
 | Environment | CLI command |
 |-------------|-------------|
-| Cargo (Rust 1.74+) | `cargo install rage` |
+| Cargo (Rust 1.85+) | `cargo install rage` |
 | Homebrew (macOS or Linux) | `brew install rage` |
 | MacPorts | `port install rage` |
 | Alpine Linux (edge) | `apk add rage` |
@@ -174,8 +174,8 @@ and `--features comma,separated,flags` to enable or disable the following
 feature flags:
 
 - `mount` enables the `rage-mount` tool, which can mount age-encrypted TAR or
-  ZIP archives as read-only. It is currently only usable on Unix systems, as it
-  relies on `libfuse`.
+  ZIP archives as read-only. It is currently only usable on Unix systems (as it
+  relies on `libfuse`), and has an MSRV of 1.88.
 
 - `ssh` (enabled by default) enables support for reusing existing SSH key files
   for age encryption.
