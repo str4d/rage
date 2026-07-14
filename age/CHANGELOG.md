@@ -10,7 +10,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
-## [0.11.5] - 2026-07-14
+## [0.11.5, 0.12.1] - 2026-07-14
 ### Fixed
 - `age::armor::ArmoredReader`:
   - It now correctly implements the intended strict parsing profile (initially

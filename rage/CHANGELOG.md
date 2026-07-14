@@ -12,7 +12,7 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
-## [0.11.4] - 2026-07-14
+## [0.11.4, 0.12.1] - 2026-07-14
 ### Fixed
 - Armored files that contain an empty final line are now correctly rejected.
 
