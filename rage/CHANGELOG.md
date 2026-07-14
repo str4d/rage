@@ -16,6 +16,10 @@ to 1.0.0 are beta releases.
 - MSRV is now 1.85.0.
 - MSRV for `rage-mount` (behind the `mount` feature flag) is now 1.88.0.
 
+## [0.11.4, 0.12.1] - 2026-07-14
+### Fixed
+- Armored files that contain an empty final line are now correctly rejected.
+
 ## [0.12.0] - 2026-07-13
 ### Added
 - Support for the new native age recipient types:

@@ -1,7 +1,7 @@
 [package]
 name = "age"
 description = "[BETA] A simple, secure, and modern encryption library."
-version = "0.12.0"
+version = "0.12.1"
 authors.workspace = true
 repository.workspace = true
 readme = "README.md"
@@ -93,6 +93,7 @@ wsl = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
+flate2.workspace = true
 futures-test = "0.3"
 hex = "0.4"
 i18n-embed = { workspace = true, features = ["desktop-requester"] }

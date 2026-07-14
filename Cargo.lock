@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -71,6 +71,7 @@ dependencies = [
  "criterion-cycles-per-byte",
  "ctr",
  "curve25519-dalek",
+ "flate2",
  "futures",
  "futures-test",
  "hex",
@@ -2239,7 +2240,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rage"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "age",
  "chrono",
