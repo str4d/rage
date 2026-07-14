@@ -877,8 +877,8 @@ impl<R> ArmoredReader<R> {
                         ArmoredReadError::MissingPadding,
                     ));
                 }
-                (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
-                    // The format may contain a single short line at the end.
+                (false, n) if 0 < n && n < ARMORED_COLUMNS_PER_LINE => {
+                    // The format may contain a single non-empty short line at the end.
                     self.found_short_line = true;
                 }
                 (true, ARMORED_COLUMNS_PER_LINE) => {
