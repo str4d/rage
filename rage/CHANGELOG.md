@@ -12,6 +12,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-07-14
+### Fixed
+- Armored files that contain an empty final line are now correctly rejected.
+
 ## [0.11.3] - 2026-07-13
 ### Fixed
 - Parsing of recipient and identity files now returns an error if the input is

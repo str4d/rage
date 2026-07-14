@@ -2043,7 +2043,7 @@ dependencies = [
 
 [[package]]
 name = "rage"
-version = "0.11.3"
+version = "0.11.4"
 dependencies = [
  "age",
  "chrono",
