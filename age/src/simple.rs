@@ -75,7 +75,7 @@ pub fn decrypt(identity: &impl Identity, ciphertext: &[u8]) -> Result<Vec<u8>, D
 #[cfg(test)]
 mod tests {
     use super::{decrypt, encrypt};
-    use crate::x25519;
+    use crate::{pq, x25519};
 
     #[cfg(feature = "armor")]
     use super::encrypt_and_armor;
@@ -96,6 +96,31 @@ mod tests {
     fn x25519_round_trip_armor() {
         let sk: x25519::Identity = crate::x25519::tests::TEST_SK.parse().unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        let test_msg = b"This is a test message. For testing.";
+
+        let encrypted = encrypt_and_armor(&pk, test_msg).unwrap();
+        assert!(encrypted.starts_with("-----BEGIN AGE ENCRYPTED FILE-----"));
+
+        let decrypted = decrypt(&sk, encrypted.as_bytes()).unwrap();
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[test]
+    fn pq_round_trip() {
+        let sk: pq::Identity = crate::pq::tests::TEST_IDENTITY.parse().unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
+        let test_msg = b"This is a test message. For testing.";
+
+        let encrypted = encrypt(&pk, test_msg).unwrap();
+        let decrypted = decrypt(&sk, &encrypted).unwrap();
+        assert_eq!(&decrypted[..], &test_msg[..]);
+    }
+
+    #[cfg(feature = "armor")]
+    #[test]
+    fn pq_round_trip_armor() {
+        let sk: pq::Identity = crate::pq::tests::TEST_IDENTITY.parse().unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
         let test_msg = b"This is a test message. For testing.";
 
         let encrypted = encrypt_and_armor(&pk, test_msg).unwrap();
