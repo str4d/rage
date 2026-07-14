@@ -130,7 +130,7 @@ zip = { version = "0.6.2", optional = true }
 clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
 clap_mangen = "0.2"
-flate2 = "1"
+flate2.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 lazy_static.workspace = true

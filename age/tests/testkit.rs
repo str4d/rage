@@ -16,6 +16,8 @@ use test_case::test_case;
 
 #[test_case("armor")]
 #[test_case("armor_crlf")]
+#[test_case("armor_empty")]
+#[test_case("armor_empty_last_line")]
 #[test_case("armor_empty_line_begin")]
 #[test_case("armor_empty_line_end")]
 #[test_case("armor_eol_between_padding")]
@@ -43,6 +45,7 @@ use test_case::test_case;
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -91,6 +94,9 @@ use test_case::test_case;
 #[test_case("stanza_not_canonical")]
 #[test_case("stanza_spurious_cr")]
 #[test_case("stanza_valid_characters")]
+#[test_case("stream_257_chunks")]
+#[test_case("stream_257_chunks_full")]
+#[test_case("stream_258_chunks")]
 #[test_case("stream_bad_tag")]
 #[test_case("stream_bad_tag_second_chunk")]
 #[test_case("stream_bad_tag_second_chunk_full")]
@@ -113,6 +119,9 @@ use test_case::test_case;
 #[test_case("stream_trailing_garbage_short")]
 #[test_case("stream_two_chunks")]
 #[test_case("stream_two_final_chunks")]
+#[test_case("stream_two_final_chunks_full")]
+#[test_case("stream_two_final_chunks_second")]
+#[test_case("stream_two_final_chunks_short")]
 #[test_case("version_unsupported")]
 #[test_case("x25519")]
 #[test_case("x25519_bad_tag")]
@@ -154,6 +163,8 @@ fn testkit(filename: &str) {
 
 #[test_case("armor")]
 #[test_case("armor_crlf")]
+#[test_case("armor_empty")]
+#[test_case("armor_empty_last_line")]
 #[test_case("armor_empty_line_begin")]
 #[test_case("armor_empty_line_end")]
 #[test_case("armor_eol_between_padding")]
@@ -181,6 +192,7 @@ fn testkit(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -229,6 +241,9 @@ fn testkit(filename: &str) {
 #[test_case("stanza_not_canonical")]
 #[test_case("stanza_spurious_cr")]
 #[test_case("stanza_valid_characters")]
+#[test_case("stream_257_chunks")]
+#[test_case("stream_257_chunks_full")]
+#[test_case("stream_258_chunks")]
 #[test_case("stream_bad_tag")]
 #[test_case("stream_bad_tag_second_chunk")]
 #[test_case("stream_bad_tag_second_chunk_full")]
@@ -251,6 +266,9 @@ fn testkit(filename: &str) {
 #[test_case("stream_trailing_garbage_short")]
 #[test_case("stream_two_chunks")]
 #[test_case("stream_two_final_chunks")]
+#[test_case("stream_two_final_chunks_full")]
+#[test_case("stream_two_final_chunks_second")]
+#[test_case("stream_two_final_chunks_short")]
 #[test_case("version_unsupported")]
 #[test_case("x25519")]
 #[test_case("x25519_bad_tag")]
@@ -292,6 +310,8 @@ fn testkit_buffered(filename: &str) {
 
 #[test_case("armor")]
 #[test_case("armor_crlf")]
+#[test_case("armor_empty")]
+#[test_case("armor_empty_last_line")]
 #[test_case("armor_empty_line_begin")]
 #[test_case("armor_empty_line_end")]
 #[test_case("armor_eol_between_padding")]
@@ -319,6 +339,7 @@ fn testkit_buffered(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -367,6 +388,9 @@ fn testkit_buffered(filename: &str) {
 #[test_case("stanza_not_canonical")]
 #[test_case("stanza_spurious_cr")]
 #[test_case("stanza_valid_characters")]
+#[test_case("stream_257_chunks")]
+#[test_case("stream_257_chunks_full")]
+#[test_case("stream_258_chunks")]
 #[test_case("stream_bad_tag")]
 #[test_case("stream_bad_tag_second_chunk")]
 #[test_case("stream_bad_tag_second_chunk_full")]
@@ -389,6 +413,9 @@ fn testkit_buffered(filename: &str) {
 #[test_case("stream_trailing_garbage_short")]
 #[test_case("stream_two_chunks")]
 #[test_case("stream_two_final_chunks")]
+#[test_case("stream_two_final_chunks_full")]
+#[test_case("stream_two_final_chunks_second")]
+#[test_case("stream_two_final_chunks_short")]
 #[test_case("version_unsupported")]
 #[test_case("x25519")]
 #[test_case("x25519_bad_tag")]
@@ -433,6 +460,8 @@ async fn testkit_async(filename: &str) {
 
 #[test_case("armor")]
 #[test_case("armor_crlf")]
+#[test_case("armor_empty")]
+#[test_case("armor_empty_last_line")]
 #[test_case("armor_empty_line_begin")]
 #[test_case("armor_empty_line_end")]
 #[test_case("armor_eol_between_padding")]
@@ -460,6 +489,7 @@ async fn testkit_async(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
 #[test_case("hmac_extra_space")]
@@ -508,6 +538,9 @@ async fn testkit_async(filename: &str) {
 #[test_case("stanza_not_canonical")]
 #[test_case("stanza_spurious_cr")]
 #[test_case("stanza_valid_characters")]
+#[test_case("stream_257_chunks")]
+#[test_case("stream_257_chunks_full")]
+#[test_case("stream_258_chunks")]
 #[test_case("stream_bad_tag")]
 #[test_case("stream_bad_tag_second_chunk")]
 #[test_case("stream_bad_tag_second_chunk_full")]
@@ -530,6 +563,9 @@ async fn testkit_async(filename: &str) {
 #[test_case("stream_trailing_garbage_short")]
 #[test_case("stream_two_chunks")]
 #[test_case("stream_two_final_chunks")]
+#[test_case("stream_two_final_chunks_full")]
+#[test_case("stream_two_final_chunks_second")]
+#[test_case("stream_two_final_chunks_short")]
 #[test_case("version_unsupported")]
 #[test_case("x25519")]
 #[test_case("x25519_bad_tag")]
@@ -776,6 +812,7 @@ impl TestFile {
 
         let mut identities = vec![];
         let mut passphrases = vec![];
+        let mut compressed = false;
         let mut armored = false;
         let mut comment = None;
         loop {
@@ -787,6 +824,10 @@ impl TestFile {
 
             let (prefix, data) = line.trim().split_once(": ").unwrap();
             match prefix {
+                "compressed" => match data {
+                    "zlib" => compressed = true,
+                    _ => panic!("Unknown testkit compression '{data}'"),
+                },
                 "identity" => identities.push(data.to_owned()),
                 "passphrase" => passphrases.push(data.to_owned()),
                 "armored" => armored = data == "yes",
@@ -796,7 +837,12 @@ impl TestFile {
         }
 
         let mut age_file = vec![];
-        r.read_to_end(&mut age_file).unwrap();
+        if compressed {
+            let mut z = flate2::read::ZlibDecoder::new(r);
+            z.read_to_end(&mut age_file).unwrap();
+        } else {
+            r.read_to_end(&mut age_file).unwrap();
+        };
 
         Self {
             expect,

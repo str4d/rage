@@ -337,7 +337,6 @@ mod tests {
 
     use age_core::secrecy::SecretString;
 
-    #[cfg(feature = "ssh")]
     use std::iter;
 
     use super::{Decryptor, Encryptor};
