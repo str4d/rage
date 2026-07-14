@@ -878,8 +878,8 @@ impl<R> ArmoredReader<R> {
                         ArmoredReadError::MissingPadding,
                     ));
                 }
-                (false, n) if n < ARMORED_COLUMNS_PER_LINE => {
-                    // The format may contain a single short line at the end.
+                (false, n) if 0 < n && n < ARMORED_COLUMNS_PER_LINE => {
+                    // The format may contain a single non-empty short line at the end.
                     self.found_short_line = true;
                 }
                 (true, ARMORED_COLUMNS_PER_LINE) => {
@@ -1083,6 +1083,10 @@ impl<R: AsyncBufRead + Unpin> AsyncBufRead for ArmoredReader<R> {
                     let mut this = self.as_mut().project();
                     let available = loop {
                         let buf = ready!(this.inner.as_mut().poll_fill_buf(cx))?;
+                        if buf.is_empty() {
+                            // Stream has reached EOF.
+                            return Poll::Ready(Ok(&[]));
+                        }
                         if buf.len() >= MIN_ARMOR_LEN {
                             break buf;
                         }

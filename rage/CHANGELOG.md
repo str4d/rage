@@ -12,6 +12,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-07-14
+### Fixed
+- Armored files that contain an empty final line are now correctly rejected.
+
 ## [0.12.0] - 2026-07-13
 ### Added
 - Support for the new native age recipient types:

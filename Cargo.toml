@@ -65,6 +65,9 @@ secrecy = "0.10"
 subtle = "2.6"
 zeroize = "1"
 
+# Compression
+flate2 = "1"
+
 # Localization
 i18n-embed = { version = "0.16", features = ["fluent-system"] }
 i18n-embed-fl = "0.10"
