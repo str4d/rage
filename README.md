@@ -13,7 +13,7 @@ age was designed by [@Benjojo](https://benjojo.co.uk/) and
 The reference interoperable Go implementation is available at
 [filippo.io/age](https://filippo.io/age).
 
-Hardware PIV tokens such as YubiKeys are supported through the
+Hardware PIV tokens with compatible keys, such as YubiKeys, are supported through the
 [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey) plugin.
 
 For more plugins, implementations, tools, and integrations, check out the
