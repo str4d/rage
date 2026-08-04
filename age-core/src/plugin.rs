@@ -26,7 +26,7 @@ const RESPONSE_FAIL: &str = "fail";
 const RESPONSE_UNSUPPORTED: &str = "unsupported";
 
 /// An error within the plugin protocol.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     Fail,
     Unsupported,

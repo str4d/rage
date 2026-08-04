@@ -174,8 +174,11 @@ impl<C: Callbacks> IdentityFile<C> {
 
         for identity in &self.identities {
             match identity {
-                IdentityFileEntry::Native(sk) => writeln!(output, "{}", sk.to_public())
-                    .map_err(IdentityFileConvertError::FailedToWriteOutput)?,
+                IdentityFileEntry::Native(sk) => {
+                    writeln!(output, "{}", sk.to_public()).map_err(|e| {
+                        IdentityFileConvertError::FailedToWriteOutput(e.kind(), e.to_string())
+                    })?
+                }
                 #[cfg(feature = "plugin")]
                 IdentityFileEntry::Plugin(id) => {
                     return Err(IdentityFileConvertError::IdentityFileContainsPlugin {

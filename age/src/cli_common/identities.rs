@@ -84,7 +84,7 @@ pub(super) fn parse_identity_files<Ctx, E: From<ReadError> + From<io::Error>>(
         #[cfg_attr(not(any(feature = "armor", feature = "ssh")), allow(unused_mut))]
         let mut reader =
             PeekableReader::new(stdin_guard.open(filename.clone()).map_err(|e| match e {
-                ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
+                ReadError::Io(io::ErrorKind::NotFound, _) => {
                     ReadError::IdentityNotFound(filename.clone())
                 }
                 _ => e,

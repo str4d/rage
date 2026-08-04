@@ -21,14 +21,15 @@ macro_rules! wlnfl {
     };
 }
 
+#[derive(PartialEq, Eq)]
 pub(crate) enum EncryptError {
     Age(age::EncryptError),
     BrokenPipe {
         is_stdout: bool,
-        source: io::Error,
+        source: (io::ErrorKind, String),
     },
     IdentityRead(age::cli_common::ReadError),
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     MixedIdentityAndPassphrase,
     MixedRecipientAndPassphrase,
     MixedRecipientsFileAndPassphrase,
@@ -41,7 +42,7 @@ pub(crate) enum EncryptError {
 impl From<age::EncryptError> for EncryptError {
     fn from(e: age::EncryptError) -> Self {
         match e {
-            age::EncryptError::Io(e) => EncryptError::Io(e),
+            age::EncryptError::Io(kind, message) => EncryptError::Io(kind, message),
             _ => EncryptError::Age(e),
         }
     }
@@ -55,7 +56,7 @@ impl From<age::cli_common::ReadError> for EncryptError {
 
 impl From<io::Error> for EncryptError {
     fn from(e: io::Error) -> Self {
-        EncryptError::Io(e)
+        EncryptError::Io(e.kind(), e.to_string())
     }
 }
 
@@ -69,14 +70,14 @@ impl fmt::Display for EncryptError {
             EncryptError::Age(e) => write!(f, "{e}"),
             EncryptError::BrokenPipe { is_stdout, source } => {
                 if *is_stdout {
-                    wlnfl!(f, "err-enc-broken-stdout", err = source.to_string())?;
+                    wlnfl!(f, "err-enc-broken-stdout", err = source.1.as_str())?;
                     wfl!(f, "rec-enc-broken-stdout")
                 } else {
-                    wfl!(f, "err-enc-broken-file", err = source.to_string())
+                    wfl!(f, "err-enc-broken-file", err = source.1.as_str())
                 }
             }
             EncryptError::IdentityRead(e) => write!(f, "{e}"),
-            EncryptError::Io(e) => write!(f, "{e}"),
+            EncryptError::Io(_, message) => write!(f, "{message}"),
             EncryptError::MixedIdentityAndPassphrase => {
                 wfl!(f, "err-enc-mixed-identity-passphrase")
             }
@@ -110,11 +111,12 @@ impl fmt::Display for DetectedPowerShellCorruptionError {
 
 impl std::error::Error for DetectedPowerShellCorruptionError {}
 
+#[derive(PartialEq, Eq)]
 pub(crate) enum DecryptError {
     Age(age::DecryptError),
     ArmorFlag,
     IdentityRead(age::cli_common::ReadError),
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     MissingIdentities {
         stdin_identity: bool,
     },
@@ -148,7 +150,7 @@ impl From<age::cli_common::ReadError> for DecryptError {
 
 impl From<io::Error> for DecryptError {
     fn from(e: io::Error) -> Self {
-        DecryptError::Io(e)
+        DecryptError::Io(e.kind(), e.to_string())
     }
 }
 
@@ -167,7 +169,7 @@ impl fmt::Display for DecryptError {
                 wfl!(f, "rec-dec-armor-flag")
             }
             DecryptError::IdentityRead(e) => write!(f, "{e}"),
-            DecryptError::Io(e) => write!(f, "{e}"),
+            DecryptError::Io(_, message) => write!(f, "{message}"),
             DecryptError::MissingIdentities { stdin_identity } => {
                 wlnfl!(f, "err-dec-missing-identities")?;
                 if *stdin_identity {
@@ -203,6 +205,7 @@ impl fmt::Display for DecryptError {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub(crate) enum Error {
     Decryption(DecryptError),
     Encryption(EncryptError),
