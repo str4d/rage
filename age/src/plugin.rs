@@ -740,7 +740,7 @@ impl<C: Callbacks> crate::Identity for IdentityPluginV1<C> {
 }
 
 /// Errors returned when resolving a plugin.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ResolveError {
     /// A provided plugin name was invalid.

@@ -56,10 +56,11 @@ macro_rules! wlnfl {
     };
 }
 
+#[derive(PartialEq, Eq)]
 enum Error {
     Age(age::DecryptError),
     IdentityRead(age::cli_common::ReadError),
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     MissingFilename,
     MissingIdentities,
     MissingMountpoint,
@@ -81,7 +82,7 @@ impl From<age::cli_common::ReadError> for Error {
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
-        Error::Io(e)
+        Error::Io(e.kind(), e.to_string())
     }
 }
 
@@ -98,7 +99,7 @@ impl fmt::Debug for Error {
                 _ => write!(f, "{e}"),
             },
             Error::IdentityRead(e) => write!(f, "{e}"),
-            Error::Io(e) => write!(f, "{e}"),
+            Error::Io(_, message) => write!(f, "{message}"),
             Error::MissingFilename => wfl!(f, "err-mnt-missing-filename"),
             Error::MissingIdentities => {
                 wlnfl!(f, "err-dec-missing-identities")?;

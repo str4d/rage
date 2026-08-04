@@ -155,16 +155,18 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
             Err(pinentry::Error::Timeout) => return Err(error::EncryptError::PassphraseTimedOut),
             Err(pinentry::Error::Encoding(e)) => {
                 // Pretend it is an I/O error
-                return Err(error::EncryptError::Io(io::Error::new(
+                return Err(error::EncryptError::Io(
                     io::ErrorKind::InvalidData,
-                    e,
-                )));
+                    e.to_string(),
+                ));
             }
             Err(pinentry::Error::Gpg(e)) => {
                 // Pretend it is an I/O error
-                return Err(error::EncryptError::Io(io::Error::other(format!("{e}"))));
+                return Err(error::EncryptError::Io(io::ErrorKind::Other, e.to_string()));
             }
-            Err(pinentry::Error::Io(e)) => return Err(error::EncryptError::Io(e)),
+            Err(pinentry::Error::Io(e)) => {
+                return Err(error::EncryptError::Io(e.kind(), e.to_string()));
+            }
         }
     } else {
         if opts.recipient.is_empty() && opts.recipients_file.is_empty() && opts.identity.is_empty()
@@ -191,7 +193,7 @@ fn encrypt(opts: AgeOptions) -> Result<(), error::EncryptError> {
     let map_io_errors = |e: io::Error| match e.kind() {
         io::ErrorKind::BrokenPipe => error::EncryptError::BrokenPipe {
             is_stdout,
-            source: e,
+            source: (e.kind(), e.to_string()),
         },
         _ => e.into(),
     };
@@ -328,16 +330,16 @@ fn decrypt(opts: AgeOptions) -> Result<(), error::DecryptError> {
             Err(pinentry::Error::Timeout) => Err(error::DecryptError::PassphraseTimedOut),
             Err(pinentry::Error::Encoding(e)) => {
                 // Pretend it is an I/O error
-                Err(error::DecryptError::Io(io::Error::new(
+                Err(error::DecryptError::Io(
                     io::ErrorKind::InvalidData,
-                    e,
-                )))
+                    e.to_string(),
+                ))
             }
             Err(pinentry::Error::Gpg(e)) => {
                 // Pretend it is an I/O error
-                Err(error::DecryptError::Io(io::Error::other(format!("{e}"))))
+                Err(error::DecryptError::Io(io::ErrorKind::Other, e.to_string()))
             }
-            Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e)),
+            Err(pinentry::Error::Io(e)) => Err(error::DecryptError::Io(e.kind(), e.to_string())),
         }
     } else {
         if identities.is_empty() {
@@ -369,7 +371,7 @@ fn main() -> Result<(), error::Error> {
     if console::user_attended() && args().len() == 1 {
         AgeOptions::command()
             .print_help()
-            .map_err(error::EncryptError::Io)?;
+            .map_err(|e| error::EncryptError::Io(e.kind(), e.to_string()))?;
         return Ok(());
     }
 

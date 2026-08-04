@@ -44,12 +44,12 @@ fn main() -> Result<(), error::Error> {
         0o600,
         false,
     )
-    .map_err(error::Error::FailedToOpenOutput)?;
+    .map_err(|e| error::Error::FailedToOpenOutput(e.kind(), e.to_string()))?;
 
     if opts.convert {
         convert(opts.input, output)
     } else {
-        generate(output).map_err(error::Error::FailedToWriteOutput)
+        generate(output).map_err(|e| error::Error::FailedToWriteOutput(e.kind(), e.to_string()))
     }
 }
 
@@ -75,9 +75,10 @@ fn generate(mut output: file_io::OutputWriter) -> io::Result<()> {
 
 fn convert(filename: Option<String>, output: file_io::OutputWriter) -> Result<(), error::Error> {
     let file = age::IdentityFile::from_input_reader(
-        file_io::InputReader::new(filename).map_err(error::Error::FailedToOpenInput)?,
+        file_io::InputReader::new(filename)
+            .map_err(|e| error::Error::FailedToOpenInput(e.kind(), e.to_string()))?,
     )
-    .map_err(error::Error::FailedToReadInput)?;
+    .map_err(|e| error::Error::FailedToReadInput(e.kind(), e.to_string()))?;
 
     file.write_recipients_file(output)
         .map_err(error::Error::IdentityFileConvert)?;

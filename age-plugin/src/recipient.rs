@@ -198,6 +198,7 @@ impl<R: io::Read, W: io::Write> Callbacks<Error> for BidirCallbacks<'_, '_, R, W
 }
 
 /// The kinds of errors that can occur within the recipient plugin state machine.
+#[derive(PartialEq, Eq)]
 pub enum Error {
     /// An error caused by a specific recipient.
     Recipient {

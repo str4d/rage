@@ -728,14 +728,12 @@ fn check_decrypt_error(filename: &str, testfile: TestFile, e: DecryptError) {
                 assert_eq!(testfile.expect, Expect::HeaderFailure);
             }
         }
-        DecryptError::Io(e) => {
-            let kind = e.kind();
-            if e.into_inner().map(|inner| inner.is::<ArmoredReadError>()) == Some(true) {
-                assert_eq!(kind, io::ErrorKind::InvalidData);
-                assert_eq!(testfile.expect, Expect::ArmorFailure);
-            } else {
-                assert_eq!(testfile.expect, Expect::HeaderFailure);
-            }
+        DecryptError::Io(io::ErrorKind::InvalidData, _) => {
+            // Armor errors are always reported with `io::ErrorKind::InvalidData`.
+            assert_eq!(testfile.expect, Expect::ArmorFailure);
+        }
+        DecryptError::Io(_, _) => {
+            assert_eq!(testfile.expect, Expect::HeaderFailure);
         }
         DecryptError::ExcessiveWork { .. } | DecryptError::UnknownFormat => {
             assert_eq!(testfile.expect, Expect::HeaderFailure)
