@@ -26,7 +26,7 @@ const MLKEM768X25519_SALT: &str = "age-encryption.org/mlkem768x25519";
 
 const ENCRYPTED_FILE_KEY_BYTES: usize = FILE_KEY_BYTES + 16;
 
-type Kem = hpke::kem::XWing;
+type Kem = hpke::kem::XWingRejectNonContrib;
 
 /// The hybrid post-quantum age identity type, which can decrypt files encrypted to the
 /// corresponding [`Recipient`].
@@ -115,18 +115,28 @@ impl crate::Identity for Identity {
             return Some(Err(DecryptError::InvalidHeader));
         }
 
-        // A failure to decrypt is non-fatal (we try to decrypt the recipient stanza with
-        // other `pq` identities), because we cannot tell which identity matches a
-        // particular stanza.
-        hpke_open::<Kem>(&enc, &self.0, MLKEM768X25519_SALT.as_bytes(), &stanza.body)
-            .ok()
-            .map(|mut pt| {
+        match hpke_open::<Kem>(&enc, &self.0, MLKEM768X25519_SALT.as_bytes(), &stanza.body) {
+            // The age specification states that "the file key can be decrypted with
+            // OpenBase from HPKE". However, the CCTV age test vectors do not permit using
+            // this single-shot API, and instead treat the inner `SetupBaseR` and `Open`
+            // methods differently:
+            // - Errors during `SetupBaseR` must be rejected as an invalid header, because
+            //   the error would occur for every `pq` identity.
+            // - Errors during `Open` must be non-fatal (we try to decrypt the recipient
+            //   stanza with other `pq` identities), because we cannot tell which identity
+            //   matches a particular stanza.
+            //
+            // `hpke` exposes errors from these two sub-methods with separate variant, so
+            // we can implement this distinction even while calling `OpenBase`.
+            Err(hpke::HpkeError::DecapError) => Some(Err(DecryptError::InvalidHeader)),
+            res => res.ok().map(|mut pt| {
                 // It's ours!
                 Ok(FileKey::init_with_mut(|file_key| {
                     file_key.copy_from_slice(&pt);
                     pt.zeroize();
                 }))
-            })
+            }),
+        }
     }
 }
 
