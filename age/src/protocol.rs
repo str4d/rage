@@ -60,10 +60,10 @@ impl Encryptor {
     /// Anyone with the passphrase can decrypt the file.
     ///
     /// This API should only be used with a passphrase that was provided by (or generated
-    /// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`]
-    /// and then use [`Encryptor::with_recipients`].
+    /// for) a human. For programmatic use cases, instead generate a [`pq::Identity`] and
+    /// then use [`Encryptor::with_recipients`].
     ///
-    /// [`x25519::Identity`]: crate::x25519::Identity
+    /// [`pq::Identity`]: crate::pq::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
         Self::with_recipients(iter::once(&scrypt::Recipient::new(passphrase) as _))
             .expect("no errors can occur with this recipient set")

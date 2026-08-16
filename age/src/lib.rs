@@ -39,16 +39,16 @@
 //!
 //! ```
 //! # fn run_main() -> Result<(), ()> {
-//! let key = age::x25519::Identity::generate();
+//! let key = age::pq::Identity::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
 //!
-//! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! # fn encrypt(pubkey: age::pq::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = age::encrypt(&pubkey, plaintext)?;
 //! # Ok(encrypted)
 //! # }
-//! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! # fn decrypt(key: age::pq::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = age::decrypt(&key, &encrypted)?;
 //! # Ok(decrypted)
 //! # }
@@ -106,13 +106,13 @@
 //! use std::iter;
 //!
 //! # fn run_main() -> Result<(), ()> {
-//! let key = age::x25519::Identity::generate();
+//! let key = age::pq::Identity::generate();
 //! let pubkey = key.to_public();
 //!
 //! let plaintext = b"Hello world!";
 //!
 //! // Encrypt the plaintext to a ciphertext...
-//! # fn encrypt(pubkey: age::x25519::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
+//! # fn encrypt(pubkey: age::pq::Recipient, plaintext: &[u8]) -> Result<Vec<u8>, age::EncryptError> {
 //! let encrypted = {
 //!     let encryptor = age::Encryptor::with_recipients(iter::once(&pubkey as _))
 //!         .expect("we provided a recipient");
@@ -128,7 +128,7 @@
 //! # }
 //!
 //! // ... and decrypt the obtained ciphertext to the plaintext again.
-//! # fn decrypt(key: age::x25519::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
+//! # fn decrypt(key: age::pq::Identity, encrypted: Vec<u8>) -> Result<Vec<u8>, age::DecryptError> {
 //! let decrypted = {
 //!     let decryptor = age::Decryptor::new(&encrypted[..])?;
 //!

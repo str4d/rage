@@ -13,5 +13,7 @@ Opzioni:
   -V, --version          Presenta la versione e esci.
   -o, --output <OUTPUT>  Scrivi l'output al file OUTPUT. Standard output di default.
   -y                     Converti un file di identità in un file di destinatari.
+      --pq[=<PQ>]        Generate a post-quantum hybrid ML-KEM-768 + X25519 key pair. When set to
+                         false, generate a classic X25519 key pair. [default: true] [possible values: true, false]
 """
 stderr = ""

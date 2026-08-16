@@ -45,4 +45,12 @@ pub(crate) struct AgeOptions {
     #[arg(short = 'y')]
     #[arg(help = fl!("keygen-help-flag-convert"))]
     pub(crate) convert: bool,
+
+    #[arg(action = ArgAction::Set, long)]
+    #[arg(num_args = 0..=1)]
+    #[arg(require_equals = true)]
+    #[arg(default_missing_value = "true")]
+    #[arg(default_value_t = true)]
+    #[arg(help = fl!("keygen-help-flag-pq"))]
+    pub(crate) pq: bool,
 }

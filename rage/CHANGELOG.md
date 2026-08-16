@@ -15,10 +15,13 @@ to 1.0.0 are beta releases.
 ### Added
 - Support for new native age recipient types:
   - `age1pq1..`
+- `--pq` option to `rage-keygen`.
 
 ### Changed
 - MSRV is now 1.85.0.
 - MSRV for `rage-mount` (behind the `mount` feature flag) is now 1.88.0.
+- `rage-keygen` now generates hybrid post-quantum keys by default. The prior
+  classic identities can be generated with `rage-keygen --pq=false`.
 
 ## [0.11.4, 0.12.1] - 2026-07-14
 ### Fixed
