@@ -113,6 +113,9 @@ rage-after-help-example =
 
 keygen-help-flag-output = {help-flag-output} Defaults to standard output.
 keygen-help-flag-convert = Convert an identity file to a recipients file.
+keygen-help-flag-pq =
+    Generate a post-quantum hybrid ML-KEM-768 + X25519 key pair. When set to
+    false, generate a classic X25519 key pair.
 
 ## Formatting
 
@@ -358,8 +361,8 @@ man-rage-recipients-and-identities =
     to. {identities} are private values, like a private key, that allow decrypting
     a file encrypted to the corresponding {recipient}.
 
-man-rage-native-x25519-keys-heading = Native keys
-man-rage-native-x25519-keys =
+man-rage-native-keys-heading = Native keys
+man-rage-native-keys =
     Native {-age} key pairs are generated with {-rage-keygen}(1), and provide small
     encodings and strong encryption based on X25519 for classic keys, and X25519 +
     ML-KEM-768 for post-quantum hybrid keys. The post-quantum hybrid keys are secure
@@ -451,7 +454,7 @@ man-rage-plugins =
 
 man-examples-heading = EXAMPLES
 
-man-rage-example-single = Generate a new identity, encrypt data, and decrypt
+man-rage-example-single-pq = Generate a new post-quantum identity, encrypt data, and decrypt
 man-rage-example-enc-multiple = Encrypt {$input} to multiple recipients and output to {$output}
 man-rage-example-enc-list = Encrypt to a list of recipients
 man-rage-example-password = Encrypt and decrypt a file using a passphrase
@@ -484,9 +487,12 @@ man-keygen-flag-convert =
     Read an identity file from {input} or from standard input and output the
     corresponding recipient(s), one per line, with no comments.
 
-man-keygen-example-stdout = Generate a new identity
-man-keygen-example-file = Write a new identity to "{$filename}"
+man-keygen-example-stdout-pq = Generate a new post-quantum identity
+man-keygen-example-stdout-classic = Generate a new classic identity
+man-keygen-example-file-pq = Write a new post-quantum identity to "{$filename}"
 man-keygen-example-convert = Convert an identity to a recipient
+
+man-keygen-example-pq-trunc = {$count} more characters
 
 ## rage-mount manpage
 

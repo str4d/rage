@@ -1,4 +1,4 @@
-use age::{Decryptor, Encryptor, x25519};
+use age::{Decryptor, Encryptor, pq};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -29,7 +29,7 @@ use std::iter;
 const KB: usize = 1024;
 
 fn bench(c: &mut Criterion_) {
-    let identity = x25519::Identity::generate();
+    let identity = pq::Identity::generate();
     let recipient = identity.to_public();
     let mut group = c.benchmark_group("age");
 

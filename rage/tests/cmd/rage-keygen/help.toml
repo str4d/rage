@@ -11,5 +11,7 @@ Options:
   -V, --version          Print version info and exit.
   -o, --output <OUTPUT>  Write the result to the file at path OUTPUT. Defaults to standard output.
   -y                     Convert an identity file to a recipients file.
+      --pq[=<PQ>]        Generate a post-quantum hybrid ML-KEM-768 + X25519 key pair. When set to
+                         false, generate a classic X25519 key pair. [default: true] [possible values: true, false]
 """
 stderr = ""

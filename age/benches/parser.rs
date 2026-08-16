@@ -1,4 +1,4 @@
-use age::{Decryptor, Encryptor, x25519};
+use age::{Decryptor, Encryptor, pq};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 #[cfg(unix)]
@@ -8,7 +8,7 @@ use std::io::Write;
 
 fn bench(c: &mut Criterion) {
     let recipients: Vec<_> = (0..10)
-        .map(|_| x25519::Identity::generate().to_public())
+        .map(|_| pq::Identity::generate().to_public())
         .collect();
     let mut group = c.benchmark_group("header");
 

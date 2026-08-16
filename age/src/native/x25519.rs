@@ -68,6 +68,10 @@ impl std::str::FromStr for Identity {
 
 impl Identity {
     /// Generates a new secret key.
+    #[deprecated(
+        since = "0.13.0",
+        note = "This identity is not safe against future cryptographically-relevant quantum computers. Use age::pq::Identity::generate() instead."
+    )]
     pub fn generate() -> Self {
         let mut rng = UnwrapErr(SysRng);
         Identity(StaticSecret::random_from_rng(&mut rng))

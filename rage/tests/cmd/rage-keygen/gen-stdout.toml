@@ -2,10 +2,10 @@ bin.name = "rage-keygen"
 args = ""
 stdout = """
 # created: 20[..]-[..]-[..]T[..]:[..]:[..]
-# public key: age1[..]
-AGE-SECRET-KEY-1[..]
+# public key: age1pq1[..]
+AGE-SECRET-KEY-PQ-1[..]
 """
 # Because trycmd isn't a terminal, rage-keygen thinks stdout is piped to a file.
 stderr = """
-Public key: age1[..]
+Public key: age1pq1[..]
 """
