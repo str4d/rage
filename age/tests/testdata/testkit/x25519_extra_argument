@@ -1,7 +1,7 @@
 expect: header failure
 file key: 59454c4c4f57205355424d4152494e45
 identity: AGE-SECRET-KEY-1EGTZVFFV20835NWYV6270LXYVK2VKNX2MMDKWYKLMGR48UAWX40Q2P2LM0
-comment: the base64 encoding of the share is not canonical
+comment: the X25519 stanza has an unexpected extra argument
 
 age-encryption.org/v1
 -> X25519 TEiF0ypqr+bpvcqXNyCVJpL7OuwPdVwPL7KQEbFDOCc 1234

@@ -88,3 +88,7 @@ log = "0.4"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
+
+[patch.crates-io]
+hpke = { git = "https://github.com/str4d/rust-hpke.git", rev = "1268205e6bf8080e8139da466fe834a23e954260" }
+x-wing = { git = "https://github.com/str4d/RustCrypto-KEMs.git", rev = "f5dd74e238bfebc0b36754923ccc6157d75641e6" }

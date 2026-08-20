@@ -1361,8 +1361,7 @@ dependencies = [
 [[package]]
 name = "hpke"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd5130e119706b4d8c2180da6126f7e60b6c38c2d340d539219f57051f0a7af7"
+source = "git+https://github.com/str4d/rust-hpke.git?rev=1268205e6bf8080e8139da466fe834a23e954260#1268205e6bf8080e8139da466fe834a23e954260"
 dependencies = [
  "aead",
  "chacha20poly1305",
@@ -1379,6 +1378,7 @@ dependencies = [
  "subtle",
  "turboshake",
  "x-wing",
+ "x25519-dalek",
  "zeroize",
 ]
 
@@ -3578,14 +3578,14 @@ checksum = "f8dab7ac864710bdea6594becbea5b5050333cf34fefb0dc319567eb347950d4"
 [[package]]
 name = "x-wing"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b51507b887016c3925c84591108dadb8c099f776eb04fec6a60ae3519fee856f"
+source = "git+https://github.com/str4d/RustCrypto-KEMs.git?rev=f5dd74e238bfebc0b36754923ccc6157d75641e6#f5dd74e238bfebc0b36754923ccc6157d75641e6"
 dependencies = [
  "kem",
  "ml-kem",
  "sha3 0.12.0",
  "shake",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

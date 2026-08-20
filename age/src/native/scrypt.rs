@@ -100,9 +100,9 @@ fn target_scrypt_work_factor() -> u8 {
 /// same file.
 ///
 /// This API should only be used with a passphrase that was provided by (or generated
-/// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`].
+/// for) a human. For programmatic use cases, instead generate a [`pq::Identity`].
 ///
-/// [`x25519::Identity`]: crate::x25519::Identity
+/// [`pq::Identity`]: crate::pq::Identity
 pub struct Recipient {
     passphrase: SecretString,
     log_n: u8,
