@@ -112,7 +112,6 @@ console.workspace = true
 env_logger.workspace = true
 i18n-embed = { workspace = true, features = ["desktop-requester"] }
 i18n-embed-fl.workspace = true
-lazy_static.workspace = true
 log.workspace = true
 pinentry.workspace = true
 rust-embed.workspace = true
@@ -140,7 +139,6 @@ clap_mangen = "0.2"
 flate2.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
-lazy_static.workspace = true
 rust-embed.workspace = true
 
 [dev-dependencies]
