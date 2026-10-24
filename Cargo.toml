@@ -10,7 +10,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.89"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
@@ -20,7 +20,7 @@ age-core = { version = "0.12.0", path = "age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
-base64 = "0.22"
+base64 = "0.23"
 
 # - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = { version = "0.11", default-features = false, features = [
@@ -58,7 +58,7 @@ scrypt = { version = "0.12", default-features = false }
 rand = "0.10"
 
 # - Key encoding
-bech32 = "0.11"
+bech32 = "0.12"
 
 # Parsing
 cookie-factory = "0.3.1"
@@ -83,7 +83,7 @@ rust-embed = "8"
 chrono = "0.4"
 clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
-env_logger = "0.10"
+env_logger = "0.11"
 log = "0.4"
 
 [workspace.lints.rust]

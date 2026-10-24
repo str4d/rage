@@ -392,11 +392,9 @@ impl OutputWriter {
                 // don't try to parse it as UTF-8 in StdoutWriter and perhaps reject it.
                 format = OutputFormat::Binary;
             }
-        } else if is_tty {
-            if let OutputFormat::Binary = format {
-                // If output == Some("-") then this error is skipped.
-                return Err(io::Error::other(FileError::DenyBinaryOutput));
-            }
+        } else if is_tty && let OutputFormat::Binary = format {
+            // If output == Some("-") then this error is skipped.
+            return Err(io::Error::other(FileError::DenyBinaryOutput));
         }
 
         Ok(OutputWriter::Stdout(StdoutWriter::new(

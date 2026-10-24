@@ -11,9 +11,9 @@ to 1.0.0 are beta releases.
 ## [Unreleased]
 
 ### Changed
-- MSRV is now 1.85.0.
-- Migrated to `chacha20poly1305 0.11`, `curve25519-dalek 5`, `hmac 0.13`,
-  `rand 0.10`, `rsa =0.10.0-rc.18`.
+- MSRV is now 1.89.0.
+- Migrated to `base64 0.23`, `chacha20poly1305 0.11`, `curve25519-dalek 5`,
+  `hmac 0.13`, `rand 0.10`, `rsa =0.10.0-rc.19`.
 
 ## [0.11.5, 0.12.1] - 2026-07-14
 ### Fixed

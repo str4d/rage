@@ -66,6 +66,9 @@ pub fn hkdf(salt: &[u8], label: &[u8], ikm: &[u8]) -> [u8; 32] {
 enum Bech32Long {}
 impl bech32::Checksum for Bech32Long {
     type MidstateRepr = u32;
+    type CorrectionField = <bech32::Bech32 as bech32::Checksum>::CorrectionField;
+    const ROOT_GENERATOR: Self::CorrectionField = bech32::Bech32::ROOT_GENERATOR;
+    const ROOT_EXPONENTS: core::ops::RangeInclusive<usize> = bech32::Bech32::ROOT_EXPONENTS;
     const CODE_LENGTH: usize = usize::MAX;
     const CHECKSUM_LENGTH: usize = bech32::Bech32::CHECKSUM_LENGTH;
     const GENERATOR_SH: [u32; 5] = bech32::Bech32::GENERATOR_SH;

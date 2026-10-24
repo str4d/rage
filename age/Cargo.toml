@@ -27,7 +27,7 @@ rand.workspace = true
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
-rsa = { version = "=0.10.0-rc.18", default-features = false, features = [
+rsa = { version = "=0.10.0-rc.19", default-features = false, features = [
     "encoding",
 ], optional = true }
 
@@ -102,7 +102,7 @@ test-case = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dev-dependencies]
 criterion-cycles-per-byte = "0.6"
