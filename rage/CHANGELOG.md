@@ -14,6 +14,8 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.89.0.
+- The synopsis in the `rage` manpage now matches the usage shown by
+  `rage --help`.
 
 ## [0.11.4, 0.12.1] - 2026-07-14
 ### Fixed

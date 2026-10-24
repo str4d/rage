@@ -234,6 +234,7 @@ impl Cli {
             self.rage
                 .about(fl!("man-rage-about"))
                 .long_about(fl!("man-rage-description"))
+                .override_usage(rage::usage("rage"))
                 .mut_arg("output", |a| a.long_help(fl!("man-rage-flag-output")))
                 .mut_arg("encrypt", |a| a.long_help(fl!("man-rage-flag-encrypt")))
                 .mut_arg("recipient", |a| a.long_help(fl!("man-rage-flag-recipient")))

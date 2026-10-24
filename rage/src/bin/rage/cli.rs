@@ -31,8 +31,7 @@ fn binary_name(suffix: Option<&str>) -> String {
     }
 }
 
-fn usage() -> String {
-    let binary_name = binary_name(None);
+pub(crate) fn usage(binary_name: &str) -> String {
     let recipient = fl!("recipient");
     let recipients_file = fl!("recipients-file");
     let identity = fl!("identity");
@@ -88,7 +87,7 @@ fn after_help() -> String {
     Styles::default().get_usage().render(),
     fl!("usage-header"),
     Styles::default().get_usage().render_reset()))]
-#[command(override_usage(usage()))]
+#[command(override_usage(usage(&binary_name(None))))]
 #[command(next_help_heading = fl!("flags-header"))]
 #[command(disable_help_flag(true))]
 #[command(disable_version_flag(true))]

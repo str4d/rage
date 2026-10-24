@@ -135,7 +135,7 @@ zip = { version = "9", optional = true, default-features = false, features = [
 [build-dependencies]
 clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
-clap_mangen = "0.2"
+clap_mangen = "0.3"
 flate2.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
