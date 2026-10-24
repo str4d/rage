@@ -20,10 +20,10 @@ const PLUGIN_NAME: &str = "unencrypted";
 const RECIPIENT_TAG: &str = PLUGIN_NAME;
 
 fn explode(location: &str) {
-    if let Ok(s) = env::var("AGE_EXPLODES") {
-        if s == location {
-            panic!("Env variable AGE_EXPLODES={location} is set. Boom! 💥");
-        }
+    if let Ok(s) = env::var("AGE_EXPLODES")
+        && s == location
+    {
+        panic!("Env variable AGE_EXPLODES={location} is set. Boom! 💥");
     }
 }
 

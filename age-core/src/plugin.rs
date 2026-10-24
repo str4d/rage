@@ -256,17 +256,17 @@ impl<R: Read, W: Write> Connection<R, W> {
             } else if stanza.tag.as_str() == command_b.0 {
                 validate(command_b.1(stanza), &mut res_b)
             } else {
-                if let Some(tag) = command_c.0 {
-                    if stanza.tag.as_str() == tag {
-                        validate(command_c.1(stanza), &mut res_c);
-                        continue;
-                    }
+                if let Some(tag) = command_c.0
+                    && stanza.tag.as_str() == tag
+                {
+                    validate(command_c.1(stanza), &mut res_c);
+                    continue;
                 }
-                if let Some(tag) = command_d.0 {
-                    if stanza.tag.as_str() == tag {
-                        validate(command_d.1(stanza), &mut res_d);
-                        continue;
-                    }
+                if let Some(tag) = command_d.0
+                    && stanza.tag.as_str() == tag
+                {
+                    validate(command_d.1(stanza), &mut res_d);
+                    continue;
                 }
             }
         }
