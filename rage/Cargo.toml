@@ -118,7 +118,6 @@ pinentry.workspace = true
 rust-embed.workspace = true
 
 # rage-mount dependencies
-# Currently MSRV 1.88
 ctrlc = { version = "3.2", optional = true }
 fuse_mt = { version = ">=0.6.0, <0.6.4", optional = true } # fuse_mt 0.6.4 has MSRV 1.91
 fuser = { version = "0.16", optional = true }
