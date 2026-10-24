@@ -61,6 +61,10 @@ criteria = "safe-to-run"
 version = "1.1.5"
 criteria = "safe-to-deploy"
 
+[[exemptions.aligned-vec]]
+version = "0.6.4"
+criteria = "safe-to-run"
+
 [[exemptions.android_system_properties]]
 version = "0.1.6"
 criteria = "safe-to-deploy"
@@ -344,6 +348,14 @@ criteria = "safe-to-deploy"
 [[exemptions.env_logger]]
 version = "0.10.2"
 criteria = "safe-to-deploy"
+
+[[exemptions.equator]]
+version = "0.4.2"
+criteria = "safe-to-run"
+
+[[exemptions.equator-macro]]
+version = "0.4.2"
+criteria = "safe-to-run"
 
 [[exemptions.equivalent]]
 version = "1.0.3"
@@ -698,7 +710,7 @@ version = "0.2.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.pprof]]
-version = "0.13.0"
+version = "0.15.0"
 criteria = "safe-to-run"
 
 [[exemptions.primefield]]
@@ -907,6 +919,10 @@ criteria = "safe-to-run"
 
 [[exemptions.snapbox-macros]]
 version = "0.4.0"
+criteria = "safe-to-run"
+
+[[exemptions.spin]]
+version = "0.10.1"
 criteria = "safe-to-run"
 
 [[exemptions.spki]]
