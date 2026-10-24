@@ -666,7 +666,7 @@ version = "0.2.17"
 criteria = "safe-to-deploy"
 
 [[exemptions.pkcs1]]
-version = "0.8.0-rc.4"
+version = "0.8.0-rc.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.pkcs8]]
@@ -778,7 +778,7 @@ version = "7.5.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.rsa]]
-version = "0.10.0-rc.18"
+version = "0.10.0-rc.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.rtoolbox]]

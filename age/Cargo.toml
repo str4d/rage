@@ -27,7 +27,7 @@ rand.workspace = true
 
 # OpenSSH-specific dependencies:
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
-rsa = { version = "=0.10.0-rc.18", default-features = false, features = [
+rsa = { version = "=0.10.0-rc.19", default-features = false, features = [
     "encoding",
 ], optional = true }
 
