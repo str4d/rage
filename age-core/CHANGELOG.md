@@ -10,7 +10,7 @@ to 1.0.0 are beta releases.
 
 ### Changed
 - MSRV is now 1.89.0.
-- Migrated to `chacha20poly1305 0.11`, `hpke 0.14`.
+- Migrated to `bech32 0.12`, `chacha20poly1305 0.11`, `hpke 0.14`.
 
 ## [0.12.0] - 2026-07-13
 ### Added

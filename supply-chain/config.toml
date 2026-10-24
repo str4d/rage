@@ -134,7 +134,7 @@ version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bech32]]
-version = "0.11.1"
+version = "0.12.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bitflags]]
