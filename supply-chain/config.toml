@@ -313,6 +313,18 @@ criteria = "safe-to-deploy"
 version = "0.1.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.defmt]]
+version = "1.2.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt-macros]]
+version = "1.2.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt-parser]]
+version = "1.1.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.der]]
 version = "0.8.2"
 criteria = "safe-to-deploy"
@@ -345,8 +357,12 @@ criteria = "safe-to-deploy"
 version = "0.3.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.env_filter]]
+version = "2.0.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.env_logger]]
-version = "0.10.2"
+version = "0.11.11"
 criteria = "safe-to-deploy"
 
 [[exemptions.equator]]
@@ -529,6 +545,18 @@ criteria = "safe-to-deploy"
 version = "1.0.18"
 criteria = "safe-to-run"
 
+[[exemptions.jiff]]
+version = "0.2.38"
+criteria = "safe-to-deploy"
+
+[[exemptions.jiff-core]]
+version = "0.1.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.jiff-static]]
+version = "0.2.38"
+criteria = "safe-to-deploy"
+
 [[exemptions.jobserver]]
 version = "0.1.35"
 criteria = "safe-to-deploy"
@@ -703,6 +731,14 @@ criteria = "safe-to-deploy"
 
 [[exemptions.polyval]]
 version = "0.7.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.portable-atomic]]
+version = "1.15.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.portable-atomic-util]]
+version = "0.2.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.powerfmt]]
@@ -967,10 +1003,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.tempfile]]
 version = "3.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.termcolor]]
-version = "1.4.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.test-case]]

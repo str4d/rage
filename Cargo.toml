@@ -83,7 +83,7 @@ rust-embed = "8"
 chrono = "0.4"
 clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
-env_logger = "0.10"
+env_logger = "0.11"
 log = "0.4"
 
 [workspace.lints.rust]
