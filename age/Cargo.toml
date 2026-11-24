@@ -49,7 +49,6 @@ cookie-factory.workspace = true
 hkdf.workspace = true
 hpke = { workspace = true, features = ["mlkem", "nistp"] }
 i18n-embed-fl.workspace = true
-lazy_static.workspace = true
 ml-kem.workspace = true
 nom.workspace = true
 p256.workspace = true

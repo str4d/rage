@@ -2,16 +2,15 @@ use i18n_embed::{
     fluent::{FluentLanguageLoader, fluent_language_loader},
     unic_langid::LanguageIdentifier,
 };
-use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
+use std::sync::LazyLock;
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
 struct Localizations;
 
-lazy_static! {
-    pub(crate) static ref LANGUAGE_LOADER: FluentLanguageLoader = fluent_language_loader!();
-}
+pub(crate) static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> =
+    LazyLock::new(|| fluent_language_loader!());
 
 /// Selects the most suitable available language in order of preference by
 /// `requested_languages`, and loads it using the `rage` [`static@LANGUAGE_LOADER`] from the
