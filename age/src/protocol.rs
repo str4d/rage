@@ -60,10 +60,10 @@ impl Encryptor {
     /// Anyone with the passphrase can decrypt the file.
     ///
     /// This API should only be used with a passphrase that was provided by (or generated
-    /// for) a human. For programmatic use cases, instead generate an [`x25519::Identity`]
-    /// and then use [`Encryptor::with_recipients`].
+    /// for) a human. For programmatic use cases, instead generate a [`pq::Identity`] and
+    /// then use [`Encryptor::with_recipients`].
     ///
-    /// [`x25519::Identity`]: crate::x25519::Identity
+    /// [`pq::Identity`]: crate::pq::Identity
     pub fn with_user_passphrase(passphrase: SecretString) -> Self {
         Self::with_recipients(iter::once(&scrypt::Recipient::new(passphrase) as _))
             .expect("no errors can occur with this recipient set")
@@ -345,7 +345,7 @@ mod tests {
     use age_core::secrecy::SecretString;
 
     use super::{Decryptor, Encryptor};
-    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, scrypt, x25519};
+    use crate::{EncryptError, Identity, Recipient, identity::IdentityFile, pq, scrypt, x25519};
 
     #[cfg(feature = "async")]
     use futures::{
@@ -465,6 +465,29 @@ mod tests {
         let buf = BufReader::new(crate::x25519::tests::TEST_SK.as_bytes());
         let f = IdentityFile::from_buffer(buf).unwrap();
         let pk: x25519::Recipient = crate::x25519::tests::TEST_PK.parse().unwrap();
+        recipient_async_round_trip(
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
+        );
+    }
+
+    #[test]
+    fn pq_round_trip() {
+        let buf = BufReader::new(crate::pq::tests::TEST_IDENTITY.as_bytes());
+        let f = IdentityFile::from_buffer(buf).unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
+        recipient_round_trip(
+            iter::once(&pk as _),
+            f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),
+        );
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn pq_async_round_trip() {
+        let buf = BufReader::new(crate::pq::tests::TEST_IDENTITY.as_bytes());
+        let f = IdentityFile::from_buffer(buf).unwrap();
+        let pk: pq::Recipient = crate::pq::tests::TEST_RECIPIENT.parse().unwrap();
         recipient_async_round_trip(
             iter::once(&pk as _),
             f.into_identities().unwrap().iter().map(|i| i.as_ref() as _),

@@ -10,7 +10,7 @@ use std::{
 use age::{
     DecryptError, Decryptor, Identity,
     armor::{ArmoredReadError, ArmoredReader},
-    scrypt,
+    pq, scrypt,
     secrecy::SecretString,
     x25519,
 };
@@ -18,7 +18,6 @@ use futures::AsyncReadExt;
 use sha2::{Digest, Sha256};
 use test_case::test_case;
 
-#[test_case("armor")]
 #[test_case("armor_crlf")]
 #[test_case("armor_empty")]
 #[test_case("armor_empty_last_line")]
@@ -31,6 +30,7 @@ use test_case::test_case;
 #[test_case("armor_garbage_trailing")]
 #[test_case("armor_header_crlf")]
 #[test_case("armor_headers")]
+#[test_case("armor_hybrid")]
 #[test_case("armor_invalid_character_header")]
 #[test_case("armor_invalid_character_payload")]
 #[test_case("armor_long_line")]
@@ -41,6 +41,7 @@ use test_case::test_case;
 #[test_case("armor_no_padding")]
 #[test_case("armor_not_canonical")]
 #[test_case("armor_pgp_checksum")]
+#[test_case("armor_scrypt")]
 #[test_case("armor_short_line")]
 #[test_case("armor_whitespace_begin")]
 #[test_case("armor_whitespace_end")]
@@ -49,6 +50,7 @@ use test_case::test_case;
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("armor_x25519")]
 #[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
@@ -59,6 +61,24 @@ use test_case::test_case;
 #[test_case("hmac_not_canonical")]
 #[test_case("hmac_trailing_space")]
 #[test_case("hmac_truncated")]
+#[test_case("hybrid")]
+#[test_case("hybrid_and_x25519")]
+#[test_case("hybrid_bad_tag")]
+#[test_case("hybrid_currupted_enc_mlkem")]
+#[test_case("hybrid_currupted_enc_x25519")]
+#[test_case("hybrid_extra_argument")]
+#[test_case("hybrid_grease")]
+#[test_case("hybrid_identity")]
+#[test_case("hybrid_long_file_key")]
+#[test_case("hybrid_long_share")]
+#[test_case("hybrid_low_order")]
+#[test_case("hybrid_multiple_recipients")]
+#[test_case("hybrid_no_match")]
+#[test_case("hybrid_not_canonical_body")]
+#[test_case("hybrid_not_canonical_enc")]
+#[test_case("hybrid_short_share")]
+#[test_case("hybrid_uppercase")]
+#[test_case("hybrid_x25519_arg")]
 #[test_case("scrypt")]
 #[test_case("scrypt_and_x25519")]
 #[test_case("scrypt_bad_tag")]
@@ -148,7 +168,7 @@ fn testkit(filename: &str) {
     match Decryptor::new(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| {
         if !d.is_scrypt() {
             let identities = get_testkit_identities(filename, &testfile);
-            d.decrypt(identities.iter().map(|i| i as &dyn Identity))
+            d.decrypt(identities.iter().map(|i| i.as_ref() as _))
         } else {
             let passphrase = get_testkit_passphrase(&testfile, &comment);
             let mut identity = scrypt::Identity::new(passphrase);
@@ -165,7 +185,6 @@ fn testkit(filename: &str) {
     }
 }
 
-#[test_case("armor")]
 #[test_case("armor_crlf")]
 #[test_case("armor_empty")]
 #[test_case("armor_empty_last_line")]
@@ -178,6 +197,7 @@ fn testkit(filename: &str) {
 #[test_case("armor_garbage_trailing")]
 #[test_case("armor_header_crlf")]
 #[test_case("armor_headers")]
+#[test_case("armor_hybrid")]
 #[test_case("armor_invalid_character_header")]
 #[test_case("armor_invalid_character_payload")]
 #[test_case("armor_long_line")]
@@ -188,6 +208,7 @@ fn testkit(filename: &str) {
 #[test_case("armor_no_padding")]
 #[test_case("armor_not_canonical")]
 #[test_case("armor_pgp_checksum")]
+#[test_case("armor_scrypt")]
 #[test_case("armor_short_line")]
 #[test_case("armor_whitespace_begin")]
 #[test_case("armor_whitespace_end")]
@@ -196,6 +217,7 @@ fn testkit(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("armor_x25519")]
 #[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
@@ -206,6 +228,24 @@ fn testkit(filename: &str) {
 #[test_case("hmac_not_canonical")]
 #[test_case("hmac_trailing_space")]
 #[test_case("hmac_truncated")]
+#[test_case("hybrid")]
+#[test_case("hybrid_and_x25519")]
+#[test_case("hybrid_bad_tag")]
+#[test_case("hybrid_currupted_enc_mlkem")]
+#[test_case("hybrid_currupted_enc_x25519")]
+#[test_case("hybrid_extra_argument")]
+#[test_case("hybrid_grease")]
+#[test_case("hybrid_identity")]
+#[test_case("hybrid_long_file_key")]
+#[test_case("hybrid_long_share")]
+#[test_case("hybrid_low_order")]
+#[test_case("hybrid_multiple_recipients")]
+#[test_case("hybrid_no_match")]
+#[test_case("hybrid_not_canonical_body")]
+#[test_case("hybrid_not_canonical_enc")]
+#[test_case("hybrid_short_share")]
+#[test_case("hybrid_uppercase")]
+#[test_case("hybrid_x25519_arg")]
 #[test_case("scrypt")]
 #[test_case("scrypt_and_x25519")]
 #[test_case("scrypt_bad_tag")]
@@ -295,7 +335,7 @@ fn testkit_buffered(filename: &str) {
     match Decryptor::new_buffered(ArmoredReader::new(&testfile.age_file[..])).and_then(|d| {
         if !d.is_scrypt() {
             let identities = get_testkit_identities(filename, &testfile);
-            d.decrypt(identities.iter().map(|i| i as &dyn Identity))
+            d.decrypt(identities.iter().map(|i| i.as_ref() as _))
         } else {
             let passphrase = get_testkit_passphrase(&testfile, &comment);
             let mut identity = scrypt::Identity::new(passphrase);
@@ -312,7 +352,6 @@ fn testkit_buffered(filename: &str) {
     }
 }
 
-#[test_case("armor")]
 #[test_case("armor_crlf")]
 #[test_case("armor_empty")]
 #[test_case("armor_empty_last_line")]
@@ -325,6 +364,7 @@ fn testkit_buffered(filename: &str) {
 #[test_case("armor_garbage_trailing")]
 #[test_case("armor_header_crlf")]
 #[test_case("armor_headers")]
+#[test_case("armor_hybrid")]
 #[test_case("armor_invalid_character_header")]
 #[test_case("armor_invalid_character_payload")]
 #[test_case("armor_long_line")]
@@ -335,6 +375,7 @@ fn testkit_buffered(filename: &str) {
 #[test_case("armor_no_padding")]
 #[test_case("armor_not_canonical")]
 #[test_case("armor_pgp_checksum")]
+#[test_case("armor_scrypt")]
 #[test_case("armor_short_line")]
 #[test_case("armor_whitespace_begin")]
 #[test_case("armor_whitespace_end")]
@@ -343,6 +384,7 @@ fn testkit_buffered(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("armor_x25519")]
 #[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
@@ -353,6 +395,24 @@ fn testkit_buffered(filename: &str) {
 #[test_case("hmac_not_canonical")]
 #[test_case("hmac_trailing_space")]
 #[test_case("hmac_truncated")]
+#[test_case("hybrid")]
+#[test_case("hybrid_and_x25519")]
+#[test_case("hybrid_bad_tag")]
+#[test_case("hybrid_currupted_enc_mlkem")]
+#[test_case("hybrid_currupted_enc_x25519")]
+#[test_case("hybrid_extra_argument")]
+#[test_case("hybrid_grease")]
+#[test_case("hybrid_identity")]
+#[test_case("hybrid_long_file_key")]
+#[test_case("hybrid_long_share")]
+#[test_case("hybrid_low_order")]
+#[test_case("hybrid_multiple_recipients")]
+#[test_case("hybrid_no_match")]
+#[test_case("hybrid_not_canonical_body")]
+#[test_case("hybrid_not_canonical_enc")]
+#[test_case("hybrid_short_share")]
+#[test_case("hybrid_uppercase")]
+#[test_case("hybrid_x25519_arg")]
 #[test_case("scrypt")]
 #[test_case("scrypt_and_x25519")]
 #[test_case("scrypt_bad_tag")]
@@ -445,7 +505,7 @@ async fn testkit_async(filename: &str) {
         .and_then(|d| {
             if !d.is_scrypt() {
                 let identities = get_testkit_identities(filename, &testfile);
-                d.decrypt_async(identities.iter().map(|i| i as &dyn Identity))
+                d.decrypt_async(identities.iter().map(|i| i.as_ref() as _))
             } else {
                 let passphrase = get_testkit_passphrase(&testfile, &comment);
                 let mut identity = scrypt::Identity::new(passphrase);
@@ -462,7 +522,6 @@ async fn testkit_async(filename: &str) {
     }
 }
 
-#[test_case("armor")]
 #[test_case("armor_crlf")]
 #[test_case("armor_empty")]
 #[test_case("armor_empty_last_line")]
@@ -475,6 +534,7 @@ async fn testkit_async(filename: &str) {
 #[test_case("armor_garbage_trailing")]
 #[test_case("armor_header_crlf")]
 #[test_case("armor_headers")]
+#[test_case("armor_hybrid")]
 #[test_case("armor_invalid_character_header")]
 #[test_case("armor_invalid_character_payload")]
 #[test_case("armor_long_line")]
@@ -485,6 +545,7 @@ async fn testkit_async(filename: &str) {
 #[test_case("armor_no_padding")]
 #[test_case("armor_not_canonical")]
 #[test_case("armor_pgp_checksum")]
+#[test_case("armor_scrypt")]
 #[test_case("armor_short_line")]
 #[test_case("armor_whitespace_begin")]
 #[test_case("armor_whitespace_end")]
@@ -493,6 +554,7 @@ async fn testkit_async(filename: &str) {
 #[test_case("armor_whitespace_line_start")]
 #[test_case("armor_whitespace_outside")]
 #[test_case("armor_wrong_type")]
+#[test_case("armor_x25519")]
 #[test_case("empty")]
 #[test_case("header_crlf")]
 #[test_case("hmac_bad")]
@@ -503,6 +565,24 @@ async fn testkit_async(filename: &str) {
 #[test_case("hmac_not_canonical")]
 #[test_case("hmac_trailing_space")]
 #[test_case("hmac_truncated")]
+#[test_case("hybrid")]
+#[test_case("hybrid_and_x25519")]
+#[test_case("hybrid_bad_tag")]
+#[test_case("hybrid_currupted_enc_mlkem")]
+#[test_case("hybrid_currupted_enc_x25519")]
+#[test_case("hybrid_extra_argument")]
+#[test_case("hybrid_grease")]
+#[test_case("hybrid_identity")]
+#[test_case("hybrid_long_file_key")]
+#[test_case("hybrid_long_share")]
+#[test_case("hybrid_low_order")]
+#[test_case("hybrid_multiple_recipients")]
+#[test_case("hybrid_no_match")]
+#[test_case("hybrid_not_canonical_body")]
+#[test_case("hybrid_not_canonical_enc")]
+#[test_case("hybrid_short_share")]
+#[test_case("hybrid_uppercase")]
+#[test_case("hybrid_x25519_arg")]
 #[test_case("scrypt")]
 #[test_case("scrypt_and_x25519")]
 #[test_case("scrypt_bad_tag")]
@@ -595,7 +675,7 @@ async fn testkit_async_buffered(filename: &str) {
         .and_then(|d| {
             if !d.is_scrypt() {
                 let identities = get_testkit_identities(filename, &testfile);
-                d.decrypt_async(identities.iter().map(|i| i as &dyn Identity))
+                d.decrypt_async(identities.iter().map(|i| i.as_ref() as _))
             } else {
                 let passphrase = get_testkit_passphrase(&testfile, &comment);
                 let mut identity = scrypt::Identity::new(passphrase);
@@ -620,7 +700,7 @@ fn format_testkit_comment(testfile: &TestFile) -> String {
         .unwrap_or_default()
 }
 
-fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<x25519::Identity> {
+fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<Box<dyn Identity>> {
     assert_eq!(
         testfile.passphrases.len(),
         // `scrypt_uppercase` uses the stanza tag `Scrypt` instead of `scrypt`, so
@@ -632,7 +712,16 @@ fn get_testkit_identities(filename: &str, testfile: &TestFile) -> Vec<x25519::Id
         .identities
         .iter()
         .map(|s| s.as_str())
-        .map(x25519::Identity::from_str)
+        .map(|s| {
+            x25519::Identity::from_str(s)
+                .map(Box::new)
+                .map(|b| b as Box<dyn Identity>)
+                .or_else(|_| {
+                    pq::Identity::from_str(s)
+                        .map(Box::new)
+                        .map(|b| b as Box<dyn Identity>)
+                })
+        })
         .collect::<Result<_, _>>()
         .unwrap()
 }

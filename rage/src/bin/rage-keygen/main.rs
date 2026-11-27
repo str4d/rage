@@ -38,7 +38,11 @@ fn main() -> Result<(), error::Error> {
     let opts = cli::AgeOptions::parse();
 
     let output = file_io::OutputWriter::new(
-        opts.output,
+        // The `pq` identity file format is large enough (due to the recipient encoding)
+        // that it triggers the truncation logic. Force explicit stdout so that the
+        // identity output is never truncated in the TTY (unlike file decryption, the
+        // output is not reproducible across calls).
+        opts.output.or_else(|| Some("-".into())),
         false,
         file_io::OutputFormat::Text,
         0o600,
@@ -49,13 +53,21 @@ fn main() -> Result<(), error::Error> {
     if opts.convert {
         convert(opts.input, output)
     } else {
-        generate(output).map_err(error::Error::FailedToWriteOutput)
+        generate(opts.pq, output).map_err(error::Error::FailedToWriteOutput)
     }
 }
 
-fn generate(mut output: file_io::OutputWriter) -> io::Result<()> {
-    let sk = age::x25519::Identity::generate();
-    let pk = sk.to_public();
+fn generate(pq: bool, mut output: file_io::OutputWriter) -> io::Result<()> {
+    let (sk, pk) = if pq {
+        let sk = age::pq::Identity::generate();
+        let pk = sk.to_public();
+        (sk.to_string(), pk.to_string())
+    } else {
+        #[allow(deprecated)]
+        let sk = age::x25519::Identity::generate();
+        let pk = sk.to_public();
+        (sk.to_string(), pk.to_string())
+    };
 
     writeln!(
         output,
@@ -64,7 +76,7 @@ fn generate(mut output: file_io::OutputWriter) -> io::Result<()> {
         chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     )?;
     writeln!(output, "# {}: {}", fl!("identity-file-pubkey"), pk)?;
-    writeln!(output, "{}", sk.to_string().expose_secret())?;
+    writeln!(output, "{}", sk.expose_secret())?;
 
     if !output.is_terminal() {
         eprintln!("{}: {}", fl!("tty-pubkey"), pk);

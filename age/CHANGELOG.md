@@ -10,6 +10,10 @@ to 1.0.0 are beta releases.
 
 ## [Unreleased]
 
+### Added
+- Support for new native age recipient types:
+  - `age::pq`
+
 ### Changed
 - MSRV is now 1.87.0.
 - Migrated to `base64 0.23`, `chacha20poly1305 0.11`, `curve25519-dalek 5`,
