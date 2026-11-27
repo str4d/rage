@@ -333,8 +333,12 @@ criteria = "safe-to-deploy"
 version = "0.3.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.env_filter]]
+version = "2.1.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.env_logger]]
-version = "0.10.2"
+version = "0.11.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.equivalent]]
@@ -923,10 +927,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.tempfile]]
 version = "3.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.termcolor]]
-version = "1.4.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.test-case]]

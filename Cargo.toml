@@ -83,7 +83,8 @@ rust-embed = "8"
 chrono = "0.4"
 clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
-env_logger = "0.10"
+# The CLI disables log timestamps, so omit the `humantime` feature.
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "regex"] }
 log = "0.4"
 
 [workspace.lints.rust]
