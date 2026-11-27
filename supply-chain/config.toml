@@ -214,7 +214,7 @@ version = "0.10.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.constant_time_eq]]
-version = "0.4.2"
+version = "0.6.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.content_inspector]]
@@ -998,7 +998,7 @@ version = "0.4.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.typed-path]]
-version = "0.12.4"
+version = "0.13.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
@@ -1130,7 +1130,7 @@ version = "0.11.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.zip]]
-version = "8.6.0"
+version = "9.7.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.zlib-rs]]
@@ -1146,11 +1146,11 @@ version = "0.8.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.zstd]]
-version = "0.13.6"
+version = "0.14.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.zstd-safe]]
-version = "7.4.2"
+version = "8.4.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.zstd-sys]]
