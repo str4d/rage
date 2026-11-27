@@ -165,9 +165,22 @@ impl std::str::FromStr for Recipient {
                     .ok_or("incorrect HRP")
             },
             |_, bytes| {
-                <Kem as hpke::Kem>::PublicKey::from_bytes(&bytes.collect::<Vec<_>>())
-                    .map_err(|_| "invalid recipient")
-                    .map(Self)
+                let bytes: Vec<_> = bytes.collect();
+                let pk = <Kem as hpke::Kem>::PublicKey::from_bytes(&bytes)
+                    .map_err(|_| "invalid recipient")?;
+
+                // No native PQ identity can produce a low-order X25519 public key.
+                // Reject such recipients at import; Go age rejects them during encryption.
+                let x25519 =
+                    x25519_dalek::PublicKey::from(*bytes.last_chunk().ok_or("invalid recipient")?);
+                // Use a non-zero scalar for testing (so even if clamping were incorrectly
+                // omitted, it would have contributory behaviour.)
+                let scalar = x25519_dalek::StaticSecret::from([0x07; 32]);
+                if !scalar.diffie_hellman(&x25519).was_contributory() {
+                    return Err("non-contributory X25519 recipient key");
+                }
+
+                Ok(Self(pk))
             },
         )
     }
@@ -227,6 +240,25 @@ pub(crate) mod tests {
     fn recipient_encoding() {
         let pk: Recipient = TEST_RECIPIENT.parse().unwrap();
         assert_eq!(pk.to_string(), TEST_RECIPIENT);
+    }
+
+    #[test]
+    fn recipient_rejects_low_order_x25519() {
+        use hpke::Serializable;
+
+        let pk: Recipient = TEST_RECIPIENT.parse().unwrap();
+        let mut bytes = pk.0.to_bytes();
+        // Keep the valid ML-KEM component and vary only the X25519 coordinate.
+        for u in [0, 1] {
+            let x25519 = bytes.last_chunk_mut::<32>().unwrap();
+            x25519.fill(0);
+            x25519[0] = u;
+            let encoded = super::bech32_encode(super::RECIPIENT_PREFIX, &bytes);
+            assert_eq!(
+                encoded.parse::<Recipient>(),
+                Err("non-contributory X25519 recipient key")
+            );
+        }
     }
 
     #[test]
