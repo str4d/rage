@@ -4,7 +4,7 @@ use std::io;
 use crate::{DecryptError, wfl};
 
 /// Errors that can occur while reading recipients or identities.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ReadError {
     /// An error occured while decrypting passphrase-encrypted identities.
@@ -23,7 +23,7 @@ pub enum ReadError {
         line_number: usize,
     },
     /// An I/O error occurred while reading.
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     /// The given recipients file could not be found.
     MissingRecipientsFile(String),
     /// Standard input was used by multiple files.
@@ -49,7 +49,7 @@ pub enum ReadError {
 
 impl From<io::Error> for ReadError {
     fn from(e: io::Error) -> Self {
-        ReadError::Io(e)
+        ReadError::Io(e.kind(), e.to_string())
     }
 }
 
@@ -83,7 +83,7 @@ impl fmt::Display for ReadError {
                 filename = filename.as_str(),
                 line_number = line_number,
             ),
-            ReadError::Io(e) => write!(f, "{e}"),
+            ReadError::Io(_, message) => write!(f, "{message}"),
             ReadError::MissingRecipientsFile(filename) => wfl!(
                 f,
                 "err-read-missing-recipients-file",
@@ -106,11 +106,4 @@ impl fmt::Display for ReadError {
     }
 }
 
-impl std::error::Error for ReadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(inner) => Some(inner),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for ReadError {}

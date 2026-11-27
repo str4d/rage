@@ -144,10 +144,10 @@ impl Header {
                     // currently-defined header formats are newline-separated, to more
                     // efficiently read data for the parser to consume.
                     if input.read_until(b'\n', &mut data)? == 0 {
-                        break Err(DecryptError::Io(io::Error::new(
+                        break Err(DecryptError::Io(
                             io::ErrorKind::UnexpectedEof,
-                            "Incomplete header",
-                        )));
+                            "Incomplete header".to_owned(),
+                        ));
                     }
                 }
                 Err(_) => {
@@ -206,10 +206,10 @@ impl Header {
                     // currently-defined header formats are newline-separated, to more
                     // efficiently read data for the parser to consume.
                     if input.read_until(b'\n', &mut data).await? == 0 {
-                        break Err(DecryptError::Io(io::Error::new(
+                        break Err(DecryptError::Io(
                             io::ErrorKind::UnexpectedEof,
-                            "Incomplete header",
-                        )));
+                            "Incomplete header".to_owned(),
+                        ));
                     }
                 }
                 Err(_) => {

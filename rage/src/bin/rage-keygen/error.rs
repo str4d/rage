@@ -13,11 +13,12 @@ macro_rules! wlnfl {
     };
 }
 
+#[derive(PartialEq, Eq)]
 pub(crate) enum Error {
-    FailedToOpenInput(io::Error),
-    FailedToOpenOutput(io::Error),
-    FailedToReadInput(io::Error),
-    FailedToWriteOutput(io::Error),
+    FailedToOpenInput(io::ErrorKind, String),
+    FailedToOpenOutput(io::ErrorKind, String),
+    FailedToReadInput(io::ErrorKind, String),
+    FailedToWriteOutput(io::ErrorKind, String),
     IdentityFileConvert(IdentityFileConvertError),
 }
 
@@ -26,17 +27,17 @@ pub(crate) enum Error {
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::FailedToOpenInput(e) => {
-                wlnfl!(f, "err-failed-to-open-input", err = e.to_string())?
+            Error::FailedToOpenInput(_, message) => {
+                wlnfl!(f, "err-failed-to-open-input", err = message.as_str())?
             }
-            Error::FailedToOpenOutput(e) => {
-                wlnfl!(f, "err-failed-to-open-output", err = e.to_string())?
+            Error::FailedToOpenOutput(_, message) => {
+                wlnfl!(f, "err-failed-to-open-output", err = message.as_str())?
             }
-            Error::FailedToReadInput(e) => {
-                wlnfl!(f, "err-failed-to-read-input", err = e.to_string())?
+            Error::FailedToReadInput(_, message) => {
+                wlnfl!(f, "err-failed-to-read-input", err = message.as_str())?
             }
-            Error::FailedToWriteOutput(e) => {
-                wlnfl!(f, "err-failed-to-write-output", err = e.to_string())?
+            Error::FailedToWriteOutput(_, message) => {
+                wlnfl!(f, "err-failed-to-write-output", err = message.as_str())?
             }
             Error::IdentityFileConvert(e) => writeln!(f, "{e}")?,
         }

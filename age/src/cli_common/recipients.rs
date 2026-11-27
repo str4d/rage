@@ -156,7 +156,7 @@ pub fn read_recipients(
 
     for arg in recipients_file_strings {
         let f = stdin_guard.open(arg.clone()).map_err(|e| match e {
-            ReadError::Io(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
+            ReadError::Io(io::ErrorKind::NotFound, _) => {
                 ReadError::MissingRecipientsFile(arg.clone())
             }
             _ => e,

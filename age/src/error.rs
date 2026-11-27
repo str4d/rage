@@ -13,12 +13,12 @@ use age_core::format::Stanza;
 use crate::plugin::CMD_ERROR;
 
 /// Errors returned when converting an identity file to a recipients file.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum IdentityFileConvertError {
     /// An I/O error occurred while writing out a recipient corresponding to an identity
     /// in this file.
-    FailedToWriteOutput(io::Error),
+    FailedToWriteOutput(io::ErrorKind, String),
     /// The identity file contains a plugin identity, which can be converted to a
     /// recipient for encryption purposes, but not for writing a recipients file.
     #[cfg(feature = "plugin")]
@@ -40,8 +40,8 @@ pub enum IdentityFileConvertError {
 impl fmt::Display for IdentityFileConvertError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            IdentityFileConvertError::FailedToWriteOutput(e) => {
-                wfl!(f, "err-failed-to-write-output", err = e.to_string())
+            IdentityFileConvertError::FailedToWriteOutput(_, message) => {
+                wfl!(f, "err-failed-to-write-output", err = message.as_str())
             }
             #[cfg(feature = "plugin")]
             IdentityFileConvertError::IdentityFileContainsPlugin {
@@ -70,19 +70,12 @@ impl fmt::Display for IdentityFileConvertError {
     }
 }
 
-impl std::error::Error for IdentityFileConvertError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            IdentityFileConvertError::FailedToWriteOutput(e) => Some(e),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for IdentityFileConvertError {}
 
 /// Errors returned by a plugin.
 #[cfg(feature = "plugin")]
 #[cfg_attr(docsrs, doc(cfg(feature = "plugin")))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PluginError {
     /// An error caused by a specific identity.
     Identity {
@@ -172,7 +165,7 @@ impl fmt::Display for PluginError {
 }
 
 /// The various errors that can be returned during the encryption process.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EncryptError {
     /// An error occured while decrypting passphrase-encrypted identities.
@@ -190,7 +183,7 @@ pub enum EncryptError {
     /// Labels must be valid age "arbitrary string"s (`1*VCHAR` in ABNF).
     InvalidRecipientLabels(HashSet<String>),
     /// An I/O error occurred during encryption.
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     /// The encryptor was not given any recipients.
     MissingRecipients,
     /// [`scrypt::Recipient`] was mixed with other recipient types.
@@ -209,27 +202,7 @@ pub enum EncryptError {
 
 impl From<io::Error> for EncryptError {
     fn from(e: io::Error) -> Self {
-        EncryptError::Io(e)
-    }
-}
-
-impl Clone for EncryptError {
-    fn clone(&self) -> Self {
-        match self {
-            Self::EncryptedIdentities(e) => Self::EncryptedIdentities(e.clone()),
-            Self::IncompatibleRecipients { l_labels, r_labels } => Self::IncompatibleRecipients {
-                l_labels: l_labels.clone(),
-                r_labels: r_labels.clone(),
-            },
-            Self::InvalidRecipientLabels(labels) => Self::InvalidRecipientLabels(labels.clone()),
-            Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
-            Self::MissingRecipients => Self::MissingRecipients,
-            Self::MixedRecipientAndPassphrase => Self::MixedRecipientAndPassphrase,
-            #[cfg(feature = "plugin")]
-            Self::Plugin(e) => Self::Plugin(e.clone()),
-            #[cfg(feature = "plugin")]
-            Self::PluginResolve(e) => Self::PluginResolve(e.clone()),
-        }
+        EncryptError::Io(e.kind(), e.to_string())
     }
 }
 
@@ -278,7 +251,7 @@ impl fmt::Display for EncryptError {
                 "err-invalid-recipient-labels",
                 labels = print_labels(labels),
             ),
-            EncryptError::Io(e) => e.fmt(f),
+            EncryptError::Io(_, message) => write!(f, "{message}"),
             EncryptError::MissingRecipients => wfl!(f, "err-missing-recipients"),
             EncryptError::MixedRecipientAndPassphrase => {
                 wfl!(f, "err-mixed-recipient-passphrase")
@@ -305,14 +278,13 @@ impl std::error::Error for EncryptError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             EncryptError::EncryptedIdentities(inner) => Some(inner),
-            EncryptError::Io(inner) => Some(inner),
             _ => None,
         }
     }
 }
 
 /// The various errors that can be returned during the decryption process.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DecryptError {
     /// The age file failed to decrypt.
@@ -329,7 +301,7 @@ pub enum DecryptError {
     /// The MAC in the age header was invalid.
     InvalidMac,
     /// An I/O error occurred during decryption.
-    Io(io::Error),
+    Io(io::ErrorKind, String),
     /// Failed to decrypt an encrypted key.
     KeyDecryptionFailed,
     /// None of the provided keys could be used to decrypt the age file.
@@ -346,28 +318,6 @@ pub enum DecryptError {
     UnknownFormat,
 }
 
-impl Clone for DecryptError {
-    fn clone(&self) -> Self {
-        match self {
-            Self::DecryptionFailed => Self::DecryptionFailed,
-            Self::ExcessiveWork { required, target } => Self::ExcessiveWork {
-                required: *required,
-                target: *target,
-            },
-            Self::InvalidHeader => Self::InvalidHeader,
-            Self::InvalidMac => Self::InvalidMac,
-            Self::Io(e) => Self::Io(io::Error::new(e.kind(), e.to_string())),
-            Self::KeyDecryptionFailed => Self::KeyDecryptionFailed,
-            Self::NoMatchingKeys => Self::NoMatchingKeys,
-            #[cfg(feature = "plugin")]
-            Self::Plugin(e) => Self::Plugin(e.clone()),
-            #[cfg(feature = "plugin")]
-            Self::PluginResolve(e) => Self::PluginResolve(e.clone()),
-            Self::UnknownFormat => Self::UnknownFormat,
-        }
-    }
-}
-
 impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -382,7 +332,7 @@ impl fmt::Display for DecryptError {
             }
             DecryptError::InvalidHeader => wfl!(f, "err-header-invalid"),
             DecryptError::InvalidMac => wfl!(f, "err-header-mac-invalid"),
-            DecryptError::Io(e) => e.fmt(f),
+            DecryptError::Io(_, message) => write!(f, "{message}"),
             DecryptError::KeyDecryptionFailed => wfl!(f, "err-key-decryption"),
             DecryptError::NoMatchingKeys => wfl!(f, "err-no-matching-keys"),
             #[cfg(feature = "plugin")]
@@ -415,7 +365,7 @@ impl From<chacha20poly1305::aead::Error> for DecryptError {
 
 impl From<io::Error> for DecryptError {
     fn from(e: io::Error) -> Self {
-        DecryptError::Io(e)
+        DecryptError::Io(e.kind(), e.to_string())
     }
 }
 
@@ -433,11 +383,4 @@ impl From<rsa::errors::Error> for DecryptError {
     }
 }
 
-impl std::error::Error for DecryptError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DecryptError::Io(inner) => Some(inner),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for DecryptError {}
