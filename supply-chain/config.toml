@@ -426,7 +426,7 @@ version = "0.13.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.hpke]]
-version = "0.14.1"
+version = "0.15.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.humantime-serde]]

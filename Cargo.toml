@@ -47,7 +47,7 @@ hmac = "0.13"
 sha2 = "0.11"
 
 # - HPKE from RFC 9180
-hpke = { version = "0.14", default-features = false, features = [
+hpke = { version = "0.15", default-features = false, features = [
     "alloc",
     "chacha",
 ] }
