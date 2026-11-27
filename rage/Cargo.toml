@@ -142,7 +142,7 @@ i18n-embed-fl.workspace = true
 rust-embed.workspace = true
 
 [dev-dependencies]
-trycmd = ">= 0.15.0, < 0.15.10" # trycmd 0.15.10 breaks line ending normalization on Windows.
+trycmd = "1"
 
 [features]
 default = ["ssh"]
