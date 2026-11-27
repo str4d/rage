@@ -14,14 +14,11 @@ dependencies = [
 
 [[package]]
 name = "afl"
-version = "0.15.24"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927cd71710d1a232519e2393470e8f74a178ae59367efe58fa122884bba35ca4"
+checksum = "63cebfea59e5a88a17a0d0ad6a3cae14289c21016b7d82f203a066d7ffcbfc8c"
 dependencies = [
  "home",
- "libc",
- "rustc_version",
- "xdg",
 ]
 
 [[package]]
@@ -1526,12 +1523,6 @@ dependencies = [
  "rand_core",
  "zeroize",
 ]
-
-[[package]]
-name = "xdg"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "zerofrom"

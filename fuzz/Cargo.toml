@@ -17,7 +17,7 @@ path = "../age-core"
 [dependencies.age]
 path = "../age"
 [dependencies.libfuzzer-sys]
-git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+version = "0.4"
 
 # Prevent this from interfering with workspaces
 [workspace]
