@@ -202,7 +202,7 @@ version = "1.1.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap_mangen]]
-version = "0.2.33"
+version = "0.3.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.cmov]]
