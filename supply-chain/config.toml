@@ -262,7 +262,7 @@ version = "0.8.22"
 criteria = "safe-to-run"
 
 [[exemptions.crypto-bigint]]
-version = "0.7.5"
+version = "0.7.11"
 criteria = "safe-to-deploy"
 
 [[exemptions.crypto-common]]
@@ -282,7 +282,7 @@ version = "3.5.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.ctutils]]
-version = "0.4.2"
+version = "0.4.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.curve25519-dalek]]
@@ -294,7 +294,7 @@ version = "0.1.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.der]]
-version = "0.8.1"
+version = "0.8.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
@@ -433,10 +433,6 @@ criteria = "safe-to-deploy"
 version = "0.14.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.humantime]]
-version = "2.4.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.humantime-serde]]
 version = "1.1.1"
 criteria = "safe-to-run"
@@ -463,10 +459,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.iana-time-zone]]
 version = "0.1.65"
-criteria = "safe-to-deploy"
-
-[[exemptions.indexmap]]
-version = "2.14.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.inferno]]
@@ -630,7 +622,7 @@ version = "0.2.17"
 criteria = "safe-to-deploy"
 
 [[exemptions.pkcs1]]
-version = "0.8.0-rc.4"
+version = "0.8.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pkcs8]]
@@ -701,10 +693,6 @@ criteria = "safe-to-run"
 version = "0.10.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.rand_core]]
-version = "0.10.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.rayon]]
 version = "1.12.0"
 criteria = "safe-to-run"
@@ -738,7 +726,7 @@ version = "7.5.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.rsa]]
-version = "0.10.0-rc.18"
+version = "0.10.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.rtoolbox]]
@@ -805,10 +793,6 @@ criteria = "safe-to-deploy"
 version = "1.2.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.semver]]
-version = "1.0.28"
-criteria = "safe-to-deploy"
-
 [[exemptions.serde_json]]
 version = "1.0.150"
 criteria = "safe-to-run"
@@ -839,10 +823,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.shake]]
 version = "0.1.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.shlex]]
-version = "2.0.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.signature]]

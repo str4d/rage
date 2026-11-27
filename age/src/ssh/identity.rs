@@ -35,7 +35,7 @@ use crate::{
 /// An SSH private key for decrypting an age file.
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
-    SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
+    SshRsa(Vec<u8>, Box<rsa::PrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, SecretBox<[u8; 64]>),
 }
@@ -341,7 +341,7 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
                     if enc_header.is_some() {
                         Some(UnsupportedKey::EncryptedPem.into())
                     } else {
-                        rsa::RsaPrivateKey::from_pkcs1_der(&privkey)
+                        rsa::PrivateKey::from_pkcs1_der(&privkey)
                             .ok()
                             .map(|privkey| {
                                 let mut ssh_key = vec![];

@@ -217,8 +217,8 @@ mod read_ssh {
     use rsa::BoxedUint;
 
     use super::{
-        EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, SSH_ED25519_KEY_PREFIX,
-        SSH_RSA_KEY_PREFIX,
+        EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, ParseRecipientKeyError,
+        SSH_ED25519_KEY_PREFIX, SSH_RSA_KEY_PREFIX,
         identity::{UnencryptedKey, UnsupportedKey},
     };
 
@@ -343,12 +343,12 @@ mod read_ssh {
     /// Internal OpenSSH encoding of an RSA private key.
     ///
     /// - [OpenSSH serialization code](https://github.com/openssh/openssh-portable/blob/4103a3ec7c68493dbc4f0994a229507e943a86d3/sshkey.c#L3187-L3198)
-    fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::RsaPrivateKey> {
+    fn openssh_rsa_privkey(input: &[u8]) -> IResult<&[u8], rsa::PrivateKey> {
         delimited(
             string_tag(SSH_RSA_KEY_PREFIX),
             map_res(
                 (mpint, mpint, mpint, mpint, mpint, mpint),
-                |(n, e, d, _iqmp, p, q)| rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]),
+                |(n, e, d, _iqmp, p, q)| rsa::PrivateKey::from_components(n, e, d, vec![p, q]),
             ),
             comment_and_padding,
         )
@@ -500,22 +500,31 @@ mod read_ssh {
     /// mpint     n
     /// ```
     ///
-    /// Returns `None` if the modulus is larger than `max_size`.
+    /// Reports out-of-range moduli separately from SSH parsing errors.
     pub(super) fn rsa_pubkey(
-        max_size: usize,
-    ) -> impl Fn(&[u8]) -> IResult<&[u8], Option<rsa::RsaPublicKey>> {
-        move |input| {
-            preceded(
-                string_tag(SSH_RSA_KEY_PREFIX),
-                map_res((mpint, mpint), |(exponent, modulus)| {
-                    match rsa::RsaPublicKey::new_with_max_size(modulus, exponent, max_size) {
-                        Err(rsa::Error::ModulusTooLarge) => Ok(None),
-                        res => res.map(Some),
+        input: &[u8],
+    ) -> IResult<&[u8], Result<rsa::PublicKey, ParseRecipientKeyError>> {
+        preceded(
+            string_tag(SSH_RSA_KEY_PREFIX),
+            map_res(
+                (mpint, mpint),
+                |(exponent, modulus)| match rsa::PublicKey::new_with_size_limits(
+                    modulus,
+                    exponent,
+                    2048..=rsa::PublicKey::MAX_SIZE,
+                ) {
+                    Ok(key) => Ok(Ok(key)),
+                    Err(rsa::Error::ModulusTooSmall) => {
+                        Ok(Err(ParseRecipientKeyError::RsaModulusTooSmall))
                     }
-                }),
-            )
-            .parse_complete(input)
-        }
+                    Err(rsa::Error::ModulusTooLarge) => {
+                        Ok(Err(ParseRecipientKeyError::RsaModulusTooLarge))
+                    }
+                    Err(e) => Err(e),
+                },
+            ),
+        )
+        .parse_complete(input)
     }
 
     /// An SSH-encoded Ed25519 public key.
@@ -577,7 +586,7 @@ mod write_ssh {
     /// mpint     e
     /// mpint     n
     /// ```
-    pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::RsaPublicKey) -> impl SerializeFn<W> + use<W> {
+    pub(super) fn rsa_pubkey<W: Write>(pubkey: &rsa::PublicKey) -> impl SerializeFn<W> + use<W> {
         tuple((
             string(SSH_RSA_KEY_PREFIX),
             mpint(pubkey.e()),

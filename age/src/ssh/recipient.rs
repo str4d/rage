@@ -19,7 +19,7 @@ use nom::{
     sequence::{pair, preceded, separated_pair},
 };
 use rand::{rand_core::UnwrapErr, rngs::SysRng};
-use rsa::{Oaep, traits::PublicKeyParts};
+use rsa::Oaep;
 use sha2::Sha256;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
@@ -39,16 +39,9 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Recipient {
     /// An ssh-rsa public key.
-    SshRsa(Vec<u8>, rsa::RsaPublicKey),
+    SshRsa(Vec<u8>, rsa::PublicKey),
     /// An ssh-ed25519 public key.
     SshEd25519(Vec<u8>, EdwardsPoint),
-}
-
-pub(crate) enum ParsedRecipient {
-    Supported(Recipient),
-    RsaModulusTooLarge,
-    RsaModulusTooSmall,
-    Unsupported(String),
 }
 
 /// Error conditions when parsing an SSH recipient.
@@ -74,18 +67,9 @@ impl std::str::FromStr for Recipient {
 
     /// Parses an SSH recipient from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match ssh_recipient(rsa::RsaPublicKey::MAX_SIZE)(s) {
-            Ok((_, ParsedRecipient::Supported(pk))) => Ok(pk),
-            Ok((_, ParsedRecipient::RsaModulusTooLarge)) => {
-                Err(ParseRecipientKeyError::RsaModulusTooLarge)
-            }
-            Ok((_, ParsedRecipient::RsaModulusTooSmall)) => {
-                Err(ParseRecipientKeyError::RsaModulusTooSmall)
-            }
-            Ok((_, ParsedRecipient::Unsupported(key_type))) => {
-                Err(ParseRecipientKeyError::Unsupported(key_type))
-            }
-            _ => Err(ParseRecipientKeyError::Invalid("invalid SSH recipient")),
+        match alt((ssh_rsa_pubkey, ssh_ed25519_pubkey, ssh_ignore_pubkey)).parse(s) {
+            Ok((_, recipient)) => recipient,
+            Err(_) => Err(ParseRecipientKeyError::Invalid("invalid SSH recipient")),
         }
     }
 }
@@ -121,14 +105,8 @@ impl TryFrom<Identity> for Recipient {
             Identity::Unencrypted(UnencryptedKey::SshRsa(ssh_key, _))
             | Identity::Unencrypted(UnencryptedKey::SshEd25519(ssh_key, _))
             | Identity::Encrypted(EncryptedKey { ssh_key, .. }) => {
-                match read_ssh::rsa_pubkey(rsa::RsaPublicKey::MAX_SIZE)(&ssh_key) {
-                    Ok((_, pk)) => {
-                        if let Some(pk) = pk {
-                            Ok(Recipient::SshRsa(ssh_key, pk))
-                        } else {
-                            Err(ParseRecipientKeyError::RsaModulusTooLarge)
-                        }
-                    }
+                match read_ssh::rsa_pubkey(&ssh_key) {
+                    Ok((_, pk)) => pk.map(|pk| Recipient::SshRsa(ssh_key, pk)),
                     _ => {
                         if let Ok((_, pk)) = read_ssh::ed25519_pubkey(&ssh_key) {
                             Ok(Recipient::SshEd25519(ssh_key, pk))
@@ -214,36 +192,13 @@ impl crate::Recipient for Recipient {
     }
 }
 
-fn ssh_rsa_pubkey(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecipient> {
-    move |input: &str| {
-        preceded(
-            pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
-            map_opt(
-                str_while_encoded(BASE64_STANDARD_NO_PAD),
-                |ssh_key| match read_ssh::rsa_pubkey(max_size)(&ssh_key) {
-                    Ok((_, Some(pk))) => Some(if pk.n().bits() < 2048 {
-                        ParsedRecipient::RsaModulusTooSmall
-                    } else {
-                        ParsedRecipient::Supported(Recipient::SshRsa(ssh_key, pk))
-                    }),
-                    Ok((_, None)) => Some(ParsedRecipient::RsaModulusTooLarge),
-                    Err(_) => None,
-                },
-            ),
-        )
-        .parse(input)
-    }
-}
-
-fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
+fn ssh_rsa_pubkey(input: &str) -> IResult<&str, Result<Recipient, ParseRecipientKeyError>> {
     preceded(
-        pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
+        pair(tag(SSH_RSA_KEY_PREFIX), tag(" ")),
         map_opt(
-            encoded_str(51, BASE64_STANDARD_NO_PAD),
-            |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
-                Ok((_, pk)) => Some(ParsedRecipient::Supported(Recipient::SshEd25519(
-                    ssh_key, pk,
-                ))),
+            str_while_encoded(BASE64_STANDARD_NO_PAD),
+            |ssh_key| match read_ssh::rsa_pubkey(&ssh_key) {
+                Ok((_, pk)) => Some(pk.map(|pk| Recipient::SshRsa(ssh_key, pk))),
                 Err(_) => None,
             },
         ),
@@ -251,7 +206,21 @@ fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
     .parse(input)
 }
 
-fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
+fn ssh_ed25519_pubkey(input: &str) -> IResult<&str, Result<Recipient, ParseRecipientKeyError>> {
+    preceded(
+        pair(tag(SSH_ED25519_KEY_PREFIX), tag(" ")),
+        map_opt(
+            encoded_str(51, BASE64_STANDARD_NO_PAD),
+            |ssh_key| match read_ssh::ed25519_pubkey(&ssh_key) {
+                Ok((_, pk)) => Some(Ok(Recipient::SshEd25519(ssh_key, pk))),
+                Err(_) => None,
+            },
+        ),
+    )
+    .parse(input)
+}
+
+fn ssh_ignore_pubkey(input: &str) -> IResult<&str, Result<Recipient, ParseRecipientKeyError>> {
     // We rely on the invariant that SSH public keys are always of the form
     // `key_type Base64(string(key_type) || ...)` to detect valid pubkeys.
     map_opt(
@@ -262,27 +231,20 @@ fn ssh_ignore_pubkey(input: &str) -> IResult<&str, ParsedRecipient> {
         ),
         |(key_type, ssh_key)| {
             read_ssh::string_tag(key_type)(&ssh_key)
-                .map(|_| ParsedRecipient::Unsupported(key_type.to_string()))
+                .map(|_| Err(ParseRecipientKeyError::Unsupported(key_type.to_string())))
                 .ok()
         },
     )
     .parse(input)
 }
 
-pub(crate) fn ssh_recipient(max_size: usize) -> impl Fn(&str) -> IResult<&str, ParsedRecipient> {
-    move |input| {
-        alt((
-            ssh_rsa_pubkey(max_size),
-            ssh_ed25519_pubkey,
-            ssh_ignore_pubkey,
-        ))
-        .parse(input)
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
+    use base64::{Engine, prelude::BASE64_STANDARD};
+    use cookie_factory::gen_simple;
+
     use super::{ParseRecipientKeyError, Recipient};
+    use crate::ssh::{EncryptedKey, Identity, OpenSshCipher, OpenSshKdf, write_ssh};
 
     pub(crate) const TEST_SSH_RSA_PK: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE7nIXTGNuaRBN9toI/wNALuQec8mvlt0iJ7o3OaD2UvoKHJ7S8rmIn4FiQDUed/Vac3OhUibei1k+TBmm16u2Rj3klgWZOIDgi8d4vXKI5N3YBhxr3jsQ+kz1c+iZ4z/tTtz306+4K46XViVMWwyyg9j82Jn41mOAy9vdeDIfQ5fLeaGqn5KwlT61GNkZ+ozWK/ZNlQIlNCcoXxhJULIs9XrtczWyVBAea1nlDo0WHODePxoJjmsNHrpQXn5mf9O83xs10qfTUjnRUt48jRmedFy4tcra3QGmSTQ3KZne+wXXSb0cIpXLGvZjQSPHgG1hc4r3uBpiSzvesGLv79XL alice@rust";
     pub(crate) const TEST_SSH_ED25519_PK: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsKLqeplhpW+uObz5dvMgjz1OxfM/XXUB+VHtZ6isGN alice@rust";
@@ -293,6 +255,47 @@ pub(crate) mod tests {
     fn ssh_rsa_encoding() {
         let pk: Recipient = TEST_SSH_RSA_PK.parse().unwrap();
         assert_eq!(pk.to_string() + " alice@rust", TEST_SSH_RSA_PK);
+    }
+
+    #[test]
+    fn ssh_rsa_modulus_limits() {
+        let max_size = rsa::PublicKey::MAX_SIZE;
+        for (bits, expected) in [
+            (2047, Err(ParseRecipientKeyError::RsaModulusTooSmall)),
+            (2048, Ok(())),
+            (max_size, Ok(())),
+            (
+                max_size + 1,
+                Err(ParseRecipientKeyError::RsaModulusTooLarge),
+            ),
+        ] {
+            // Only the public components matter for testing the parser's size limits.
+            let mut modulus = vec![0; bits.div_ceil(8)];
+            modulus[0] = 1 << ((bits - 1) % 8);
+            *modulus.last_mut().unwrap() |= 1;
+            let key = rsa::PublicKey::new_with_size_limits(
+                rsa::BoxedUint::from_be_slice_vartime(&modulus),
+                65537u64.into(),
+                bits..=bits,
+            )
+            .unwrap();
+            let ssh_key = gen_simple(write_ssh::rsa_pubkey(&key), Vec::new()).unwrap();
+            let public_key = format!("ssh-rsa {}", BASE64_STANDARD.encode(&ssh_key));
+            assert_eq!(public_key.parse::<Recipient>().map(drop), expected);
+
+            // Extracting a recipient only reads the public key, not the ciphertext.
+            let identity = Identity::Encrypted(EncryptedKey {
+                ssh_key,
+                cipher: OpenSshCipher::Aes256Ctr,
+                kdf: OpenSshKdf::Bcrypt {
+                    salt: vec![],
+                    rounds: 1,
+                },
+                encrypted: vec![],
+                filename: None,
+            });
+            assert_eq!(Recipient::try_from(identity).map(drop), expected);
+        }
     }
 
     #[test]
