@@ -29,7 +29,7 @@ secrecy.workspace = true
 
 # Dependencies used internally:
 # (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)
-base64.workspace = true
+base64ct.workspace = true
 hkdf.workspace = true
 rand.workspace = true
 sha2.workspace = true

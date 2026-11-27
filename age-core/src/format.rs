@@ -1,6 +1,6 @@
 //! Core types and encoding operations used by the age file format.
 
-use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
+use base64ct::{Base64Unpadded, Encoding};
 use rand::{
     Rng,
     distr::{Distribution, Uniform},
@@ -9,6 +9,9 @@ use secrecy::{ExposeSecret, ExposeSecretMut, SecretBox};
 
 /// The prefix identifying an age stanza.
 const STANZA_TAG: &str = "-> ";
+
+const STANZA_BODY_COLUMNS_PER_LINE: usize = 64;
+const STANZA_BODY_BYTES_PER_LINE: usize = STANZA_BODY_COLUMNS_PER_LINE / 4 * 3;
 
 /// The length of an age file key.
 pub const FILE_KEY_BYTES: usize = 16;
@@ -67,16 +70,21 @@ impl AgeStanza<'_> {
         // An AgeStanza will always contain at least one chunk.
         let (partial_chunk, full_chunks) = self.body.split_last().unwrap();
 
-        // This is faster than collecting from a flattened iterator.
-        let mut data = vec![0; full_chunks.len() * 64 + partial_chunk.len()];
-        for (i, chunk) in full_chunks.iter().enumerate() {
-            // These chunks are guaranteed to be full by construction.
-            data[i * 64..(i + 1) * 64].copy_from_slice(chunk);
-        }
-        data[full_chunks.len() * 64..].copy_from_slice(partial_chunk);
+        let full_len = full_chunks.len() * STANZA_BODY_BYTES_PER_LINE;
+        let partial_len = partial_chunk.len() * 3 / 4;
+        let mut body = vec![0; full_len + partial_len];
+        let (full, partial) = body.split_at_mut(full_len);
 
-        // The chunks are guaranteed to contain Base64 characters by construction.
-        BASE64_STANDARD_NO_PAD.decode(&data).unwrap()
+        // Each line ends on a Base64 block boundary except for the final line.
+        // The stanza parser has already checked that all lines are canonical.
+        for (chunk, out) in full_chunks
+            .iter()
+            .zip(full.chunks_exact_mut(STANZA_BODY_BYTES_PER_LINE))
+        {
+            Base64Unpadded::decode(chunk, out).expect("validated full stanza line");
+        }
+        Base64Unpadded::decode(partial_chunk, partial).expect("validated final stanza line");
+        body
     }
 }
 
@@ -167,7 +175,7 @@ pub mod read {
         sequence::{pair, preceded, terminated},
     };
 
-    use super::{AgeStanza, STANZA_TAG};
+    use super::{AgeStanza, STANZA_BODY_COLUMNS_PER_LINE, STANZA_TAG};
 
     fn is_base64_char(c: u8) -> bool {
         // Check against the ASCII values of the standard Base64 character set.
@@ -220,13 +228,23 @@ pub mod read {
         map(
             many_till(
                 // Any body lines before the last MUST be full-length.
-                terminated(take_while_m_n(64, 64, is_base64_char), newline),
+                terminated(
+                    take_while_m_n(
+                        STANZA_BODY_COLUMNS_PER_LINE,
+                        STANZA_BODY_COLUMNS_PER_LINE,
+                        is_base64_char,
+                    ),
+                    newline,
+                ),
                 // Last body line:
                 // - MUST be short (empty if necessary).
                 // - MUST be a valid Base64 length (i.e. the length must not be 1 mod 4).
                 // - MUST NOT leave trailing bits (if the length is 2 or 3 mod 4).
                 verify(
-                    terminated(take_while_m_n(0, 63, is_base64_char), newline),
+                    terminated(
+                        take_while_m_n(0, STANZA_BODY_COLUMNS_PER_LINE - 1, is_base64_char),
+                        newline,
+                    ),
                     |line: &[u8]| match line.len() % 4 {
                         0 => true,
                         1 => false,
@@ -253,8 +271,10 @@ pub mod read {
                 // Enforce that the only chunk allowed to be shorter than 64 characters
                 // is the last chunk, and that its length must not be 1 mod 4.
                 let (partial_chunk, full_chunks) = chunks.split_last().unwrap();
-                if full_chunks.iter().any(|s| s.len() != 64)
-                    || partial_chunk.len() > 64
+                if full_chunks
+                    .iter()
+                    .any(|s| s.len() != STANZA_BODY_COLUMNS_PER_LINE)
+                    || partial_chunk.len() > STANZA_BODY_COLUMNS_PER_LINE
                     || partial_chunk.len() % 4 == 1
                     || (partial_chunk.len() % 4 == 2
                         && !base64_has_no_trailing_bits_2(partial_chunk.last().unwrap()))
@@ -356,34 +376,33 @@ pub mod read {
 
 /// Encoding operations for age types.
 pub mod write {
-    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
+    use base64ct::{Base64Unpadded, Encoding};
     use cookie_factory::{
         SerializeFn, WriteContext,
         combinator::string,
         multi::separated_list,
         sequence::{pair, tuple},
     };
+    use secrecy::zeroize::Zeroizing;
     use std::io::Write;
     use std::iter;
 
-    use super::STANZA_TAG;
+    use super::{STANZA_BODY_BYTES_PER_LINE, STANZA_BODY_COLUMNS_PER_LINE, STANZA_TAG};
 
-    fn wrapped_encoded_data<'a, W: 'a + Write>(
-        data: &[u8],
-    ) -> impl SerializeFn<W> + 'a + use<'a, W> {
-        let encoded = BASE64_STANDARD_NO_PAD.encode(data);
-
+    fn wrapped_encoded_data<W: Write>(data: &[u8]) -> impl SerializeFn<W> + use<'_, W> {
         move |mut w: WriteContext<W>| {
-            let mut s = encoded.as_str();
+            let mut encoded = Zeroizing::new([0; STANZA_BODY_COLUMNS_PER_LINE]);
+            let mut lines = data.chunks_exact(STANZA_BODY_BYTES_PER_LINE);
 
-            // Write full body lines.
-            while s.len() >= 64 {
-                let (l, r) = s.split_at(64);
+            for line in &mut lines {
+                let l = Base64Unpadded::encode(line, &mut *encoded)
+                    .expect("full stanza line fits the buffer");
                 w = pair(string(l), string("\n"))(w)?;
-                s = r;
             }
 
             // Last body line MUST be short (empty if necessary).
+            let s = Base64Unpadded::encode(lines.remainder(), &mut *encoded)
+                .expect("final stanza line fits the buffer");
             pair(string(s), string("\n"))(w)
         }
     }
@@ -412,18 +431,26 @@ pub mod write {
 
 #[cfg(test)]
 mod tests {
-    use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
     use nom::error::ErrorKind;
 
     use super::{read, write};
+
+    const FULL_STANZA_BODY: [u8; 48] = [
+        0xc4, 0x3e, 0xe8, 0xe1, 0x51, 0x0e, 0xbb, 0x5b, 0x7b, 0x29, 0x94, 0x35, 0x80, 0x38, 0x2a,
+        0xd8, 0x53, 0xf3, 0x04, 0x47, 0x92, 0x46, 0xa6, 0xe7, 0xaa, 0xf4, 0x04, 0x5d, 0xd2, 0xd1,
+        0x63, 0x2d, 0x78, 0xdc, 0x1c, 0x51, 0xea, 0x81, 0x71, 0xb1, 0x45, 0x09, 0x09, 0x10, 0x74,
+        0x12, 0xb5, 0xc0,
+    ];
 
     #[test]
     fn parse_age_stanza() {
         let test_tag = "X25519";
         let test_args = &["CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20"];
-        let test_body = BASE64_STANDARD_NO_PAD
-            .decode("C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig")
-            .unwrap();
+        let test_body = [
+            0x0b, 0x76, 0x40, 0x79, 0x8e, 0xb8, 0x35, 0x74, 0xb8, 0x40, 0x5a, 0xe4, 0xb0, 0xb9,
+            0xb7, 0x10, 0x6c, 0xfe, 0xb8, 0xf4, 0x72, 0x23, 0x47, 0x90, 0xb1, 0x6c, 0x3b, 0x2d,
+            0x66, 0xdb, 0x62, 0x28,
+        ];
 
         // The only body line is short, so we don't need a trailing empty line.
         let test_stanza = "-> X25519 CJM36AHmTbdHSuOQL+NESqyVQE75f2e610iRdLPEN20
@@ -467,9 +494,7 @@ C3ZAeY64NXS4QFrksLm3EGz+uPRyI0eQsWw7LWbbYig
     fn age_stanza_with_full_body() {
         let test_tag = "full-body";
         let test_args = &["some", "arguments"];
-        let test_body = BASE64_STANDARD_NO_PAD
-            .decode("xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA")
-            .unwrap();
+        let test_body = FULL_STANZA_BODY;
 
         // The body fills a complete line, so it requires a trailing empty line.
         let test_stanza = "-> full-body some arguments
@@ -489,12 +514,28 @@ xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA
     }
 
     #[test]
+    fn age_stanza_with_full_and_short_body_lines() {
+        let mut body = FULL_STANZA_BODY.to_vec();
+        body.extend_from_slice(&[0xff, 0xee]);
+        let wire = b"-> wrap-file-key\nxD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA\n/+4\n";
+
+        let serialized = cookie_factory::gen_simple(
+            write::age_stanza("wrap-file-key", &[] as &[&str], &body),
+            Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(serialized, wire);
+
+        let (rest, stanza) = read::age_stanza(wire).unwrap();
+        assert!(rest.is_empty());
+        assert_eq!(stanza.body(), body);
+    }
+
+    #[test]
     fn age_stanza_with_legacy_full_body() {
         let test_tag = "full-body";
         let test_args = &["some", "arguments"];
-        let test_body = BASE64_STANDARD_NO_PAD
-            .decode("xD7o4VEOu1t7KZQ1gDgq2FPzBEeSRqbnqvQEXdLRYy143BxR6oFxsUUJCRB0ErXA")
-            .unwrap();
+        let test_body = FULL_STANZA_BODY;
 
         // The body fills a complete line, but lacks a trailing empty line.
         let test_stanza = "-> full-body some arguments

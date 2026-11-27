@@ -124,7 +124,7 @@ fuser = { version = "0.16", optional = true }
 libc = { version = "0.2", optional = true }
 tar = { version = "0.4", optional = true }
 time = { version = "0.3", optional = true }
-zip = { version = "8", optional = true, default-features = false, features = [
+zip = { version = "9", optional = true, default-features = false, features = [
     "aes-crypto",
     "deflate",
     "bzip2",
@@ -135,14 +135,14 @@ zip = { version = "8", optional = true, default-features = false, features = [
 [build-dependencies]
 clap = { workspace = true, features = ["string", "unstable-styles"] }
 clap_complete = "4"
-clap_mangen = "0.2"
+clap_mangen = "0.3"
 flate2.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 rust-embed.workspace = true
 
 [dev-dependencies]
-trycmd = ">= 0.15.0, < 0.15.10" # trycmd 0.15.10 breaks line ending normalization on Windows.
+trycmd = "1"
 
 [features]
 default = ["ssh"]

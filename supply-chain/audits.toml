@@ -14,6 +14,11 @@ specific handler, so this will fail to run on QNX due to missing `cfmakeraw`; on
 other platforms there is no change.
 """
 
+[[audits.spki]]
+who = "Jack Grigg <thestr4d@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "0.8.0 -> 0.8.1"
+
 [[trusted.pinentry]]
 criteria = "safe-to-deploy"
 user-id = 6289 # Jack Grigg (str4d)

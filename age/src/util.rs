@@ -133,12 +133,16 @@ pub(crate) mod read {
     use nom::{ParseTo, Parser, character::complete::digit1, combinator::verify};
 
     #[cfg(feature = "ssh")]
+    use base64ct::{Base64, Encoding};
+    #[cfg(feature = "ssh")]
     use nom::{
         IResult,
         combinator::map_res,
         error::{ErrorKind, make_error},
         multi::separated_list1,
     };
+    #[cfg(feature = "ssh")]
+    use zeroize::Zeroizing;
 
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
@@ -183,28 +187,47 @@ pub(crate) mod read {
 
     #[cfg(feature = "ssh")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ssh")))]
-    pub(crate) fn wrapped_str_while_encoded(
-        engine: impl Engine,
-    ) -> impl Fn(&str) -> IResult<&str, Vec<u8>> {
+    pub(crate) fn wrapped_base64(input: &str) -> IResult<&str, Zeroizing<Vec<u8>>> {
         use nom::{bytes::streaming::take_while1, character::streaming::line_ending};
 
-        move |input: &str| {
-            map_res(
-                separated_list1(
-                    line_ending,
-                    take_while1(|c| {
-                        let c = c as u8;
-                        // Substitute the character in twice after AA, so that padding
-                        // characters will also be detected as a valid if allowed.
-                        engine.decode_slice([65, 65, c, c], &mut [0, 0, 0]).is_ok()
-                    }),
-                ),
-                |chunks| {
-                    let data = chunks.join("");
-                    engine.decode(data)
-                },
-            )
-            .parse(input)
+        map_res(
+            // Find line boundaries and leave the footer for the caller. The decoder
+            // validates the alphabet and padding after we remove the line endings.
+            separated_list1(
+                line_ending,
+                take_while1(|c| !matches!(c, '\r' | '\n' | '-')),
+            ),
+            |chunks: Vec<&str>| {
+                let data = Zeroizing::new(chunks.join(""));
+                let mut decoded = Zeroizing::new(vec![0; data.len() / 4 * 3]);
+                let len = Base64::decode(data.as_bytes(), decoded.as_mut_slice())?.len();
+                decoded.truncate(len);
+                Ok::<_, base64ct::Error>(decoded)
+            },
+        )
+        .parse(input)
+    }
+
+    #[cfg(all(test, feature = "ssh"))]
+    mod tests {
+        use super::wrapped_base64;
+
+        #[test]
+        fn wrapped_base64_accepts_irregular_wrapping() {
+            let footer = "\n-----END OPENSSH PRIVATE KEY-----";
+            let input = format!("Z\r\nm9v\nYg=\r\n={footer}");
+            let (rest, decoded) = wrapped_base64(&input).unwrap();
+            assert_eq!(rest, footer);
+            assert_eq!(decoded.as_slice(), b"foob");
+        }
+
+        #[test]
+        fn wrapped_base64_requires_canonical_encoding() {
+            for input in ["Yg", "Yh==", "Yg=A", "Yg==AAAA", "Yg ==", "Yg!A"] {
+                assert!(
+                    wrapped_base64(&format!("{input}\n-----END RSA PRIVATE KEY-----")).is_err()
+                );
+            }
         }
     }
 

@@ -5,12 +5,12 @@ members = [
     "age-plugin",
     "rage",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 authors = ["Jack Grigg <thestr4d@gmail.com>"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 repository = "https://github.com/str4d/rage"
 license = "MIT OR Apache-2.0"
 
@@ -20,7 +20,8 @@ age-core = { version = "0.12.0", path = "age-core" }
 
 # Dependencies required by the age specification:
 # - Base64 from RFC 4648
-base64 = "0.22"
+base64 = { version = "0.23", default-features = false, features = ["std"] }
+base64ct = "1"
 
 # - ChaCha20-Poly1305 from RFC 7539
 chacha20poly1305 = { version = "0.11", default-features = false, features = [
@@ -46,7 +47,7 @@ hmac = "0.13"
 sha2 = "0.11"
 
 # - HPKE from RFC 9180
-hpke = { version = "0.14", default-features = false, features = [
+hpke = { version = "0.15", default-features = false, features = [
     "alloc",
     "chacha",
 ] }
@@ -58,7 +59,7 @@ scrypt = { version = "0.12", default-features = false }
 rand = "0.10"
 
 # - Key encoding
-bech32 = "0.11"
+bech32 = "0.12"
 
 # Parsing
 cookie-factory = "0.3.1"
@@ -82,7 +83,8 @@ rust-embed = "8"
 chrono = "0.4"
 clap = { version = "4.3", features = ["derive"] }
 console = { version = "0.16", default-features = false }
-env_logger = "0.10"
+# The CLI disables log timestamps, so omit the `humantime` feature.
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "regex"] }
 log = "0.4"
 
 [workspace.lints.rust]

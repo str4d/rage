@@ -3,7 +3,6 @@ use age_core::{
     primitives::{aead_decrypt, hkdf},
     secrecy::{ExposeSecret, SecretBox},
 };
-use base64::prelude::BASE64_STANDARD;
 use nom::{
     IResult, Parser,
     branch::alt,
@@ -28,14 +27,14 @@ use crate::{
     Callbacks,
     error::DecryptError,
     fl,
-    util::read::{base64_arg, wrapped_str_while_encoded},
+    util::read::{base64_arg, wrapped_base64},
     wfl, wlnfl,
 };
 
 /// An SSH private key for decrypting an age file.
 pub enum UnencryptedKey {
     /// An ssh-rsa private key.
-    SshRsa(Vec<u8>, Box<rsa::RsaPrivateKey>),
+    SshRsa(Vec<u8>, Box<rsa::PrivateKey>),
     /// An ssh-ed25519 key pair.
     SshEd25519(Vec<u8>, SecretBox<[u8; 64]>),
 }
@@ -335,13 +334,13 @@ fn rsa_privkey(input: &str) -> IResult<&str, Identity> {
             map_opt(
                 pair(
                     opt(terminated(rsa_pem_encryption_header, line_ending)),
-                    wrapped_str_while_encoded(BASE64_STANDARD),
+                    wrapped_base64,
                 ),
                 |(enc_header, privkey)| {
                     if enc_header.is_some() {
                         Some(UnsupportedKey::EncryptedPem.into())
                     } else {
-                        rsa::RsaPrivateKey::from_pkcs1_der(&privkey)
+                        rsa::PrivateKey::from_pkcs1_der(&privkey)
                             .ok()
                             .map(|privkey| {
                                 let mut ssh_key = vec![];
@@ -365,7 +364,7 @@ fn openssh_privkey(input: &str) -> IResult<&str, Identity> {
     preceded(
         pair(tag("-----BEGIN OPENSSH PRIVATE KEY-----"), line_ending),
         terminated(
-            map_opt(wrapped_str_while_encoded(BASE64_STANDARD), |privkey| {
+            map_opt(wrapped_base64, |privkey| {
                 read_ssh::openssh_privkey(&privkey).ok().map(|(_, key)| key)
             }),
             pair(line_ending, tag("-----END OPENSSH PRIVATE KEY-----")),

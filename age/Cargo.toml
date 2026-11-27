@@ -26,8 +26,11 @@ i18n-embed.workspace = true
 rand.workspace = true
 
 # OpenSSH-specific dependencies:
+# - Base64 decoding of private keys
+base64ct = { workspace = true, optional = true }
+
 # - RSAES-OAEP from RFC 8017 with SHA-256 and MGF1
-rsa = { version = "=0.10.0-rc.18", default-features = false, features = [
+rsa = { version = "0.10", default-features = false, features = [
     "encoding",
 ], optional = true }
 
@@ -115,6 +118,7 @@ plugin = ["age-core/plugin", "which", "wsl"]
 ssh = [
     "aes",
     "aes-gcm",
+    "base64ct",
     "bcrypt-pbkdf",
     "cbc",
     "ctr",
